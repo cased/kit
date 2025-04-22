@@ -2,7 +2,8 @@
 (block
   (identifier) @type
   (string_lit) @name
-) @definition.block
+  (#eq? @type "resource")
+) @definition.resource
 
 ; Capture variables (variable "my_var")
 (block
@@ -17,12 +18,6 @@
   (string_lit) @name
   (#eq? @type "output")
 ) @definition.output
-
-; Capture locals (locals {})
-(block
-  (identifier) @type
-  (#eq? @type "locals")
-) @definition.locals
 
 ; Capture modules (module "my_module")
 (block
@@ -45,3 +40,18 @@
   (string_lit) @name
   (#eq? @block_type "data")
 ) @definition.data
+
+; Locals and generic identifier-only blocks
+(block
+  (identifier) @type
+  (#eq? @type "locals")
+) @definition.locals
+(block
+  (identifier) @type
+  (#eq? @type "terraform")
+) @definition.terraform
+
+; Fallback: any block with just an identifier
+(block
+  (identifier) @type
+) @definition.block
