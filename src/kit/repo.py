@@ -149,11 +149,9 @@ class Repo:
         repo_map = self.mapper.get_repo_map()
         for file, symbols in repo_map["symbols"].items():
             for sym in symbols:
-                if sym["name"] == symbol_name and (symbol_type is None or sym["type"] == symbol_type):
+                if sym.get("name") == symbol_name and (symbol_type is None or sym.get("type") == symbol_type):
                     usages.append({
                         "file": file,
-                        "type": sym["type"],
-                        "name": sym["name"],
                         "line": sym.get("line"),
                         "context": sym.get("context")
                     })
