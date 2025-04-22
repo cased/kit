@@ -1,0 +1,107 @@
+# Tutorial: Visualizing Codebase Dependencies with kit
+
+## Overview
+
+This tutorial demonstrates how to visualize the import dependency graph of a Python codebase using `kit`. The output is in DOT format, which you can render with Graphviz to generate visual diagrams.
+
+---
+
+## Prerequisites
+
+- Python 3.8+
+- `kit` installed
+- (Optional) Graphviz for rendering DOT files
+- A Python codebase to analyze
+
+---
+
+## Step 1: Build the Dependency Graph
+
+The script parses each Python file and extracts import statements to build a dependency graph.
+
+```python
+from kit import Repo
+from collections import defaultdict
+
+def build_dependency_graph(repo_path: str) -> str:
+    repo = Repo(repo_path)
+    index = repo.index()
+    graph = defaultdict(set)
+    for file, symbols in index["symbols"].items():
+        if file.endswith(".py"):
+            with open(f"{repo_path}/{file}") as f:
+                for line in f:
+                    if line.strip().startswith("import ") or line.strip().startswith("from "):
+                        parts = line.replace("from ", "import ").split("import ")
+                        if len(parts) > 1:
+                            imported = parts[1].split()[0]
+                            graph[file].add(imported)
+    lines = ["digraph G {\n"]
+    for src, tgts in graph.items():
+        for tgt in tgts:
+            lines.append(f'  "{src}" -> "{tgt}";\n')
+    lines.append("}\n")
+    return "".join(lines)
+```
+
+---
+
+## Step 2: Command-Line Interface
+
+Add CLI arguments for repo path and output file:
+
+```python
+import argparse
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Dependency graph visualizer using kit.")
+    parser.add_argument("--repo", required=True, help="Path to the code repository")
+    parser.add_argument("--output", help="Output DOT file (default: stdout)")
+    args = parser.parse_args()
+    dot = build_dependency_graph(args.repo)
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(dot)
+        print(f"Dependency graph written to {args.output}")
+    else:
+        print(dot)
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+## Step 3: Running the Script
+
+Run the visualizer like this:
+
+```sh
+python dependency_graph_visualizer.py --repo /path/to/repo --output graph.dot
+```
+
+---
+
+## Step 4: Rendering the Graph
+
+To visualize the output, use Graphviz:
+
+```sh
+dot -Tpng graph.dot -o graph.png
+```
+
+This will produce an image of your codebase's import relationships.
+
+---
+
+## Extending the Visualizer
+
+- Support other languages by parsing their import/include statements.
+- Add edge weights for frequency of imports.
+- Color nodes by directory or type (module, script, etc).
+
+---
+
+## Conclusion
+
+Visualizing dependencies helps you understand, refactor, and document complex codebases. With `kit` and Graphviz, you can generate these graphs automatically as your project evolves.

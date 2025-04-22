@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install uv
+        run: pip install uv
+      - name: Set up virtualenv and install deps
+        run: |
+          # Create a new virtual environment
+          uv venv .venv
+          # Activate the virtual environment
+          source .venv/bin/activate
+          # Install runtime and dev dependencies from pyproject.toml
+          uv pip install -e .[dev]
+      - name: Lint and Type Check
+        run: |
+          # Activate the virtual environment
+          source .venv/bin/activate
+          # Run mypy type checking
+          mypy src/kit
+      - name: Run Tests
+        run: |
+          # Activate the virtual environment
+          source .venv/bin/activate
+          # Run tests via scripts/test.sh
+          bash scripts/test.sh -v

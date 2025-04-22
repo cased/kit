@@ -1,0 +1,106 @@
+# Tutorial: Semantic Code Search with kit
+
+## Overview
+
+This tutorial demonstrates how to build a semantic code search tool using `kit`. You'll learn how to search for code symbols (functions, classes, etc.) matching a keyword or phrase and return results as JSON.
+
+---
+
+## Prerequisites
+
+- Python 3.8+
+- `kit` installed
+- A codebase to search
+
+---
+
+## Step 1: Implement Semantic Search
+
+Use the `Repo` class to index your codebase and search for symbols matching a query.
+
+```python
+from kit import Repo
+from typing import List, Dict, Any
+
+def semantic_search(repo_path: str, query: str) -> List[Dict[str, Any]]:
+    repo = Repo(repo_path)
+    index = repo.index()
+    results = []
+    for file, symbols in index["symbols"].items():
+        for symbol in symbols:
+            if query.lower() in symbol["name"].lower() or query.lower() in str(symbol).lower():
+                results.append({"file": file, **symbol})
+    return results
+```
+
+---
+
+## Step 2: Command-Line Interface
+
+Add CLI arguments for the repo path, query, and output file:
+
+```python
+import argparse
+import json
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Semantic code search using kit.")
+    parser.add_argument("--repo", required=True, help="Path to the code repository")
+    parser.add_argument("--query", required=True, help="Search query (keyword or phrase)")
+    parser.add_argument("--output", help="Output file for results (JSON)")
+    args = parser.parse_args()
+
+    results = semantic_search(args.repo, args.query)
+    if args.output:
+        with open(args.output, "w") as f:
+            json.dump(results, f, indent=2)
+        print(f"Wrote {len(results)} results to {args.output}")
+    else:
+        print(json.dumps(results, indent=2))
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+## Step 3: Running the Script
+
+Example usage:
+
+```sh
+python semantic_code_search.py --repo /path/to/repo --query "parse json" --output results.json
+```
+
+---
+
+## Example Output
+
+```json
+[
+  {
+    "file": "main.py",
+    "type": "function",
+    "name": "parse_json"
+  },
+  {
+    "file": "utils.py",
+    "type": "function",
+    "name": "parse_json_string"
+  }
+]
+```
+
+---
+
+## Extending the Search
+
+- Use fuzzy matching or embeddings for more advanced semantic search.
+- Add filtering by symbol type (function, class, etc).
+- Integrate with a web UI or chatbot for interactive search.
+
+---
+
+## Conclusion
+
+With a few lines of code, you can build a semantic code search tool for any codebase using `kit`. This makes it easy to find relevant code and accelerate development or review workflows.

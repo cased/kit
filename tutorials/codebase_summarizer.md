@@ -1,0 +1,111 @@
+# Tutorial: Summarizing Your Codebase with kit
+
+## Overview
+
+This tutorial shows how to use `kit` to generate a structured Markdown summary of your codebase, including the file tree and all extracted symbols (functions, classes, etc.).
+
+---
+
+## Prerequisites
+
+- Python 3.8+
+- `kit` installed (e.g., `uv pip install -e .`)
+- A codebase to summarize
+
+---
+
+## Step 1: Summarize the Codebase Structure
+
+Use kit's `Repo` object to index the codebase and gather all relevant information.
+
+```python
+from kit import Repo
+
+def summarize_codebase(repo_path: str) -> str:
+    repo = Repo(repo_path)
+    index = repo.index()
+    lines = [f"# Codebase Summary for {repo_path}\n"]
+    lines.append("## File Tree\n")
+    for file in index["file_tree"]:
+        lines.append(f"- {file}")
+    lines.append("\n## Symbols\n")
+    for file, symbols in index["symbols"].items():
+        lines.append(f"### {file}")
+        for symbol in symbols:
+            lines.append(f"- **{symbol['type']}** `{symbol['name']}`")
+        lines.append("")
+    return "\n".join(lines)
+```
+
+---
+
+## Step 2: Command-Line Interface
+
+Provide CLI arguments for repo path and output file:
+
+```python
+import argparse
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Codebase summarizer using kit.")
+    parser.add_argument("--repo", required=True, help="Path to the code repository")
+    parser.add_argument("--output", help="Output Markdown file (default: stdout)")
+    args = parser.parse_args()
+    summary = summarize_codebase(args.repo)
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(summary)
+        print(f"Summary written to {args.output}")
+    else:
+        print(summary)
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+## Step 3: Running the Script
+
+Run the summarizer like this:
+
+```sh
+python codebase_summarizer.py --repo /path/to/repo --output summary.md
+```
+
+---
+
+## Example Output
+
+```
+# Codebase Summary for /path/to/repo
+
+## File Tree
+- main.py
+- utils.py
+- models/
+- models/model.py
+
+## Symbols
+### main.py
+- **function** `main`
+- **class** `App`
+
+### utils.py
+- **function** `helper`
+```
+
+---
+
+## Customization Ideas
+
+- Add code metrics (lines of code, complexity) to each file or symbol.
+- Include docstrings or comments in the summary.
+- Output in other formats (HTML, CSV, JSON).
+- Integrate with CI to keep summaries up to date.
+
+---
+
+## Conclusion
+
+With `kit`, you can quickly generate a comprehensive, up-to-date summary of any codebase. This is useful for onboarding, audits, or just keeping track of project structure as your code evolves.
