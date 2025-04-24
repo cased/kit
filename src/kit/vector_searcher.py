@@ -27,10 +27,21 @@ class ChromaDBBackend(VectorDBBackend):
         self.persist_dir = persist_dir
         self.client = chromadb.Client(Settings(persist_directory=persist_dir))
         self.collection = self.client.get_or_create_collection("kit_code_chunks")
+
     def add(self, embeddings, metadatas):
+        # Skip adding if there is nothing to add (prevents ChromaDB error)
+        if not embeddings or not metadatas:
+            return
+        # Clear collection before adding (for index overwrite)
+        if hasattr(self.collection, 'delete'):
+            # Delete all records by matching all non-empty IDs
+            self.collection.delete(where={"id": {"$ne": ""}})
         ids = [str(i) for i in range(len(metadatas))]
         self.collection.add(embeddings=embeddings, metadatas=metadatas, ids=ids)
+
     def query(self, embedding, top_k):
+        if top_k <= 0:
+            return []
         results = self.collection.query(query_embeddings=[embedding], n_results=top_k)
         hits = []
         for i in range(len(results["ids"][0])):
@@ -38,6 +49,7 @@ class ChromaDBBackend(VectorDBBackend):
             meta["score"] = results["distances"][0][i]
             hits.append(meta)
         return hits
+
     def persist(self):
         # ChromaDB v1.x does not require or support explicit persist, it is automatic.
         pass
@@ -50,6 +62,7 @@ class VectorSearcher:
         self.backend = backend or ChromaDBBackend(self.persist_dir)
         self.chunk_metadatas: List[Dict[str, Any]] = []
         self.chunk_embeddings: List[List[float]] = []
+
     def build_index(self, chunk_by: str = "symbols"):
         self.chunk_metadatas = []
         self.chunk_embeddings = []
@@ -71,8 +84,13 @@ class VectorSearcher:
                         meta = {"file": path, "code": code}
                         self.chunk_metadatas.append(meta)
                         self.chunk_embeddings.append(emb)
-        self.backend.add(self.chunk_embeddings, self.chunk_metadatas)
-        self.backend.persist()
+        # Only add if we have something to add
+        if self.chunk_embeddings and self.chunk_metadatas:
+            self.backend.add(self.chunk_embeddings, self.chunk_metadatas)
+            self.backend.persist()
+
     def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        if top_k <= 0:
+            return []
         emb = self.embed_fn(query)
         return self.backend.query(emb, top_k)

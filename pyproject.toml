@@ -11,6 +11,9 @@ license = {text = "MIT"}
 dependencies = [
     "tree-sitter-language-pack>=0.7.2",
     "pathspec>=0.11.1",
+    "pytest>=8.3.5",
+    "numpy>=1.25",
+    "chromadb>=0.5.23",
 ]
 
 [project.urls]
@@ -38,7 +41,8 @@ ignore_missing_imports = true
 
 [project.optional-dependencies]
 vector = [
-    "chromadb"
+    "chromadb",
+    "numpy>=1.25"
 ]
 dev = [
     "mypy",
