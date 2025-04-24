@@ -5,7 +5,7 @@ try:
     import chromadb
     from chromadb.config import Settings
 except ImportError:
-    chromadb = None
+    chromadb = None  # type: ignore[assignment]
 
 from pathlib import Path
 
