@@ -20,6 +20,7 @@ LANGUAGES: dict[str, str] = {
     ".ts": "typescript",
     ".tsx": "tsx",
     ".c": "c",
+    ".java": "java",
 }
 
 # Always use absolute path for queries root (one level higher)
