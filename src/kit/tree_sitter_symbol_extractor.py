@@ -7,7 +7,6 @@ from tree_sitter_language_pack import get_parser, get_language
 
 # Set up module-level logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG) # Force debug level for this logger
 
 # Map file extensions to tree-sitter-languages names
 LANGUAGES: dict[str, str] = {
@@ -18,8 +17,9 @@ LANGUAGES: dict[str, str] = {
     ".hcl": "hcl",
     ".tf": "hcl",
     ".ts": "typescript",
-    ".tsx": "tsx",
+    ".tsx": "typescript",
     ".c": "c",
+    ".rb": "ruby",
     ".java": "java",
 }
 
@@ -96,102 +96,63 @@ class TreeSitterSymbolExtractor:
 
             # matches is List[Tuple[int, Dict[str, Node]]]
             # Each tuple is (pattern_index, {capture_name: Node})
-            for pattern_index, captures_dict in matches:
-                logger.debug(f"[MATCH pattern={pattern_index}] Processing match with captures: {list(captures_dict.keys())}")
+            for pattern_index, captures in matches:
+                logger.debug(f"[MATCH pattern={pattern_index}] Processing match with captures: {list(captures.keys())}")
 
-                # Keys in captures_dict do NOT have the leading '@'
-                name_node = captures_dict.get("name")
-                definition_capture = next(((name, node) for name, node in captures_dict.items() if name.startswith("definition.")), None)
-                type_node = captures_dict.get("type") # Get type node as potential fallback
-
-                node_to_use_for_name = None
-                symbol_name_source = None # Track if name came from 'name' or 'type'
-
-                # Prioritize @name, fallback to @type if @name missing but @definition present
-                if name_node:
-                    node_to_use_for_name = name_node
-                    symbol_name_source = 'name'
-                elif type_node and definition_capture: # Fallback for blocks like locals/terraform
-                    node_to_use_for_name = type_node
-                    symbol_name_source = 'type'
-
-                # Proceed if we have a definition and a node to derive the name from
-                if node_to_use_for_name and definition_capture:
-                    definition_capture_name, definition_node = definition_capture
-                    symbol_type = definition_capture_name.split('.')[-1]
-                    
-                    # Handle potential list returns for captures
-                    actual_name_node = node_to_use_for_name
-                    if isinstance(node_to_use_for_name, list):
-                        if node_to_use_for_name: # Check if list is not empty
-                            actual_name_node = node_to_use_for_name[0]
-                            logger.warning(f"[PROCESS]   Capture '{symbol_name_source}' returned a list for match {pattern_index}, using first node: {actual_name_node}. Captures: {list(captures_dict.keys())}")
-                        else:
-                             logger.warning(f"[PROCESS]   Capture '{symbol_name_source}' returned an empty list for match {pattern_index}. Skipping.")
-                             continue # Skip this match if list is empty
-
-                    # Ensure the node we are using is valid before accessing attributes
-                    if not actual_name_node or not hasattr(actual_name_node, 'text') or not hasattr(actual_name_node, 'start_point'):
-                        logger.warning(f"[PROCESS]   Invalid or incomplete node for '{symbol_name_source}' capture in match {pattern_index}: {actual_name_node}. Skipping.")
-                        continue
-
-                    try:
-                        symbol_name = actual_name_node.text.decode('utf-8')
-                        
-                        # HCL Specific: Strip quotes from string literals
-                        if (ext == '.tf') and hasattr(actual_name_node, 'type') and actual_name_node.type == 'string_lit': # Check node's type attribute
-                            if len(symbol_name) >= 2 and symbol_name.startswith('"') and symbol_name.endswith('"'):
-                                symbol_name = symbol_name[1:-1]
-                        
-                        # HCL Specific: Combine type and name for resource/data blocks
-                        if (ext == '.tf') and symbol_type in ["resource", "data"] and symbol_name_source == 'name' and type_node:
-                            if type_node:
-                                actual_type_node = type_node
-                                if isinstance(type_node, list):
-                                    if type_node:
-                                        actual_type_node = type_node[0]
-                                    else:
-                                        actual_type_node = None # Type capture was empty list
-                                
-                                if actual_type_node and hasattr(actual_type_node, 'text'):
-                                    try:
-                                        type_name = actual_type_node.text.decode('utf-8')
-                                        # Strip quotes from type name too
-                                        if hasattr(actual_type_node, 'type') and actual_type_node.type == 'string_lit':
-                                            if len(type_name) >= 2 and type_name.startswith('"') and type_name.endswith('"'):
-                                                type_name = type_name[1:-1]
-                                        symbol_name = f"{type_name}.{symbol_name}"
-                                    except UnicodeDecodeError:
-                                        logger.warning(f"[PROCESS HCL TypeCombine] Could not decode HCL type name from bytes: {actual_type_node.text}")
-                                    except AttributeError:
-                                         logger.warning(f"[PROCESS HCL TypeCombine] Invalid node for HCL 'type' capture: {actual_type_node}")
-                                else:
-                                    logger.warning(f"[PROCESS HCL TypeCombine] Invalid or missing node for HCL 'type' capture: {type_node}")
-                            else:
-                                 logger.warning(f"[PROCESS HCL TypeCombine] Missing 'type' capture for HCL {symbol_type} symbol '{symbol_name}' (Needed for resource/data name combination)")
-                        
-                        logger.info(f"[PROCESS]   Extracted: Name='{symbol_name}', Type='{symbol_type}', Line: {actual_name_node.start_point[0]}") # Use info level for successful extraction
-                        symbols.append({
-                            "name": symbol_name,
-                            "type": symbol_type,
-                            # Use the name node's position for now
-                            "start_line": actual_name_node.start_point[0],
-                            "end_line": actual_name_node.end_point[0],
-                        })
-                    except UnicodeDecodeError:
-                        logger.warning(f"[PROCESS]   Skipping match {pattern_index}: Could not decode symbol name from bytes: {actual_name_node.text}")
-                    except AttributeError as ae:
-                        logger.error(f"[PROCESS]   AttributeError processing node {actual_name_node} (type: {type(actual_name_node)}) in match {pattern_index}: {ae}")
-                        logger.error(traceback.format_exc())
-                    except Exception as inner_e:
-                        logger.error(f"[PROCESS]   Error processing match {pattern_index}: {inner_e}")
-                        logger.error(traceback.format_exc())
+                # Determine symbol name: prefer @name, fallback to @type for blocks like terraform/locals
+                node_candidate = None
+                if 'name' in captures:
+                    node_candidate = captures['name']
+                elif 'type' in captures:
+                    node_candidate = captures['type']
                 else:
-                    # Log reason for skipping
-                    if not definition_capture:
-                        logger.debug(f"[PROCESS]   Skipping match {pattern_index}: Missing 'definition.*' capture. Found: {list(captures_dict.keys())}")
-                    elif not node_to_use_for_name: # Means neither @name nor @type (with @def) was found
-                         logger.debug(f"[PROCESS]   Skipping match {pattern_index}: Missing suitable 'name' or 'type' capture. Found: {list(captures_dict.keys())}")
+                    continue  # skip if neither present
+
+                # Handle list of nodes (tree-sitter may return a list)
+                if isinstance(node_candidate, list):
+                    if not node_candidate:
+                        continue  # skip empty list
+                    actual_name_node = node_candidate[0]
+                else:
+                    actual_name_node = node_candidate
+
+                # Now extract symbol name as before
+                symbol_name = actual_name_node.text.decode() if hasattr(actual_name_node, 'text') else str(actual_name_node)
+                # HCL: Strip quotes from string literals
+                if ext == '.tf' and hasattr(actual_name_node, 'type') and actual_name_node.type == 'string_lit':
+                    if len(symbol_name) >= 2 and symbol_name.startswith('"') and symbol_name.endswith('"'):
+                        symbol_name = symbol_name[1:-1]
+
+                definition_capture = next(((name, node) for name, node in captures.items() if name.startswith("definition.")), None)
+                if definition_capture:
+                    definition_capture_name, definition_node = definition_capture
+                    block_type = definition_capture_name.split('.')[-1]
+                    symbol_type = block_type
+                    subtype = None
+                    # HCL: For resource/data, combine type and name, and set subtype to the specific resource/data type
+                    if ext == '.tf' and block_type in ["resource", "data"]:
+                        type_node = captures.get('type')
+                        if type_node:
+                            if isinstance(type_node, list):
+                                type_node = type_node[0] if type_node else None
+                            if type_node and hasattr(type_node, 'text'):
+                                type_name = type_node.text.decode()
+                                if hasattr(type_node, 'type') and type_node.type == 'string_lit':
+                                    if len(type_name) >= 2 and type_name.startswith('"') and type_name.endswith('"'):
+                                        type_name = type_name[1:-1]
+                                symbol_name = f"{type_name}.{symbol_name}"
+                                subtype = type_name  # subtype is the specific resource/data type
+                    symbol = {
+                        "name": symbol_name,
+                        "type": symbol_type,
+                        "start_line": actual_name_node.start_point[0],
+                        "end_line": actual_name_node.end_point[0],
+                        "code": actual_name_node.text.decode() if hasattr(actual_name_node, 'text') else source_code[actual_name_node.start_byte:actual_name_node.end_byte],
+                    }
+                    if subtype:
+                        symbol["subtype"] = subtype
+                    symbols.append(symbol)
+                    continue
 
         except Exception as e:
             logger.error(f"[EXTRACT] Error parsing or processing file with ext {ext}: {e}")
