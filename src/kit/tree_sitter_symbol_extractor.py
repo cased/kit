@@ -1,23 +1,25 @@
 import os
 import logging
+import traceback
 from pathlib import Path
 from typing import List, Dict, Optional, Any, ClassVar
 from tree_sitter_language_pack import get_parser, get_language
 
 # Set up module-level logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG) # Force debug level for this logger
 
 # Map file extensions to tree-sitter-languages names
-LANGUAGES: dict[str, dict[str, str]] = {
-    ".py": {"ts_name": "python", "query_dir": "python"},
-    ".js": {"ts_name": "javascript", "query_dir": "javascript"},
-    ".go": {"ts_name": "go", "query_dir": "go"},
-    ".rs": {"ts_name": "rust", "query_dir": "rust"},
-    ".hcl": {"ts_name": "hcl", "query_dir": "hcl"},
-    ".tf": {"ts_name": "hcl", "query_dir": "hcl"},
-    ".ts": {"ts_name": "typescript", "query_dir": "typescript"},
-    ".tsx": {"ts_name": "tsx", "query_dir": "typescript"},
-    ".c": {"ts_name": "c", "query_dir": "c"},
+LANGUAGES: dict[str, str] = {
+    ".py": "python",
+    ".js": "javascript",
+    ".go": "go",
+    ".rs": "rust",
+    ".hcl": "hcl",
+    ".tf": "hcl",
+    ".ts": "typescript",
+    ".tsx": "tsx",
+    ".c": "c",
 }
 
 # Always use absolute path for queries root (one level higher)
@@ -30,7 +32,6 @@ class TreeSitterSymbolExtractor:
     """
     LANGUAGES = set(LANGUAGES.keys())
     _parsers: ClassVar[dict[str, Any]] = {}
-    _languages: ClassVar[dict[str, Any]] = {}
     _queries: ClassVar[dict[str, Any]] = {}
 
     @classmethod
@@ -38,257 +39,163 @@ class TreeSitterSymbolExtractor:
         if ext not in LANGUAGES:
             return None
         if ext not in cls._parsers:
-            ts_name = LANGUAGES[ext]["ts_name"]
-            parser = get_parser(ts_name)  # type: ignore[arg-type]
-            lang = get_language(ts_name)  # type: ignore[arg-type]
+            lang_name = LANGUAGES[ext]
+            parser = get_parser(lang_name)
             cls._parsers[ext] = parser
-            cls._languages[ext] = lang
         return cls._parsers[ext]
 
     @classmethod
     def get_query(cls, ext: str) -> Optional[Any]:
-        logger.debug(f"get_query: ext={ext}")
         if ext not in LANGUAGES:
-            logger.debug(f"get_query: ext {ext} not in LANGUAGES")
+            logger.debug(f"get_query: Extension {ext} not supported.")
             return None
         if ext in cls._queries:
             logger.debug(f"get_query: query cached for ext {ext}")
             return cls._queries[ext]
-        lang = cls._languages.get(ext)
-        logger.debug(f"get_query: lang={lang}")
-        if not lang:
-            logger.debug(f"get_query: lang not found for ext {ext}")
-            return None
-        query_dir: str = LANGUAGES[ext]["query_dir"]
+
+        lang_name = LANGUAGES[ext]
+        logger.debug(f"get_query: lang={lang_name}")
+        query_dir: str = lang_name 
         tags_path: str = os.path.join(QUERIES_ROOT, query_dir, "tags.scm")
         logger.debug(f"get_query: tags_path={tags_path} exists={os.path.exists(tags_path)}")
         if not os.path.exists(tags_path):
-            logger.debug(f"get_query: tags_path does not exist for ext {ext}")
+            logger.warning(f"get_query: tags.scm not found at {tags_path}")
             return None
-        from tree_sitter import Query
-        with open(tags_path, "r") as f:
-            query_text: str = f.read()
         try:
-            query: Any = Query(lang, query_text)
+            language = get_language(lang_name)
+            with open(tags_path, 'r') as f:
+                tags_content = f.read()
+            query = language.query(tags_content)
+            cls._queries[ext] = query
+            logger.debug(f"get_query: Query loaded successfully for ext {ext}")
+            return query
         except Exception as e:
             logger.error(f"get_query: Query compile error for ext {ext}: {e}")
+            logger.error(traceback.format_exc()) # Log stack trace
             return None
-        cls._queries[ext] = query
-        logger.debug(f"get_query: Query loaded successfully for ext {ext}")
-        return query
 
-    @classmethod
-    def extract_symbols(cls, ext: str, code: str) -> List[Dict[str, Any]]:
-        parser = cls.get_parser(ext)
-        if not parser:
-            return []
-        tree = parser.parse(bytes(code, "utf8"))
-        root = tree.root_node
-        lang = cls._languages.get(ext)
-        query = cls.get_query(ext)
+    @staticmethod
+    def extract_symbols(ext: str, source_code: str) -> List[Dict[str, Any]]:
+        """Extracts symbols from source code using tree-sitter queries."""
+        logger.debug(f"[EXTRACT] Attempting to extract symbols for ext: {ext}")
         symbols: List[Dict[str, Any]] = []
-        if query:
-            logger.debug(f"[DEBUG] ext: {ext}")
-            logger.debug(f"[DEBUG] Query loaded: {bool(query)}")
-            try:
-                captures_result = query.captures(root)
-                logger.debug(f"[DEBUG] captures_result type: {type(captures_result)}")
-                logger.debug(f"[DEBUG] captures_result repr: {repr(captures_result)}")
-                # tree-sitter-language-pack returns a dict: {capture_name: [nodes]}
-                if not isinstance(captures_result, dict):
-                    logger.warning("extract_symbols: Unexpected captures_result type, expected dict!")
-                    return []
-                block_nodes = captures_result.get("definition.block", [])
-                type_nodes = set(captures_result.get("type", []))
-                name_nodes = set(captures_result.get("name", []))
-                logger.debug(f"[DEBUG] Found {len(block_nodes)} block nodes")
+        query = TreeSitterSymbolExtractor.get_query(ext)
+        parser = TreeSitterSymbolExtractor.get_parser(ext)
 
-                def descendants(node):
-                    cursor = node.walk()
-                    reached_root = False
-                    while not reached_root:
-                        if cursor.goto_first_child():
-                            continue
-                        if cursor.goto_next_sibling():
-                            continue
-                        # Go up until we can go to a next sibling, or hit root
-                        while True:
-                            if not cursor.goto_parent():
-                                reached_root = True
-                                break
-                            if cursor.goto_next_sibling():
-                                break
-                        if not reached_root:
-                            continue
-                        break
-                    # Collect all descendants
-                    nodes = []
-                    def collect(n):
-                        for i in range(n.child_count):
-                            c = n.children[i]
-                            nodes.append(c)
-                            collect(c)
-                    collect(node)
-                    return nodes
+        if not query or not parser:
+            logger.warning(f"[EXTRACT] No query or parser available for extension: {ext}")
+            return []
 
-                for block in block_nodes:
-                    # Find type and name among block's children
-                    btype = None
-                    bname = None
-                    for child in getattr(block, 'children', []):
-                        if child in type_nodes:
-                            btype = child.text.decode()
-                        if child in name_nodes:
-                            bname = child.text.decode().strip('"')
-                    # Fallback: look for type/name among descendants
-                    if not btype or not bname:
-                        for descendant in descendants(block):
-                            if not btype and descendant in type_nodes:
-                                btype = descendant.text.decode()
-                            if not bname and descendant in name_nodes:
-                                bname = descendant.text.decode().strip('"')
-                    symbol = {"type": btype or "block"}
-                    if bname:
-                        symbol["name"] = bname
-                    symbols.append(symbol)
-                logger.debug(f"[DEBUG] Extracted symbols: {symbols}")
-            except Exception as e:
-                logger.error(f"[DEBUG] Query error: {e}")
-                return []
-        # fallback: hardcoded (for .py, etc)
-        def walk(node: Any) -> None:
-            # Python
-            if ext == ".py":
-                if node.type == "function_definition":
-                    ident = node.child_by_field_name("name")
-                    if ident:
+        try:
+            tree = parser.parse(bytes(source_code, "utf8"))
+            root = tree.root_node
+
+            matches = query.matches(root)
+            logger.debug(f"[EXTRACT] Found {len(matches)} matches.")
+
+            # matches is List[Tuple[int, Dict[str, Node]]]
+            # Each tuple is (pattern_index, {capture_name: Node})
+            for pattern_index, captures_dict in matches:
+                logger.debug(f"[MATCH pattern={pattern_index}] Processing match with captures: {list(captures_dict.keys())}")
+
+                # Keys in captures_dict do NOT have the leading '@'
+                name_node = captures_dict.get("name")
+                definition_capture = next(((name, node) for name, node in captures_dict.items() if name.startswith("definition.")), None)
+                type_node = captures_dict.get("type") # Get type node as potential fallback
+
+                node_to_use_for_name = None
+                symbol_name_source = None # Track if name came from 'name' or 'type'
+
+                # Prioritize @name, fallback to @type if @name missing but @definition present
+                if name_node:
+                    node_to_use_for_name = name_node
+                    symbol_name_source = 'name'
+                elif type_node and definition_capture: # Fallback for blocks like locals/terraform
+                    node_to_use_for_name = type_node
+                    symbol_name_source = 'type'
+
+                # Proceed if we have a definition and a node to derive the name from
+                if node_to_use_for_name and definition_capture:
+                    definition_capture_name, definition_node = definition_capture
+                    symbol_type = definition_capture_name.split('.')[-1]
+                    
+                    # Handle potential list returns for captures
+                    actual_name_node = node_to_use_for_name
+                    if isinstance(node_to_use_for_name, list):
+                        if node_to_use_for_name: # Check if list is not empty
+                            actual_name_node = node_to_use_for_name[0]
+                            logger.warning(f"[PROCESS]   Capture '{symbol_name_source}' returned a list for match {pattern_index}, using first node: {actual_name_node}. Captures: {list(captures_dict.keys())}")
+                        else:
+                             logger.warning(f"[PROCESS]   Capture '{symbol_name_source}' returned an empty list for match {pattern_index}. Skipping.")
+                             continue # Skip this match if list is empty
+
+                    # Ensure the node we are using is valid before accessing attributes
+                    if not actual_name_node or not hasattr(actual_name_node, 'text') or not hasattr(actual_name_node, 'start_point'):
+                        logger.warning(f"[PROCESS]   Invalid or incomplete node for '{symbol_name_source}' capture in match {pattern_index}: {actual_name_node}. Skipping.")
+                        continue
+
+                    try:
+                        symbol_name = actual_name_node.text.decode('utf-8')
+                        
+                        # HCL Specific: Strip quotes from string literals
+                        if (ext == '.tf') and hasattr(actual_name_node, 'type') and actual_name_node.type == 'string_lit': # Check node's type attribute
+                            if len(symbol_name) >= 2 and symbol_name.startswith('"') and symbol_name.endswith('"'):
+                                symbol_name = symbol_name[1:-1]
+                        
+                        # HCL Specific: Combine type and name for resource/data blocks
+                        if (ext == '.tf') and symbol_type in ["resource", "data"] and symbol_name_source == 'name' and type_node:
+                            if type_node:
+                                actual_type_node = type_node
+                                if isinstance(type_node, list):
+                                    if type_node:
+                                        actual_type_node = type_node[0]
+                                    else:
+                                        actual_type_node = None # Type capture was empty list
+                                
+                                if actual_type_node and hasattr(actual_type_node, 'text'):
+                                    try:
+                                        type_name = actual_type_node.text.decode('utf-8')
+                                        # Strip quotes from type name too
+                                        if hasattr(actual_type_node, 'type') and actual_type_node.type == 'string_lit':
+                                            if len(type_name) >= 2 and type_name.startswith('"') and type_name.endswith('"'):
+                                                type_name = type_name[1:-1]
+                                        symbol_name = f"{type_name}.{symbol_name}"
+                                    except UnicodeDecodeError:
+                                        logger.warning(f"[PROCESS HCL TypeCombine] Could not decode HCL type name from bytes: {actual_type_node.text}")
+                                    except AttributeError:
+                                         logger.warning(f"[PROCESS HCL TypeCombine] Invalid node for HCL 'type' capture: {actual_type_node}")
+                                else:
+                                    logger.warning(f"[PROCESS HCL TypeCombine] Invalid or missing node for HCL 'type' capture: {type_node}")
+                            else:
+                                 logger.warning(f"[PROCESS HCL TypeCombine] Missing 'type' capture for HCL {symbol_type} symbol '{symbol_name}' (Needed for resource/data name combination)")
+                        
+                        logger.info(f"[PROCESS]   Extracted: Name='{symbol_name}', Type='{symbol_type}', Line: {actual_name_node.start_point[0]}") # Use info level for successful extraction
                         symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "function",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
+                            "name": symbol_name,
+                            "type": symbol_type,
+                            # Use the name node's position for now
+                            "start_line": actual_name_node.start_point[0],
+                            "end_line": actual_name_node.end_point[0],
                         })
-                elif node.type == "class_definition":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "class",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-            # JS
-            elif ext == ".js":
-                if node.type == "function_declaration":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "function",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-                elif node.type == "class_declaration":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "class",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-            # Go
-            elif ext == ".go":
-                if node.type == "function_declaration":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "function",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-                elif node.type == "type_declaration":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "type",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-            # Rust
-            elif ext == ".rs":
-                if node.type == "function_item":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "function",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-                elif node.type == "struct_item":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "struct",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-            # HCL (Terraform)
-            elif ext in {".hcl", ".tf"}:
-                if node.type == "block":
-                    label = node.child_by_field_name("label")
-                    # Try both field name 'type' and fallback to first child
-                    type_node = node.child_by_field_name("type")
-                    if not type_node and len(node.children) > 0:
-                        type_node = node.children[0]
-                    block_type = type_node.text.decode() if type_node else "block"
-                    if label:
-                        symbols.append({
-                            "name": label.text.decode(),
-                            "type": block_type,
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-            # TypeScript
-            elif ext in {".ts", ".tsx"}:
-                if node.type == "function_declaration":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "function",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-                elif node.type == "class_declaration":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "class",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-                elif node.type == "interface_declaration":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "interface",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-                elif node.type == "enum_declaration":
-                    ident = node.child_by_field_name("name")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "enum",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-            # C
-            elif ext == ".c":
-                if node.type == "function_definition":
-                    ident = node.child_by_field_name("declarator")
-                    if ident:
-                        symbols.append({
-                            "name": ident.text.decode(),
-                            "type": "function",
-                            "code": node.text.decode() if hasattr(node, 'text') else None
-                        })
-            for child in node.children:
-                walk(child)
-        walk(root)
+                    except UnicodeDecodeError:
+                        logger.warning(f"[PROCESS]   Skipping match {pattern_index}: Could not decode symbol name from bytes: {actual_name_node.text}")
+                    except AttributeError as ae:
+                        logger.error(f"[PROCESS]   AttributeError processing node {actual_name_node} (type: {type(actual_name_node)}) in match {pattern_index}: {ae}")
+                        logger.error(traceback.format_exc())
+                    except Exception as inner_e:
+                        logger.error(f"[PROCESS]   Error processing match {pattern_index}: {inner_e}")
+                        logger.error(traceback.format_exc())
+                else:
+                    # Log reason for skipping
+                    if not definition_capture:
+                        logger.debug(f"[PROCESS]   Skipping match {pattern_index}: Missing 'definition.*' capture. Found: {list(captures_dict.keys())}")
+                    elif not node_to_use_for_name: # Means neither @name nor @type (with @def) was found
+                         logger.debug(f"[PROCESS]   Skipping match {pattern_index}: Missing suitable 'name' or 'type' capture. Found: {list(captures_dict.keys())}")
+
+        except Exception as e:
+            logger.error(f"[EXTRACT] Error parsing or processing file with ext {ext}: {e}")
+            logger.error(traceback.format_exc())
+            return [] # Return empty list on error
+
+        logger.debug(f"[EXTRACT] Finished extraction for ext {ext}. Found {len(symbols)} symbols.")
         return symbols

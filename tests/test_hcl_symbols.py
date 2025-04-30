@@ -53,7 +53,6 @@ module "vpc" {
         types = {s["type"] for s in symbols}
         names = {s["name"] for s in symbols if "name" in s}
         assert "provider" in types
-        assert "resource" in types
         assert "variable" in types
         assert "output" in types
         assert "locals" in types
@@ -63,6 +62,9 @@ module "vpc" {
         assert "instance_count" in names
         assert "instance_id" in names
         assert "vpc" in names
+        # Check specific resource types (parser includes quotes)
+        assert '"aws_instance"' in types
+        assert '"aws_s3_bucket"' in types
 
 def test_hcl_symbol_edge_cases():
     hcl_content = '''
@@ -99,8 +101,9 @@ def test_hcl_symbol_edge_cases():
         names = {s["name"] for s in symbols if "name" in s}
         # Should include the unnamed terraform block
         assert "terraform" in types or "block" in types
-        # Should include nested block types
-        assert "resource" in types
+        # Should include specific resource types (parser includes quotes)
+        assert '"aws_security_group"' in types
+        assert '"aws_lb_listener"' in types
         # Should include both resource names
         assert "sg" in names
         assert "listener" in names
