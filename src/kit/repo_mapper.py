@@ -105,9 +105,8 @@ class RepoMapper:
             abs_path = self.repo_path / file_path
             if self._should_ignore(abs_path):
                 return []
-            if ext == ".py":
-                return self._extract_python_symbols(abs_path)
-            elif ext in TreeSitterSymbolExtractor.LANGUAGES:
+            # Use TreeSitterSymbolExtractor for all supported languages, including Python
+            if ext in TreeSitterSymbolExtractor.LANGUAGES:
                 return TreeSitterSymbolExtractor.extract_symbols(ext, abs_path.read_text(encoding="utf-8", errors="ignore"))
             else:
                 return []
@@ -117,28 +116,9 @@ class RepoMapper:
             if self._should_ignore(file):
                 continue
             ext = file.suffix.lower()
-            if ext == ".py":
-                symbols.extend(self._extract_python_symbols(file))
-            elif ext in TreeSitterSymbolExtractor.LANGUAGES:
+            # Use TreeSitterSymbolExtractor for all supported languages, including Python
+            if ext in TreeSitterSymbolExtractor.LANGUAGES:
                 symbols.extend(TreeSitterSymbolExtractor.extract_symbols(ext, file.read_text(encoding="utf-8", errors="ignore")))
-        return symbols
-
-    def _extract_python_symbols(self, file: Path) -> List[Dict[str, Any]]:
-        symbols: List[Dict[str, Any]] = []
-        try:
-            with open(file, "r", encoding="utf-8", errors="ignore") as f:
-                code = f.read()
-        except Exception:
-            return []
-        try:
-            tree = ast.parse(code, filename=str(file))
-            for node in ast.iter_child_nodes(tree):
-                if isinstance(node, ast.FunctionDef):
-                    symbols.append({"name": node.name, "type": "function", "file": str(file)})
-                elif isinstance(node, ast.ClassDef):
-                    symbols.append({"name": node.name, "type": "class", "file": str(file)})
-        except Exception:
-            pass
         return symbols
 
     def get_repo_map(self) -> Dict[str, Any]:
@@ -150,3 +130,16 @@ class RepoMapper:
             "file_tree": self.get_file_tree(),
             "symbols": {k: v["symbols"] for k, v in self._symbol_map.items()}
         }
+
+    # --- Helper methods ---
+    def _should_ignore(self, path: Path) -> bool:
+        if not path.is_file():
+            return True
+        rel_path = str(path.relative_to(self.repo_path))
+        # Always ignore .git and its contents
+        if '.git' in path.parts:
+            return True
+        # Ignore files matching .gitignore
+        if self._gitignore_spec and self._gitignore_spec.match_file(rel_path):
+            return True
+        return False

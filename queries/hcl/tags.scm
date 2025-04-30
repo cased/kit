@@ -1,8 +1,9 @@
 ; Capture resource blocks (resource "aws_instance" "example")
 (block
-  (identifier) @type
+  (identifier) @block_keyword
+  (string_lit) @type
   (string_lit) @name
-  (#eq? @type "resource")
+  (#eq? @block_keyword "resource")
 ) @definition.resource
 
 ; Capture variables (variable "my_var")
@@ -50,8 +51,3 @@
   (identifier) @type
   (#eq? @type "terraform")
 ) @definition.terraform
-
-; Fallback: any block with just an identifier
-(block
-  (identifier) @type
-) @definition.block
