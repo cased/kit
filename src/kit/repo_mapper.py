@@ -132,14 +132,4 @@ class RepoMapper:
         }
 
     # --- Helper methods ---
-    def _should_ignore(self, path: Path) -> bool:
-        if not path.is_file():
-            return True
-        rel_path = str(path.relative_to(self.repo_path))
-        # Always ignore .git and its contents
-        if '.git' in path.parts:
-            return True
-        # Ignore files matching .gitignore
-        if self._gitignore_spec and self._gitignore_spec.match_file(rel_path):
-            return True
-        return False
+    # NOTE: Second _should_ignore definition removed to avoid overriding the earlier version

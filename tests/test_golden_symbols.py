@@ -161,3 +161,28 @@ def test_hcl_symbol_extraction():
 
         # Assert the exact set matches
         assert names_types == expected, f"Mismatch: Got {names_types}, Expected {expected}"
+
+
+# --- Go Test ---
+def test_go_symbol_extraction():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        golden_content = open(os.path.join(os.path.dirname(__file__), "golden_go.go")).read()
+        symbols = run_extraction(tmpdir, "golden_go.go", golden_content)
+        names_types = {(s["name"], s["type"]) for s in symbols}
+
+        # Expected symbols based on Go query
+        expected = {
+            ("User", "struct"),         # type User struct {...}
+            ("Greeter", "interface"),   # type Greeter interface {...}
+            ("Greet", "method"),        # func (u User) Greet() string {...}
+            ("Add", "function"),        # func Add(a, b int) int {...}
+            ("HelperFunction", "function"), # func HelperFunction() {...}
+            ("main", "function"),       # func main() {...}
+        }
+
+        # Assert individual expected symbols exist
+        for item in expected:
+            assert item in names_types, f"Expected symbol {item} not found in {names_types}"
+
+        # Assert the exact set matches
+        assert names_types == expected, f"Mismatch: Got {names_types}, Expected {expected}"

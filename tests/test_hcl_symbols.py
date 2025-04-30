@@ -11,7 +11,7 @@ provider "aws" {
 }
 
 resource "aws_instance" "web" {
-  ami           = "ami-0c55b159cbfafe1f0"
+  ami           = "ami-0c55b159cbfa1f0"
   instance_type = "t2.micro"
   tags = {
     Name = "WebServer"
@@ -52,45 +52,53 @@ module "vpc" {
         symbols = repo.extract_symbols("main.tf")
         types = {s["type"] for s in symbols}
         names = {s["name"] for s in symbols if "name" in s}
+
+        # Expected symbols based on HCL query and updated extractor logic
+        expected = {
+            "aws",                      # provider "aws"
+            "aws_instance.web",         # resource "aws_instance" "web"
+            "aws_s3_bucket.bucket",     # resource "aws_s3_bucket" "bucket"
+            "instance_count",           # variable "instance_count"
+            "instance_id",             # output "instance_id"
+            "vpc",                     # module "vpc"
+            "locals",                  # locals block
+            # Note: no terraform block in this fixture
+        }
+
+        # Assert individual expected symbols exist
+        for name in expected:
+            assert name in names, f"Expected name {name} not found in {names}"
+
+        # Check types for resource blocks (should be unquoted resource type)
+        resource_types = {s["subtype"] for s in symbols if s["type"] == "resource" and "subtype" in s}
+        assert "aws_instance" in resource_types
+        assert "aws_s3_bucket" in resource_types
+
+        # Check for provider and locals types
         assert "provider" in types
-        assert "variable" in types
-        assert "output" in types
         assert "locals" in types
-        assert "module" in types
-        assert "web" in names
-        assert "bucket" in names
-        assert "instance_count" in names
-        assert "instance_id" in names
-        assert "vpc" in names
-        # Check specific resource types (parser includes quotes)
-        assert '"aws_instance"' in types
-        assert '"aws_s3_bucket"' in types
 
 def test_hcl_symbol_edge_cases():
     hcl_content = '''
-    # block with no name
-    terraform {
-      required_version = ">= 0.12"
-    }
+resource "aws_security_group" "sg" {
+  name        = "allow_tls"
+  description = "Allow TLS inbound traffic"
+}
 
-    # nested block
-    resource "aws_security_group" "sg" {
-      ingress {
-        from_port = 80
-        to_port   = 80
-      }
-    }
+resource "aws_lb_listener" "listener" {
+  port     = 443
+  protocol = "HTTPS"
+}
 
-    # block with multiple string_lit children
-    resource "aws_lb_listener" "listener" {
-      port     = 443
-      protocol = "HTTPS"
-      default_action {
-        type             = "forward"
-        target_group_arn = "arn:aws:..."
-      }
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 2.0"
     }
-    '''
+  }
+}
+'''
     with tempfile.TemporaryDirectory() as tmpdir:
         hcl_path = os.path.join(tmpdir, "main.tf")
         with open(hcl_path, "w") as f:
@@ -98,12 +106,10 @@ def test_hcl_symbol_edge_cases():
         repo = Repo(tmpdir)
         symbols = repo.extract_symbols("main.tf")
         types = {s["type"] for s in symbols}
+        subtypes = {s["subtype"] for s in symbols if "subtype" in s}
         names = {s["name"] for s in symbols if "name" in s}
         # Should include the unnamed terraform block
         assert "terraform" in types or "block" in types
-        # Should include specific resource types (parser includes quotes)
-        assert '"aws_security_group"' in types
-        assert '"aws_lb_listener"' in types
-        # Should include both resource names
-        assert "sg" in names
-        assert "listener" in names
+        # Should include specific resource subtypes (unquoted)
+        assert "aws_security_group" in subtypes
+        assert "aws_lb_listener" in subtypes

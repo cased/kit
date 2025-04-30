@@ -12,7 +12,7 @@ Features a "mid-level API" to build your own custom tools, LLM workflows, and au
 - **Automated documentation generators** — Extract code structure and docstrings to build up-to-date docs.
 - **Codebase summarizers** — Summarize files, modules, or entire repos for onboarding or LLM context.
 - **Dependency graph visualizers** — Visualize code relationships and dependencies for better understanding.
-- Multi-language symbol extraction, chunking, and more for Python, JS, Go, HCL, etc.
+- Multi-language symbol extraction, chunking, and more for Python, JavaScript/TypeScript/TSX, Go, Rust, HCL/Terraform, C, Ruby, Java, etc.
 
 ---
 
@@ -26,13 +26,14 @@ Features a "mid-level API" to build your own custom tools, LLM workflows, and au
 - [Composing Primitives for Advanced Workflows](#composing-primitives-for-advanced-workflows)
 - [Extending Language Support](#extending-language-support)
 - [Running Tests](#running-tests)
+- [Demos and Tutorials](#demos-and-tutorials)
 - [Vision](#vision)
 - [File and Directory Exclusion (.gitignore support)](#file-and-directory-exclusion-gitignore-support)
 
 ---
 
 ## Features
-- Multi-language symbol extraction (Python, Go, JS, HCL, ...)
+- Multi-language symbol extraction (Python, JavaScript/TypeScript/TSX, Go, Rust, HCL/Terraform, C, Ruby, Java)
 - Query-driven, extensible via tree-sitter `tags.scm`
 - Fast file tree and codebase indexing
 - Regex/text code search with match details
@@ -332,6 +333,39 @@ Or to run a specific test file:
 ```sh
 uv pytest tests/test_hcl_symbols.py
 ```
+
+---
+
+## Demos and Tutorials
+
+`kit` ships with example projects and step-by-step walkthroughs that showcase how to build real tools on top of the core primitives.
+
+### Demos (`/demos`)
+
+| Demo | What it Shows |
+|------|---------------|
+| **ai_code_reviewer** | End-to-end AI PR reviewer that uses `Repo.extract_symbols`, context extraction, and an LLM to leave PR comments. |
+
+To run a demo:
+
+```bash
+cd demos/ai_code_reviewer
+uv pip install -r requirements.txt
+python main.py --help
+```
+
+### Tutorials (`/tutorials`)
+
+| Tutorial | Goal |
+|----------|------|
+| **ai_pr_reviewer.md** | Build an AI pull-request reviewer in <15 min. |
+| **semantic_code_search.md** | Implement a vector-based code search engine with ChromaDB. |
+| **automated_doc_gen.md** | Auto-generate API docs by chunking symbols and feeding them to an LLM. |
+| **codebase_summarizer.md** | Summarize an entire repo for onboarding. |
+| **dependency_graph_visualizer.md** | Visualize cross-file dependencies via symbol usages. |
+| **dump_repo_map.md** | Export the full repo map (file tree + symbols) to JSON. |
+
+These walkthroughs assume you have followed the Quickstart section and installed optional dependencies where noted.
 
 ---
 
