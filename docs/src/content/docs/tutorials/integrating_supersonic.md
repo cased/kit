@@ -1,0 +1,95 @@
+---
+title: Integrating with Supersonic
+description: Using kit for code analysis and Supersonic for automated PR creation.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+# Integrating `kit` with `Supersonic` for Automated PRs
+
+`kit` excels at understanding and analyzing codebases, while [Supersonic](https://github.com/cased/supersonic) provides a high-level Python API specifically designed for programmatically creating GitHub Pull Requests. Combining them allows you to build powerful workflows that analyze code, generate changes, and automatically propose those changes via PRs.
+
+<Aside type="note" title="Use Case">
+  Think of workflows like AI-powered code refactoring, automated dependency updates based on analysis, or generating documentation snippets from code and submitting them for review.
+</Aside>
+
+## The Workflow: Analyze with `kit`, Act with `Supersonic`
+
+A typical integration pattern looks like this:
+
+1.  **Analyze Code with `kit`**: Use `kit.Repo` methods like `extract_symbols`, `find_symbol_usages`, or `search_semantic` to understand the codebase or identify areas for modification.
+2.  **Generate Changes**: Based on the analysis (potentially involving an LLM), generate the new code content or identify necessary file modifications.
+3.  **Create PR with `Supersonic`**: Use `Supersonic`'s simple API (`create_pr_from_content`, `create_pr_from_file`, etc.) to package the generated changes into a new Pull Request on GitHub.
+
+## Example: AI Refactoring Suggestion
+
+Imagine an AI tool that uses `kit` to analyze a Python file, identifies a potential refactoring, generates the improved code, and then uses `Supersonic` to create a PR.
+
+```python
+import kit
+from supersonic import Supersonic
+import os
+
+# Assume kit.Repo is initialized with a local path
+LOCAL_REPO_PATH = "/path/to/your/local/repo/clone"
+# repo_analyzer = kit.Repo(LOCAL_REPO_PATH)
+# Note: kit analysis methods like extract_symbols would still be used here in a real scenario.
+
+# Assume 'ai_generate_refactoring' is your function that uses an LLM
+# potentially fed with context from kit (not shown here for brevity)
+def ai_generate_refactoring(original_code: str) -> str:
+    # ... your AI logic here ...
+    improved_code = original_code.replace("old_function", "new_function") # Simplified example
+    return improved_code
+
+# --- Configuration ---
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+REPO_OWNER_SLASH_NAME = "your-org/your-repo" # For Supersonic PR creation
+RELATIVE_FILE_PATH = "src/legacy_module.py" # Relative path within the repo
+FULL_FILE_PATH = os.path.join(LOCAL_REPO_PATH, RELATIVE_FILE_PATH)
+TARGET_BRANCH = "main" # Or dynamically determine
+
+# --- Main Workflow ---
+
+try:
+    # 1. Get original content (assuming local repo)
+    if not os.path.exists(FULL_FILE_PATH):
+        print(f"Error: File not found at {FULL_FILE_PATH}")
+        exit()
+
+    with open(FULL_FILE_PATH, 'r') as f:
+        original_content = f.read()
+
+    # 2. Generate Changes (using AI or other logic)
+    refactored_content = ai_generate_refactoring(original_content)
+
+    if refactored_content != original_content:
+        # 3. Create PR with Supersonic
+        supersonic_client = Supersonic(GITHUB_TOKEN)
+        pr_title = f"AI Refactor: Improve {RELATIVE_FILE_PATH}"
+        pr_body = f"""
+        AI analysis suggests refactoring in `{RELATIVE_FILE_PATH}`.
+
+        This PR applies the suggested changes. Please review carefully.
+        """
+
+        pr_url = supersonic_client.create_pr_from_content(
+            repo=REPO_OWNER_SLASH_NAME,
+            content=refactored_content,
+            upstream_path=RELATIVE_FILE_PATH, # Path within the target repo
+            title=pr_title,
+            description=pr_body,
+            base_branch=TARGET_BRANCH,
+            labels=["ai-refactor", "needs-review"],
+            draft=True # Good practice for AI suggestions
+        )
+        print(f"Successfully created PR: {pr_url}")
+    else:
+        print("No changes generated.")
+
+except Exception as e:
+    print(f"An error occurred: {e}")
+
+```
+
+This example illustrates how `kit`'s analytical strengths can be combined with `Supersonic`'s action-oriented PR capabilities to build powerful code automation.

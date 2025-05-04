@@ -22,7 +22,7 @@ import kit
 # Load a local repository
 repo = kit.Repo("/path/to/your/local/codebase")
 
-# Or a remote public GitHub repo
+# Load a remote public GitHub repo
 # repo = kit.Repo("https://github.com/owner/repo")
 
 # Explore the repo

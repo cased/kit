@@ -6,7 +6,11 @@ title: AI PR Reviewer
 
 ## Overview
 
-This guide shows how to build a robust, language-agnostic AI-powered Pull Request (PR) reviewer using the symbol extraction engine in this repo. You'll learn how to extract code structure from PRs, generate meaningful context for LLMs, and automate actionable code review comments on GitHub. For a concrete implementation example of the concepts discussed here, you can explore the code in the `demos/ai_code_reviewer` directory in the main repository.
+This guide shows how to build a robust, language-agnostic AI-powered Pull Request (PR) reviewer using various capabilities of `kit`. You'll learn how to extract code structure from PRs, generate meaningful context for LLMs, and automate actionable code review comments on GitHub. For a concrete implementation example of the concepts discussed here, you can explore the code in the `demos/ai_code_reviewer` directory in the main repository.
+
+<Aside type="note" title="Proposing Changes">
+  This tutorial focuses on using `kit` to *analyze* code for review comments. If your workflow involved the AI *generating code modifications*, you could use a library like [Supersonic](https://github.com/cased/supersonic) to easily create a new Pull Request containing those changes. See our guide on [Integrating with Supersonic](/tutorials/integrating_supersonic/) for more details.
+</Aside>
 
 ---
 

@@ -8,17 +8,6 @@ title: Dependency Graph Visualizer
 
 This tutorial demonstrates how to visualize the import dependency graph of a Python codebase using `kit`. The output is in DOT format, which you can render with Graphviz to generate visual diagrams.
 
----
-
-## Prerequisites
-
-- Python 3.8+
-- `kit` installed
-- (Optional) Graphviz for rendering DOT files
-- A Python codebase to analyze
-
----
-
 ## Step 1: Build the Dependency Graph
 
 The script parses each Python file and extracts import statements to build a dependency graph.
@@ -48,8 +37,6 @@ def build_dependency_graph(repo_path: str) -> str:
     return "".join(lines)
 ```
 
----
-
 ## Step 2: Command-Line Interface
 
 Add CLI arguments for repo path and output file:
@@ -74,8 +61,6 @@ if __name__ == "__main__":
     main()
 ```
 
----
-
 ## Step 3: Running the Script
 
 Run the visualizer like this:
@@ -83,8 +68,6 @@ Run the visualizer like this:
 ```sh
 python dependency_graph_visualizer.py --repo /path/to/repo --output graph.dot
 ```
-
----
 
 ## Step 4: Rendering the Graph
 
@@ -96,15 +79,11 @@ dot -Tpng graph.dot -o graph.png
 
 This will produce an image of your codebase's import relationships.
 
----
-
 ## Extending the Visualizer
 
 - Support other languages by parsing their import/include statements.
 - Add edge weights for frequency of imports.
 - Color nodes by directory or type (module, script, etc).
-
----
 
 ## Conclusion
 
