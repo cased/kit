@@ -8,7 +8,7 @@ export default defineConfig({
   site: 'https://example.com', // Replace with your deployment URL later
   integrations: [
     starlight({
-      title: 'Kit Documentation',
+      title: 'kit 🛠️ Documentation',
       customCss: ['/src/theme.css'],
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/cased/kit' }
