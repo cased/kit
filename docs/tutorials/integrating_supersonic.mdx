@@ -3,15 +3,14 @@ title: Integrating with Supersonic
 description: Using kit for code analysis and Supersonic for automated PR creation.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
 # Integrating `kit` with `Supersonic` for Automated PRs
 
 `kit` excels at understanding and analyzing codebases, while [Supersonic](https://github.com/cased/supersonic) provides a high-level Python API specifically designed for programmatically creating GitHub Pull Requests. Combining them allows you to build powerful workflows that analyze code, generate changes, and automatically propose those changes via PRs.
 
-<Aside type="note" title="Use Case">
+<Note>
+  **Use Case**
   Think of workflows like AI-powered code refactoring, automated dependency updates based on analysis, or generating documentation snippets from code and submitting them for review.
-</Aside>
+</Note>
 
 ## The Workflow: Analyze with `kit`, Act with `Supersonic`
 

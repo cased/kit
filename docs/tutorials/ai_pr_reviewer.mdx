@@ -2,15 +2,16 @@
 title: AI PR Reviewer
 ---
 
-# Building a Production-Ready AI PR Reviewer with Symbol Extraction
+## Building a Production-Ready AI PR Reviewer with Symbol Extraction
 
 ## Overview
 
 This guide shows how to build a robust, language-agnostic AI-powered Pull Request (PR) reviewer using various capabilities of `kit`. You'll learn how to extract code structure from PRs, generate meaningful context for LLMs, and automate actionable code review comments on GitHub. For a concrete implementation example of the concepts discussed here, you can explore the code in the `demos/ai_code_reviewer` directory in the main repository.
 
-<Aside type="note" title="Proposing Changes">
-  This tutorial focuses on using `kit` to *analyze* code for review comments. If your workflow involved the AI *generating code modifications*, you could use a library like [Supersonic](https://github.com/cased/supersonic) to easily create a new Pull Request containing those changes. See our guide on [Integrating with Supersonic](/tutorials/integrating_supersonic/) for more details.
-</Aside>
+<Note>
+  **Proposing Changes**
+  If your AI generates code modifications (e.g., fixing a bug, adding a feature), consider using a library like [Supersonic](https://github.com/cased/supersonic) to programmatically create a Pull Request with those changes. See the [Integrating with Supersonic](/tutorials/integrating_supersonic) tutorial for more details.
+</Note>
 
 ---
 
@@ -136,7 +137,7 @@ Craft prompts that focus the LLM on meaningful, structural changes:
 ```python
 def build_llm_prompt(symbol_diff, file_path, repo_summary=None):
     prompt = f"Repository Summary:\n{repo_summary}\n\n" if repo_summary else ""
-    prompt += f"Review the following code changes in {file_path}:\n"
+    prompt += f"Review the following code changes in `{file_path}`:\n"
     if symbol_diff['added']:
         prompt += "\nNew symbols:\n"
         for s in symbol_diff['added']:
@@ -245,9 +246,9 @@ By extracting structured symbols and diffing them across PRs, you provide LLMs w
 ## Example Prompt (Conceptual)
 
 Repository Summary:
-<Repo Summary using kit.Repo.index()>
+`[Generated repository summary using kit.Repo.index()]`
 
-Review the following code changes in <file_path>:
+Review the following code changes in `file_path`:
 
 New symbols:
 - function `new_function`
