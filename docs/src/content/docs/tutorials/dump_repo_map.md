@@ -1,4 +1,8 @@
-# Tutorial: Dumping a Repo Map as JSON with kit
+---
+title: Dump Repo Map
+---
+
+# Dumping a Repo Map as JSON with kit
 
 ## Overview
 

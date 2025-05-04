@@ -1,4 +1,8 @@
-# Tutorial: Semantic Code Search with kit
+---
+title: Semantic Code Search
+---
+
+# Semantic Code Search with kit
 
 ## Overview
 

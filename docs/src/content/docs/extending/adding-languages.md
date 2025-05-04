@@ -1,0 +1,15 @@
+---
+title: Adding New Languages
+---
+
+## Extending Language Support
+
+- To add a new language:
+  1. Add a tree-sitter grammar and build it (see [tree-sitter docs](https://tree-sitter.github.io/tree-sitter/creating-parsers)).
+  2. Add a `queries/<lang>/tags.scm` file with queries for symbols you want to extract.
+  3. Add the file extension to `TreeSitterSymbolExtractor.LANGUAGES`.
+  4. Write/expand tests for the new language.
+
+**Why?**
+- This approach lets you support any language with a tree-sitter grammar—no need to change core logic.
+- `tags.scm` queries make symbol extraction flexible and community-driven.

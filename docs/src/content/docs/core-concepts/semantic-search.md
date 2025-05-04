@@ -1,0 +1,37 @@
+---
+title: Semantic Search (Vector)
+---
+
+## Semantic (Vector) Search
+
+kit supports semantic code search using vector embeddings and ChromaDB.
+
+### How it works
+
+- Chunks your codebase (by symbols or lines)
+- Embeds each chunk using your chosen model (OpenAI, HuggingFace, etc)
+- Stores embeddings in a local ChromaDB vector database
+- Lets you search for code using natural language or code-like queries
+
+### Example Usage
+
+```python
+from kit import Repo
+from sentence_transformers import SentenceTransformer
+
+# Use any embedding model you like
+model = SentenceTransformer("all-MiniLM-L6-v2")
+def embed_fn(text):
+    return model.encode([text])[0].tolist()
+
+repo = Repo("/path/to/codebase")
+vs = repo.get_vector_searcher(embed_fn=embed_fn)
+vs.build_index()  # Index all code chunks (run once, or after code changes)
+
+results = repo.search_semantic("How is authentication handled?", embed_fn=embed_fn)
+for hit in results:
+    print(hit["file"], hit.get("name"), hit.get("type"), hit.get("code"))
+# Example output:
+# src/kit/auth.py login function def login(...): ...
+# src/kit/config.py AUTH_CONFIG variable AUTH_CONFIG = {...}
+```

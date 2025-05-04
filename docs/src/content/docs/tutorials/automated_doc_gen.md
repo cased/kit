@@ -1,4 +1,8 @@
-# Tutorial: Automated Documentation Generation with kit
+---
+title: Automated Doc Gen
+---
+
+# Automated Documentation Generation with kit
 
 ## Overview
 
