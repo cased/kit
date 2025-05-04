@@ -2,8 +2,7 @@
 title: Kit Documentation
 hasSidebar: true
 ---
-import { CardGrid, LinkCard } from '@mintlify/components';
-
+ 
 Welcome to **kit** – the Python toolkit from [Cased](https://cased.com) for building LLM-powered developer tools and workflows. Understand, 
 search, and prepare code to with the goal of **whole repo context**.
 
@@ -15,20 +14,20 @@ Use kit to build AI-powered developer tools (code reviewers, code generators, ev
 
 ## Explore the docs
 
-<CardGrid>
-  <LinkCard title="Overview" href="/introduction/overview">
+<CardGroup cols={2}>
+  <Card title="Overview" href="/introduction/overview" icon="book-open">
     What Kit is, why it exists, and how to install it.
-  </LinkCard>
-  <LinkCard title="Core Concepts" href="/core-concepts/api-primitives">
+  </Card>
+  <Card title="Core Concepts" href="/core-concepts/api-primitives" icon="puzzle-piece">
     Deep-dive into the Repo API, symbol extraction, vector search, and architecture.
-  </LinkCard>
-  <LinkCard title="Tutorials" href="/tutorials/ai_pr_reviewer">
+  </Card>
+  <Card title="Tutorials" href="/tutorials/ai_pr_reviewer" icon="graduation-cap">
     Step-by-step tutorials to build real-world tools with Kit.
-  </LinkCard>
-  <LinkCard title="Extending Kit" href="/extending/adding-languages">
+  </Card>
+  <Card title="Extending Kit" href="/extending/adding-languages" icon="code-bracket-square">
     Learn how to add new language grammars and customise extraction.
-  </LinkCard>
-  <LinkCard title="Development" href="/development/running-tests">
+  </Card>
+  <Card title="Development" href="/development/running-tests" icon="wrench-screwdriver">
     Contributing, running tests, and project conventions.
-  </LinkCard>
-</CardGrid>
+  </Card>
+</CardGroup>
