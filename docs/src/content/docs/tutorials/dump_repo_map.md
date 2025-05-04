@@ -18,25 +18,48 @@ This tutorial explains how to use `kit` to dump a complete map of your repositor
 
 ---
 
-## Step 1: Dump the Repo Map
+## Step 1: Create the Script
 
-Use the `RepoMapper` class to extract the full repository map:
+Create a Python script named `dump_repo_map.py` with the following content. This script uses `argparse` to accept the repository path as a command-line argument and prints the JSON map to standard output.
 
 ```python
-from kit import RepoMapper
+# dump_repo_map.py
+import kit
 import json
+import argparse
+import sys
+import os
 
-repo_path = "/path/to/repo"
-mapper = RepoMapper(repo_path)
-repo_map = mapper.get_repo_map()
-print(json.dumps(repo_map, indent=2))
+def main():
+    parser = argparse.ArgumentParser(description="Dump a repository's file tree and symbols as JSON using kit.")
+    parser.add_argument("repo_path", help="Path to the repository directory.")
+    args = parser.parse_args()
+
+    repo_path = args.repo_path
+    if not os.path.isdir(repo_path):
+        print(f"Error: Repository path not found or not a directory: {repo_path}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        print(f"Mapping repository at: {repo_path}", file=sys.stderr)
+        mapper = kit.RepoMapper(repo_path)
+        repo_map = mapper.get_repo_map()
+        # Print the JSON map to stdout
+        print(json.dumps(repo_map, indent=2))
+        print(f"Successfully mapped repository.", file=sys.stderr)
+    except Exception as e:
+        print(f"Error mapping repository: {e}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
 ```
 
 ---
 
-## Step 2: Command-Line Usage
+## Step 2: Run the Script
 
-You can run the script as follows:
+Save the code above as `dump_repo_map.py`. You can then run it from your terminal, providing the path to the repository you want to map and redirecting the output to a file:
 
 ```sh
 python dump_repo_map.py /path/to/repo > repo_map.json

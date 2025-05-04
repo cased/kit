@@ -11,3 +11,50 @@ uv venv .venv
 source .venv/bin/activate
 uv pip install -e .
 ```
+
+Now, you can use Kit! Try this simple Python script (e.g., save as `test_kit.py` in the `kit` directory you cloned):
+
+```python
+import kit
+import os
+
+# Load the current directory (where kit was cloned)
+# Ensure you are in the 'kit' directory you cloned
+repo_path = os.getcwd()
+print(f"Loading repository at: {repo_path}")
+repo = kit.Repo(repo_path)
+
+# Print the first 5 Python files found
+print("\nFound Python files (first 5):")
+count = 0
+for file in repo.files('*.py'):
+    print(f"- {file.path}")
+    count += 1
+    if count >= 5:
+        break
+
+if count == 0:
+    print("No Python files found (ensure you ran this from the kit repo root).")
+
+# Extract symbols from a specific file (e.g., kit/repo.py)
+target_file = 'kit/repo.py'
+print(f"\nExtracting symbols from {target_file} (first 5):")
+try:
+    symbols = repo.extract_symbols(target_file)
+    if symbols:
+        for i, symbol in enumerate(symbols):
+            print(f"- {symbol.name} ({symbol.kind}) at line {symbol.range.start.line}")
+            if i >= 4:
+                break
+    else:
+        print(f"No symbols found or file not parseable: {target_file}")
+except FileNotFoundError:
+    print(f"File not found: {target_file}")
+except Exception as e:
+    print(f"An error occurred extracting symbols: {e}")
+
+```
+
+Run it with `python test_kit.py`.
+
+Next, explore the [Overview](./overview.md) to understand the core concepts.

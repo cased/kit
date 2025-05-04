@@ -10,13 +10,19 @@ A modular, production-grade toolkit for codebase mapping, symbol extraction, cod
 
 Features a "mid-level API" to build your own custom tools, LLM workflows, and automation: easily build code review bots, semantic code search, documentation generators, and more.
 
----
+## Why Use kit?
 
-## What You Can Build
+Working directly with code across different languages and tools can be complex. `kit` simplifies this by:
 
-- **AI-powered code review bots** — Automatically review code changes using LLMs and extracted code context.
-- **Semantic code search** — Search for symbols, functions, or patterns across multi-language repos.
-- **Automated documentation generators** — Extract code structure and docstrings to build up-to-date docs.
-- **Codebase summarizers** — Summarize files, modules, or entire repos for onboarding or LLM context.
-- **Dependency graph visualizers** — Visualize code relationships and dependencies for better understanding.
-- Multi-language symbol extraction, chunking, and more for Python, JS, Go, HCL, etc.
+*   **Unifying Code Access:** Provides a single, consistent `Repo` object to interact with files, symbols, and search across diverse codebases, regardless of language.
+*   **Deep Code Understanding:** Leverages `tree-sitter` for accurate, language-specific parsing, enabling reliable symbol extraction and structural analysis.
+*   **Bridging Code and LLMs:** Offers tools specifically designed to chunk code effectively and retrieve relevant context for large language models, powering smarter AI developer tools.
+
+## Core Philosophy
+
+`kit` aims to be a **mid-level toolkit**. It handles the low-level parsing and indexing complexity but provides flexible building blocks rather than highly opinionated, end-to-end applications. The central `kit.Repo` object serves as your primary interface for accessing codebase intelligence.
+
+## Where to Go Next
+
+*   **Dive into the API:** Explore the [Core Concepts](../core-concepts/api-primitives.md) to understand the `Repo` object and its capabilities.
+*   **Build Something:** Follow the [Tutorials](../tutorials/ai_pr_reviewer.md) for step-by-step guides on creating practical tools.
