@@ -2,14 +2,14 @@
 """Tests for Ruby and C symbol extraction."""
 import os
 import tempfile
-from kit.repo import Repo
+from kit import Repository
 
 
 def _extract(tmpdir: str, filename: str, content: str):
     path = os.path.join(tmpdir, filename)
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
-    return Repo(tmpdir).extract_symbols(filename)
+    return Repository(tmpdir).extract_symbols(filename)
 
 
 def test_ruby_symbols():

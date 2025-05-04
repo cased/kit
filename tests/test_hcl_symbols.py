@@ -1,7 +1,7 @@
 import os
 import tempfile
 import pytest
-from kit.repo import Repo
+from kit import Repository
 from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
 
 def test_hcl_symbol_extraction():
@@ -48,8 +48,8 @@ module "vpc" {
         hcl_path = os.path.join(tmpdir, "main.tf")
         with open(hcl_path, "w") as f:
             f.write(hcl_content)
-        repo = Repo(tmpdir)
-        symbols = repo.extract_symbols("main.tf")
+        repository = Repository(tmpdir)
+        symbols = repository.extract_symbols("main.tf")
         types = {s["type"] for s in symbols}
         names = {s["name"] for s in symbols if "name" in s}
 
@@ -103,8 +103,8 @@ terraform {
         hcl_path = os.path.join(tmpdir, "main.tf")
         with open(hcl_path, "w") as f:
             f.write(hcl_content)
-        repo = Repo(tmpdir)
-        symbols = repo.extract_symbols("main.tf")
+        repository = Repository(tmpdir)
+        symbols = repository.extract_symbols("main.tf")
         types = {s["type"] for s in symbols}
         subtypes = {s["subtype"] for s in symbols if "subtype" in s}
         names = {s["name"] for s in symbols if "name" in s}

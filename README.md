@@ -20,10 +20,10 @@ uv pip install -e .
 import kit
 
 # Load a local repository
-repo = kit.Repo("/path/to/your/local/codebase")
+repo = kit.Repository("/path/to/your/local/codebase")
 
 # Load a remote public GitHub repo
-# repo = kit.Repo("https://github.com/owner/repo")
+# repo = kit.Repository("https://github.com/owner/repo")
 
 # Explore the repo
 print(repo.get_file_tree())
@@ -35,7 +35,7 @@ print(repo.extract_symbols('src/main.py'))
 
 ## Core API
 
-The `kit.Repo` class provides several core methods:
+The `kit.Repository` class provides several core methods:
 
 *   `get_file_tree()`: Lists files and directories.
 *   `extract_symbols(filepath=None)`: Extracts functions, classes, etc., from a file or the whole repo.

@@ -14,7 +14,7 @@ kit supports semantic code search using vector embeddings and ChromaDB.
 ### Example Usage
 
 ```python
-from kit import Repo
+from kit import Repository
 from sentence_transformers import SentenceTransformer
 
 # Use any embedding model you like
@@ -22,7 +22,7 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 def embed_fn(text):
     return model.encode([text])[0].tolist()
 
-repo = Repo("/path/to/codebase")
+repo = Repository("/path/to/codebase")
 vs = repo.get_vector_searcher(embed_fn=embed_fn)
 vs.build_index()  # Index all code chunks (run once, or after code changes)
 

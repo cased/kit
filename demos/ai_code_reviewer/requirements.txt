@@ -1,3 +1,0 @@
-openai>=1.0.0
-python-dotenv>=1.0.0
-# kit must be installed in editable mode from the repo root

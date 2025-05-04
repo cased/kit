@@ -1,4 +1,4 @@
-from kit import Repo
+from kit import Repository
 import tempfile
 import os
 import shutil
@@ -29,8 +29,8 @@ def setup_test_repo():
 def test_find_symbol_usages():
     repo_dir = setup_test_repo()
     try:
-        repo = Repo(repo_dir)
-        usages = repo.find_symbol_usages("foo", symbol_type="function")
+        repository = Repository(repo_dir)
+        usages = repository.find_symbol_usages("foo", symbol_type="function")
         usage_files = sorted(set(u["file"].split(os.sep)[-1] for u in usages))
         assert "a.py" in usage_files
         assert "b.py" in usage_files

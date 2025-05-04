@@ -1,7 +1,7 @@
 import tempfile
 import os
 import pytest
-from kit import Repo
+from kit import Repository
 
 def test_repo_get_file_tree_and_symbols():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -13,11 +13,11 @@ class Foo:
 
 def baz(): pass
 """)
-        repo = Repo(tmpdir)
-        tree = repo.get_file_tree()
+        repository = Repository(tmpdir)
+        tree = repository.get_file_tree()
         assert any(item["path"].endswith("baz.py") for item in tree)
         assert any(item["is_dir"] and item["path"].endswith("foo/bar") for item in tree)
-        symbols = repo.extract_symbols("foo/bar/baz.py")
+        symbols = repository.extract_symbols("foo/bar/baz.py")
         names = {s["name"] for s in symbols}
         assert "Foo" in names
         assert "baz" in names
@@ -36,7 +36,7 @@ def test_repo_file_tree_various(structure):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w") as f:
                 f.write("pass\n")
-        repo = Repo(tmpdir)
-        tree = repo.get_file_tree()
+        repository = Repository(tmpdir)
+        tree = repository.get_file_tree()
         for relpath in structure:
             assert any(item["path"].endswith(relpath) for item in tree)

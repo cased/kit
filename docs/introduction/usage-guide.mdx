@@ -2,11 +2,11 @@
 title: Usage Guide
 ---
 
-This guide provides practical examples of how to use the core `Repo` object in `kit` to interact with your codebase.
+This guide provides practical examples of how to use the core `Repository` object in `kit` to interact with your codebase.
 
-## Initializing a `Repo`
+## Initializing a `Repository`
 
-First, create an instance of the `Repo` class, pointing it to your code. `kit` can work with local directories or clone remote Git repositories.
+First, create an instance of the `Repository` class, pointing it to your code. `kit` can work with local directories or clone remote Git repositories.
 This is the starting point for any analysis, giving `kit` access to the codebase.
 
 ### Local Directory
@@ -14,9 +14,9 @@ This is the starting point for any analysis, giving `kit` access to the codebase
 If your code is already on your machine:
 
 ```python
-from kit import Repo
+from kit import Repository
 
-repo = Repo("/path/to/your/local/project")
+repo = Repository("/path/to/your/local/project")
 ```
 
 ### Remote Git Repository
@@ -25,12 +25,12 @@ repo = Repo("/path/to/your/local/project")
 
 ```python
 # Public repo
-repo = Repo("https://github.com/owner/repo-name")
+repo = Repository("https://github.com/owner/repo-name")
 
 # Private repo (requires token)
 # Ensure the token has appropriate permissions
 github_token = "your_github_pat_here"
-repo = Repo("https://github.com/owner/private-repo-name", github_token=github_token)
+repo = Repository("https://github.com/owner/private-repo-name", github_token=github_token)
 ```
 
 ### Caching
@@ -38,7 +38,7 @@ repo = Repo("https://github.com/owner/private-repo-name", github_token=github_to
 When cloning remote repositories, `kit` caches them locally to speed up subsequent initializations. By default, caches are stored in a temporary directory. You can specify a persistent cache directory:
 
 ```python
-repo = Repo(
+repo = Repository(
     "https://github.com/owner/repo-name", 
     cache_dir="/path/to/persistent/cache"
 )

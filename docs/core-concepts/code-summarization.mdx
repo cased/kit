@@ -1,0 +1,182 @@
+---
+title: Summarizer API 
+---
+
+In addition to the independent functions of the `Repo` class, 
+`kit` also integrates directly with LLMs via the `Summarizer` class to provide intelligent code summarization capabilities. This helps you quickly understand the purpose and functionality of entire code files, specific functions, or classes.
+
+## Getting Started
+
+To use code summarization, you'll need an LLM provider configured. Currently, OpenAI is supported.
+
+1.  **Install Extra Dependencies:**
+    ```bash
+    # Ensure you are in your project's virtual environment
+    uv pip install kit[openai] 
+    # or uv pip install openai
+    ```
+
+2.  **Set API Key:** Configure your OpenAI API key as an environment variable:
+    ```bash
+    export OPENAI_API_KEY="sk-..." 
+    ```
+
+## Basic Usage: Summarizing Files
+
+The primary way to access summarization is through the `Repo` object's `get_summarizer()` factory method.
+
+```python
+import kit
+import os
+
+# Ensure API key is set (replace with your actual key handling)
+# os.environ["OPENAI_API_KEY"] = "YOUR_API_KEY" 
+
+try:
+    # Load the repository
+    repo = kit.Repo("/path/to/your/project")
+
+    # Get the summarizer instance (defaults to OpenAI using env var)
+    summarizer = repo.get_summarizer()
+
+    # Summarize a specific file
+    file_path = "src/main_logic.py"
+    summary = summarizer.summarize_file(file_path)
+
+    print(f"Summary for {file_path}:\n{summary}")
+
+except ImportError:
+    print("Summarization requires OpenAI. Please install it: pip install kit[openai]")
+except Exception as e:
+    print(f"An error occurred: {e}")
+
+```
+
+<Note>
+  The first time you call `repo.get_summarizer()`, it will attempt to import the necessary LLM library (e.g., `openai`). If it's not installed, an `ImportError` will be raised, prompting you to install the required extras (e.g., `kit[openai]`).
+</Note>
+
+### How it Works
+
+When you call `summarize_file`, `kit` performs the following steps:
+
+1.  Retrieves the content of the specified file using `repo.get_file_content()`.
+2.  Constructs a prompt containing the file content, tailored for code summarization.
+3.  Sends the prompt to the configured LLM provider and model (e.g., OpenAI's GPT-4o).
+4.  Parses the response and returns the summary text.
+
+### Configuration (Advanced)
+
+While environment variables are the default, you can provide specific configuration:
+
+```python
+from kit.summaries import OpenAIConfig # Assuming this path
+
+# Load repo
+repo = kit.Repo("/path/to/your/project")
+
+# Define custom configuration
+custom_config = OpenAIConfig(
+    api_key="sk-...", 
+    model="gpt-4o-mini" # Specify a different model
+)
+
+# Get summarizer with specific config
+summarizer = repo.get_summarizer(config=custom_config)
+
+# Summarize using the custom configuration
+summary = summarizer.summarize_file("src/utils.py")
+print(summary)
+```
+
+## Advanced Usage
+
+### Summarizing Functions and Classes
+
+Beyond entire files, you can target specific functions or classes:
+
+```python
+import kit
+
+repo = kit.Repo("/path/to/your/project")
+summarizer = repo.get_summarizer() # Assumes OPENAI_API_KEY is set
+
+# Summarize a specific function
+function_summary = summarizer.summarize_function(
+    file_path="src/core/processing.py", 
+    function_name="process_main_data"
+)
+print(f"Function Summary:\n{function_summary}")
+
+# Summarize a specific class
+class_summary = summarizer.summarize_class(
+    file_path="src/models/user.py",
+    class_name="UserProfile"
+)
+print(f"Class Summary:\n{class_summary}")
+
+```
+
+<Info>
+  Under the hood, `summarize_function` and `summarize_class` will use `kit`'s symbol extraction capabilities (`repo.extract_symbols`) to locate the precise code snippet for the target function or class before sending it to the LLM, providing more focused summaries.
+</Info>
+
+### Combining with Other Repo Features
+
+You can combine the `Summarizer` with other `Repo` methods for powerful workflows. For example, find all classes in a file and then summarize each one:
+
+```python
+import kit
+
+repo = kit.Repo("/path/to/your/project")
+summarizer = repo.get_summarizer()
+
+file_to_analyze = "src/services/notification_service.py"
+
+# 1. Find all symbols in the file
+symbols = repo.extract_symbols(file_path=file_to_analyze)
+
+# 2. Filter for classes
+class_symbols = [s for s in symbols if s.get('type') == 'class']
+
+# 3. Summarize each class
+for sym in class_symbols:
+    class_name = sym.get('name')
+    if class_name:
+        print(f"--- Summarizing Class: {class_name} ---")
+        try:
+            summary = summarizer.summarize_class(
+                file_path=file_to_analyze, 
+                class_name=class_name
+            )
+            print(summary)
+        except Exception as e:
+            print(f"Could not summarize {class_name}: {e}")
+    print("\n")
+
+```
+
+<Note>
+  While `repo.get_summarizer()` is the most convenient way to get a configured `Summarizer`, you can also instantiate it directly if needed:
+
+  ```python
+  from kit import Repo
+  from kit.summaries import Summarizer, OpenAIConfig
+
+  my_repo = Repo("/path/to/code")
+  my_config = OpenAIConfig(api_key="sk-...", model="gpt-4o") # Example config
+
+  direct_summarizer = Summarizer(repo=my_repo, config=my_config)
+  
+  summary = direct_summarizer.summarize_file("some/file.py")
+  print(summary)
+  ```
+</Note>
+
+## Advanced Usage
+
+### Summarizing Functions and Classes
+
+## Future Directions
+
+A potential future enhancement is **Cross-Component Summarization**. This would leverage `kit`'s ability to find symbol usages and relationships across files to generate summaries describing how different components (e.g., a function in one file and a class in another) interact with each other. This could provide a higher-level understanding of code flow and dependencies within the repository.

@@ -6,26 +6,16 @@ title: Semantic Code Search
 
 This tutorial demonstrates how to build a semantic code search tool using `kit`. You'll learn how to search for code symbols (functions, classes, etc.) matching a keyword or phrase and return results as JSON.
 
----
-
-## Prerequisites
-
-- Python 3.8+
-- `kit` installed
-- A codebase to search
-
----
-
 ## Step 1: Implement Semantic Search
 
-Use the `Repo` class to index your codebase and search for symbols matching a query.
+Use the `Repository` class to index your codebase and search for symbols matching a query.
 
 ```python
-from kit import Repo
+from kit import Repository
 from typing import List, Dict, Any
 
 def semantic_search(repo_path: str, query: str) -> List[Dict[str, Any]]:
-    repo = Repo(repo_path)
+    repo = Repository(repo_path)
     index = repo.index()
     results = []
     for file, symbols in index["symbols"].items():

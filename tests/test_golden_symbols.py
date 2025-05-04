@@ -2,15 +2,15 @@ import os
 import tempfile
 import pytest
 import asyncio
-from kit.repo import Repo
+from kit import Repository
 
 # Helper to run extraction
 def run_extraction(tmpdir, filename, content):
     path = os.path.join(tmpdir, filename)
     with open(path, "w") as f:
         f.write(content)
-    repo = Repo(tmpdir)
-    return repo.extract_symbols(filename)
+    repository = Repository(tmpdir)
+    return repository.extract_symbols(filename)
 
 
 # --- Basic Tests ---

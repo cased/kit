@@ -6,10 +6,10 @@ Usage:
 """
 import sys
 import json
-from kit import Repo
+from kit import Repository
 
 if __name__ == "__main__":
     repo_path = sys.argv[1] if len(sys.argv) > 1 else "."
-    repo = Repo(repo_path)
+    repo = Repository(repo_path)
     index = repo.index()
     print(json.dumps(index, indent=2))

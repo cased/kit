@@ -27,7 +27,8 @@
         {
           "group": "Core Concepts",
           "pages": [
-            "core-concepts/api-primitives",
+            "core-concepts/repo-api",
+            "core-concepts/code-summarization",
             "core-concepts/semantic-search",
             "core-concepts/configuring-semantic-search",
             "core-concepts/llm-context-best-practices",
@@ -50,6 +51,12 @@
             "group": "Extending Kit",
             "pages": [
                 "extending/adding-languages"
+            ]
+        },
+        {
+            "group": "API Reference",
+            "pages": [
+                "api/summarizer"
             ]
         },
         {

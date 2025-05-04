@@ -16,7 +16,7 @@ description: Using kit for code analysis and Supersonic for automated PR creatio
 
 A typical integration pattern looks like this:
 
-1.  **Analyze Code with `kit`**: Use `kit.Repo` methods like `extract_symbols`, `find_symbol_usages`, or `search_semantic` to understand the codebase or identify areas for modification.
+1.  **Analyze Code with `kit`**: Use `kit.Repository` methods like `extract_symbols`, `find_symbol_usages`, or `search_semantic` to understand the codebase or identify areas for modification.
 2.  **Generate Changes**: Based on the analysis (potentially involving an LLM), generate the new code content or identify necessary file modifications.
 3.  **Create PR with `Supersonic`**: Use `Supersonic`'s simple API (`create_pr_from_content`, `create_pr_from_file`, etc.) to package the generated changes into a new Pull Request on GitHub.
 
@@ -29,9 +29,9 @@ import kit
 from supersonic import Supersonic
 import os
 
-# Assume kit.Repo is initialized with a local path
+# Assume kit.Repository is initialized with a local path
 LOCAL_REPO_PATH = "/path/to/your/local/repo/clone"
-# repo_analyzer = kit.Repo(LOCAL_REPO_PATH)
+# repo_analyzer = kit.Repository(LOCAL_REPO_PATH)
 # Note: kit analysis methods like extract_symbols would still be used here in a real scenario.
 
 # Assume 'ai_generate_refactoring' is your function that uses an LLM

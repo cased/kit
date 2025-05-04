@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from .repo_mapper import RepoMapper
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
@@ -9,7 +9,11 @@ import tempfile
 import subprocess
 from pathlib import Path
 
-class Repo:
+# Use TYPE_CHECKING for Summarizer to avoid circular imports
+if TYPE_CHECKING:
+    from .summaries import Summarizer, OpenAIConfig
+
+class Repository:
     """
     Main interface for codebase operations: file tree, symbol extraction, search, and context.
     Provides a unified API for downstream tools and workflows.
@@ -113,6 +117,29 @@ class Repo:
         """
         return self.context.extract_context_around_line(file_path, line)
 
+    def get_file_content(self, file_path: str) -> str:
+        """
+        Reads and returns the content of a file within the repository.
+        
+        Args:
+            file_path (str): The path to the file, relative to the repository root.
+        
+        Returns:
+            str: The content of the file.
+        
+        Raises:
+            FileNotFoundError: If the file does not exist within the repository.
+        """
+        full_path = self.local_path / file_path
+        if not full_path.is_file():
+            raise FileNotFoundError(f"File not found in repository: {file_path}")
+        try:
+            with open(full_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except Exception as e:
+            # Catch potential decoding errors or other file reading issues
+            raise IOError(f"Error reading file {file_path}: {e}") from e
+
     def index(self) -> Dict[str, Any]:
         """
         Builds and returns a full index of the repo, including file tree and symbols.
@@ -135,6 +162,42 @@ class Repo:
     def search_semantic(self, query: str, top_k: int = 5, embed_fn=None) -> List[Dict[str, Any]]:
         vs = self.get_vector_searcher(embed_fn=embed_fn)
         return vs.search(query, top_k=top_k)
+
+    def get_summarizer(self, config: Optional['OpenAIConfig'] = None) -> 'Summarizer': 
+        """
+        Factory method to get a Summarizer instance configured for this repository.
+        
+        Requires LLM dependencies (e.g., openai) to be installed.
+        Example: `pip install kit[openai]`
+        
+        Args:
+            config: Optional configuration object (e.g., OpenAIConfig). 
+                    If None, defaults to OpenAIConfig using environment variables.
+        
+        Returns:
+            A Summarizer instance ready to use.
+        
+        Raises:
+            ImportError: If required LLM libraries (like openai) are not installed.
+            ValueError: If configuration (like API key) is missing.
+        """
+        # Lazy import Summarizer and its config here to avoid mandatory dependency
+        try:
+            from .summaries import Summarizer, OpenAIConfig 
+        except ImportError as e:
+             raise ImportError(
+                 "Summarizer dependencies not found. Did you install kit[openai]?"
+             ) from e
+
+        # Determine config: use provided or default (which checks env vars)
+        llm_config = config if config is not None else OpenAIConfig()
+        
+        # Currently only supports OpenAIConfig, raise if different type is passed
+        if not isinstance(llm_config, OpenAIConfig):
+             raise NotImplementedError("Currently only OpenAIConfig is supported for summarization.")
+
+        # Return the initialized Summarizer
+        return Summarizer(repo=self, config=llm_config)
 
     def find_symbol_usages(self, symbol_name: str, symbol_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """

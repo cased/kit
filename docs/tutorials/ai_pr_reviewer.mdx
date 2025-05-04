@@ -30,7 +30,7 @@ The symbol diff provides highly focused context for the LLM. You can construct a
 
 ### 4. Providing Broader Context (Repo Summary)
 
-While the symbol diff focuses on *what changed*, the LLM may benefit from understanding the *overall structure* of the repository. The demo includes an optional step where it uses `kit.Repo('...').index()` to generate a summary of the entire repository (file tree and top-level symbols). This summary can be prepended to the main prompt, giving the LLM background context about the project's architecture and conventions when reviewing the specific changes.
+While the symbol diff focuses on *what changed*, the LLM may benefit from understanding the *overall structure* of the repository. The demo includes an optional step where it uses `kit.Repository('...').index()` to generate a summary of the entire repository (file tree and top-level symbols). This summary can be prepended to the main prompt, giving the LLM background context about the project's architecture and conventions when reviewing the specific changes.
 
 ---
 
@@ -218,7 +218,7 @@ for file_path in changed_files:
     symbols_head = extract_symbols_for_commit('.', 'head_sha', file_path)
     symbol_diff = diff_symbols(symbols_base, symbols_head)
     if symbol_diff['added'] or symbol_diff['removed']:
-        repo_summary = kit.Repo('.').index()  # Optional
+        repo_summary = kit.Repository('.').index()  # Optional
         prompt = build_llm_prompt(symbol_diff, file_path, repo_summary)
         review = get_llm_review(prompt, api_key)
         post_github_comment(pr_number, repo_slug, review)
@@ -243,7 +243,7 @@ By extracting structured symbols and diffing them across PRs, you provide LLMs w
 ## Example Prompt (Conceptual)
 
 Repository Summary:
-`[Generated repository summary using kit.Repo.index()]`
+`[Generated repository summary using kit.Repository.index()]`
 
 Review the following code changes in `file_path`:
 
