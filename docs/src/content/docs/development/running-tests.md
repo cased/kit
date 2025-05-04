@@ -1,0 +1,24 @@
+---
+title: Running Tests
+---
+
+## Running Tests
+
+To run tests using uv and pytest, first ensure you have the development dependencies installed:
+
+```sh
+# Install main package + dev dependencies
+uv pip install -e .[dev]
+```
+
+Then, run the full test suite using:
+
+```sh
+uv run pytest
+```
+
+Or to run a specific test file:
+
+```sh
+uv run pytest tests/test_hcl_symbols.py
+```

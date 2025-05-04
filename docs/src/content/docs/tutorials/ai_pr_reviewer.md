@@ -1,28 +1,34 @@
-# Tutorial: Building a Production-Ready AI PR Reviewer with Symbol Extraction
+---
+title: AI PR Reviewer
+---
+
+# Building a Production-Ready AI PR Reviewer with Symbol Extraction
 
 ## Overview
 
-This guide shows how to build a robust, language-agnostic AI-powered Pull Request (PR) reviewer using the symbol extraction engine in this repo. You'll learn how to extract code structure from PRs, generate meaningful context for LLMs, and automate actionable code review comments on GitHub.
+This guide shows how to build a robust, language-agnostic AI-powered Pull Request (PR) reviewer using the symbol extraction engine in this repo. You'll learn how to extract code structure from PRs, generate meaningful context for LLMs, and automate actionable code review comments on GitHub. For a concrete implementation example of the concepts discussed here, you can explore the code in the `demos/ai_code_reviewer` directory in the main repository.
 
 ---
 
-## Architecture Overview
+## Key Concepts
 
-**Components:**
-- **Symbol Extractor:** Parses code for structured symbols (functions, resources, etc.)
-- **PR Change Fetcher:** Gets changed files and diffs from GitHub
-- **Symbol Diff Engine:** Compares base vs. head commit symbols for meaningful changes
-- **LLM Prompt Builder:** Crafts targeted prompts for review
-- **LLM Integration:** Calls OpenAI or other LLMs for code analysis
-- **GitHub Bot:** Posts review comments or suggestions automatically
+### 1. Symbol Extraction
 
-```
-[GitHub PR] → [Changed Files] → [Symbol Extractor] → [Symbol Diff]
-      ↓                                            ↑
-  [Base Commit]                               [Head Commit]
-      ↓                                            ↑
-  [Symbols]      → [LLM Prompt] → [LLM] → [Review Suggestions] → [GitHub Comments]
-```
+The core idea is to use `kit`'s symbol extraction capabilities (specifically, the demo uses `kit.tree_sitter_symbol_extractor.TreeSitterSymbolExtractor`) to parse the code in changed files. This provides a structured representation (functions, classes, variables) rather than just raw text.
+
+*Note: The demo fetches the specific file versions for the base and head commits using external commands like `git show`, as `kit` currently focuses on the repository's present state.*
+
+### 2. Symbol Diffing
+
+By extracting symbols for a file from both the *base* commit and the *head* commit of the PR, you can perform a diff on the symbol lists. This precisely identifies:
+
+### 3. LLM Prompting
+
+The symbol diff provides highly focused context for the LLM. You can construct a prompt detailing the added and removed symbols, asking the LLM to review these specific changes.
+
+### 4. Providing Broader Context (Repo Summary)
+
+While the symbol diff focuses on *what changed*, the LLM may benefit from understanding the *overall structure* of the repository. The demo includes an optional step where it uses `kit.Repo('...').index()` to generate a summary of the entire repository (file tree and top-level symbols). This summary can be prepended to the main prompt, giving the LLM background context about the project's architecture and conventions when reviewing the specific changes.
 
 ---
 
@@ -124,8 +130,9 @@ def diff_symbols(symbols_before, symbols_after):
 Craft prompts that focus the LLM on meaningful, structural changes:
 
 ```python
-def build_llm_prompt(symbol_diff, file_path):
-    prompt = f"Review the following code changes in {file_path}:\n"
+def build_llm_prompt(symbol_diff, file_path, repo_summary=None):
+    prompt = f"Repository Summary:\n{repo_summary}\n\n" if repo_summary else ""
+    prompt += f"Review the following code changes in {file_path}:\n"
     if symbol_diff['added']:
         prompt += "\nNew symbols:\n"
         for s in symbol_diff['added']:
@@ -209,7 +216,8 @@ for file_path in changed_files:
     symbols_head = extract_symbols_for_commit('.', 'head_sha', file_path)
     symbol_diff = diff_symbols(symbols_base, symbols_head)
     if symbol_diff['added'] or symbol_diff['removed']:
-        prompt = build_llm_prompt(symbol_diff, file_path)
+        repo_summary = kit.Repo('.').index()  # Optional
+        prompt = build_llm_prompt(symbol_diff, file_path, repo_summary)
         review = get_llm_review(prompt, api_key)
         post_github_comment(pr_number, repo_slug, review)
 ```
@@ -226,5 +234,27 @@ By extracting structured symbols and diffing them across PRs, you provide LLMs w
 - Add inline comments for specific lines/blocks.
 - Integrate with GitHub Actions for full automation.
 - Use embeddings for semantic diffing and smarter context selection.
+- Experiment with including code snippets for changed symbols in the prompt.
 
 ---
+
+## Example Prompt (Conceptual)
+
+Repository Summary:
+<Repo Summary using kit.Repo.index()>
+
+Review the following code changes in <file_path>:
+
+New symbols:
+- function `new_function`
+- class `NewClass`
+
+Removed symbols:
+- function `removed_function`
+
+Suggest improvements, spot errors, and flag security issues.
+
+## Conclusion
+
+Using `kit` for symbol extraction and diffing provides a powerful way to generate targeted context for AI code reviews. By focusing the LLM on meaningful structural changes, you can build more effective and efficient automated reviewers.
+Adding whole-repo context can further enhance the LLM's understanding and the quality of its reviews.

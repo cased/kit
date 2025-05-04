@@ -1,0 +1,54 @@
+/* Kit Documentation – custom theme */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap");
+
+:root {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  /* Smaller type scale */
+  --sl-text-xs: 0.7rem;
+  --sl-text-sm: 0.8rem;
+  --sl-text-base: 0.9rem;
+  --sl-text-lg: 1rem;
+  --sl-text-xl: 1.15rem;
+  --sl-text-2xl: 1.3rem;
+}
+
+body, .sl-markdown {
+  font-family: var(--font-sans);
+  font-size: var(--sl-text-base);
+  line-height: 1.6;
+}
+
+code, pre, pre code { font-family: var(--font-mono); }
+
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.2rem; }
+
+/* Header title font */
+.sl-header__title {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+/* Hide heading anchor links */
+.sl-anchor-link {
+  display: none;
+}
+
+/* Reduce splash page padding */
+main.sl-main {
+  padding-top: 1rem; 
+  padding-bottom: 1rem;
+}
+
+/* Reduce hero section margins */
+.sl-hero {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sl-hero .sl-actions {
+  margin-top: 1rem; 
+}

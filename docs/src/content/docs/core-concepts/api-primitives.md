@@ -1,0 +1,244 @@
+---
+title: Core API Primitives
+---
+
+This page details the core methods available on the `kit.Repo` object.
+
+## Creating a `Repo` Instance
+
+To start using `kit`, first create an instance of the `Repo` class. This points `kit` to the codebase you want to analyze.
+
+```python
+from kit import Repo
+
+# For a local directory
+repo = Repo(path_or_url="/path/to/local/project")
+
+# For a remote Git repository (public or private)
+repo = Repo(
+    path_or_url="https://github.com/owner/repo-name", 
+    github_token="YOUR_GITHUB_TOKEN",  # Optional: For private repos
+    cache_dir="/path/to/cache"       # Optional: For caching clones
+)
+```
+
+**Parameters:**
+
+*   `path_or_url` (str): The path to a local directory or the URL of a remote Git repository.
+*   `github_token` (Optional[str]): A GitHub personal access token required for cloning private repositories. Defaults to `None`.
+*   `cache_dir` (Optional[str]): Path to a directory for caching cloned repositories. Defaults to a system temporary directory.
+
+Once you have a `repo` object, you can call the following methods on it:
+
+## `repo.get_file_tree()`
+
+Returns the file tree structure of the repository.
+
+```python
+repo.get_file_tree() -> List[Dict[str, Any]]
+```
+
+**Returns:**
+
+*   `List[Dict[str, Any]]`: A list of dictionaries, where each dictionary represents a file or directory with keys like `path`, `name`, `is_dir`, `size`.
+
+## `repo.extract_symbols()`
+
+Extracts code symbols (functions, classes, variables, etc.) from the repository.
+
+```python
+repo.extract_symbols(file_path: Optional[str] = None) -> List[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `file_path` (Optional[str]): If provided, extracts symbols only from this specific file path relative to the repo root. If `None`, extracts symbols from all supported files in the repository. Defaults to `None`.
+
+**Returns:**
+
+*   `List[Dict[str, Any]]`: A list of dictionaries, each representing a symbol with keys like `name`, `type`, `file`, `line_start`, `line_end`, `code_snippet`.
+
+## `repo.search_text()`
+
+Searches for literal text or regex patterns within files.
+
+```python
+repo.search_text(query: str, file_pattern: str = "*.py") -> List[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `query` (str): The text or regex pattern to search for.
+*   `file_pattern` (str): A glob pattern to filter files to search within. Defaults to `"*.py"`.
+
+**Returns:**
+
+*   `List[Dict[str, Any]]`: A list of dictionaries representing search matches, with keys like `file`, `line_number`, `line_content`.
+
+## `repo.chunk_file_by_lines()`
+
+Chunks a file's content based on line count.
+
+```python
+repo.chunk_file_by_lines(file_path: str, max_lines: int = 50) -> List[str]
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the file (relative to repo root) to chunk.
+*   `max_lines` (int): The maximum number of lines per chunk. Defaults to `50`.
+
+**Returns:**
+
+*   `List[str]`: A list of strings, where each string is a chunk of the file content.
+
+## `repo.chunk_file_by_symbols()`
+
+Chunks a file's content based on its top-level symbols (functions, classes).
+
+```python
+repo.chunk_file_by_symbols(file_path: str) -> List[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the file (relative to repo root) to chunk.
+
+**Returns:**
+
+*   `List[Dict[str, Any]]`: A list of dictionaries, each representing a symbol chunk with keys like `name`, `type`, `code_snippet`.
+
+## `repo.extract_context_around_line()`
+
+Extracts the surrounding code context (typically the containing function or class) for a specific line number.
+
+```python
+repo.extract_context_around_line(file_path: str, line: int) -> Optional[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the file (relative to repo root).
+*   `line` (int): The (0-based) line number to find context for.
+
+**Returns:**
+
+*   `Optional[Dict[str, Any]]`: A dictionary representing the symbol context (with keys like `name`, `type`, `code_snippet`), or `None` if no context is found.
+
+## `repo.index()`
+
+Builds and returns a comprehensive index of the repository, including both the file tree and all extracted symbols.
+
+```python
+repo.index() -> Dict[str, Any]
+```
+
+**Returns:**
+
+*   `Dict[str, Any]`: A dictionary containing the full index, typically with keys like `file_tree` and `symbols`.
+
+## `repo.get_vector_searcher()`
+
+Initializes and returns the `VectorSearcher` instance for performing semantic search.
+
+```python
+repo.get_vector_searcher(embed_fn=None, backend=None, persist_dir=None) -> VectorSearcher
+```
+
+**Parameters:**
+
+*   `embed_fn` (Callable): **Required on first call.** A function that takes a list of strings and returns a list of embedding vectors.
+*   `backend` (Optional[Any]): Specifies the vector database backend (e.g., 'faiss', 'chromadb'). Defaults to in-memory Faiss.
+*   `persist_dir` (Optional[str]): Path to a directory to persist the vector index. Defaults to `None` (no persistence).
+
+**Returns:**
+
+*   `VectorSearcher`: An instance of the vector searcher configured for this repository.
+
+(See [Configuring Semantic Search](/core-concepts/configuring-semantic-search) for more details.)
+
+## `repo.search_semantic()`
+
+Performs a semantic search query over the indexed codebase.
+
+```python
+repo.search_semantic(query: str, top_k: int = 5, embed_fn=None) -> List[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `query` (str): The natural language query to search for.
+*   `top_k` (int): The maximum number of results to return. Defaults to `5`.
+*   `embed_fn` (Callable): Required if the vector searcher hasn't been initialized yet.
+
+**Returns:**
+
+*   `List[Dict[str, Any]]`: A list of dictionaries representing the search results, typically including matched code snippets and relevance scores.
+
+## `repo.find_symbol_usages()`
+
+Finds definitions and references of a specific symbol across the repository.
+
+```python
+repo.find_symbol_usages(symbol_name: str, symbol_type: Optional[str] = None) -> List[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `symbol_name` (str): The name of the symbol to find usages for.
+*   `symbol_type` (Optional[str]): Optionally restrict the search to a specific symbol type (e.g., 'function', 'class'). Defaults to `None` (search all types).
+
+**Returns:**
+
+*   `List[Dict[str, Any]]`: A list of dictionaries representing symbol usages, including file, line number, and context/snippet.
+
+## `repo.write_index()`
+
+Writes the full repository index (file tree and symbols) to a JSON file.
+
+```python
+repo.write_index(file_path: str) -> None
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the output JSON file.
+
+## `repo.write_symbols()`
+
+Writes extracted symbols to a JSON file.
+
+```python
+repo.write_symbols(file_path: str, symbols: Optional[list] = None) -> None
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the output JSON file.
+*   `symbols` (Optional[list]): An optional list of symbol dictionaries to write. If `None`, writes all symbols extracted from the repository. Defaults to `None`.
+
+## `repo.write_file_tree()`
+
+Writes the repository file tree to a JSON file.
+
+```python
+repo.write_file_tree(file_path: str) -> None
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the output JSON file.
+
+## `repo.write_symbol_usages()`
+
+Writes the found usages of a specific symbol to a JSON file.
+
+```python
+repo.write_symbol_usages(symbol_name: str, file_path: str, symbol_type: Optional[str] = None) -> None
+```
+
+**Parameters:**
+
+*   `symbol_name` (str): The name of the symbol whose usages were found.
+*   `file_path` (str): The path to the output JSON file.
+*   `symbol_type` (Optional[str]): The symbol type filter used when finding usages. Defaults to `None`.

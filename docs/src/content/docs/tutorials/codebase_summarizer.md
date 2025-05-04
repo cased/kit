@@ -1,4 +1,8 @@
-# Tutorial: Summarizing Your Codebase with kit
+---
+title: Codebase Summarizer
+---
+
+# Summarizing Your Codebase with kit
 
 ## Overview
 

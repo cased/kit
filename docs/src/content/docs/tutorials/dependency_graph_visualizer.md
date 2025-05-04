@@ -1,4 +1,8 @@
-# Tutorial: Visualizing Codebase Dependencies with kit
+---
+title: Dependency Graph Visualizer
+---
+
+# Visualizing Codebase Dependencies with kit
 
 ## Overview
 
