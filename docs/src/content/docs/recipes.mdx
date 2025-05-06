@@ -2,9 +2,9 @@
 title: Practical Recipes
 ---
 
-<Aside type="note">
+:::note
 These snippets are *copy-paste-ready* solutions for common developer-productivity tasks with **kit**. Adapt them to scripts, CI jobs, or IDE plugins.
-</Aside>
+:::
 
 ## 1. Rename every function `old_name` → `new_name`
 
@@ -82,3 +82,121 @@ for h in hits:
 repo = Repository("/path/to/project")
 repo.write_index("repo_index.json")
 ```
+
+---
+
+## 6. Find All Callers of a Specific Function (Cross-File)
+
+This recipe helps you understand where a particular function is being used throughout your entire codebase, which is crucial for impact analysis or refactoring.
+
+```python
+from kit import Repository
+
+# Initialize the repository
+repo = Repository("/path/to/your_project")
+
+# Specify the function name and its type
+function_name_to_trace = "my_target_function"
+
+# Find all usages (definitions, calls, imports)
+usages = repo.find_symbol_usages(function_name_to_trace, symbol_type="function")
+
+print(f"Usages of function '{function_name_to_trace}':")
+for usage in usages:
+    file_path = usage.get("file")
+    line_number = usage.get("line") # Assuming 'line' is the start line of the usage/symbol
+    context_snippet = usage.get("context", "No context available")
+    usage_type = usage.get("type", "unknown") # e.g., 'function' for definition, 'call' for a call site
+
+    # We are interested in where it's CALLED, so we might filter out the definition itself if needed,
+    # or differentiate based on the 'type' or 'context'.
+    # For this example, we'll print all usages.
+    if line_number is not None:
+        print(f"- Found in: {file_path}:L{line_number + 1}") # (line is 0-indexed, display as 1-indexed)
+    else:
+        print(f"- Found in: {file_path}")
+    print(f"    Type: {usage_type}")
+    print(f"    Context: {context_snippet.strip()}\n")
+
+# Example: Filtering for actual call sites (heuristic based on context or type if available)
+# print(f"\nCall sites for function '{function_name_to_trace}':")
+# for usage in usages:
+#     # This condition might need refinement based on what 'find_symbol_usages' returns for 'type' of a call
+#     if usage.get("type") != "function" and function_name_to_trace + "(" in usage.get("context", ""):
+#         file_path = usage.get("file")
+#         line_number = usage.get("line")
+#         print(f"- Call in: {file_path}:L{line_number + 1 if line_number is not None else 'N/A'}")
+
+```
+
+---
+
+## 7. Identify Potentially Unused Functions (Heuristic)
+
+This recipe provides a heuristic to find functions that *might* be unused within the analyzed codebase. This can be a starting point for identifying dead code. Note that this is a heuristic because it might not catch dynamically called functions, functions part of a public API but not used internally, or functions used only in parts of the codebase not analyzed (e.g., separate test suites).
+
+```python
+from kit import Repository
+
+repo = Repository("/path/to/your_project")
+
+# Get all symbols from the repository index
+# The structure of repo.index() might vary; assuming it's a dict like {'symbols': {'file_path': [symbol_dicts]}}
+# or a direct way to get all function definitions.
+# For this example, let's assume we can iterate through all symbols and filter functions.
+
+# A more robust way might be to iterate files, then symbols within files from repo.index()
+# index = repo.index()
+# all_symbols_by_file = index.get("symbols", {})
+
+print("Potentially unused functions:")
+
+# First, get a list of all function definitions
+defined_functions = []
+repo_index = repo.index() # Assuming this fetches file tree and symbols
+symbols_map = repo_index.get("symbols", {})
+
+for file_path, symbols_in_file in symbols_map.items():
+    for symbol_info in symbols_in_file:
+        if symbol_info.get("type") == "function":
+            defined_functions.append({
+                "name": symbol_info.get("name"),
+                "file": file_path,
+                "line": symbol_info.get("line_start", 0) # or 'line'
+            })
+
+for func_def in defined_functions:
+    function_name = func_def["name"]
+    definition_file = func_def["file"]
+    definition_line = func_def["line"]
+
+    if not function_name: # Skip if name is missing
+        continue
+
+    usages = repo.find_symbol_usages(function_name, symbol_type="function")
+
+    # Filter out the definition itself from the usages to count actual calls/references
+    # This heuristic assumes a usage is NOT the definition if its file and line differ,
+    # or if the usage 'type' (if available and detailed) indicates a call.
+    # A simpler heuristic: if only 1 usage, it's likely just the definition.
+    
+    actual_references = []
+    for u in usages:
+        # Check if the usage is different from the definition site
+        if not (u.get("file") == definition_file and u.get("line") == definition_line):
+            actual_references.append(u)
+    
+    # If a function has no other references apart from its own definition site (or very few)
+    # It's a candidate for being unused. The threshold (e.g., 0 or 1) can be adjusted.
+    if len(actual_references) == 0:
+        print(f"- Function '{function_name}' defined in {definition_file}:L{definition_line + 1} has no apparent internal usages.")
+```
+
+:::caution[Limitations of this heuristic:]
+**Limitations of this heuristic:**
+
+*   **Dynamic Calls:** Functions called dynamically (e.g., through reflection, or if the function name is constructed from a string at runtime) won't be detected as used.
+*   **Public APIs:** Functions intended for external use (e.g., library functions) will appear unused if the analysis is limited to the library's own codebase.
+*   **Test Code:** If your test suite is separate and not part of the `Repository` path being analyzed, functions used only by tests might be flagged.
+*   **Object Methods:** The `symbol_type="function"` might need adjustment or further logic if you are also looking for unused *methods* within classes, as their usage context is different.
+:::
