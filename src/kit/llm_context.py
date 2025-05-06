@@ -3,9 +3,6 @@
 This is intentionally lightweight – it glues together repository data
 (diff, file bodies, search hits, etc.) into a single string that can be
 fed straight into a chat completion.
-
-The API mirrors the usage in the documentation tutorials so that code
-snippets can be copied verbatim.
 """
 
 from __future__ import annotations

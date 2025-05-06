@@ -18,7 +18,9 @@ class LLMError(Exception):
 class OpenAIConfig:
     """Configuration for OpenAI API access."""
     api_key: Optional[str] = field(default_factory=lambda: os.environ.get("OPENAI_API_KEY"))
-    model: str = "gpt-4o" 
+    model: str = "gpt-4o"
+    temperature: float = 0.7
+    max_tokens: int = 1000  # Default max tokens for summary
 
     def __post_init__(self):
         if not self.api_key:
@@ -26,6 +28,7 @@ class OpenAIConfig:
                 "OpenAI API key not found. "
                 "Set OPENAI_API_KEY environment variable or pass api_key directly."
             )
+
 
 class Summarizer:
     """Provides methods to summarize code using a configured LLM."""
@@ -36,8 +39,9 @@ class Summarizer:
 
         Args:
             repo: The kit.Repository instance containing the code.
-            config: LLM configuration (currently OpenAIConfig). Defaults to 
-                    OpenAIConfig loading from environment variables.
+            config: LLM configuration (currently OpenAIConfig). Defaults to
+                    OpenAIConfig loading from environment variables. The config
+                    can specify 'model', 'temperature', and 'max_tokens'.
             llm_client: Optional pre-configured/mock client for testing.
         """
         self.repo = repo
@@ -89,7 +93,15 @@ class Summarizer:
              raise RuntimeError(f"Error reading file {file_path} from repo: {e}") from e
 
         # 2. Construct the prompt (basic example)
-        prompt = f"Summarize the following code file ({file_path}):\n\n```\n{content}\n```\n\nProvide a concise summary of its purpose and key functionality."
+        prompt = f"""Please provide a concise summary of the following code file: `{file_path}`.
+Focus on its primary purpose, key functionalities, and how it fits into a larger project if evident.
+
+Code:
+```
+{content}
+```
+
+Summary:"""
 
         # 3. Get LLM client (lazy loaded)
         client = self._get_llm_client()
@@ -99,10 +111,11 @@ class Summarizer:
             response = client.chat.completions.create(
                 model=self.config.model,
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant skilled at summarizing code."},
+                    {"role": "system", "content": "You are an expert assistant skilled in creating concise and informative code summaries."},
                     {"role": "user", "content": prompt}
-                ]
-                # Add other params like temperature, max_tokens from config later
+                ],
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
             )
             summary = response.choices[0].message.content
             if not summary:

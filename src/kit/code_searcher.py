@@ -2,10 +2,19 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Any, List, Dict, Optional
+from dataclasses import dataclass, field
+
+@dataclass
+class SearchOptions:
+    """Configuration options for text search."""
+    case_sensitive: bool = True
+    context_lines_before: int = 0
+    context_lines_after: int = 0
+    # Future options: whole_word: bool = False, exclude_patterns: List[str] = field(default_factory=list)
 
 class CodeSearcher:
     """
-    Provides robust text and regex search across the repository.
+    Provides text and regex search across the repository.
     Supports multi-language, file patterns, and returns match details.
     """
     def __init__(self, repo_path: str) -> None:
@@ -17,32 +26,53 @@ class CodeSearcher:
         """
         self.repo_path: Path = Path(repo_path)
 
-    def search_text(self, query: str, file_pattern: str = "*.py") -> List[Dict[str, Any]]:
+    def search_text(self, query: str, file_pattern: str = "*.py", options: Optional[SearchOptions] = None) -> List[Dict[str, Any]]:
         """
         Search for a text pattern (regex) in files matching file_pattern.
-        Returns a list of matches: {file, line, line_number}.
         
         Args:
-        query (str): The text pattern to search for.
-        file_pattern (str): The file pattern to search in. Defaults to "*.py".
+            query (str): The text pattern to search for.
+            file_pattern (str): The file pattern to search in. Defaults to "*.py".
+            options (Optional[SearchOptions]): Search configuration options.
         
         Returns:
-        List[Dict[str, Any]]: A list of matches.
+            List[Dict[str, Any]]: A list of matches. Each match includes:
+                - "file" (str): Relative path to the file.
+                - "line_number" (int): 1-indexed line number of the match.
+                - "line" (str): The content of the matching line.
+                - "context_before" (List[str]): Lines immediately preceding the match.
+                - "context_after" (List[str]): Lines immediately succeeding the match.
         """
         matches: List[Dict[str, Any]] = []
-        regex = re.compile(query)
+        current_options = options or SearchOptions() # Use defaults if none provided
+
+        regex_flags = 0 if current_options.case_sensitive else re.IGNORECASE
+        regex = re.compile(query, regex_flags)
+
         for file in self.repo_path.rglob(file_pattern):
             if not file.is_file():
                 continue
             try:
                 with open(file, "r", encoding="utf-8", errors="ignore") as f:
-                    for i, line in enumerate(f, 1):
-                        if regex.search(line):
-                            matches.append({
-                                "file": str(file.relative_to(self.repo_path)),
-                                "line_number": i,
-                                "line": line.rstrip()
-                            })
+                    lines = f.readlines() # Read all lines to handle context
+                
+                for i, line_content in enumerate(lines):
+                    if regex.search(line_content):
+                        start_context_before = max(0, i - current_options.context_lines_before)
+                        context_before = [l.rstrip('\n') for l in lines[start_context_before:i]]
+                        
+                        # Context after should not include the matching line itself
+                        start_context_after = i + 1
+                        end_context_after = start_context_after + current_options.context_lines_after
+                        context_after = [l.rstrip('\n') for l in lines[start_context_after:end_context_after]]
+
+                        matches.append({
+                            "file": str(file.relative_to(self.repo_path)),
+                            "line_number": i + 1, # 1-indexed
+                            "line": line_content.rstrip('\n'),
+                            "context_before": context_before,
+                            "context_after": context_after
+                        })
             except Exception as e:
                 # Log the exception for debugging purposes
                 print(f"Error searching file {file}: {e}")

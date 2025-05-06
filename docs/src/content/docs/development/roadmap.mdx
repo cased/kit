@@ -1,0 +1,94 @@
+---
+title: Kit Project Roadmap
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+This document outlines the current capabilities of the `kit` library and a potential roadmap for its future development. It's a living document and will evolve as the project progresses.
+
+## Core Philosophy
+
+`kit` aims to be a comprehensive Python toolkit for advanced code understanding, analysis, and interaction, with a strong emphasis on leveraging Large Language Models (LLMs) where appropriate. It's designed to be modular, extensible, and developer-friendly.
+
+## Current Capabilities
+
+As of now, `kit` provides the following core functionalities:
+
+<CardGrid>
+	<Card title="Repository Interaction" icon="document">
+		The `Repository` class acts as a central hub for accessing various code analysis features for a given codebase.
+	</Card>
+	<Card title="Code Mapping & Symbols" icon="settings">
+		`RepoMapper` provides structural and symbol information from code files, using Tree-sitter for multi-language support and incremental updates.
+	</Card>
+	<Card title="Code Summarization" icon="text-input">
+		The `Summarizer` class, configurable via `OpenAIConfig`, leverages LLMs to generate summaries of code files.
+	</Card>
+	<Card title="Code Search" icon="search">
+		Includes `CodeSearcher` for literal/regex-based searches with context, and `VectorSearcher` for semantic code search using embeddings.
+	</Card>
+	<Card title="LLM Context Building" icon="puzzle">
+		`LLMContext` helps in assembling relevant code snippets and information into effective prompts for LLMs.
+	</Card>
+	<Card title="Call Graph Analysis" icon="branch">
+		The `CallGraph` module offers capabilities to generate and analyze call graphs within the codebase (details to be further explored).
+	</Card>
+    <Card title="CLI Interface" icon="laptop">
+        A basic `cli.py` suggests command-line interaction capabilities are envisioned or in early stages.
+    </Card>
+</CardGrid>
+
+## Planned Enhancements & Future Directions
+
+Here are some areas we're looking to improve and expand upon:
+
+### 1. Enhanced Code Intelligence
+
+*   **`RepoMapper` & Symbol Extraction:**
+    *   **Deeper Language Insights:** Beyond basic symbol extraction, explore richer semantic information (e.g., variable types, function signatures in more detail).
+    *   **Custom Symbol Types:** Allow users to define and extract custom symbol types relevant to their specific frameworks or DSLs.
+    *   **Robustness:** Continue to improve `.gitignore` handling and parsing of various project structures.
+    *   **Performance:** Optimize scanning for very large repositories.
+*   **`CodeSearcher`:**
+    *   **Full File Exclusion:** Implement robust `.gitignore` and other ignore file pattern support.
+    *   **Advanced Search Options:** Add features like whole-word matching, and consider more powerful query syntax.
+    *   **Performance:** Explore integration with native search tools (e.g., `ripgrep`) as an optional backend for speed.
+*   **`VectorSearcher` (Semantic Search):**
+    *   **Configurability:** Offer more choices for embedding models, chunking strategies, and vector database backends.
+    *   **Hybrid Search:** Explore combining keyword and semantic search for optimal results.
+    *   **Index Management:** Tools for easier creation, updating, and inspection of semantic search indexes.
+
+### 2. Advanced LLM Integration
+
+*   **`Summarizer`:**
+    *   **Granular Summaries:** Fully implement `summarize_function` and `summarize_class`.
+    *   **Multi-LLM Support:** Abstract the LLM backend to easily support providers beyond OpenAI (e.g., Anthropic, local models).
+    *   **Customizable Prompts:** Allow users more control over the prompts used for summarization.
+*   **`LLMContext`:**
+    *   **Smarter Context Retrieval:** Develop more sophisticated strategies for selecting the most relevant context for different LLM tasks (e.g., using call graphs, semantic similarity, and historical data).
+    *   **Token Optimization:** Implement techniques to maximize information density within LLM token limits.
+
+### 3. Code Transformation & Generation
+
+*   **Refactoring Tools:** Leverage `kit`'s understanding of code to suggest or perform automated refactoring.
+*   **Code Generation:** Explore LLM-powered code generation based on existing codebase patterns or natural language descriptions.
+*   **Documentation Generation:** Automate the creation or updating of code documentation using `kit`'s analysis and LLM capabilities.
+
+### 4. Broader Language & Framework Support
+
+*   **Tree-sitter Queries:** Continuously expand and refine Tree-sitter queries for robust support across more programming languages and to address specific parsing challenges (e.g., HCL resource extraction noted previously).
+*   **Framework Awareness:** Develop extensions or plugins that provide specialized understanding for popular frameworks (e.g., Django, React, Spring).
+
+### 5. Usability & Developer Experience
+
+*   **Comprehensive Testing:** Ensure high test coverage for all modules and functionalities.
+*   **Documentation:** Maintain high-quality, up-to-date documentation, including API references, tutorials, and practical recipes.
+*   **CLI Enhancements:** Develop a more feature-rich and user-friendly command-line interface for common `kit` operations.
+*   **IDE Integration:** Explore possibilities for integrating `kit`'s features into popular IDEs via plugins or Language Server Protocol (LSP) extensions.
+
+### 6. Community & Extensibility
+
+*   **Plugin Architecture:** Design `kit` with a clear plugin architecture to allow the community to easily add new languages, analysis tools, or LLM integrations.
+*   **Contribution Guidelines:** Provide clear guidelines for contributing to the project.
+
+This roadmap is ambitious, and priorities will be adjusted based on user feedback and development progress. We're excited about the potential of `kit` to become an indispensable tool for developers!
