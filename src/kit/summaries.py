@@ -2,7 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 
 # Use TYPE_CHECKING to avoid circular import issues with Repository
 if TYPE_CHECKING:
@@ -37,7 +37,7 @@ class OpenAIConfig:
 class Summarizer:
     """Provides methods to summarize code using a configured LLM."""
 
-    def __init__(self, repo: 'Repository', config: Optional[OpenAIConfig] = None):
+    def __init__(self, repo: 'Repository', config: Optional[OpenAIConfig] = None, llm_client: Optional[Any] = None):
         """
         Initializes the Summarizer.
 
@@ -45,10 +45,12 @@ class Summarizer:
             repo: The kit.Repository instance containing the code.
             config: LLM configuration (currently OpenAIConfig). Defaults to 
                     OpenAIConfig loading from environment variables.
+            llm_client: Optional pre-configured/mock client for testing.
         """
         self.repo = repo
-        self.config = config or OpenAIConfig() # Default to OpenAI env var config
-        self._llm_client = None # Lazy load the client
+        self.config = config or OpenAIConfig()  # Default to OpenAI env var config
+        # Allow injecting a pre-configured/mock client (useful for tests)
+        self._llm_client = llm_client
 
         if not isinstance(self.config, OpenAIConfig):
             # Extend this later for other config types
@@ -56,15 +58,17 @@ class Summarizer:
 
     def _get_llm_client(self):
         """Lazy loads the OpenAI client."""
-        if self._llm_client is None:
-            try:
-                from openai import OpenAI # Local import
-            except ImportError as e:
-                raise ImportError(
-                    "OpenAI client not found. Please install it: 'pip install kit[openai]' or 'pip install openai'"
-                ) from e
-            
-            self._llm_client = OpenAI(api_key=self.config.api_key)
+        if self._llm_client is not None:
+            return self._llm_client
+
+        try:
+            from openai import OpenAI  # Local import to avoid hard dependency
+        except ImportError as e:
+            raise ImportError(
+                "OpenAI client not found. Install with 'pip install kit[openai]' or 'pip install openai'"
+            ) from e
+
+        self._llm_client = OpenAI(api_key=self.config.api_key)
         return self._llm_client
 
     def summarize_file(self, file_path: str) -> str:

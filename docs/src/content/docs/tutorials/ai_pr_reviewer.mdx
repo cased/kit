@@ -1,293 +1,134 @@
 ---
-title: AI PR Reviewer Tutorial
+title: Build an AI PR Reviewer
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-This guide shows how to build a robust, language-agnostic AI-powered Pull Request (PR) reviewer using various capabilities of `kit`. You'll learn how to extract code structure from PRs, generate meaningful context for LLMs, and automate actionable code review comments on GitHub. For a concrete implementation example of the concepts discussed here, you can explore the code in the `demos/ai_code_reviewer` directory in the main repository.
+`kit` shines when an LLM needs to *understand a change in the context of the **entire** code-base*—exactly what a human reviewer does.  This tutorial walks through a **minimal but complete** AI PR-review bot that:
 
-<Aside type="note">
-  If your AI generates code modifications (e.g., fixing a bug, adding a feature), consider using a library like [Supersonic](https://github.com/cased/supersonic) to programmatically create a Pull Request with those changes. See the [Integrating with Supersonic](/tutorials/integrating_supersonic) tutorial for more details.
-</Aside>
+1.  Fetches a GitHub PR (diff + metadata).
+2.  Builds a `kit.Repository` for the **changed branch** so we can query *any* file, symbol or dependency.
+3.  Generates a focused context bundle with `kit.llm_context.ContextAssembler` (diff, changed code, neighbouring code, semantic matches).
+4.  Sends the bundle to an LLM and posts the comments back to GitHub.
+
+By the end you will see how a few dozen lines of Python—plus `kit`—give your LLM the *whole-repo* super-power.
 
 ---
+## 0. Prerequisites
 
-## Prerequisites
+• Python 3.9+  ·  `pip install "kit[openai]"`
 
-*   **Python 3.9+**: `kit` requires a modern Python version.
-*   **Git**: Required for repository interactions.
-*   **`kit` Library**: Install via pip: `pip install kit`.
-*   **LLM Access**: An API key for a service like OpenAI, Anthropic, or a local LLM setup compatible with common interfaces.
-*   **GitHub Token**: A personal access token (classic or fine-grained) with `repo` scope (`pull_requests: write` if fine-grained) to post review comments.
+• A GitHub **Personal Access Token** with `repo` scope in `GITHUB_TOKEN`.
 
-<Aside type="note">
-  Ensure your GitHub token is kept secure, e.g., via environment variables (`GITHUB_TOKEN`).
-</Aside>
+• An `OPENAI_API_KEY` (or point `kit` at your own LLM).
 
-## 1. Fetching PR Details
+---
+## 1. Fetch PR data
 
-We need the diff content and metadata (like changed files) for the target PR. `kit` doesn't handle GitHub API interaction directly, so we'll use a standard library like `requests` or a dedicated GitHub client library (`PyGithub`, `ghapi`).
+Use the GitHub REST API to grab the *diff* **and** the PR-head **commit SHA** (we’ll need that to load files as they exist in the PR):
 
 ```python
-import os
-import requests
+import os, requests
 
-def get_pr_diff(repo_owner, repo_name, pr_number):
-    """Fetches the diff content for a given GitHub PR."""
+def fetch_pr(repo, pr_number):
     token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        raise ValueError("GITHUB_TOKEN environment variable not set")
-
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls/{pr_number}"
-    headers = {
+    url   = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
+    r = requests.get(url, headers={
         "Accept": "application/vnd.github.v3.diff",
         "Authorization": f"token {token}",
-    }
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()  # Raise exception for bad status codes
-    return response.text
-
-# Example usage:
-# repo_owner = "your_org"
-# repo_name = "your_repo"
-# pr_number = 123
-# diff_content = get_pr_diff(repo_owner, repo_name, pr_number)
-# print(diff_content)
+    })
+    r.raise_for_status()
+    diff = r.text
+    head_sha = r.headers.get("X-GitHub-Head-SHA") or r.json()["head"]["sha"]
+    return diff, head_sha
 ```
 
-## 2. Parsing the Diff and Identifying Changed Files
+---
+## 2. Create a `Repository` for the PR branch
 
-We need to know which files were modified to focus our analysis. A simple approach is to parse the diff output.
+`kit` can load a remote Git repo *at any commit*—no full clone required:
+
+```python
+from kit import Repository
+
+repo = Repository(
+    path_or_url="https://github.com/OWNER/REPO.git",
+    ref=head_sha,               # commit taken from step 1
+    github_token=os.getenv("GITHUB_TOKEN"),
+    cache_dir="~/.cache/kit",  # clones are cached for speed
+)
+```
+
+Now `repo` can *instantly* answer questions like:
+`repo.search_text("TODO"), repo.extract_symbols('src/foo.py'), repo.find_symbol_usages('User')`.
+
+---
+## 3. Identify changed files
 
 ```python
 import re
-
-def parse_changed_files(diff_content):
-    """Extracts changed file paths from a standard diff output."""
-    # Matches lines like 'diff --git a/path/to/file.py b/path/to/file.py'
-    # and extracts the 'b' path.
-    pattern = re.compile(r'^diff --git a/(?:.*) b/(.*)$', re.MULTILINE)
-    changed_files = pattern.findall(diff_content)
-    # Filter out potential non-code files if desired (e.g., images, docs)
-    # changed_files = [f for f in changed_files if f.endswith(('.py', '.js', '.go'))]
-    return changed_files
-
-# changed_files = parse_changed_files(diff_content)
-# print(changed_files)
+changed = re.findall(r"^diff --git a/.* b/(.*)$", diff, re.M)
 ```
 
-<Aside type="note">
-  More robust diff parsing might involve libraries like `gitpython` if operating on a local clone or dedicated diff parsing libraries.
-</Aside>
-
-## 3. Initializing the Repository Representation
-
-Even without a full local clone, `kit` can work with file content. We'll load the content of the *changed files* (as they exist in the PR's *head* commit) into a `Repo` object. Fetching the full file content requires another GitHub API call for each file.
-
-```python
-from kit import Repo
-
-def get_file_content(repo_owner, repo_name, file_path, ref):
-    """Fetches the content of a specific file at a given ref (branch/commit SHA)."""
-    token = os.getenv("GITHUB_TOKEN")
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{file_path}?ref={ref}"
-    headers = {
-        "Accept": "application/vnd.github.v3.raw",
-        "Authorization": f"token {token}",
-    }
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    return response.text
-
-def get_pr_head_ref(repo_owner, repo_name, pr_number):
-    """Gets the head commit SHA for the PR."""
-    token = os.getenv("GITHUB_TOKEN")
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls/{pr_number}"
-    headers = {
-        "Accept": "application/vnd.github.v3+json",
-        "Authorization": f"token {token}",
-    }
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    return response.json()['head']['sha']
-
-# --- In your main script ---
-# pr_head_ref = get_pr_head_ref(repo_owner, repo_name, pr_number)
-# file_contents = {}
-# for file_path in changed_files:
-#     try:
-#         content = get_file_content(repo_owner, repo_name, file_path, pr_head_ref)
-#         file_contents[file_path] = content
-#     except requests.exceptions.HTTPError as e:
-#         if e.response.status_code == 404:
-#             print(f"Warning: File '{file_path}' not found in PR head ref '{pr_head_ref}'. Skipping.")
-#             # This can happen if a file was deleted in the PR
-#         else:
-#             raise
-
-# Initialize Repo with the fetched content
-# repo = Repo.from_files(file_contents)
-```
-
-## 4. Extracting Symbols from Changed Files
-
-Now, use `kit` to understand the structure of the modified code.
-
-```python
-# Assuming 'repo' is the Repo object initialized in the previous step
-# symbols_by_file = {}
-# for file_path in repo.files():
-#     symbols = repo.get_symbols(file_paths=[file_path])
-#     symbols_by_file[file_path] = symbols
-#     print(f"Symbols found in {file_path}:")
-#     for symbol in symbols:
-#         print(f"  - {symbol.name} ({symbol.kind}) at L{symbol.start_line}-L{symbol.end_line}")
-```
-
-## 5. Generating Context for the LLM
-
-This is the core part. We need to provide the LLM with enough information to understand the changes and their potential impact. A good strategy involves combining:
-
-*   **The Diff**: The raw changes made.
-*   **Modified Symbols**: The code of functions/classes that were directly changed.
-*   **(Optional) Related Symbols**: Code of functions/classes that *call* or *are called by* the modified symbols (provides broader context).
-*   **(Optional) Semantic Search Results**: Snippets related to the *purpose* of the change (if this can be inferred or provided).
+---
+## 4. Assemble **whole-repo** context
 
 ```python
 from kit.llm_context import ContextAssembler
 
-def generate_llm_context(repo, diff_content, changed_files):
-    """Generates context for an LLM based on PR changes."""
-    assembler = ContextAssembler(repo)
+assembler = ContextAssembler(repo)
+assembler.add_diff(diff)
 
-    # 1. Add the raw diff
-    assembler.add_diff(diff_content)
+for path in changed:
+    assembler.add_file(path, highlight_changes=True)
+    assembler.add_symbol_dependencies(path, max_depth=1)  # 👈 follow imports/calls
 
-    # 2. Add content of modified symbols
-    modified_symbols = repo.get_symbols_in_diff(diff_content)
-    assembler.add_symbols(modified_symbols, title="Modified Code Blocks")
+# Optional: semantic search to pull in *related* code
+# for q in (pr_title, pr_description):
+#     assembler.add_search_results(repo.search_semantic(q, k=5), query=q)
 
-    # 3. (Optional) Add callers/callees for more context
-    # This can be expensive and generate a lot of text, use judiciously
-    # related_symbols = set()
-    # for symbol in modified_symbols:
-    #     callers = repo.get_callers(symbol)
-    #     callees = repo.get_callees(symbol)
-    #     related_symbols.update(callers)
-    #     related_symbols.update(callees)
-    # # Filter related symbols that are outside the changed files if desired
-    # related_symbols_in_pr_scope = {s for s in related_symbols if s.file_path in changed_files}
-    # assembler.add_symbols(related_symbols_in_pr_scope, title="Related Code Blocks (Callers/Callees)")
-
-    # 4. (Optional) Add semantic search context if applicable
-    # query = "User authentication flow" # Example query related to the PR's goal
-    # search_results = repo.search_semantic(query, k=5) # Requires embed_fn setup
-    # assembler.add_search_results(search_results, query)
-
-    return assembler.format_context()
-
-# Assuming 'repo' and 'diff_content' are available
-# llm_context = generate_llm_context(repo, diff_content, changed_files)
-# print("\n--- LLM Context ---")
-# print(llm_context)
+context_blob = assembler.format_context()
 ```
 
-<Aside type="note">
-  Context generation is highly customizable. Experiment with different combinations (diff only, diff + symbols, diff + symbols + related, etc.) to find what works best for your LLM and review goals. Use `ContextAssembler` methods or build the context string manually. Refer to [LLM Context Best Practices](/core-concepts/llm-context-best-practices).
-</Aside>
+Why all this?  Large-language models produce far better reviews when they see **the diff *and* the surrounding code, plus any functions that call or are called by the change**.
 
-## 6. Interacting with the LLM
-
-Send the generated context along with a carefully crafted prompt to your chosen LLM.
+---
+## 5. Ask the LLM for a review
 
 ```python
-import openai # Or your preferred LLM client library
+from openai import OpenAI
 
-def get_ai_review(context, pr_title, pr_description):
-    """Sends context to an LLM and asks for a PR review."""
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    if not openai.api_key:
-        raise ValueError("OPENAI_API_KEY environment variable not set")
-
-    system_prompt = (
-        "You are an expert code reviewer. Analyze the provided pull request context "
-        "(diff, code snippets) and provide constructive feedback. Focus on potential bugs, "
-        "style issues, unclear code, missing tests, or performance concerns. "
-        "Structure your feedback clearly. If there are no major issues, state that." 
-        "Reference specific file paths and line numbers where possible based *only* on the provided context."
-    )
-
-    user_prompt = (
-        f"Please review the following pull request:\n\n"
-        f"**PR Title:** {pr_title}\n"
-        f"**PR Description:**\n{pr_description}\n\n"
-        f"**PR Context (Diff & Code):**\n"
-        f"```\n{context}\n```\n\n"
-        f"Provide your review comments:"
-    )
-
-    try:
-        response = openai.chat.completions.create(
-            model="gpt-4o", # Or your preferred model
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.2, # Lower temperature for more focused reviews
-        )
-        review_comments = response.choices[0].message.content
-        return review_comments
-    except Exception as e:
-        print(f"Error calling LLM API: {e}")
-        return None
-
-# --- In your main script ---
-# Fetch PR title/description similarly to how diff/files were fetched
-# pr_title = "Fix user login bug"
-# pr_description = "Addresses issue #42 where users couldn't log in."
-# review = get_ai_review(llm_context, pr_title, pr_description)
-# if review:
-#     print("\n--- AI Review Comments ---")
-#     print(review)
+client = OpenAI()
+msg = client.chat.completions.create(
+    model="gpt-4o",
+    temperature=0.2,
+    messages=[
+        {"role": "system", "content": "You are an expert software engineer …"},
+        {"role": "user",   "content": f"PR context:\n```\n{context_blob}\n```\nGive a review."},
+    ],
+)
+review = msg.choices[0].message.content.strip()
 ```
 
-## 7. Posting Comments to GitHub
-
-Finally, use the GitHub API again to post the LLM's review as a comment on the PR.
+---
+## 6. Post the review back to GitHub
 
 ```python
-def post_github_comment(repo_owner, repo_name, pr_number, comment_body):
-    """Posts a comment to a GitHub PR."""
-    token = os.getenv("GITHUB_TOKEN")
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments"
-    headers = {
-        "Accept": "application/vnd.github.v3+json",
-        "Authorization": f"token {token}",
-    }
-    payload = {"body": comment_body}
-    response = requests.post(url, headers=headers, json=payload)
-    response.raise_for_status()
-    print(f"Successfully posted comment to PR #{pr_number}")
-
-# --- In your main script ---
-# if review:
-#     try:
-#         post_github_comment(repo_owner, repo_name, pr_number, review)
-#     except requests.exceptions.HTTPError as e:
-#         print(f"Error posting comment to GitHub: {e.response.text}")
+requests.post(
+    f"https://api.github.com/repos/{repo_full}/issues/{pr_number}/comments",
+    headers={"Authorization": f"token {os.getenv('GITHUB_TOKEN')}",
+             "Accept": "application/vnd.github.v3+json"},
+    json={"body": review},
+    timeout=10,
+).raise_for_status()
 ```
 
-## Conclusion
+---
+## Where to go next?
 
-This tutorial demonstrated a workflow for building an AI PR reviewer using `kit` for context generation and standard tools for GitHub/LLM interaction. Key takeaways:
+*   **Chunk large diffs** with `assembler.add_diff(..., chunk_by_file=True)`.
+*   **Custom ranking** – weight semantic-search matches higher than diff chunks.
+*   **Inline comments** – parse LLM output and map back to file/line, then use the GitHub *review* API instead of a single comment.
+*   **Supersonic** – automatically *apply* the LLM suggestions and open a follow-up PR.
 
-*   **Context is King**: Providing the right mix of diffs, changed code, and related code is crucial for effective LLM reviews.
-*   **Modularity**: Separate concerns – GitHub interaction, diff parsing, `kit`-based analysis, LLM prompting, and comment posting.
-*   **Customization**: Adapt the context generation and LLM prompts to your specific needs and review focus.
-
-You can extend this by:
-
-*   Implementing more sophisticated context strategies (e.g., using semantic search based on PR descriptions).
-*   Handling larger PRs by chunking diffs or focusing on critical files.
-*   Integrating with CI/CD systems for automated reviews.
-*   Using tools like Supersonic to suggest or apply fixes automatically.
+> With `kit` your LLM sees code the way *humans* do: in the rich context of the entire repository.  Better signal in → better reviews out.
