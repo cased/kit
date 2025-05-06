@@ -199,6 +199,16 @@ class Repository:
         # Return the initialized Summarizer
         return Summarizer(repo=self, config=llm_config)
 
+    # ------------------------------------------------------------------
+    # Convenience helpers
+    # ------------------------------------------------------------------
+
+    def get_context_assembler(self) -> 'ContextAssembler':
+        """Return a ContextAssembler bound to this repository."""
+        from .llm_context import ContextAssembler  # local import to keep dependencies light
+
+        return ContextAssembler(self)
+
     def find_symbol_usages(self, symbol_name: str, symbol_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Finds all usages of a symbol (by name and optional type) across the repo's indexed symbols.

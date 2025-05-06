@@ -20,17 +20,11 @@ local_repo = Repository("/path/to/your/local/project")
 
 ## Core Methods
 
-<Aside type="note">
-  Detailed documentation for each method coming soon...
-</Aside>
-
 *   `index()`: Analyzes the repository.
 *   `get_file_content(path)`: Reads file content.
 *   `extract_symbols(path)`: Extracts code symbols.
 *   `semantic_search(query)`: Performs semantic search.
 *   `get_summarizer()`: Gets the code summarizer.
-
-*(More details and examples to be added)*
 
 ## Creating a `Repository` Instance
 
@@ -270,3 +264,18 @@ repository.write_symbol_usages(symbol_name: str, file_path: str, symbol_type: Op
 *   `symbol_name` (str): The name of the symbol whose usages were found.
 *   `file_path` (str): The path to the output JSON file.
 *   `symbol_type` (Optional[str]): The symbol type filter used when finding usages. Defaults to `None`.
+
+## `repository.get_context_assembler()`
+
+Convenience helper that returns a fresh `ContextAssembler` bound to this repository.
+Use it instead of importing the class directly:
+
+```python
+assembler = repository.get_context_assembler()
+assembler.add_diff(my_diff)
+context_blob = assembler.format_context()
+```
+
+**Returns:**
+
+* `ContextAssembler`: Ready-to-use assembler instance.
