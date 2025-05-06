@@ -4,7 +4,7 @@ title: Summarizer API
 
 import { Aside } from '@astrojs/starlight/components';
 
-In addition to the independent functions of the `Repo` class, 
+In addition to the independent functions of the `Repository` class, 
 `kit` also integrates directly with LLMs via the `Summarizer` class to provide intelligent code summarization capabilities. This helps you quickly understand the purpose and functionality of entire code files, specific functions, or classes.
 
 ## Getting Started
@@ -25,7 +25,7 @@ To use code summarization, you'll need an LLM provider configured. Currently, Op
 
 ## Basic Usage: Summarizing Files
 
-The primary way to access summarization is through the `Repo` object's `get_summarizer()` factory method.
+The primary way to access summarization is through the `Repository` object's `get_summarizer()` factory method.
 
 ```python
 import kit
@@ -36,7 +36,7 @@ import os
 
 try:
     # Load the repository
-    repo = kit.Repo("/path/to/your/project")
+    repo = kit.Repository("/path/to/your/project")
 
     # Get the summarizer instance (defaults to OpenAI using env var)
     summarizer = repo.get_summarizer()
@@ -75,7 +75,7 @@ While environment variables are the default, you can provide specific configurat
 from kit.summaries import OpenAIConfig # Assuming this path
 
 # Load repo
-repo = kit.Repo("/path/to/your/project")
+repo = kit.Repository("/path/to/your/project")
 
 # Define custom configuration
 custom_config = OpenAIConfig(
@@ -100,7 +100,7 @@ Beyond entire files, you can target specific functions or classes:
 ```python
 import kit
 
-repo = kit.Repo("/path/to/your/project")
+repo = kit.Repository("/path/to/your/project")
 summarizer = repo.get_summarizer() # Assumes OPENAI_API_KEY is set
 
 # Summarize a specific function
@@ -119,18 +119,18 @@ print(f"Class Summary:\n{class_summary}")
 
 ```
 
-<Aside type="info">
+<Aside type="note">
   Under the hood, `summarize_function` and `summarize_class` will use `kit`'s symbol extraction capabilities (`repo.extract_symbols`) to locate the precise code snippet for the target function or class before sending it to the LLM, providing more focused summaries.
 </Aside>
 
-### Combining with Other Repo Features
+### Combining with Other Repository Features
 
-You can combine the `Summarizer` with other `Repo` methods for powerful workflows. For example, find all classes in a file and then summarize each one:
+You can combine the `Summarizer` with other `Repository` methods for powerful workflows. For example, find all classes in a file and then summarize each one:
 
 ```python
 import kit
 
-repo = kit.Repo("/path/to/your/project")
+repo = kit.Repository("/path/to/your/project")
 summarizer = repo.get_summarizer()
 
 file_to_analyze = "src/services/notification_service.py"
@@ -162,10 +162,10 @@ for sym in class_symbols:
   While `repo.get_summarizer()` is the most convenient way to get a configured `Summarizer`, you can also instantiate it directly if needed:
 
   ```python
-  from kit import Repo
+  from kit import Repository
   from kit.summaries import Summarizer, OpenAIConfig
 
-  my_repo = Repo("/path/to/code")
+  my_repo = Repository("/path/to/code")
   my_config = OpenAIConfig(api_key="sk-...", model="gpt-4o") # Example config
 
   direct_summarizer = Summarizer(repo=my_repo, config=my_config)

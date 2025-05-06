@@ -20,7 +20,15 @@ export default defineConfig({
 				},
 				{
 					label: '💡 Core Concepts',
-					autogenerate: { directory: 'core-concepts' },
+					items: [
+						// Manually specify order, starting with repository-api
+						'core-concepts/repository-api',
+						'core-concepts/code-summarization',
+						'core-concepts/semantic-search',
+						'core-concepts/configuring-semantic-search',
+						'core-concepts/llm-context-best-practices',
+						'core-concepts/file-exclusion',
+					]
 				},
 				{
 					label: '📚 Tutorials',
@@ -31,11 +39,11 @@ export default defineConfig({
 					autogenerate: { directory: 'api' },
 				},
 				{
-					label: 'Development',
+					label: '🏗️ Development',
 					autogenerate: { directory: 'development' },
 				},
 				{
-					label: 'Extending Kit',
+					label: '🚀 Extending Kit',
 					autogenerate: { directory: 'extending' },
 				},
 			],
