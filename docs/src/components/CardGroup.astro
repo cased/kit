@@ -1,0 +1,9 @@
+---
+// CardGroup.astro – grid container for Card components.
+export interface Props { cols?: number }
+const { cols = 2 } = Astro.props;
+const grid = `repeat(${cols}, minmax(0, 1fr))`;
+---
+<div class="group" style={`display:grid;grid-template-columns:${grid};gap:1.25rem;`}>
+  <slot />
+</div>

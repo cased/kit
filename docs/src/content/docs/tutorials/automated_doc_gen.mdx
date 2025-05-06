@@ -2,8 +2,6 @@
 title: Automated Doc Gen
 ---
 
-## Overview
-
 This tutorial walks you through building an automated documentation generator for your codebase using the `kit` library. You'll learn how to extract symbols from your code and output Markdown documentation summarizing the structure of your project.
 
 ## Step 1: Generate Documentation from Code Symbols
@@ -11,10 +9,10 @@ This tutorial walks you through building an automated documentation generator fo
 The core of this tool is extracting symbols (functions, classes, etc.) from your codebase and formatting them as Markdown.
 
 ```python
-from kit import Repo
+from kit import Repository
 
 def generate_docs(repo_path: str) -> str:
-    repo = Repo(repo_path)
+    repo = Repository(repo_path)
     index = repo.index()
     lines = [f"# Documentation for {repo_path}\n"]
     for file, symbols in index["symbols"].items():

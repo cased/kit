@@ -10,6 +10,7 @@ from .repo_mapper import RepoMapper
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
 from .vector_searcher import VectorSearcher
+from .llm_context import ContextAssembler
 
 try:
     from .summaries import Summarizer, OpenAIConfig, LLMError
@@ -24,6 +25,7 @@ __all__ = [
     "CodeSearcher",
     "ContextExtractor",
     "VectorSearcher",
+    "ContextAssembler",
     # Conditionally add Summarizer related classes if they were imported
     *(["Summarizer", "OpenAIConfig", "LLMError"] if "Summarizer" in globals() else [])
 ]

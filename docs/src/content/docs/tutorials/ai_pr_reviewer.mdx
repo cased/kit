@@ -1,0 +1,134 @@
+---
+title: Build an AI PR Reviewer
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`kit` shines when an LLM needs to *understand a change in the context of the **entire** code-base*—exactly what a human reviewer does.  This tutorial walks through a **minimal but complete** AI PR-review bot that:
+
+1.  Fetches a GitHub PR (diff + metadata).
+2.  Builds a `kit.Repository` for the **changed branch** so we can query *any* file, symbol or dependency.
+3.  Generates a focused context bundle with `kit.llm_context.ContextAssembler` (diff, changed code, neighbouring code, semantic matches).
+4.  Sends the bundle to an LLM and posts the comments back to GitHub.
+
+By the end you will see how a few dozen lines of Python—plus `kit`—give your LLM the *whole-repo* super-power.
+
+---
+## 0. Prerequisites
+
+• Python 3.9+  ·  `pip install "kit[openai]"`
+
+• A GitHub **Personal Access Token** with `repo` scope in `GITHUB_TOKEN`.
+
+• An `OPENAI_API_KEY` (or point `kit` at your own LLM).
+
+---
+## 1. Fetch PR data
+
+Use the GitHub REST API to grab the *diff* **and** the PR-head **commit SHA** (we’ll need that to load files as they exist in the PR):
+
+```python
+import os, requests
+
+def fetch_pr(repo, pr_number):
+    token = os.getenv("GITHUB_TOKEN")
+    url   = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
+    r = requests.get(url, headers={
+        "Accept": "application/vnd.github.v3.diff",
+        "Authorization": f"token {token}",
+    })
+    r.raise_for_status()
+    diff = r.text
+    head_sha = r.headers.get("X-GitHub-Head-SHA") or r.json()["head"]["sha"]
+    return diff, head_sha
+```
+
+---
+## 2. Create a `Repository` for the PR branch
+
+`kit` can load a remote Git repo *at any commit*—no full clone required:
+
+```python
+from kit import Repository
+
+repo = Repository(
+    path_or_url="https://github.com/OWNER/REPO.git",
+    ref=head_sha,               # commit taken from step 1
+    github_token=os.getenv("GITHUB_TOKEN"),
+    cache_dir="~/.cache/kit",  # clones are cached for speed
+)
+```
+
+Now `repo` can *instantly* answer questions like:
+`repo.search_text("TODO"), repo.extract_symbols('src/foo.py'), repo.find_symbol_usages('User')`.
+
+---
+## 3. Identify changed files
+
+```python
+import re
+changed = re.findall(r"^diff --git a/.* b/(.*)$", diff, re.M)
+```
+
+---
+## 4. Assemble **whole-repo** context
+
+```python
+from kit.llm_context import ContextAssembler
+
+assembler = ContextAssembler(repo)
+assembler.add_diff(diff)
+
+for path in changed:
+    assembler.add_file(path, highlight_changes=True)
+    assembler.add_symbol_dependencies(path, max_depth=1)  # 👈 follow imports/calls
+
+# Optional: semantic search to pull in *related* code
+# for q in (pr_title, pr_description):
+#     assembler.add_search_results(repo.search_semantic(q, k=5), query=q)
+
+context_blob = assembler.format_context()
+```
+
+Why all this?  Large-language models produce far better reviews when they see **the diff *and* the surrounding code, plus any functions that call or are called by the change**.
+
+---
+## 5. Ask the LLM for a review
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+msg = client.chat.completions.create(
+    model="gpt-4o",
+    temperature=0.2,
+    messages=[
+        {"role": "system", "content": "You are an expert software engineer …"},
+        {"role": "user",   "content": f"PR context:\n```\n{context_blob}\n```\nGive a review."},
+    ],
+)
+review = msg.choices[0].message.content.strip()
+```
+
+---
+## 6. Post the review back to GitHub
+
+```python
+requests.post(
+    f"https://api.github.com/repos/{repo_full}/issues/{pr_number}/comments",
+    headers={"Authorization": f"token {os.getenv('GITHUB_TOKEN')}",
+             "Accept": "application/vnd.github.v3+json"},
+    json={"body": review},
+    timeout=10,
+).raise_for_status()
+```
+
+---
+## Where to go next?
+
+*   **Chunk large diffs** with `assembler.add_diff(..., chunk_by_file=True)`.
+*   **Custom ranking** – weight semantic-search matches higher than diff chunks.
+*   **Inline comments** – parse LLM output and map back to file/line, then use the GitHub *review* API instead of a single comment.
+*   **Supersonic** – automatically *apply* the LLM suggestions and open a follow-up PR.
+
+> With `kit` your LLM sees code the way *humans* do: in the rich context of the entire repository.  Better signal in → better reviews out.

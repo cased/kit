@@ -1,8 +1,11 @@
 ---
-title: Kit Documentation
-hasSidebar: true
+title: 🏠 Kit Documentation
+template: splash
 ---
- 
+
+import Card from '../../components/Card.astro';
+import CardGroup from '../../components/CardGroup.astro';
+
 Welcome to **kit** – the Python toolkit from [Cased](https://cased.com) for building LLM-powered developer tools and workflows. Understand, 
 search, and prepare code to with the goal of **whole repo context**.
 
@@ -15,19 +18,19 @@ Use kit to build AI-powered developer tools (code reviewers, code generators, ev
 ## Explore the docs
 
 <CardGroup cols={2}>
-  <Card title="Overview" href="/introduction/overview" icon="book-open">
+  <Card title="Overview" href="/introduction/overview">
     What Kit is, why it exists, and how to install it.
   </Card>
-  <Card title="Core Concepts" href="/core-concepts/api-primitives" icon="puzzle-piece">
+  <Card title="Core Concepts" href="/core-concepts/api-primitives">
     Deep-dive into the Repository API, symbol extraction, vector search, and architecture.
   </Card>
-  <Card title="Tutorials" href="/tutorials/ai_pr_reviewer" icon="graduation-cap">
+  <Card title="Tutorials" href="/tutorials/ai_pr_reviewer">
     Step-by-step tutorials to build real-world tools with Kit.
   </Card>
-  <Card title="Extending Kit" href="/extending/adding-languages" icon="code-bracket-square">
+  <Card title="Extending Kit" href="/extending/adding-languages">
     Learn how to add new language grammars and customise extraction.
   </Card>
-  <Card title="Development" href="/development/running-tests" icon="wrench-screwdriver">
+  <Card title="Development" href="/development/running-tests">
     Contributing, running tests, and project conventions.
   </Card>
 </CardGroup>

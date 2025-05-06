@@ -1,0 +1,83 @@
+"""Utilities to assemble rich prompts for LLMs.
+
+This is intentionally lightweight – it glues together repository data
+(diff, file bodies, search hits, etc.) into a single string that can be
+fed straight into a chat completion.
+
+The API mirrors the usage in the documentation tutorials so that code
+snippets can be copied verbatim.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence
+
+from .repository import Repository
+
+
+class ContextAssembler:
+    """Collects pieces of context and spits out a prompt blob.
+
+    Parameters
+    ----------
+    repo
+        A :class:`kit.repository.Repository` object representing the codebase
+        we want to reason about. The assembler uses it to fetch file content
+        and (in the future) symbol relationships.
+    title
+        Optional global title prepended to the context (not used by default).
+    """
+
+    def __init__(self, repo: Repository, *, title: Optional[str] = None) -> None:
+        self.repo = repo
+        self._sections: List[str] = []
+        if title:
+            self._sections.append(f"# {title}\n")
+
+    # ---------------------------------------------------------------------
+    # Public helpers used in tutorial snippets
+    # ---------------------------------------------------------------------
+
+    def add_diff(self, diff: str) -> None:
+        """Add a raw git diff section."""
+        if not diff.strip():
+            return
+        self._sections.append("## Diff\n```diff\n" + diff.strip() + "\n```")
+
+    def add_file(self, file_path: str, *, highlight_changes: bool = False) -> None:
+        """Embed full file content.
+
+        If *highlight_changes* is true we still just inline raw content –
+        markup is left to the caller/LLM.
+        """
+        try:
+            code = self.repo.get_file_content(file_path)
+        except FileNotFoundError:
+            return
+        lang = Path(file_path).suffix.lstrip(".") or "text"
+        header = f"## {file_path} (full)" if not highlight_changes else f"## {file_path} (with changes highlighted)"
+        self._sections.append(f"{header}\n```{lang}\n{code}\n```")
+
+    def add_symbol_dependencies(self, file_path: str, *, max_depth: int = 1) -> None:
+        """Placeholder – currently just re-embeds the file.
+
+        In a full implementation you'd walk the import/call graph; for now we
+        keep the API stable for docs while falling back to :py:meth:`add_file`.
+        """
+        self.add_file(file_path)
+
+    def add_search_results(self, results: Sequence[Dict[str, Any]], *, query: str) -> None:
+        """Append semantic search matches to the context."""
+        if not results:
+            return
+        blob = [f"## Semantic search for: {query}"]
+        for i, res in enumerate(results, 1):
+            code = res.get("code") or res.get("snippet") or ""
+            file = res.get("file", f"result_{i}")
+            blob.append(f"### {file}\n```\n{code}\n```")
+        self._sections.append("\n".join(blob))
+
+    def format_context(self) -> str:
+        """Return the accumulated context."""
+        return "\n\n".join(self._sections)
