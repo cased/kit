@@ -40,3 +40,37 @@ def test_repo_file_tree_various(structure):
         tree = repository.get_file_tree()
         for relpath in structure:
             assert any(item["path"].endswith(relpath) for item in tree)
+
+def test_repo_get_file_content():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Setup: Create some test files
+        content1 = "Hello, world!\nThis is a test file."
+        file1_path = "dir1/file1.txt"
+        full_file1_path = os.path.join(tmpdir, file1_path)
+        os.makedirs(os.path.dirname(full_file1_path), exist_ok=True)
+        with open(full_file1_path, "w") as f:
+            f.write(content1)
+
+        empty_file_path = "empty.txt"
+        full_empty_file_path = os.path.join(tmpdir, empty_file_path)
+        with open(full_empty_file_path, "w") as f:
+            pass # Create an empty file
+
+        repository = Repository(tmpdir)
+
+        # Test 1: Read content from an existing file
+        retrieved_content1 = repository.get_file_content(file1_path)
+        assert retrieved_content1 == content1
+
+        # Test 2: Read content from an empty file
+        retrieved_empty_content = repository.get_file_content(empty_file_path)
+        assert retrieved_empty_content == ""
+
+        # Test 3: Attempt to read content from a non-existent file
+        non_existent_file_path = "non_existent.txt"
+        with pytest.raises(FileNotFoundError):
+            repository.get_file_content(non_existent_file_path)
+
+        # Test 4: Attempt to read content from a directory (should also fail)
+        with pytest.raises(IOError): # Or perhaps FileNotFoundError or IsADirectoryError, adjust as per actual behavior
+            repository.get_file_content("dir1")
