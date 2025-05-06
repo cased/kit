@@ -26,7 +26,9 @@ class ChromaDBBackend(VectorDBBackend):
             raise ImportError("chromadb is not installed. Run 'pip install chromadb'.")
         self.persist_dir = persist_dir
         self.client = chromadb.Client(Settings(persist_directory=persist_dir))
-        self.collection = self.client.get_or_create_collection("kit_code_chunks")
+        # Use a collection name scoped to persist_dir to avoid dimension clashes across multiple tests/processes
+        coll_name = f"kit_code_chunks_{abs(hash(persist_dir))}"
+        self.collection = self.client.get_or_create_collection(coll_name)
 
     def add(self, embeddings, metadatas):
         # Skip adding if there is nothing to add (prevents ChromaDB error)

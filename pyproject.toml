@@ -42,12 +42,23 @@ ignore_missing_imports = true
 [project.optional-dependencies]
 vector = [
     "chromadb",
-    "numpy>=1.25"
+    "numpy>=1.25",
+    "sentence-transformers>=2.2.0"  # Added for embedding generation
+]
+api = [
+    "fastapi>=0.100",  # Using a recent version
+    "uvicorn[standard]>=0.20", # Includes standard dependencies like websockets
+    "typer>=0.9" # Removed invalid [all] extra
 ]
 dev = [
     "mypy",
-    "pytest"
+    "pytest",
+    "ruff", # Added ruff for linting
+    "black" # Added black for formatting
 ]
 openai = [
     "openai>=1.0.0"
 ]
+
+[project.scripts]
+kit = "kit.cli:app"
