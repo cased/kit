@@ -1,0 +1,153 @@
+---
+title: LLM Context Best Practices
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Providing the right context to a Large Language Model (LLM) is critical for getting accurate and relevant results when building AI developer tools with `kit`. This guide outlines best practices for assembling context using `kit` features.
+
+### 1. File Tree (`repo.get_file_tree`)
+
+*   **Context:** Provides the overall structure of the repository or specific directories.
+*   **Use Cases:** Understanding project layout, locating relevant modules.
+*   **Prompting Tip:** Include the file tree when asking the LLM about high-level architecture or where to find specific functionality.
+
+```yaml
+# Example Context Block
+Repository File Tree (partial):
+src/
+  __init__.py
+  core/
+    repo.py
+    search.py
+  utils/
+    parsing.py
+tests/
+  test_repo.py
+README.md
+```
+
+<Aside type="caution">
+  Use depth limits or filtering for large projects to avoid overwhelming the LLM.
+</Aside>
+
+### 2. Symbols (`repo.get_symbols`)
+
+*   **Context:** Lists functions, classes, variables, etc., within specified files.
+*   **Use Cases:** Understanding the code within a file, finding specific definitions, providing context for code generation/modification tasks.
+*   **Prompting Tip:** Clearly label the file path associated with the symbols.
+
+```yaml
+# Example Context Block
+Symbols in src/core/repo.py:
+- class Repo:
+  - def __init__(self, path):
+  - def get_symbols(self, file_paths):
+  - def search_semantic(self, query):
+- function _validate_path(path):
+```
+
+<Aside type="note">
+  Filter symbols to relevant files/modules when possible.
+</Aside>
+
+### 3. Code Snippets (via Symbols or `get_file_content`)
+
+*   **Context:** The actual source code of specific functions, classes, or entire files.
+*   **Use Cases:** Detailed code review, bug finding, explanation, modification.
+*   **Prompting Tip:** Provide the code for symbols identified as relevant by other context methods (e.g., symbols mentioned in a diff, search results).
+
+```python
+# Example Context Block
+Code for Repo.search_semantic in src/core/repo.py:
+
+def search_semantic(self, query):
+    # ... implementation ...
+    pass
+```
+
+<Aside type="note">
+  Clearly identify chunks in the prompt and prefer symbol-based chunking over line-based chunking when appropriate.
+</Aside>
+
+### 4. Text Search Results (`repo.search_text`)
+
+*   **Context:** Lines of code matching a specific text query.
+*   **Use Cases:** Finding specific variable names, API calls, error messages.
+*   **Prompting Tip:** Include the search query and clearly label the results.
+
+```yaml
+# Example Context Block
+Text search results for "database connection":
+- src/db/connect.py:15: conn = connect_database()
+- src/config.py:8: DATABASE_URL = "..."
+```
+
+<Aside type="note">
+  Clearly specify the search query used to generate the results.
+</Aside>
+
+### 5. Symbol Usages (`repo.get_references` or `repo.get_callers`/`get_callees`)
+
+*   **Context:** Where a specific symbol (function, class) is used or called throughout the codebase.
+*   **Use Cases:** Understanding the impact of changing a function, finding examples of how an API is used, dependency analysis.
+*   **Prompting Tip:** Specify the symbol whose usages are being listed.
+
+```yaml
+# Example Context Block
+Usages of function connect_database (defined in src/db/connect.py):
+- src/app.py:50: db_conn = connect_database()
+- tests/test_db.py:12: mock_connect = mock(connect_database)
+```
+
+<Aside type="note">
+  Clearly indicate the symbol whose usages are being shown.
+</Aside>
+
+### 6. Semantic Search Results (`repo.search_semantic`)
+
+*   **Context:** Code chunks semantically similar to a natural language query.
+*   **Use Cases:** Finding code related to a concept (e.g., "user authentication logic"), exploring related functionality.
+*   **Prompting Tip:** Include the semantic query and label the results clearly.
+
+```yaml
+# Example Context Block
+Semantic search results for "user login handling":
+- Chunk from src/auth/login.py (lines 25-40):
+  ```python
+  def handle_login(username, password):
+      # ... validation logic ...
+  ```
+- Chunk from src/models/user.py (lines 10-15):
+  ```python
+  class User:
+      # ... attributes ...
+  ```
+```
+
+<Aside type="note">
+  Indicate that the results are from a semantic search, as the matches might not be exact text matches.
+</Aside>
+
+### 7. Diff Content
+
+*   **Context:** The specific lines added, removed, or modified in a changeset (e.g., a Git diff).
+*   **Use Cases:** Code review, understanding specific changes in a PR or commit.
+*   **Prompting Tip:** Clearly mark the diff section in the context.
+
+```diff
+# Example Context Block
+Code Diff:
+--- a/src/utils/parsing.py
++++ b/src/utils/parsing.py
+@@ -10,5 +10,6 @@
+ def parse_data(raw_data):
+     # Extended parsing logic
++    data = preprocess(raw_data)
+     return json.loads(data)
+
+```
+
+<Aside type="note">
+  Pair this context with specific line numbers for targeted analysis.
+</Aside>

@@ -2,6 +2,8 @@
 title: Summarizer API 
 ---
 
+import { Aside } from '@astrojs/starlight/components';
+
 In addition to the independent functions of the `Repo` class, 
 `kit` also integrates directly with LLMs via the `Summarizer` class to provide intelligent code summarization capabilities. This helps you quickly understand the purpose and functionality of entire code files, specific functions, or classes.
 
@@ -52,9 +54,9 @@ except Exception as e:
 
 ```
 
-<Note>
+<Aside type="note">
   The first time you call `repo.get_summarizer()`, it will attempt to import the necessary LLM library (e.g., `openai`). If it's not installed, an `ImportError` will be raised, prompting you to install the required extras (e.g., `kit[openai]`).
-</Note>
+</Aside>
 
 ### How it Works
 
@@ -117,9 +119,9 @@ print(f"Class Summary:\n{class_summary}")
 
 ```
 
-<Info>
+<Aside type="info">
   Under the hood, `summarize_function` and `summarize_class` will use `kit`'s symbol extraction capabilities (`repo.extract_symbols`) to locate the precise code snippet for the target function or class before sending it to the LLM, providing more focused summaries.
-</Info>
+</Aside>
 
 ### Combining with Other Repo Features
 
@@ -156,7 +158,7 @@ for sym in class_symbols:
 
 ```
 
-<Note>
+<Aside type="note">
   While `repo.get_summarizer()` is the most convenient way to get a configured `Summarizer`, you can also instantiate it directly if needed:
 
   ```python
@@ -171,11 +173,7 @@ for sym in class_symbols:
   summary = direct_summarizer.summarize_file("some/file.py")
   print(summary)
   ```
-</Note>
-
-## Advanced Usage
-
-### Summarizing Functions and Classes
+</Aside>
 
 ## Future Directions
 

@@ -1,0 +1,48 @@
+---
+// Card.astro – simple mintlify-like card.
+export interface Props {
+  title: string;
+  href?: string;
+  icon?: string;
+}
+const { title, href, icon } = Astro.props;
+const Tag = href ? 'a' : 'div';
+---
+<Tag href={href} class="card-link">
+  <div class="card">
+    {icon && <div class="card-icon">{icon}</div>}
+    <div class="card-title">{title}</div>
+    <div class="card-body"><slot /></div>
+  </div>
+</Tag>
+
+<style>
+.card-link {
+  text-decoration: none;
+  color: inherit;
+}
+.card {
+  background: var(--sl-color-bg-secondary, #fff);
+  border: 1px solid var(--sl-color-hairline-light, #e0e0e0);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.card:hover {
+  box-shadow: 0 3px 16px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.card-body {
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+.card-icon {
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+</style>

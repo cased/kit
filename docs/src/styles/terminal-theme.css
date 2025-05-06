@@ -1,0 +1,216 @@
+/* Terminal Theme Styles */
+
+/* Inspired by Linden: https://linden-project.github.io/ */
+
+:root {
+  /* Accent colors */
+  --sl-color-accent-low: hsl(150, 100%, 90%); /* lighter green background */
+  --sl-color-accent: #00c46a; /* darker green */
+  --sl-color-accent-high: #00a8ff; /* cyan / blue */
+
+  /* Gray scale for light theme */
+  --sl-color-gray-1: hsl(0, 0%, 10%);
+  --sl-color-gray-2: hsl(0, 0%, 25%);
+  --sl-color-gray-3: hsl(0, 0%, 40%);
+  --sl-color-gray-4: hsl(0, 0%, 60%);
+  --sl-color-gray-5: hsl(0, 0%, 75%);
+  --sl-color-gray-6: hsl(0, 0%, 85%);
+  --sl-color-gray-7: hsl(0, 0%, 95%);
+
+  --sl-color-black: #ffffff; /* page bg (light) */
+  --sl-color-white: #000000; /* text (light) */
+
+  /* Fonts */
+  --sl-font-body: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --sl-font-heading: 'Roboto Mono', 'Source Code Pro', 'Fira Code', monospace;
+  --sl-font-mono: 'Roboto Mono', 'Source Code Pro', 'Fira Code', monospace;
+}
+
+/* Dark palette overrides */
+[data-theme="dark"] {
+  --sl-color-accent-low: hsl(150, 100%, 20%);
+  --sl-color-accent: #00c46a;
+  --sl-color-accent-high: #00a8ff;
+
+  --sl-color-gray-1: hsl(0, 0%, 95%);
+  --sl-color-gray-2: hsl(0, 0%, 85%);
+  --sl-color-gray-3: hsl(0, 0%, 70%);
+  --sl-color-gray-4: hsl(0, 0%, 50%);
+  --sl-color-gray-5: hsl(0, 0%, 30%);
+  --sl-color-gray-6: hsl(0, 0%, 20%);
+  --sl-color-gray-7: hsl(0, 0%, 15%);
+
+  --sl-color-black: hsl(0, 0%, 10%);
+  --sl-color-white: hsl(0, 0%, 98%);
+}
+
+/* Apply base styles */
+body {
+  background-color: var(--sl-color-black);
+  color: var(--sl-color-white);
+  font-family: var(--sl-font-body);
+  font-size: 1rem; /* ~16px */
+}
+
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--sl-font-heading);
+  color: var(--sl-color-gray-1);
+}
+
+a {
+  color: var(--sl-color-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--sl-color-accent-high);
+  text-decoration: underline;
+}
+
+/* Code blocks */
+pre {
+  border: 1px solid var(--sl-color-gray-6);
+  background-color: var(--sl-color-gray-7) !important; /* Override default */
+  border-radius: 4px;
+  padding: 1em;
+  font-family: var(--sl-font-mono);
+}
+
+code {
+  font-family: var(--sl-font-mono);
+  background-color: var(--sl-color-gray-6);
+  color: var(--sl-color-gray-1);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Sidebar */
+.sidebar {
+  background-color: var(--sl-color-gray-7);
+  border-right: 1px solid var(--sl-color-gray-6);
+}
+
+.sidebar a {
+  color: var(--sl-color-gray-2);
+}
+
+.sidebar a:hover,
+.sidebar a[aria-current="page"] {
+  color: var(--sl-color-accent-high);
+}
+
+.sidebar a[aria-current="page"] {
+  background-color: var(--sl-color-accent-high);
+  color: var(--sl-color-gray-7); /* Lightest gray for contrast on blue background */
+}
+
+/* Header */
+header {
+  background-color: var(--sl-color-gray-7);
+  border-bottom: 1px solid var(--sl-color-gray-6);
+  font-family: var(--sl-font-heading);
+}
+
+/* Navigation */
+nav {
+  font-family: var(--sl-font-heading);
+}
+
+/* Apply body font to sidebar links by default */
+.sidebar a {
+  font-family: var(--sl-font-body);
+}
+
+/* Apply monospace font only to sidebar section headers/group labels */
+.sidebar summary,
+.sidebar .sl-sidebar-group__title /* Add Starlight's default class just in case */
+{
+  font-family: var(--sl-font-heading);
+}
+
+/* Main content area */
+main {
+  background-color: var(--sl-color-black);
+}
+
+/* Right Sidebar (Table of Contents) */
+.right-sidebar {
+  background-color: var(--sl-color-black);
+}
+
+.right-sidebar a {
+   color: var(--sl-color-gray-3);
+}
+
+.right-sidebar a:hover,
+.right-sidebar a[aria-current="true"] {
+  color: var(--sl-color-accent-high);
+}
+
+/* Custom Card component styling */
+.card {
+  background-color: var(--sl-color-gray-7);
+  border: 1px solid var(--sl-color-gray-6);
+  border-radius: 6px;
+  padding: 1rem;
+  transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--sl-color-accent);
+}
+
+.card-title {
+  color: var(--sl-color-gray-1);
+  font-weight: bold;
+}
+
+.card-content {
+  color: var(--sl-color-gray-2);
+}
+
+/* Aside component styling (replaces Note) */
+div[class^="sl-markdown-content"] > aside {
+  border-left-color: var(--sl-color-accent);
+  background-color: var(--sl-color-accent-low);
+  color: var(--sl-color-gray-1);
+}
+
+div[class^="sl-markdown-content"] > aside strong {
+  color: var(--sl-color-accent);
+}
+
+/* Remove underline from site title link on hover */
+header a.site-title:hover {
+  text-decoration: none;
+}
+
+/* Header */
+header {
+  font-family: var(--sl-font-heading);
+} 
+ 
+/* Main content area */
+main {
+  /* Hide heading anchor links (e.g., the 🔗 icon) */
+  .sl-markdown-content h2 a.sl-anchor-link,
+  .sl-markdown-content h3 a.sl-anchor-link,
+  .sl-markdown-content h4 a.sl-anchor-link,
+  .sl-markdown-content h5 a.sl-anchor-link,
+  .sl-markdown-content h6 a.sl-anchor-link {
+    display: none;
+  }
+  padding: 2rem;
+}
+ 
