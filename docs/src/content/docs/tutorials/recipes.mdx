@@ -1,11 +1,10 @@
 ---
 title: Practical Recipes
 ---
-import { Aside } from '@astrojs/starlight/components';
 
-<Aside type="note">
+:::note
 These snippets are *copy-paste-ready* solutions for common developer-productivity tasks with **kit**. Adapt them to scripts, CI jobs, or IDE plugins.
-</Aside>
+:::
 
 ## 1. Rename every function `old_name` → `new_name`
 
@@ -34,7 +33,7 @@ for rel_path, new_src in edits.items():
 repo.mapper.scan_repo()  # refresh symbols if you’ll run more queries
 ```
 
-<hr />
+---
 
 ## 2. Summarize a Git diff for an LLM PR review
 
@@ -47,7 +46,7 @@ summary = repo.get_summarizer().summarize(assembler.format_context())
 print(summary)
 ```
 
-<hr />
+---
 
 ## 3. Show what `main.py` calls (static call graph)
 
@@ -57,7 +56,7 @@ for callee in sorted(repo.get_call_graph().get("main.py", set())):
     print("main.py ➜", callee)
 ```
 
-<hr />
+---
 
 ## 4. Semantic search for authentication code
 
@@ -75,15 +74,16 @@ for h in hits:
     print(h["file"], h.get("name"))
 ```
 
-<hr />
+---
 
 ## 5. Export full repo index to JSON (file tree + symbols)
 
 ```python
 repo = Repository("/path/to/project")
 repo.write_index("repo_index.json")
+```
 
-<hr />
+---
 
 ## 6. Find All Callers of a Specific Function (Cross-File)
 
@@ -129,7 +129,7 @@ for usage in usages:
 
 ```
 
-<hr />
+---
 
 ## 7. Identify Potentially Unused Functions (Heuristic)
 
@@ -190,14 +190,13 @@ for func_def in defined_functions:
     # It's a candidate for being unused. The threshold (e.g., 0 or 1) can be adjusted.
     if len(actual_references) == 0:
         print(f"- Function '{function_name}' defined in {definition_file}:L{definition_line + 1} has no apparent internal usages.")
-
 ```
 
-<Aside type="warning">
+:::caution[Limitations of this heuristic:]
 **Limitations of this heuristic:**
 
 *   **Dynamic Calls:** Functions called dynamically (e.g., through reflection, or if the function name is constructed from a string at runtime) won't be detected as used.
 *   **Public APIs:** Functions intended for external use (e.g., library functions) will appear unused if the analysis is limited to the library's own codebase.
 *   **Test Code:** If your test suite is separate and not part of the `Repository` path being analyzed, functions used only by tests might be flagged.
 *   **Object Methods:** The `symbol_type="function"` might need adjustment or further logic if you are also looking for unused *methods* within classes, as their usage context is different.
-</Aside>
+:::
