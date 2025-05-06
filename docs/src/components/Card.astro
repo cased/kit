@@ -11,8 +11,10 @@ const Tag = href ? 'a' : 'div';
 <Tag href={href} class="card-link">
   <div class="card">
     {icon && <div class="card-icon">{icon}</div>}
-    <div class="card-title">{title}</div>
-    <div class="card-body"><slot /></div>
+    <div class="card-content-wrapper">
+      <div class="card-title">{title}</div>
+      <div class="card-body"><slot /></div>
+    </div>
   </div>
 </Tag>
 
@@ -20,6 +22,8 @@ const Tag = href ? 'a' : 'div';
 .card-link {
   text-decoration: none;
   color: inherit;
+  display: flex;
+  height: 100%;
 }
 .card {
   background: var(--sl-color-bg-secondary, #fff);
@@ -27,6 +31,10 @@ const Tag = href ? 'a' : 'div';
   border-radius: 12px;
   padding: 1.25rem;
   transition: box-shadow 0.2s, transform 0.2s;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .card:hover {
   box-shadow: 0 3px 16px rgba(0,0,0,0.08);
@@ -40,6 +48,11 @@ const Tag = href ? 'a' : 'div';
 .card-body {
   font-size: 0.95rem;
   line-height: 1.45;
+}
+.card-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
 }
 .card-icon {
   font-size: 1.75rem;

@@ -39,6 +39,9 @@ from kit.code_searcher import SearchOptions
     *   The number of lines to include before each matching line. Defaults to `0`.
 *   `context_lines_after` (int):
     *   The number of lines to include after each matching line. Defaults to `0`.
+*   `use_gitignore` (bool):
+    *   If `True` (default), files and directories listed in the repository's `.gitignore` file will be excluded from the search.
+    *   If `False`, `.gitignore` rules are ignored.
 
 ## Methods
 
@@ -90,4 +93,3 @@ for match in results_with_options:
     for after_line in match['context_after']:
         print(f"  {after_line}")
     print("---")
-```

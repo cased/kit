@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from typing import Any, List, Dict, Optional
 from dataclasses import dataclass, field
+import pathspec # Added for .gitignore handling
 
 @dataclass
 class SearchOptions:
@@ -10,6 +11,7 @@ class SearchOptions:
     case_sensitive: bool = True
     context_lines_before: int = 0
     context_lines_after: int = 0
+    use_gitignore: bool = True # New option for gitignore
     # Future options: whole_word: bool = False, exclude_patterns: List[str] = field(default_factory=list)
 
 class CodeSearcher:
@@ -25,6 +27,35 @@ class CodeSearcher:
         repo_path (str): The path to the repository.
         """
         self.repo_path: Path = Path(repo_path)
+        self._gitignore_spec = self._load_gitignore() # Load gitignore spec
+
+    def _load_gitignore(self):
+        """Loads .gitignore rules from the repository root."""
+        gitignore_path = self.repo_path / '.gitignore'
+        if gitignore_path.exists():
+            try:
+                with open(gitignore_path, 'r', encoding='utf-8') as f:
+                    return pathspec.PathSpec.from_lines('gitwildmatch', f)
+            except Exception as e:
+                # Log this error if logging is set up, or print
+                print(f"Warning: Could not load .gitignore: {e}")
+        return None
+
+    def _should_ignore(self, file: Path) -> bool:
+        """Checks if a file should be ignored based on .gitignore rules."""
+        if not self._gitignore_spec:
+            return False
+        
+        # Always ignore .git directory contents directly if pathspec doesn't catch it implicitly
+        # (though pathspec usually handles .git/ if specified in .gitignore)
+        if '.git' in file.parts:
+             return True
+
+        try:
+            rel_path = str(file.relative_to(self.repo_path))
+            return self._gitignore_spec.match_file(rel_path)
+        except ValueError: # file might not be relative to repo_path, e.g. symlink target outside
+            return False # Or decide to ignore such cases explicitly
 
     def search_text(self, query: str, file_pattern: str = "*.py", options: Optional[SearchOptions] = None) -> List[Dict[str, Any]]:
         """
@@ -50,6 +81,8 @@ class CodeSearcher:
         regex = re.compile(query, regex_flags)
 
         for file in self.repo_path.rglob(file_pattern):
+            if current_options.use_gitignore and self._should_ignore(file):
+                continue
             if not file.is_file():
                 continue
             try:

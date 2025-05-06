@@ -17,6 +17,10 @@
   --sl-color-gray-6: hsl(0, 0%, 85%);
   --sl-color-gray-7: hsl(0, 0%, 95%);
 
+  /* Card specific variables (Light mode) */
+  --sl-color-bg-secondary: var(--sl-color-gray-7); /* Card background */
+  --sl-color-hairline-light: var(--sl-color-gray-6); /* Card border */
+
   --sl-color-black: #ffffff; /* page bg (light) */
   --sl-color-white: #000000; /* text (light) */
 
@@ -40,6 +44,10 @@
   --sl-color-gray-6: hsl(0, 0%, 20%);
   --sl-color-gray-7: hsl(0, 0%, 15%);
 
+  /* Card specific variables (Dark mode) */
+  --sl-color-bg-secondary: var(--sl-color-gray-6); /* Card background */
+  --sl-color-hairline-light: var(--sl-color-gray-5); /* Card border */
+
   --sl-color-black: hsl(0, 0%, 10%);
   --sl-color-white: hsl(0, 0%, 98%);
 }
@@ -50,6 +58,21 @@ body {
   color: var(--sl-color-white);
   font-family: var(--sl-font-body);
   font-size: 1rem; /* ~16px */
+}
+
+/* Custom styles for Starlight sidebar */
+nav[aria-labelledby="starlight__on_this_page"] ul li a,
+nav[aria-labelledby="starlight__sidebar_group_label"] ul li a {
+  font-size: 0.9em; /* Slightly reduce font size for sidebar links */
+}
+
+nav[aria-labelledby="starlight__sidebar_group_label"] button span {
+  font-size: 0.9em; /* Slightly reduce font size for sidebar group titles */
+}
+
+/* Reduce font size for Previous/Next page navigation links */
+.pagination-links a {
+  font-size: 0.9em; /* Adjust as needed, reduces from default */
 }
 
 h1 { font-size: 2rem; }
@@ -143,29 +166,6 @@ main {
 .right-sidebar a:hover,
 .right-sidebar a[aria-current="true"] {
   color: var(--sl-color-accent-high);
-}
-
-/* Custom Card component styling */
-.card {
-  background-color: var(--sl-color-gray-7);
-  border: 1px solid var(--sl-color-gray-6);
-  border-radius: 6px;
-  padding: 1rem;
-  transition: transform 0.2s ease-in-out;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-  border-color: var(--sl-color-accent);
-}
-
-.card-title {
-  color: var(--sl-color-gray-1);
-  font-weight: bold;
-}
-
-.card-content {
-  color: var(--sl-color-gray-2);
 }
 
 /* Aside component styling (replaces Note) */

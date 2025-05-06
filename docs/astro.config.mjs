@@ -34,10 +34,11 @@ export default defineConfig({
 					label: ' Tutorials',
 					autogenerate: { directory: 'tutorials' },
 				},
-				{
-					label: ' Recipes',
-					link: '/recipes', // Path to src/content/docs/recipes.mdx
-				},
+				// Remove the dedicated Recipes link, it will be picked up by Tutorials autogeneration
+				// {
+				// 	label: ' Recipes',
+				// 	link: '/recipes', // Path to src/content/docs/recipes.mdx
+				// },
 				{
 					label: ' API Reference',
 					autogenerate: { directory: 'api' },
