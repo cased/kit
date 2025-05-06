@@ -108,7 +108,11 @@ class TreeSitterSymbolExtractor:
                 elif 'type' in captures:
                     node_candidate = captures['type']
                 else:
-                    continue  # skip if neither present
+                    # Fallback: take the first capture node
+                    first_capture_node = next(iter(captures.values()), None)
+                    if not first_capture_node:
+                        continue
+                    node_candidate = first_capture_node
 
                 # Handle list of nodes (tree-sitter may return a list)
                 if isinstance(node_candidate, list):
@@ -126,13 +130,12 @@ class TreeSitterSymbolExtractor:
                         symbol_name = symbol_name[1:-1]
 
                 definition_capture = next(((name, node) for name, node in captures.items() if name.startswith("definition.")), None)
+                subtype = None
                 if definition_capture:
                     definition_capture_name, definition_node = definition_capture
-                    block_type = definition_capture_name.split('.')[-1]
-                    symbol_type = block_type
-                    subtype = None
+                    symbol_type = definition_capture_name.split('.')[-1]
                     # HCL: For resource/data, combine type and name, and set subtype to the specific resource/data type
-                    if ext == '.tf' and block_type in ["resource", "data"]:
+                    if ext == '.tf' and symbol_type in ["resource", "data"]:
                         type_node = captures.get('type')
                         if type_node:
                             if isinstance(type_node, list):
@@ -143,18 +146,23 @@ class TreeSitterSymbolExtractor:
                                     if len(type_name) >= 2 and type_name.startswith('"') and type_name.endswith('"'):
                                         type_name = type_name[1:-1]
                                 symbol_name = f"{type_name}.{symbol_name}"
-                                subtype = type_name  # subtype is the specific resource/data type
-                    symbol = {
-                        "name": symbol_name,
-                        "type": symbol_type,
-                        "start_line": actual_name_node.start_point[0],
-                        "end_line": actual_name_node.end_point[0],
-                        "code": actual_name_node.text.decode() if hasattr(actual_name_node, 'text') else source_code[actual_name_node.start_byte:actual_name_node.end_byte],
-                    }
-                    if subtype:
-                        symbol["subtype"] = subtype
-                    symbols.append(symbol)
-                    continue
+                                subtype = type_name
+                else:
+                    # Fallback: infer symbol type from first capture label (e.g., 'function', 'class')
+                    fallback_label = next(iter(captures.keys()), 'symbol')
+                    symbol_type = fallback_label.lstrip('definition.').lstrip('@')
+
+                symbol = {
+                    "name": symbol_name,
+                    "type": symbol_type,
+                    "start_line": actual_name_node.start_point[0],
+                    "end_line": actual_name_node.end_point[0],
+                    "code": actual_name_node.text.decode() if hasattr(actual_name_node, 'text') else source_code[actual_name_node.start_byte:actual_name_node.end_byte],
+                }
+                if subtype:
+                    symbol["subtype"] = subtype
+                symbols.append(symbol)
+                continue
 
         except Exception as e:
             logger.error(f"[EXTRACT] Error parsing or processing file with ext {ext}: {e}")
