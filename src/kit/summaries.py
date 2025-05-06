@@ -18,8 +18,7 @@ class LLMError(Exception):
 class OpenAIConfig:
     """Configuration for OpenAI API access."""
     api_key: Optional[str] = field(default_factory=lambda: os.environ.get("OPENAI_API_KEY"))
-    model: str = "gpt-4o" # Or a cheaper/faster default like gpt-3.5-turbo?
-    # Add other potential OpenAI params like temperature, max_tokens later
+    model: str = "gpt-4o" 
 
     def __post_init__(self):
         if not self.api_key:
@@ -27,12 +26,6 @@ class OpenAIConfig:
                 "OpenAI API key not found. "
                 "Set OPENAI_API_KEY environment variable or pass api_key directly."
             )
-
-# Placeholder for other configs later
-# @dataclass
-# class AnthropicConfig: ...
-
-# --- Summarizer Class --- #
 
 class Summarizer:
     """Provides methods to summarize code using a configured LLM."""

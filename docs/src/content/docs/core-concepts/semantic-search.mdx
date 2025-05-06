@@ -34,3 +34,58 @@ for hit in results:
 # Example output:
 # src/kit/auth.py login function def login(...): ...
 # src/kit/config.py AUTH_CONFIG variable AUTH_CONFIG = {...}
+
+### Choosing an Embedding Model
+
+`kit` is model-agnostic: pass any function `str -> List[float]`.
+
+* **Local (open-source)** – e.g. [`sentence-transformers`](https://www.sbert.net/) models like `all-MiniLM-L6-v2` (see example above). 100 MB-ish download, fast CPU inference.
+* **Cloud API** – e.g. OpenAI `text-embedding-3-small`. Define:
+  ```python
+  import openai
+  def embed_fn(text: str):
+      resp = openai.embeddings.create(model="text-embedding-3-small", input=[text])
+      return resp.data[0].embedding
+  ```
+* **Batching** – `VectorSearcher` will attempt to call your `embed_fn` with a *list* of texts for efficiency.  If your function only supports single strings it still works (falls back internally).
+
+### Chunking Strategy
+
+`vs.build_index(chunk_by="symbols")` (default) extracts functions/classes/variables via the existing AST parser.  This is usually what you want.
+
+* `chunk_by="lines"` splits code into ~50-line blocks – useful for languages where symbol extraction isn’t supported yet.
+* You can re-index at any time; the previous collection is cleared automatically.
+
+### Persisting & Re-using an Index
+
+The index lives under `.kit/vector_db` by default (one Chroma collection per path).
+
+```python
+vs = repo.get_vector_searcher(embed_fn, persist_dir=".kit/my_index")
+vs.build_index()
+# … later …
+searcher = repo.get_vector_searcher(embed_fn, persist_dir=".kit/my_index")
+results = searcher.search("add user authentication")
+```
+
+### Feeding Results to an LLM
+
+Combine `VectorSearcher` with `ContextAssembler` to build an LLM prompt containing only *relevant* code:
+
+```python
+from kit import ContextAssembler
+chunks = repo.search_semantic("jwt auth flow", embed_fn=embed_fn, top_k=10)
+assembler = ContextAssembler(max_chars=12_000)
+context = assembler.from_chunks(chunks)
+llm_response = my_llm.chat(prompt + context)
+```
+
+### Limitations & Tips
+
+* Indexing a very large monorepo may take minutes: consider running on CI and committing `.kit/vector_db`.
+* Embeddings are language-agnostic – comments & docs influence similarity too.  Clean code/comments improve search.
+* Exact-keyword search (`repo.search_text()`) can still be faster for quick look-ups; combine both techniques.
+
+<Aside type="note">
+  The CLI (`kit search` / `kit serve`) currently performs **text** search only. A semantic variant is planned.
+</Aside>

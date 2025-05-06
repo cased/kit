@@ -279,3 +279,28 @@ context_blob = assembler.format_context()
 **Returns:**
 
 * `ContextAssembler`: Ready-to-use assembler instance.
+
+## `repository.get_call_graph()`
+
+Returns a **file-level call graph** mapping each Python source file to the set of other in-repo files it calls (based on static analysis of `ast.Call` nodes).
+
+```python
+repository.get_call_graph(rebuild: bool = False) -> Dict[str, Set[str]]
+```
+
+**Parameters:**
+
+* `rebuild` (bool): If `True`, forces a fresh scan even if a cached graph is available. Defaults to `False`.
+
+**Returns:**
+
+* `Dict[str, Set[str]]`: Mapping *caller_file* → `set` of *callee files*.
+
+**Example:**
+```python
+graph = repo.get_call_graph()
+for caller, callees in graph.items():
+    print(caller, "->", ", ".join(sorted(callees)))
+```
+
+This graph is leveraged by `ContextAssembler.add_symbol_dependencies()` to automatically pull in related files when building LLM prompts.
