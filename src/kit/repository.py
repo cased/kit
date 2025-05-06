@@ -4,6 +4,7 @@ from .repo_mapper import RepoMapper
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
 from .vector_searcher import VectorSearcher
+from .call_graph import CallGraphBuilder
 import os
 import tempfile
 import subprocess
@@ -28,6 +29,7 @@ class Repository:
         self.searcher: CodeSearcher = CodeSearcher(self.repo_path)
         self.context: ContextExtractor = ContextExtractor(self.repo_path)
         self.vector_searcher: Optional[VectorSearcher] = None
+        self._call_graph_cache: Optional[dict] = None
 
     def _clone_github_repo(self, url: str, token: Optional[str], cache_dir: Optional[str]) -> Path:
         from urllib.parse import urlparse
@@ -147,9 +149,11 @@ class Repository:
         Returns:
             Dict[str, Any]: A dictionary representing the index.
         """
+        tree = self.get_file_tree()
         return {
-            "file_tree": self.get_file_tree(),
-            "symbols": {f: syms for f, syms in self.mapper.get_repo_map()["symbols"].items()}
+            "file_tree": tree,  # legacy key
+            "files": tree,      # preferred
+            "symbols": self.mapper.get_repo_map()["symbols"],
         }
 
     def get_vector_searcher(self, embed_fn=None, backend=None, persist_dir=None):
@@ -286,3 +290,14 @@ class Repository:
         usages = self.find_symbol_usages(symbol_name, symbol_type)
         with open(file_path, "w") as f:
             json.dump(usages, f, indent=2)
+
+    # ------------------------------------------------------------------
+    # Call-graph helpers
+    # ------------------------------------------------------------------
+
+    def get_call_graph(self, *, rebuild: bool = False) -> Dict[str, set[str]]:  # noqa: WPS110 (allow set type)
+        """Return file-level call graph mapping caller -> set(callee files)."""
+        if self._call_graph_cache is None or rebuild:
+            builder = CallGraphBuilder(self.repo_path, self.index())
+            self._call_graph_cache = builder.build_call_graph()
+        return self._call_graph_cache

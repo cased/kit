@@ -3,6 +3,15 @@ import os
 import pytest
 from kit import Repository
 from kit.vector_searcher import VectorSearcher, ChromaDBBackend
+from pathlib import Path
+import chromadb.api.shared_system_client as _ssc
+
+# Auto-reset Chroma global System registry between tests to avoid
+# "An instance of Chroma already exists for ephemeral with different settings" errors.
+@pytest.fixture(autouse=True)
+def _reset_chroma_system():
+    yield
+    _ssc.SharedSystemClient._identifier_to_system.clear()
 
 def dummy_embed(text):
     # Simple deterministic embedding for testing (sum of char codes)
@@ -165,3 +174,89 @@ def test_vector_searcher_similar_queries():
         results = vs.search("hell", top_k=2)
         assert any("hell" in (r.get("name") or "") for r in results)
         assert any("hello" in (r.get("name") or "") for r in results)
+
+# --- New test using actual sentence-transformers ---
+
+MODEL_NAME = "all-MiniLM-L6-v2"
+
+def is_sentence_transformer_unavailable() -> bool:  # helper for skipif
+    """Return True if SentenceTransformer or model cannot be imported/loaded."""
+    try:
+        from sentence_transformers import SentenceTransformer  # noqa: WPS433 (third-party import inside function is fine)
+        print("DEBUG: sentence_transformers imported OK")
+        # Don't attempt to download model here; just check import.
+        # Actual load will happen inside the test body where we can handle exceptions.
+        return False
+    except ImportError as err:
+        print(f"DEBUG: SentenceTransformer ImportError → skipping test: {err}")
+        return True
+    except Exception as err:  # pragma: no cover – other unexpected issues
+        print(f"DEBUG: Unexpected error during SentenceTransformer check → skipping: {err}")
+        return True
+
+_REASON_ST = "sentence_transformers not installed (see DEBUG output)"
+
+
+@pytest.mark.skipif(is_sentence_transformer_unavailable(), reason=_REASON_ST)
+def test_vector_searcher_with_sentence_transformer():
+    """End-to-end semantic search using a real embedding model (if available)."""
+    from sentence_transformers import SentenceTransformer  # type: ignore
+
+    model = SentenceTransformer(MODEL_NAME)
+
+    def st_embed_fn(text: str) -> list[float]:
+        return model.encode([text])[0].tolist()
+
+    with tempfile.TemporaryDirectory() as tmpdir_st:
+        repo_path = Path(tmpdir_st)
+        file1_content = """
+        def calculate_area_of_circle(radius):
+            pi = 3.14159
+            return pi * (radius ** 2)
+        """
+        file2_content = """
+        class UserLogin:
+            def __init__(self, username, password):
+                self.username = username
+                self.password = password
+
+            def authenticate(self):
+                # Complex authentication logic here
+                print(f"Authenticating {self.username}")
+                return True
+        """
+        (repo_path / "geometry.py").write_text(file1_content)
+        (repo_path / "auth.py").write_text(file2_content)
+
+        repository = Repository(str(repo_path))
+        # Use a unique persist_dir for this test to avoid conflicts
+        persist_path = repo_path / ".kit_test_st_index"
+        vs = VectorSearcher(repository, embed_fn=st_embed_fn, persist_dir=str(persist_path))
+        vs.build_index(chunk_by="symbols") # Chunking by symbols is often good for semantic code search
+
+        # Query for something related to "circle area calculation"
+        query1 = "mathematical function for disk size"
+        results1 = vs.search(query1, top_k=1)
+
+        assert len(results1) >= 1, "Should find at least one result for query 1"
+        # Check if the top result's metadata (which includes the code) contains relevant terms
+        # The 'text' field in metadata should be the chunk of code
+        top_result1_text = results1[0].get('code', '')
+        assert "calculate_area_of_circle" in top_result1_text or "radius" in top_result1_text, \
+            f"Top result for '{query1}' did not contain expected geometry code. Got: {top_result1_text}"
+
+        # Query for something related to "user sign-in"
+        query2 = "process for verifying user credentials"
+        results2 = vs.search(query2, top_k=1)
+
+        assert len(results2) >= 1, "Should find at least one result for query 2"
+        top_result2_text = results2[0].get('code', '')
+        assert "UserLogin" in top_result2_text or "authenticate" in top_result2_text, \
+            f"Top result for '{query2}' did not contain expected auth code. Got: {top_result2_text}"
+
+        # Test persistence: create a new searcher instance pointing to the same directory
+        vs_persistent = VectorSearcher(repository, embed_fn=st_embed_fn, persist_dir=str(persist_path))
+        results_persistent = vs_persistent.search(query1, top_k=1) # embed_fn might be needed if query embedding is not part of backend state
+        assert len(results_persistent) >= 1
+        top_result_persistent_text = results_persistent[0].get('code', '')
+        assert "calculate_area_of_circle" in top_result_persistent_text or "radius" in top_result_persistent_text

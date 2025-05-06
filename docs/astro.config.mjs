@@ -5,7 +5,7 @@ import starlight from '@astrojs/starlight';
 export default defineConfig({
 	integrations: [
 		starlight({
-			title: 'kit 🔧',
+			title: 'kit ',
 			social: [
 				{ icon: 'github', href: 'https://github.com/tnm/kit', label: 'GitHub' },
 			],
@@ -15,11 +15,11 @@ export default defineConfig({
 			],
 			sidebar: [
 				{
-					label: '📄 Introduction',
+					label: ' Introduction',
 					autogenerate: { directory: 'introduction' },
 				},
 				{
-					label: '💡 Core Concepts',
+					label: ' Core Concepts',
 					items: [
 						// Manually specify order, starting with repository-api
 						'core-concepts/repository-api',
@@ -31,19 +31,24 @@ export default defineConfig({
 					]
 				},
 				{
-					label: '📚 Tutorials',
+					label: ' Tutorials',
 					autogenerate: { directory: 'tutorials' },
 				},
+				// Remove the dedicated Recipes link, it will be picked up by Tutorials autogeneration
+				// {
+				// 	label: ' Recipes',
+				// 	link: '/recipes', // Path to src/content/docs/recipes.mdx
+				// },
 				{
-					label: '⚙️ API Reference',
+					label: ' API Reference',
 					autogenerate: { directory: 'api' },
 				},
 				{
-					label: '🏗️ Development',
+					label: ' Development',
 					autogenerate: { directory: 'development' },
 				},
 				{
-					label: '🚀 Extending Kit',
+					label: ' Extending Kit',
 					autogenerate: { directory: 'extending' },
 				},
 			],

@@ -3,9 +3,6 @@
 This is intentionally lightweight – it glues together repository data
 (diff, file bodies, search hits, etc.) into a single string that can be
 fed straight into a chat completion.
-
-The API mirrors the usage in the documentation tutorials so that code
-snippets can be copied verbatim.
 """
 
 from __future__ import annotations
@@ -35,10 +32,6 @@ class ContextAssembler:
         if title:
             self._sections.append(f"# {title}\n")
 
-    # ---------------------------------------------------------------------
-    # Public helpers used in tutorial snippets
-    # ---------------------------------------------------------------------
-
     def add_diff(self, diff: str) -> None:
         """Add a raw git diff section."""
         if not diff.strip():
@@ -60,12 +53,11 @@ class ContextAssembler:
         self._sections.append(f"{header}\n```{lang}\n{code}\n```")
 
     def add_symbol_dependencies(self, file_path: str, *, max_depth: int = 1) -> None:
-        """Placeholder – currently just re-embeds the file.
-
-        In a full implementation you'd walk the import/call graph; for now we
-        keep the API stable for docs while falling back to :py:meth:`add_file`.
-        """
-        self.add_file(file_path)
+        """Add the *callee* files (basic static call graph) for a given file."""
+        graph = self.repo.get_call_graph()
+        deps = graph.get(file_path, set())
+        for dep in sorted(deps):
+            self.add_file(dep)
 
     def add_search_results(self, results: Sequence[Dict[str, Any]], *, query: str) -> None:
         """Append semantic search matches to the context."""

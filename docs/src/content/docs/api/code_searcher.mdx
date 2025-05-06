@@ -1,0 +1,95 @@
+---
+title: CodeSearcher API
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This page details the API for the `CodeSearcher` class, used for performing text and regular expression searches across your repository.
+
+## Initialization
+
+To use the `CodeSearcher`, you first need to initialize it with the path to your repository:
+
+```python
+from kit.code_searcher import CodeSearcher
+
+searcher = CodeSearcher(repo_path="/path/to/your/repo")
+# Or, if you have a kit.Repository object:
+# searcher = repo.get_code_searcher()
+```
+
+<Aside type="note">
+  If you are using the `kit.Repository` object, you can obtain a `CodeSearcher` instance via `repo.get_code_searcher()` which comes pre-configured with the repository path.
+</Aside>
+
+## `SearchOptions` Dataclass
+
+The `search_text` method uses a `SearchOptions` dataclass to control search behavior. You can import it from `kit.code_searcher`.
+
+```python
+from kit.code_searcher import SearchOptions
+```
+
+**Fields:**
+
+*   `case_sensitive` (bool): 
+    *   If `True` (default), the search query is case-sensitive.
+    *   If `False`, the search is case-insensitive.
+*   `context_lines_before` (int):
+    *   The number of lines to include before each matching line. Defaults to `0`.
+*   `context_lines_after` (int):
+    *   The number of lines to include after each matching line. Defaults to `0`.
+*   `use_gitignore` (bool):
+    *   If `True` (default), files and directories listed in the repository's `.gitignore` file will be excluded from the search.
+    *   If `False`, `.gitignore` rules are ignored.
+
+## Methods
+
+### `search_text(query: str, file_pattern: str = "*.py", options: Optional[SearchOptions] = None) -> List[Dict[str, Any]]`
+
+Searches for a text pattern (which can be a regular expression) in files matching the `file_pattern`.
+
+*   **Parameters:**
+    *   `query` (str): The text pattern or regular expression to search for.
+    *   `file_pattern` (str): A glob pattern specifying which files to search in. Defaults to `"*.py"` (all Python files).
+    *   `options` (Optional[SearchOptions]): An instance of `SearchOptions` to customize search behavior. If `None`, default options are used.
+*   **Returns:**
+    *   `List[Dict[str, Any]]`: A list of dictionaries, where each dictionary represents a match and contains:
+        *   `"file"` (str): The relative path to the file from the repository root.
+        *   `"line_number"` (int): The 1-indexed line number where the match occurred.
+        *   `"line"` (str): The content of the matching line (with trailing newline stripped).
+        *   `"context_before"` (List[str]): A list of strings, each being a line of context before the match.
+        *   `"context_after"` (List[str]): A list of strings, each being a line of context after the match.
+*   **Raises:**
+    *   The method includes basic error handling for file operations and will print an error message to the console if a specific file cannot be processed, then continue with other files.
+
+**Example Usage:**
+
+```python
+from kit.code_searcher import CodeSearcher, SearchOptions
+
+# Assuming 'searcher' is an initialized CodeSearcher instance
+
+# Basic search for 'my_function' in Python files
+results_basic = searcher.search_text("my_function")
+
+# Case-insensitive search with 2 lines of context before and after
+custom_options = SearchOptions(
+    case_sensitive=False,
+    context_lines_before=2,
+    context_lines_after=2
+)
+results_with_options = searcher.search_text(
+    query=r"my_variable\s*=\s*\d+", # Example regex query
+    file_pattern="*.txt",
+    options=custom_options
+)
+
+for match in results_with_options:
+    print(f"Found in {match['file']} at line {match['line_number']}:")
+    for before_line in match['context_before']:
+        print(f"  {before_line}")
+    print(f"> {match['line']}")
+    for after_line in match['context_after']:
+        print(f"  {after_line}")
+    print("---")

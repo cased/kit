@@ -2,9 +2,14 @@
 title: Codebase Summarizer
 ---
 
-This tutorial shows how to use `kit` to generate a structured Markdown summary of your codebase, including the file tree and all extracted symbols (functions, classes, etc.).
+This tutorial shows how to use `kit` to generate a structured Markdown summary of your codebase, including the file tree and all extracted symbols (functions, classes, etc.). Such a summary can be invaluable for quickly understanding a new project, tracking architectural changes, or for documentation purposes.
 
 ## Step 1: Summarize the Codebase Structure
+
+The core of this task lies in using `kit`'s `Repository` object to analyze the codebase and extract its structural information. This process involves two main `kit` operations:
+
+1.  **Initializing the `Repository`**: `repo = Repo(repo_path)` creates an instance that points `kit` to the target codebase. `kit` then becomes aware of the repository's location and is ready to perform various analyses.
+2.  **Indexing the Repository**: `index = repo.index()` is a key `kit` command. When called, `kit` (typically using its internal `RepoMapper` component) traverses the repository, parses supported source files, identifies structural elements like files, directories, classes, functions, and other symbols. It then compiles this information into a structured `index`.
 
 Use kit's `Repo` object to index the codebase and gather all relevant information.
 
@@ -16,20 +21,39 @@ def summarize_codebase(repo_path: str) -> str:
     index = repo.index()
     lines = [f"# Codebase Summary for {repo_path}\n"]
     lines.append("## File Tree\n")
-    for file in index["file_tree"]:
-        lines.append(f"- {file}")
+    # The index['file_tree'] contains a list of file and directory paths
+    for file_info in index["file_tree"]:
+        # Assuming file_info is a dictionary or string representing the path
+        # Adjust formatting based on the actual structure of file_info objects from repo.index()
+        if isinstance(file_info, dict):
+            lines.append(f"- {file_info.get('path', file_info.get('name', 'Unknown file/dir'))}")
+        else:
+            lines.append(f"- {file_info}") # Fallback if it's just a string path
+
     lines.append("\n## Symbols\n")
-    for file, symbols in index["symbols"].items():
-        lines.append(f"### {file}")
-        for symbol in symbols:
+    # The index['symbols'] is typically a dictionary where keys are file paths
+    # and values are lists of symbol information dictionaries for that file.
+    for file_path, symbols_in_file in index["symbols"].items():
+        lines.append(f"### {file_path}")
+        for symbol in symbols_in_file:
+            # Each symbol dict contains details like 'type' (e.g., 'function', 'class') and 'name'.
             lines.append(f"- **{symbol['type']}** `{symbol['name']}`")
         lines.append("")
     return "\n".join(lines)
 ```
 
+This function, `summarize_codebase`, first initializes `kit` for the given `repo_path`. Then, `repo.index()` does the heavy lifting of analyzing the code. The resulting `index` object is a dictionary, typically containing at least two keys:
+
+*   `'file_tree'`: A list representing the directory structure and files within the repository.
+*   `'symbols'`: A dictionary where keys are file paths, and each value is a list of symbols found in that file. Each symbol is itself a dictionary containing details like its name and type (e.g., function, class).
+
+The rest of the function iterates through this structured data to format it into a human-readable Markdown string.
+
 ---
 
 ## Step 2: Command-Line Interface
+
+To make the summarizer easy to use from the terminal, we'll add a simple command-line interface using Python's `argparse` module. This allows the user to specify the repository path and an optional output file for the summary.
 
 Provide CLI arguments for repo path and output file:
 
@@ -57,6 +81,8 @@ if __name__ == "__main__":
 
 ## Step 3: Running the Script
 
+With the script in place, you can execute it from your terminal. You'll need to provide the path to the repository you want to summarize and, optionally, a path where the Markdown output file should be saved. If no output file is specified, the summary will be printed to the console.
+
 Run the summarizer like this:
 
 ```sh
@@ -66,6 +92,8 @@ python codebase_summarizer.py --repo /path/to/repo --output summary.md
 ---
 
 ## Example Output
+
+The generated Markdown file (or console output) will provide a clear, structured overview of your project, derived directly from `kit`'s analysis. It will list the files and then, for each file, the symbols defined within it.
 
 ```
 # Codebase Summary for /path/to/repo
@@ -89,13 +117,15 @@ python codebase_summarizer.py --repo /path/to/repo --output summary.md
 
 ## Customization Ideas
 
-- Add code metrics (lines of code, complexity) to each file or symbol.
-- Include docstrings or comments in the summary.
-- Output in other formats (HTML, CSV, JSON).
-- Integrate with CI to keep summaries up to date.
+The basic summarizer can be extended in many ways, leveraging more of `kit`'s potential or other Python libraries:
+
+*   **Add code metrics**: `kit`'s `RepoMapper` might provide (or be extended to provide) metrics like lines of code or complexity for files/symbols.
+*   **Include docstrings or comments**: The symbol information from `repo.index()` can be augmented to include extracted docstrings or important comments associated with each symbol.
+*   **Output in other formats**: Instead of Markdown, you could use libraries to format the `index` data as HTML, CSV, JSON, or any other structured format.
+*   **Integrate with CI**: Run this script as part of your Continuous Integration (CI) pipeline to automatically update the codebase summary whenever changes are pushed.
 
 ---
 
 ## Conclusion
 
-With `kit`, you can quickly generate a comprehensive, up-to-date summary of any codebase. This is useful for onboarding, audits, or just keeping track of project structure as your code evolves.
+With `kit`, you can quickly generate a comprehensive, up-to-date summary of any codebase. This script demonstrates how `kit`'s `Repository.index()` method provides a powerful and easy-to-use mechanism for extracting fundamental structural information. This capability is useful for onboarding new developers, conducting code audits, generating documentation, or simply maintaining a high-level understanding of a project as it evolves.

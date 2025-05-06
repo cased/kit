@@ -1,5 +1,5 @@
 ---
-title: Repository Class API
+title: Repository API
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -21,7 +21,8 @@ local_repo = Repository("/path/to/your/local/project")
 ## Core Methods
 
 *   `index()`: Analyzes the repository.
-*   `get_file_content(path)`: Reads file content.
+*   `get_file_tree()`: Returns the file tree structure.
+*   `get_file_content(file_path)`: Reads and returns the content of a specified file.
 *   `extract_symbols(path)`: Extracts code symbols.
 *   `semantic_search(query)`: Performs semantic search.
 *   `get_summarizer()`: Gets the code summarizer.
@@ -63,6 +64,27 @@ repository.get_file_tree() -> List[Dict[str, Any]]
 **Returns:**
 
 *   `List[Dict[str, Any]]`: A list of dictionaries, where each dictionary represents a file or directory with keys like `path`, `name`, `is_dir`, `size`.
+
+## `repository.get_file_content()`
+
+Reads and returns the content of a specified file within the repository as a string.
+
+```python
+repository.get_file_content(file_path: str) -> str
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the file, relative to the repository root.
+
+**Returns:**
+
+*   `str`: The content of the file.
+
+**Raises:**
+
+*   `FileNotFoundError`: If the file does not exist at the specified path.
+*   `IOError`: If any other I/O error occurs during file reading.
 
 ## `repository.extract_symbols()`
 
@@ -170,8 +192,8 @@ repository.get_vector_searcher(embed_fn=None, backend=None, persist_dir=None) ->
 **Parameters:**
 
 *   `embed_fn` (Callable): **Required on first call.** A function that takes a list of strings and returns a list of embedding vectors.
-*   `backend` (Optional[Any]): Specifies the vector database backend (e.g., 'faiss', 'chromadb'). Defaults to in-memory Faiss.
-*   `persist_dir` (Optional[str]): Path to a directory to persist the vector index. Defaults to `None` (no persistence).
+*   `backend` (Optional[Any]): Specifies the vector database backend. If `None`, `kit` defaults to using `ChromaDBBackend`.
+*   `persist_dir` (Optional[str]): Path to a directory to persist the vector index. If `None`, the `VectorSearcher` will default to `YOUR_REPO_PATH/.kit/vector_db/` for ChromaDB. Setting to `None` implies using this default persistence path for ChromaDB.
 
 **Returns:**
 
@@ -279,3 +301,28 @@ context_blob = assembler.format_context()
 **Returns:**
 
 * `ContextAssembler`: Ready-to-use assembler instance.
+
+## `repository.get_call_graph()`
+
+Returns a **file-level call graph** mapping each Python source file to the set of other in-repo files it calls (based on static analysis of `ast.Call` nodes).
+
+```python
+repository.get_call_graph(rebuild: bool = False) -> Dict[str, Set[str]]
+```
+
+**Parameters:**
+
+* `rebuild` (bool): If `True`, forces a fresh scan even if a cached graph is available. Defaults to `False`.
+
+**Returns:**
+
+* `Dict[str, Set[str]]`: Mapping *caller_file* → `set` of *callee files*.
+
+**Example:**
+```python
+graph = repo.get_call_graph()
+for caller, callees in graph.items():
+    print(caller, "->", ", ".join(sorted(callees)))
+```
+
+This graph is leveraged by `ContextAssembler.add_symbol_dependencies()` to automatically pull in related files when building LLM prompts.

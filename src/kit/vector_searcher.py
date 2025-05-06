@@ -26,7 +26,9 @@ class ChromaDBBackend(VectorDBBackend):
             raise ImportError("chromadb is not installed. Run 'pip install chromadb'.")
         self.persist_dir = persist_dir
         self.client = chromadb.Client(Settings(persist_directory=persist_dir))
-        self.collection = self.client.get_or_create_collection("kit_code_chunks")
+        # Use a collection name scoped to persist_dir to avoid dimension clashes across multiple tests/processes
+        coll_name = f"kit_code_chunks_{abs(hash(persist_dir))}"
+        self.collection = self.client.get_or_create_collection(coll_name)
 
     def add(self, embeddings, metadatas):
         # Skip adding if there is nothing to add (prevents ChromaDB error)
@@ -65,29 +67,40 @@ class VectorSearcher:
 
     def build_index(self, chunk_by: str = "symbols"):
         self.chunk_metadatas = []
-        self.chunk_embeddings = []
+        chunk_codes: List[str] = []
+
         for file in self.repo.get_file_tree():
-            if not file["is_dir"]:
-                path = file["path"]
-                if chunk_by == "symbols":
-                    chunks = self.repo.chunk_file_by_symbols(path)
-                    for chunk in chunks:
-                        code = chunk["code"]
-                        emb = self.embed_fn(code)
-                        meta = {"file": path, **chunk}
-                        self.chunk_metadatas.append(meta)
-                        self.chunk_embeddings.append(emb)
-                else:
-                    chunks = self.repo.chunk_file_by_lines(path, max_lines=50)
-                    for code in chunks:
-                        emb = self.embed_fn(code)
-                        meta = {"file": path, "code": code}
-                        self.chunk_metadatas.append(meta)
-                        self.chunk_embeddings.append(emb)
-        # Only add if we have something to add
-        if self.chunk_embeddings and self.chunk_metadatas:
+            if file["is_dir"]:
+                continue
+            path = file["path"]
+            if chunk_by == "symbols":
+                chunks = self.repo.chunk_file_by_symbols(path)
+                for chunk in chunks:
+                    code = chunk["code"]
+                    self.chunk_metadatas.append({"file": path, **chunk})
+                    chunk_codes.append(code)
+            else:
+                chunks = self.repo.chunk_file_by_lines(path, max_lines=50)
+                for code in chunks:
+                    self.chunk_metadatas.append({"file": path, "code": code})
+                    chunk_codes.append(code)
+
+        # Embed in batch (attempt). Fallback to per-item if embed_fn doesn't support list input.
+        if chunk_codes:
+            self.chunk_embeddings = self._batch_embed(chunk_codes)
             self.backend.add(self.chunk_embeddings, self.chunk_metadatas)
             self.backend.persist()
+
+    def _batch_embed(self, texts: List[str]) -> List[List[float]]:
+        """Embed a list of texts, falling back to per-item calls if necessary."""
+        try:
+            bulk = self.embed_fn(texts)  # type: ignore[arg-type]
+            if isinstance(bulk, list) and len(bulk) == len(texts) and all(isinstance(v, (list, tuple)) for v in bulk):
+                return [list(map(float, v)) for v in bulk]  # ensure list of list[float]
+        except Exception:
+            pass  # Fall back to per-item
+        # Fallback slow path
+        return [self.embed_fn(t) for t in texts]
 
     def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         if top_k <= 0:

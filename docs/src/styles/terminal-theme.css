@@ -17,6 +17,10 @@
   --sl-color-gray-6: hsl(0, 0%, 85%);
   --sl-color-gray-7: hsl(0, 0%, 95%);
 
+  /* Card specific variables (Light mode) */
+  --sl-color-bg-secondary: var(--sl-color-gray-7); /* Card background */
+  --sl-color-hairline-light: var(--sl-color-gray-6); /* Card border */
+
   --sl-color-black: #ffffff; /* page bg (light) */
   --sl-color-white: #000000; /* text (light) */
 
@@ -30,54 +34,22 @@
 [data-theme="dark"] {
   --sl-color-accent-low: hsl(150, 100%, 20%);
   --sl-color-accent: #00c46a;
-  --sl-color-accent-high: #80ffc8;
+  --sl-color-accent-high: #00a8ff;
 
-  --sl-color-gray-1: hsl(240, 10%, 95%);
-  --sl-color-gray-2: hsl(240, 8%, 85%);
-  --sl-color-gray-3: hsl(240, 6%, 70%);
-  --sl-color-gray-4: hsl(240, 5%, 50%);
-  --sl-color-gray-5: hsl(240, 5%, 30%);
-  --sl-color-gray-6: hsl(240, 5%, 20%);
+  --sl-color-gray-1: hsl(0, 0%, 95%);
+  --sl-color-gray-2: hsl(0, 0%, 85%);
+  --sl-color-gray-3: hsl(0, 0%, 70%);
+  --sl-color-gray-4: hsl(0, 0%, 50%);
+  --sl-color-gray-5: hsl(0, 0%, 30%);
+  --sl-color-gray-6: hsl(0, 0%, 20%);
+  --sl-color-gray-7: hsl(0, 0%, 15%);
+
+  /* Card specific variables (Dark mode) */
+  --sl-color-bg-secondary: var(--sl-color-gray-6); /* Card background */
+  --sl-color-hairline-light: var(--sl-color-gray-5); /* Card border */
 
   --sl-color-black: hsl(0, 0%, 10%);
   --sl-color-white: hsl(0, 0%, 98%);
-  --sl-color-text-accent: hsl(150, 100%, 75%);
-
-  /* Fix custom Card text contrast in dark mode */
-  .card-title,
-  .card-body {
-    color: var(--sl-color-gray-6); /* Use dark gray for text inside cards */
-  }
-
-  /* Set main background in dark mode */
-  main {
-    background-color: var(--sl-color-black);
-  }
-
-  /* Fix code block background in dark mode */
-  .expressive-code pre {
-    background-color: var(--sl-color-black) !important; /* Force dark background */
-  }
-
-  /* Style active left nav link in dark mode */
-  nav ul li a[aria-current="page"] {
-    background-color: var(--sl-color-accent-low);
-    color: var(--sl-color-white);
-  }
-
-  /* Style right sidebar links in dark mode */
-  .right-sidebar a {
-    color: var(--sl-color-gray-2); /* Light gray for contrast */
-  }
-
-  /* Set header/top nav background in dark mode */
-  header,
-  .sl-header,
-  .sl-navbar,
-  .DocSearch-Container, /* DocSearch container if visible */
-  .sl-search {
-    background-color: var(--sl-color-black) !important;
-  }
 }
 
 /* Apply base styles */
@@ -86,6 +58,21 @@ body {
   color: var(--sl-color-white);
   font-family: var(--sl-font-body);
   font-size: 1rem; /* ~16px */
+}
+
+/* Custom styles for Starlight sidebar */
+nav[aria-labelledby="starlight__on_this_page"] ul li a,
+nav[aria-labelledby="starlight__sidebar_group_label"] ul li a {
+  font-size: 0.9em; /* Slightly reduce font size for sidebar links */
+}
+
+nav[aria-labelledby="starlight__sidebar_group_label"] button span {
+  font-size: 0.9em; /* Slightly reduce font size for sidebar group titles */
+}
+
+/* Reduce font size for Previous/Next page navigation links */
+.pagination-links a {
+  font-size: 0.9em; /* Adjust as needed, reduces from default */
 }
 
 h1 { font-size: 2rem; }
@@ -157,16 +144,14 @@ header {
   font-family: var(--sl-font-heading);
 }
 
-/* Prevent underline on hover for brand title "kit" in top nav */
-header a:hover,
-.sl-header a:hover,
-.sl-navbar a:hover {
-  text-decoration: none !important;
-}
-
 /* Navigation & sidebar monospace */
 nav, .sidebar {
   font-family: var(--sl-font-heading);
+}
+
+/* Main content area */
+main {
+  background-color: var(--sl-color-black);
 }
 
 /* Right Sidebar (Table of Contents) */
@@ -183,104 +168,13 @@ nav, .sidebar {
   color: var(--sl-color-accent-high);
 }
 
-/* Custom Card component styling */
-.group { /* CardGroup grid */
-  grid-auto-rows: 1fr; /* make all cards equal height */
-}
-.card-link {
-  display: block;
-  height: 100%;
-  text-decoration: none !important; /* no underline */
-}
-.card-link:hover {
-  text-decoration: none !important; /* no underline on hover */
-}
-.card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--sl-color-gray-7);
-  border: 1px solid var(--sl-color-gray-6);
-  border-radius: 6px;
-  padding: 1rem;
-  transition: transform 0.2s ease-in-out;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-  border-color: var(--sl-color-accent);
-}
-
-.card-title {
+/* Aside component styling (replaces Note) */
+div[class^="sl-markdown-content"] > aside {
+  border-left-color: var(--sl-color-accent);
+  background-color: var(--sl-color-accent-low);
   color: var(--sl-color-gray-1);
-  font-weight: bold;
 }
 
-.card-content {
-  color: var(--sl-color-gray-2);
-}
-
-/* Style 'note' aside with blue border and gray background */
-.sl-aside--note {
-  border-inline-start-color: var(--sl-color-accent-high); /* Use the blue accent color */
-  background-color: var(--sl-color-note-bg-light);
-}
-
-:is(.dark) .sl-aside--note {
-  background-color: var(--sl-color-note-bg-dark);
-}
-
-/* Main content area */
-main {
-  /* Hide heading anchor links (e.g., the 🔗 icon) */
-  .sl-heading-wrapper.level-h2 a.sl-anchor-link::after,
-  .sl-heading-wrapper.level-h3 a.sl-anchor-link::after,
-  .sl-heading-wrapper.level-h4 a.sl-anchor-link::after,
-  .sl-heading-wrapper.level-h5 a.sl-anchor-link::after,
-  .sl-heading-wrapper.level-h6 a.sl-anchor-link::after {
-    display: none !important;
-    content: none !important;
-  }
-  padding: 2rem;
-}
-
-/* Style for collapsible section summary links (Subheaders) */
-nav details > summary {
-  font-family: var(--sl-font-heading); /* Use heading font instead of monospace */
-}
-
-/* Remove default list styling */
-nav ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-nav a {
+div[class^="sl-markdown-content"] > aside strong {
   color: var(--sl-color-accent);
-  text-decoration: none;
-}
-
-nav a:hover {
-  color: var(--sl-color-accent-high);
-  text-decoration: underline;
-}
-
-/* Hide heading anchor link icon site-wide */
-a.sl-anchor-link {
-  display: none !important;
-}
-
-.card-link {
-  text-decoration: none !important;
-}
-
-/* Force left nav subheadings (summary) to use heading font */
-nav summary {
-  font-family: var(--sl-font-heading) !important;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-nav summary code {
-  font-family: var(--sl-font-heading) !important; /* ensure code block inside summary also sans */
 }

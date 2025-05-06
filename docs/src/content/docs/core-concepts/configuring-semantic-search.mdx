@@ -31,17 +31,46 @@ vector_searcher = repo.get_vector_searcher(embed_fn=embed_fn)
 
 Popular choices include models from OpenAI, Cohere, or open-source models via libraries like Hugging Face's `sentence-transformers`.
 
-## Optional: Backend and Persistence
+## Backend Configuration
 
-By default, `kit` uses an in-memory Faiss index. For larger projects or persistence, you can specify a backend and a persistence directory.
+`kit`'s `VectorSearcher` uses a pluggable backend system for storing and querying vector embeddings. Currently, the primary supported and default backend is **ChromaDB**.
 
-(Details on supported backends and configuration options to be added.)
+### ChromaDB (Default)
+
+When you initialize `VectorSearcher` (typically via `repo.get_vector_searcher()`) without specifying a `backend` argument, `kit` automatically uses an instance of `ChromaDBBackend`.
+
+**Configuration Options:**
+
+*   **`persist_dir` (Optional[str]):** This is the most important configuration option. It specifies the directory where the ChromaDB index will be stored on disk. 
+    *   If you provide a path to `repo.get_vector_searcher(persist_dir=...)` or directly to the `VectorSearcher` constructor, that path will be used.
+    *   If no `persist_dir` is specified, `kit` defaults to creating the index in a subdirectory within your repository, typically at `YOUR_REPO_PATH/.kit/vector_db/`.
+    *   Persisting the index allows you to reuse it across sessions without needing to re-embed and re-index your codebase every time.
+
+At present, other ChromaDB-specific configurations (like collection names or distance metrics) are managed internally by `kit` with default settings. Future versions may expose more fine-grained control.
 
 ```python
-# Example placeholder for future backend configuration
+# Example: Initialize with default ChromaDB backend and specify a persist directory
 vector_searcher = repo.get_vector_searcher(
-    embed_fn=embed_fn, 
-    backend="chromadb", # Hypothetical backend
-    persist_dir="./kit_vector_db" # Directory to save the index
+    embed_fn=my_embedding_function, 
+    persist_dir="./my_custom_kit_vector_index" # Index will be saved here
 )
+
+# Building the index (first time or to update)
+vector_searcher.build_index()
+
+# Later, to reuse the persisted index:
+# Ensure you use the same embed_fn and persist_dir
+vector_searcher_reloaded = repo.get_vector_searcher(
+    embed_fn=my_embedding_function, 
+    persist_dir="./my_custom_kit_vector_index"
+)
+results = vector_searcher_reloaded.search("my query")
 ```
+
+### Other Backends
+
+While the `VectorDBBackend` interface is designed to support other vector databases, ChromaDB is the primary focus for now. If you have a need for other backends like Faiss (especially for purely in-memory, non-persisted use cases) or others, please raise an issue on the `kit` GitHub repository.
+
+## Choosing an Embedding Model
+
+Popular choices include models from OpenAI, Cohere, or open-source models via libraries like Hugging Face's `sentence-transformers`.

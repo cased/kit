@@ -1,0 +1,84 @@
+---
+title: Practical Recipes
+---
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+These snippets are *copy-paste-ready* solutions for common developer-productivity tasks with **kit**. Adapt them to scripts, CI jobs, or IDE plugins.
+</Aside>
+
+## 1. Rename every function `old_name` → `new_name`
+
+```python
+from pathlib import Path
+from kit import Repository
+
+repo = Repository("/path/to/project")
+
+# Gather definitions & references (quick heuristic)
+usages = repo.find_symbol_usages("old_name", symbol_type="function")
+
+edits: dict[str, str] = {}
+for u in usages:
+    path, line = u["file"], u.get("line")
+    if line is None:
+        continue
+    lines = repo.get_file_content(path).splitlines()
+    lines[line] = lines[line].replace("old_name", "new_name")
+    edits[path] = "\n".join(lines) + "\n"
+
+# Apply edits – prompt the user first!
+for rel_path, new_src in edits.items():
+    Path(repo.repo_path, rel_path).write_text(new_src)
+
+repo.mapper.scan_repo()  # refresh symbols if you’ll run more queries
+```
+
+<hr />
+
+## 2. Summarize a Git diff for an LLM PR review
+
+```python
+from kit import Repository
+repo = Repository(".")
+assembler = repo.get_context_assembler()
+assembler.add_diff(diff_text)  # diff_text from `git diff`
+summary = repo.get_summarizer().summarize(assembler.format_context())
+print(summary)
+```
+
+<hr />
+
+## 3. Show what `main.py` calls (static call graph)
+
+```python
+repo = Repository("/path/to/project")
+for callee in sorted(repo.get_call_graph().get("main.py", set())):
+    print("main.py ➜", callee)
+```
+
+<hr />
+
+## 4. Semantic search for authentication code
+
+```python
+from sentence_transformers import SentenceTransformer
+model = SentenceTransformer("all-MiniLM-L6-v2")
+embed = lambda text: model.encode([text])[0].tolist()
+
+repo = Repository(".")
+vs = repo.get_vector_searcher(embed_fn=embed)
+vs.build_index()
+
+hits = repo.search_semantic("How is user authentication handled?", embed_fn=embed)
+for h in hits:
+    print(h["file"], h.get("name"))
+```
+
+<hr />
+
+## 5. Export full repo index to JSON (file tree + symbols)
+
+```python
+repo = Repository("/path/to/project")
+repo.write_index("repo_index.json")
