@@ -36,28 +36,28 @@ a   `Summarizer` (configured with your desired LLM, e.g., OpenAI, Anthropic, Goo
     indexer = DocstringIndexer(repo, summarizer, embed_fn)
     ```
 
-2.  **Building the Index**: Call `indexer.build_index()`.
+2.  **Building the Index**: Call `indexer.build()`.
     By default, this creates summaries for each *file*.
 
     ```python
     # Build a file-level index (default)
-    indexer.build_index()
+    indexer.build()
     ```
 
     You can also specify `file_extensions` to only index certain file types:
     ```python
-    indexer.build_index(file_extensions=[".py", ".md"])
+    indexer.build(file_extensions=[".py", ".md"])
     ```
 
 ### Symbol-Level Indexing
 
 For more granular search, you can instruct `DocstringIndexer` to create summaries for individual **functions and classes** within your files. This allows for highly specific semantic queries like "find the class that manages database connections" or "what function handles user authentication?"
 
-To enable symbol-level indexing, pass `level="symbol"` to `build_index()`:
+To enable symbol-level indexing, pass `level="symbol"` to `build()`:
 
 ```python
 # Build a symbol-level index
-indexer.build_index(level="symbol", file_extensions=[".py"], force=True)
+indexer.build(level="symbol", file_extensions=[".py"], force=True)
 ```
 
 When `level="symbol"`:

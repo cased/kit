@@ -73,7 +73,7 @@ This approach is powerful because it combines semantic understanding (from summa
     if not os.path.exists(INDEX_DB_PATH):
         print(f"Index not found at {INDEX_DB_PATH}. Building...")
         # Build a symbol-level index for more granular results
-        indexer.build_index(level="symbol", file_extensions=[".py", ".js", ".md"], force=True)
+        indexer.build(level="symbol", file_extensions=[".py", ".js", ".md"], force=True)
         print("Symbol-level index built successfully.")
     else:
         print(f"Found existing index at {INDEX_DB_PATH}.")
@@ -108,29 +108,38 @@ This approach is powerful because it combines semantic understanding (from summa
                 code_content = ""
                 chunk_identifier = ""
                 if res.get('level') == 'symbol':
-                    symbol_name = res.get('symbol_name')
-                    if symbol_name:
-                        code_content = repo.get_symbol_text(res['file_path'], symbol_name)
-                        chunk_identifier = f"{res['file_path']}::{symbol_name}"
+                    target_node_path = res.get('symbol_name') # This is the node_path from index metadata
+                    file_path_for_symbols = res['file_path']
+                    if target_node_path:
+                        all_symbols_in_file = repo.extract_symbols(file_path_for_symbols)
+                        found_symbol_code = None
+                        for sym_info in all_symbols_in_file:
+                            if sym_info.get('node_path') == target_node_path:
+                                found_symbol_code = sym_info.get('code')
+                                break
+                        if found_symbol_code:
+                            code_content = found_symbol_code
+                        else:
+                            print(f"Warning: Could not retrieve code for symbol via node_path '{target_node_path}' in {file_path_for_symbols}")
+                            continue # Skip to next search result
+                        chunk_identifier = f"{file_path_for_symbols}::{target_node_path}"
                     else:
-                        logger.warning(f"Symbol level result missing symbol_name: {res}")
-                        continue
+                        print(f"Warning: Symbol level result missing 'symbol_name' (node_path): {res}")
+                        continue # Skip to next search result
                 else: # Default to file level
                     code_content = repo.get_file_content(res['file_path'])
                     chunk_identifier = res['file_path']
                 
                 if not code_content.strip():
-                    logger.warning(f"No content retrieved for {chunk_identifier}, skipping.")
+                    print(f"Warning: No content retrieved for {chunk_identifier}, skipping.")
                     continue
 
                 context_chunks.append({
                     "code": code_content,
-                    "identifier": chunk_identifier # Use a generic 'identifier' key
+                    "identifier": chunk_identifier
                 })
-            except FileNotFoundError:
-                print(f"Warning: Could not retrieve content for {res['file_path']}")
-            except ValueError as ve: # From get_symbol_text if symbol not found
-                print(f"Warning: Could not retrieve symbol text for {res.get('symbol_name')} in {res['file_path']}: {ve}")
+            except FileNotFoundError: # Still relevant for get_file_content or if extract_symbols fails to find file
+                print(f"Warning: File not found when trying to retrieve content for {res['file_path']}")
         
         if not context_chunks:
              return "Found relevant file names, but could not retrieve their content."
