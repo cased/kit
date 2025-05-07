@@ -1,0 +1,65 @@
+---
+title: SummarySearcher
+description: API documentation for the SummarySearcher class.
+---
+
+import { ClassRef, MethodRef, Param, Returns } from '@site/src/components/DocRef'; 
+import { CodeBlock } from '@site/src/components/CodeBlock'; 
+
+The `SummarySearcher` class provides a simple way to query an index built by [`DocstringIndexer`](./docstring-indexer). It takes a search query, embeds it using the same embedding function used for indexing, and retrieves the most semantically similar summaries from the vector database.
+
+## Constructor
+
+<ClassRef name="SummarySearcher" srcPath="kit/docstring_indexer.py" />
+
+The `SummarySearcher` is typically initialized with an instance of `DocstringIndexer`. It uses the `DocstringIndexer`'s configured backend and embedding function to perform searches.
+
+<CodeBlock language="python">
+{`from kit.docstring_indexer import DocstringIndexer, SummarySearcher
+
+# Assuming 'indexer' is an already initialized DocstringIndexer instance
+# indexer = DocstringIndexer(repo=my_repo, summarizer=my_summarizer)
+# indexer.build() # Ensure the index is built
+
+searcher = SummarySearcher(indexer=indexer)
+`}
+</CodeBlock>
+
+**Parameters:**
+
+*   <Param name="indexer" type="DocstringIndexer" isRequired={true}>
+        An instance of `DocstringIndexer` that has been configured and preferably has had its `build()` method called. The `SummarySearcher` will use this indexer's `backend` and `embed_fn`. See the [`DocstringIndexer API docs`](./docstring-indexer) for more details on the indexer.
+    </Param>
+
+## Methods
+
+### `search`
+
+<MethodRef name="search" id="kit.docstring_indexer.SummarySearcher.search" srcPath="kit/docstring_indexer.py" />
+
+Embeds the given `query` string and searches the vector database (via the indexer's backend) for the `top_k` most similar document summaries.
+
+<CodeBlock language="python">
+{`query_text = "How is user authentication handled?"
+results = searcher.search(query=query_text, top_k=3)
+
+for result in results:
+    print(f"Found in: {result.get('file_path')} ({result.get('symbol_name')})")
+    print(f"Score: {result.get('score')}")
+    print(f"Summary: {result.get('summary')}")
+    print("----")} `}
+</CodeBlock>
+
+**Parameters:**
+
+*   <Param name="query" type="str" isRequired={true}>
+        The natural language query string to search for.
+    </Param>
+*   <Param name="top_k" type="int" default="5">
+        The maximum number of search results to return.
+    </Param>
+
+<Returns type="List[Dict[str, Any]]">
+    A list of dictionaries, where each dictionary represents a search hit.
+    Each hit typically includes metadata, a score, an ID, and the summary text.
+</Returns>

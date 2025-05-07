@@ -1,0 +1,93 @@
+---
+title: DocstringIndexer
+description: API documentation for the DocstringIndexer class.
+---
+
+The `DocstringIndexer` class is responsible for building a vector index of AI-generated code summaries (docstrings). It processes files in a repository, generates summaries for code symbols (or entire files), embeds these summaries, and stores them in a configurable vector database backend. Once an index is built, it can be queried using the [`SummarySearcher`](./summary-searcher) class.
+
+## Constructor
+
+**Class: `DocstringIndexer`**
+*(defined in `kit/docstring_indexer.py`)*
+
+```python
+from kit import Repository, Summarizer
+from kit.docstring_indexer import DocstringIndexer, EmbedFn # EmbedFn is Optional[Callable[[str], List[float]]]
+from kit.vector_searcher import VectorDBBackend # Optional
+
+# Example basic initialization
+repo = Repository("/path/to/your/repo")
+summarizer = Summarizer() # Assumes OPENAI_API_KEY is set or local model configured
+indexer = DocstringIndexer(repo=repo, summarizer=summarizer)
+
+# Example with custom embedding function and backend
+# def my_custom_embed_fn(text: str) -> List[float]:
+#     # ... your embedding logic ...
+#     return [0.1, 0.2, ...]
+#
+# from kit.vector_searcher import ChromaDBBackend
+# custom_backend = ChromaDBBackend(collection_name="my_custom_index", persist_dir="./my_chroma_db")
+#
+# indexer_custom = DocstringIndexer(
+#     repo=repo,
+#     summarizer=summarizer,
+#     embed_fn=my_custom_embed_fn,
+#     backend=custom_backend,
+#     persist_dir="./my_custom_index_explicit_persist" # Can also be set directly on backend
+# )
+```
+
+**Parameters:**
+
+*   **`repo`** (`Repository`, required):
+    An instance of `kit.Repository` pointing to the codebase to be indexed.
+*   **`summarizer`** (`Summarizer`, required):
+    An instance of `kit.Summarizer` used to generate summaries for code symbols or files.
+*   **`embed_fn`** (`Optional[Callable[[str], List[float]]]`, default: `SentenceTransformer('all-MiniLM-L6-v2')`):
+    A function that takes a string and returns its embedding (a list of floats).
+    If `None`, a default embedding function using `sentence-transformers` (`all-MiniLM-L6-v2` model) will be used.
+    The `sentence-transformers` package must be installed for the default to work (`pip install sentence-transformers`).
+*   **`backend`** (`Optional[VectorDBBackend]`, default: `ChromaDBBackend`):
+    The vector database backend to use for storing and querying embeddings.
+    If `None`, a `ChromaDBBackend` instance will be created.
+    The default collection name is `kit_docstring_index`.
+*   **`persist_dir`** (`Optional[str]`, default: `'./.kit_index/' + repo_name_slug + '/docstrings'`):
+    The directory where the vector database (e.g., ChromaDB) should persist its data.
+    If `None`, a default path is constructed based on the repository name within a `.kit_index` directory in the current working directory.
+    If a custom `backend` is provided, this parameter might be ignored if the backend itself has persistence configured. It's primarily used for the default `ChromaDBBackend` if no explicit `backend` is given or if the default backend needs a specific persistence path.
+
+## Methods
+
+### `build`
+
+**Method: `DocstringIndexer.build`**
+*(defined in `kit/docstring_indexer.py`)*
+
+Builds or rebuilds the docstring index. It iterates through files in the repository (respecting `.gitignore` and `file_extensions`), extracts symbols or uses whole file content based on the `level`, generates summaries, embeds them, and adds them to the vector database. It also handles caching to avoid re-processing unchanged symbols/files.
+
+```python
+# Build the index (symbol-level by default for .py files)
+indexer.build()
+
+# Force a rebuild, ignoring any existing cache
+indexer.build(force=True)
+
+# Index at file level instead of symbol level
+indexer.build(level="file")
+
+# Index only specific file extensions
+indexer.build(file_extensions=[".py", ".mdx"])
+```
+
+**Parameters:**
+
+*   **`force`** (`bool`, default: `False`):
+    If `True`, the entire index is rebuilt, ignoring any existing cache and potentially overwriting existing data in the backend.
+    If `False`, uses cached summaries/embeddings for unchanged code and only processes new/modified code. It also avoids re-initializing the backend if it already contains data, unless changes are detected.
+*   **`level`** (`str`, default: `'symbol'`):
+    The granularity of indexing.
+    - `'symbol'`: Extracts and summarizes individual symbols (functions, classes, methods) from files.
+    - `'file'`: Summarizes the entire content of each file.
+*   **`file_extensions`** (`Optional[List[str]]`, default: `None` (uses Repository's default, typically .py)):
+    A list of file extensions (e.g., `['.py', '.md']`) to include in the indexing process.
+    If `None`, uses the default behavior of the `Repository` instance, which typically focuses on Python files but can be configured.

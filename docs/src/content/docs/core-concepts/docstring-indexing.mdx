@@ -53,6 +53,90 @@ a   `Summarizer` (configured with your desired LLM, e.g., OpenAI, Anthropic, Goo
     indexer.build(file_extensions=[".py", ".md"])
     ```
 
+### Inspecting the Indexed Data (Optional)
+
+After building the index, you might want to inspect its raw contents to understand what was stored. This can be useful for debugging or exploration. The exact method depends on the `VectorDBBackend` being used.
+
+If you're using the default `ChromaDBBackend` (or have explicitly configured it), you can access the underlying ChromaDB collection and retrieve entries.
+
+```python
+# Assuming 'indexer' is your DocstringIndexer instance after 'indexer.build()' has run.
+# And 'indexer.backend' is an instance of ChromaDBBackend.
+
+if hasattr(indexer.backend, 'collection'):
+    chroma_collection = indexer.backend.collection
+    print(f"Inspecting ChromaDB collection: {chroma_collection.name}")
+    print(f"Number of items: {chroma_collection.count()}")
+
+    # Retrieve the first few items (e.g., 3)
+    # We include 'metadatas' and 'documents' (which holds the summary text).
+    # 'embeddings' are excluded for brevity.
+    retrieved_data = chroma_collection.get(
+        limit=3,
+        include=['metadatas', 'documents'] 
+    )
+
+    if retrieved_data and retrieved_data.get('ids'):
+        for i in range(len(retrieved_data['ids'])):
+            item_id = retrieved_data['ids'][i]
+            # The 'document' is the summary text that was embedded.
+            summary_text = retrieved_data['documents'][i] if retrieved_data['documents'] else "N/A"
+            # 'metadata' contains file_path, symbol_name, original summary, etc.
+            metadata = retrieved_data['metadatas'][i] if retrieved_data['metadatas'] else {}
+            
+            print(f"\n--- Item {i+1} ---")
+            print(f"  ID (in Chroma): {item_id}")
+            print(f"  Stored Summary (Document): {summary_text}")
+            print(f"  Metadata:")
+            for key, value in metadata.items():
+                print(f"    {key}: {value}")
+    else:
+        print("No items found in the collection or collection is empty.")
+else:
+    print("The configured backend does not seem to be ChromaDB or doesn't expose a 'collection' attribute for direct inspection this way.")
+
+```
+
+**Expected Output from Inspection:**
+
+Running the inspection code above might produce output like this:
+
+```text
+Inspecting ChromaDB collection: kit_docstring_index
+Number of items: 10 # Or however many items are in your test repo index
+
+--- Item 1 ---
+  ID (in Chroma): utils.py::greet
+  Stored Summary (Document): The `greet` function in the `utils.py` file is designed to generate a friendly greeting message...
+  Metadata:
+    file_path: utils.py
+    level: symbol
+    summary: The `greet` function in the `utils.py` file is designed to generate a friendly greeting message...
+    symbol_name: greet
+    symbol_type: function
+
+--- Item 2 ---
+  ID (in Chroma): app.py::main
+  Stored Summary (Document): The `main` function in `app.py` demonstrates a simple authentication workflow...
+  Metadata:
+    file_path: app.py
+    level: symbol
+    summary: The `main` function in `app.py` demonstrates a simple authentication workflow...
+    symbol_name: main
+    symbol_type: function
+
+... (and so on)
+```
+
+This shows that each entry in the ChromaDB collection has:
+- An `id` (often `file_path::symbol_name`).
+- The `document` field, which is the text of the summary that was embedded.
+- `metadata` containing details like `file_path`, `symbol_name`, `symbol_type`, `level`, and often a redundant copy of the `summary` itself.
+
+Knowing the structure of this stored data can be very helpful when working with search results or debugging the indexing process.
+
+_(Note for Kit Developers: Consider adding a backend-agnostic `indexer.inspect_entries()` method for easier inspection in the future)._
+
 ### Symbol-Level Indexing
 
 <Aside type="caution" title="Alpha Feature: Symbol-Level Indexing">
