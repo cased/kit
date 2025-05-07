@@ -1,0 +1,51 @@
+---
+interface Props {
+  label: string;
+}
+
+const { label } = Astro.props;
+---
+
+<div class="update">
+  <div class="update-label">{label}</div>
+  <div class="update-content">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .update {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 3rem;
+    padding-bottom: 3rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+  }
+
+  .update:last-child {
+    border-bottom: none;
+  }
+
+  .update-label {
+    width: 128px;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+    margin-right: 3rem;
+  }
+
+  .update-content {
+    flex: 1;
+    margin-block-start: 0 !important;
+    margin-top: 0 !important;
+
+    :global(h2) {
+      margin-top: 0;
+    }
+
+    :global(img) {
+      border-radius: 0.5rem;
+      margin: 1.5rem 0;
+      max-width: 100%;
+    }
+  }
+</style>

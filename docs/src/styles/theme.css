@@ -1,0 +1,297 @@
+@font-face {
+  font-family: "iA Writer Quattro V";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  font-stretch: 75% 125%;
+  font-variation-settings: "wdth" 100;
+  src: url("fonts/iAWriterQuattroV.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/IBMPlexSansV.ttf") format("truetype");
+}
+
+:root {
+  /* Base values for fluid typography */
+  --viewport-min: 320; /* Minimum viewport width in pixels */
+  --viewport-max: 1200; /* Maximum viewport width in pixels */
+  --text-base-min: 14; /* Base font size at minimum viewport width */
+  --text-base-max: 16; /* Base font size at maximum viewport width */
+
+  /* Classic typographic scale with ratio of 1.2 (minor third) */
+  --scale-ratio: 1.125;
+
+  /* Font families */
+  --sl-font: "iA Writer Quattro V";
+}
+
+/* Set fluid typography for the entire document */
+html {
+  font-size: clamp(
+    var(--text-base-min) * 1px,
+    calc(
+      var(--text-base-min) * 1px + (var(--text-base-max) - var(--text-base-min)) *
+        (100vw - var(--viewport-min) * 1px) /
+        (var(--viewport-max) - var(--viewport-min))
+    ),
+    var(--text-base-max) * 1px
+  );
+}
+
+/* Define the typographic scale based on the fluid root font size */
+:root {
+  --text-base: 1rem; /* This will inherit the fluid font size from html */
+  --sl-text-xs: calc(var(--text-base) / var(--scale-ratio));
+  --sl-text-sm: calc(var(--text-base) * 0.889);
+  --sl-text-body: var(--text-base);
+  --sl-text-h4: calc(var(--text-base) * var(--scale-ratio)); /* 1.2x base */
+  --sl-text-h3: calc(
+    var(--text-base) * var(--scale-ratio) * var(--scale-ratio)
+  ); /* 1.44x base */
+  --sl-text-h2: calc(
+    var(--text-base) * var(--scale-ratio) * var(--scale-ratio) *
+      var(--scale-ratio)
+  ); /* 1.728x base */
+  --sl-text-h1: calc(
+    var(--text-base) * var(--scale-ratio) * var(--scale-ratio) *
+      var(--scale-ratio) * var(--scale-ratio)
+  ); /* 2.074x base */
+  --sl-text-code: var(--sl-text-sm);
+
+  /* Spacing scale based on the same ratio for harmony */
+  --space-3xs: calc(var(--text-base) * 0.25); /* 0.25rem */
+  --space-2xs: calc(var(--text-base) * 0.5); /* 0.5rem */
+  --space-xs: calc(var(--text-base) * 0.75); /* 0.75rem */
+  --space-s: var(--text-base); /* 1rem */
+  --space-m: calc(var(--text-base) * var(--scale-ratio)); /* 1.2rem */
+  --space-l: calc(
+    var(--text-base) * var(--scale-ratio) * var(--scale-ratio)
+  ); /* 1.44rem */
+  --space-xl: calc(
+    var(--text-base) * var(--scale-ratio) * var(--scale-ratio) *
+      var(--scale-ratio)
+  ); /* 1.728rem */
+  --space-2xl: calc(
+    var(--text-base) * var(--scale-ratio) * var(--scale-ratio) *
+      var(--scale-ratio) * var(--scale-ratio)
+  ); /* 2.074rem */
+  --space-3xl: calc(
+    var(--text-base) * var(--scale-ratio) * var(--scale-ratio) *
+      var(--scale-ratio) * var(--scale-ratio) * var(--scale-ratio)
+  ); /* 2.488rem */
+
+  /* All other colors are derived from the base color */
+  --base-color: oklch(0.59 0.1825 259.94);
+  --sl-color-hairline: oklch(from var(--base-color) calc(l - 0.3) 0 h);
+  --sl-color-accent-low: oklch(from var(--base-color) calc(l + 0.5) 0.1 h);
+  --sl-color-accent: oklch(from var(--base-color) calc(l + 1) c h);
+  --sl-color-accent-high: oklch(
+    from var(--base-color) calc(l + 0.1) calc(c + 0.1) h
+  );
+  --sl-color-white: oklch(100% 0 0 0);
+  --sl-color-gray-1: oklch(
+    from var(--base-color) calc(l + 0.35) calc(c - 0.2) h
+  );
+  --sl-color-gray-2: oklch(
+    from var(--base-color) calc(l + 0.3) calc(c - 0.2) h
+  );
+  --sl-color-gray-3: oklch(
+    from var(--base-color) calc(l + 0.2) calc(c - 0.2) h
+  );
+  --sl-color-gray-4: oklch(from var(--base-color) calc(l - 0) calc(c - 0.2) h);
+  --sl-color-gray-5: oklch(
+    from var(--base-color) calc(l - 0.3) calc(c - 0.2) h
+  );
+  --sl-color-gray-6: oklch(
+    from var(--base-color) calc(l - 0.35) calc(c - 0.2121) h
+  );
+  --sl-color-black: oklch(
+    from var(--base-color) calc(l - 0.375) calc(c - 0.2121) h
+  );
+
+  &[data-theme="light"] {
+    --sl-color-hairline: oklch(
+      from var(--base-color) calc(l + 0.37) calc(c - 0.2) h
+    );
+    --sl-color-accent-low: oklch(from var(--base-color) calc(l + 0.1) c h);
+    --sl-color-accent: oklch(from var(--base-color) l c h);
+    --sl-color-accent-high: oklch(from var(--base-color) calc(l - 0.15) c h);
+    --sl-color-white: oklch(
+      from var(--base-color) calc(l - 0.9) calc(c - 0.2121) h
+    );
+    --sl-color-gray-1: oklch(from var(--base-color) 10% c h);
+    --sl-color-gray-2: oklch(
+      from var(--base-color) calc(l - 0.25) calc(c - 0.205) h
+    );
+    --sl-color-gray-3: oklch(
+      from var(--base-color) calc(l - 0.15) calc(c - 0.205) h
+    );
+    --sl-color-gray-4: oklch(
+      from var(--base-color) calc(l + 0.2) calc(c - 0.205) h
+    );
+    --sl-color-gray-5: oklch(
+      from var(--base-color) calc(l + 0.25) calc(c - 0.205) h
+    );
+    --sl-color-gray-6: oklch(
+      from var(--base-color) calc(l + 0.33) calc(c - 0.205) h
+    );
+    --sl-color-gray-7: oklch(
+      from var(--base-color) calc(l + 0.38) calc(c - 0.21) h
+    );
+    --sl-color-black: oklch(
+      from var(--base-color) calc(l + 0.4) calc(c - 0.2121) h
+    );
+  }
+}
+
+/* Apply the fluid typography to specific elements */
+h1 {
+  font-size: var(--sl-text-h1);
+  margin-top: var(--space-m);
+  margin-bottom: var(--space-m);
+}
+
+h2 {
+  font-size: var(--sl-text-h2);
+  margin-top: var(--space-xl);
+  padding-bottom: var(--space-m);
+  border-bottom: 1px solid var(--sl-color-hairline);
+}
+
+h3 {
+  font-size: var(--sl-text-h3);
+  margin-top: var(--space-l);
+  margin-bottom: var(--space-s);
+}
+
+h4 {
+  font-size: var(--sl-text-h4);
+  margin-top: var(--space-m);
+  margin-bottom: var(--space-xs);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  display: block;
+  font-family: "IBM Plex Sans";
+  font-variation-settings: "wght" 600, "CRSV" 0, "wdth" 100;
+  line-height: 1.2; /* Tighter line height for headings */
+}
+
+.sl-markdown-content h3 {
+  font-weight: 300;
+}
+
+/* Logo in header */
+.site-title img {
+  height: 1.5em;
+}
+
+/* Adjust font sizes in side nav */
+.group-label .large,
+.top-level .large {
+  font-size: var(--sl-text-xs);
+}
+
+/* Next and previous links */
+.pagination-links a {
+  color: var(--sl-color-gray-4);
+}
+
+.link-title {
+  font-size: var(--sl-text-body);
+}
+
+/* Content spacing */
+.content-panel {
+  padding: var(--space-l);
+}
+
+/* List spacing */
+.sl-markdown-content ul,
+.sl-markdown-content ol {
+  margin-top: var(--space-xs);
+  margin-bottom: var(--space-m);
+  margin-left: var(--space-sm);
+  line-height: 1.5;
+}
+
+.sl-markdown-content li {
+  margin-bottom: 3px;
+  margin-top: 3px;
+}
+
+/* Adjust paragraph spacing for better readability */
+.sl-markdown-content p {
+  font-size: var(--sl-text-body);
+  margin-top: 0;
+  margin-bottom: var(--space-m);
+  max-width: 70ch; /* Optimal line length for readability */
+  line-height: 1.6;
+}
+
+/* Code blocks */
+figure {
+  margin-bottom: var(--space-l);
+  margin-top: var(--space-l);
+}
+
+/* Inline code */
+.sl-markdown-content code:not(pre code) {
+  padding: var(--space-3xs) var(--space-2xs);
+  border-radius: 3px;
+}
+
+/* Blockquotes */
+.sl-markdown-content blockquote {
+  margin: var(--space-l) 0;
+  padding: var(--space-s) var(--space-m);
+  border-left: 4px solid var(--sl-color-accent);
+  background-color: var(--sl-color-accent-low);
+  border-radius: 2px;
+}
+
+.sl-markdown-content blockquote p {
+  margin-bottom: var(--space-xs);
+}
+
+/* Tables */
+.sl-markdown-content table {
+  margin: var(--space-l) 0;
+  border-collapse: collapse;
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td {
+  padding: var(--space-xs) var(--space-s);
+  border: 1px solid var(--sl-color-hairline);
+}
+
+/* Responsive adjustments for small screens */
+@media (max-width: 640px) {
+  :root {
+    /* Slightly adjust scale ratio for smaller screens */
+    --scale-ratio: 1.15;
+  }
+
+  /* Adjust spacing for mobile */
+  .content-panel {
+    padding: var(--space-m);
+  }
+
+  h1 {
+    margin-top: var(--space-xl);
+  }
+
+  h2 {
+    margin-top: var(--space-l);
+  }
+}

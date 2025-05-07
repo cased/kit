@@ -1,0 +1,86 @@
+---
+interface Props {
+  title: string;
+  href?: string;
+}
+
+const { title, href } = Astro.props;
+const Tag = href ? "a" : "div";
+---
+
+<article class:list={["card", { "card-link": href }]}>
+  <Tag
+    class="card-content"
+    href={href}
+  >
+    {
+      Astro.slots.has("icon") && (
+        <span class="icon">
+          <slot name="icon" />
+        </span>
+      )
+    }
+    <p class="title">
+      <span>{title}</span>
+    </p>
+    <div class="body">
+      <slot />
+    </div>
+  </Tag>
+</article>
+
+<style>
+  .card {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 0;
+    background-color: var(--sl-color-gray-8);
+    color: var(--sl-color-white);
+  }
+
+  .card-content {
+    display: block;
+    padding: 1.25rem;
+    text-decoration: none;
+  }
+
+  .card-link {
+    transition:
+      border-color 0.2s ease-in-out,
+      background-color 0.2s ease-in-out;
+  }
+
+  .card-link:hover {
+    border-color: var(--sl-color-gray-3);
+    background-color: var(--sl-color-gray-7);
+  }
+
+  .title {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    font-size: var(--sl-text-lg);
+    font-weight: 600;
+    font-family: "IBM Plex Sans";
+    line-height: var(--sl-line-height-headings);
+    color: var(--sl-color-white);
+    margin: 0;
+  }
+
+  .body {
+    margin-top: 0.5rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+
+  .icon {
+    display: block;
+    color: var(--sl-color-accent);
+    margin: 0 0 1rem;
+  }
+
+  .icon :global(svg) {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+</style>

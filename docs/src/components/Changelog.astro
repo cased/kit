@@ -1,0 +1,84 @@
+---
+import { getCollection } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+
+const entries = await getCollection("changelog");
+const sortedEntries = entries.sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime()
+);
+
+// Render each entry
+const renderedEntries = await Promise.all(
+  sortedEntries.map(async (entry) => {
+    const { Content } = await entry.render();
+    return { entry, Content };
+  })
+);
+---
+
+<div class="changelog">
+  {entries.length === 0 && <p>No changelog entries found.</p>}
+  {
+    renderedEntries.map(({ entry, Content }) => (
+      <article class="changelog-entry">
+        <header>
+          <time datetime={entry.data.date.toISOString()}>
+            {entry.data.label}
+          </time>
+          <h3>{entry.data.title}</h3>
+        </header>
+        <div class="content">
+          <Content />
+        </div>
+      </article>
+    ))
+  }
+</div>
+
+<style>
+  .changelog {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  .changelog-entry {
+    position: relative;
+
+    img {
+      border-radius: var(--sl-rounded-lg);
+      border: 1px solid var(--sl-color-gray-5);
+    }
+  }
+  
+  header {
+    margin-bottom: 1rem;
+
+    h3 {
+      margin-top: 0 !important;
+      font-size: var(--sl-text-2xl);
+      color: var(--sl-color-white);
+    }
+  }
+
+  time {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+    white-space: nowrap;
+  }
+
+  .description {
+    margin: 0.5rem 0 1.5rem;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-lg);
+  }
+
+  .content {
+    color: var(--sl-color-gray-2);
+  }
+
+  .content :global(img) {
+    border-radius: var(--sl-rounded-lg);
+    margin: 1.5rem 0;
+  }
+</style>

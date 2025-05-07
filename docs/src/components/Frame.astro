@@ -1,0 +1,24 @@
+---
+
+---
+
+<div class="frame">
+  <slot />
+</div>
+
+<style>
+  .frame {
+    border-radius: 8px;
+    border: 1px solid var(--sl-color-gray-5);
+    padding: 1rem;
+    margin: 1.5rem 0;
+    overflow: hidden;
+  }
+
+  .frame :global(img) {
+    display: block;
+    width: 100%;
+    border-radius: 4px;
+    margin: 0;
+  }
+</style>

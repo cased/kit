@@ -1,0 +1,36 @@
+---
+export interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div class:list={["page-intro", className]}>
+  <slot />
+</div>
+
+<style is:global>
+  /* Global style to override Starlight's styles */
+  .sl-markdown-content .page-intro p {
+    font-family: "IBM Plex Sans" !important;
+    font-size: var(--sl-text-h3) !important;
+    font-weight: 400 !important;
+    line-height: 1.5 !important;
+    margin: 0 0 1.334rem !important;
+    max-width: 90ch !important;
+    color: oklch(from var(--sl-color-gray-3) 0.55 c h) !important;
+  }
+</style>
+
+<style>
+  .page-intro {
+    font-family: "IBM Plex Sans";
+    font-size: var(--sl-text-h3);
+    font-weight: 400;
+    line-height: 1.5;
+    margin: 0 0 1.334rem;
+    max-width: 90ch;
+    color: var(--sl-color-gray-3);
+  }
+</style>
