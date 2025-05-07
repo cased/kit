@@ -154,7 +154,7 @@ class Summarizer:
             LLMError: If there's an error from the LLM API or an empty summary.
         """
         logger.debug(f"Attempting to summarize file: {file_path}")
-        abs_file_path = self.repo.get_abs_path(file_path)
+        abs_file_path = str(self.repo.local_path / file_path)
         
         try:
             file_content = self.repo.get_file_content(abs_file_path)
@@ -165,6 +165,17 @@ class Summarizer:
         if not file_content.strip():
             logger.warning(f"File {abs_file_path} is empty or contains only whitespace. Skipping summary.")
             return ""
+
+        # Max model context is 128000 tokens. Avg ~4 chars/token -> ~512,000 chars for total message.
+        # Let's set a threshold for the raw content itself.
+        MAX_CHARS_FOR_SUMMARY = 400_000  # Approx 100k tokens
+        if len(file_content) > MAX_CHARS_FOR_SUMMARY:
+            logger.warning(
+                f"File {abs_file_path} content is too large ({len(file_content)} chars) "
+                f"to summarize reliably. Skipping."
+            )
+            # Return a placeholder summary or an empty string
+            return f"File content too large ({len(file_content)} characters) to summarize."
 
         system_prompt_text = "You are an expert assistant skilled in creating concise and informative code summaries."
         user_prompt_text = f"Summarize the following code from the file '{file_path}'. Provide a high-level overview of its purpose, key components, and functionality. Focus on what the code does, not just how it's written. The code is:\n\n```\n{file_content}\n```"
@@ -235,6 +246,16 @@ class Summarizer:
         if not function_code:
             raise ValueError(f"Could not find function '{function_name}' in '{file_path}'.")
 
+        # Max model context is 128000 tokens. Avg ~4 chars/token -> ~512,000 chars for total message.
+        # Let's set a threshold for the raw content itself.
+        MAX_CHARS_FOR_SUMMARY = 400_000  # Approx 100k tokens
+        if len(function_code) > MAX_CHARS_FOR_SUMMARY:
+            logger.warning(
+                f"Function {function_name} in file {file_path} content is too large ({len(function_code)} chars) "
+                f"to summarize reliably. Skipping."
+            )
+            return f"Function content too large ({len(function_code)} characters) to summarize."
+
         system_prompt_text = "You are an expert assistant skilled in creating concise code summaries for functions."
         user_prompt_text = f"Summarize the following Python function named '{function_name}' from the file '{file_path}'. Describe its purpose, parameters, and return value. The function code is:\n\n```python\n{function_code}\n```"
 
@@ -303,6 +324,16 @@ class Summarizer:
         if not class_code:
             raise ValueError(f"Could not find class '{class_name}' in '{file_path}'.")
 
+        # Max model context is 128000 tokens. Avg ~4 chars/token -> ~512,000 chars for total message.
+        # Let's set a threshold for the raw content itself.
+        MAX_CHARS_FOR_SUMMARY = 400_000  # Approx 100k tokens
+        if len(class_code) > MAX_CHARS_FOR_SUMMARY:
+            logger.warning(
+                f"Class {class_name} in file {file_path} content is too large ({len(class_code)} chars) "
+                f"to summarize reliably. Skipping."
+            )
+            return f"Class content too large ({len(class_code)} characters) to summarize."
+        
         system_prompt_text = "You are an expert assistant skilled in creating concise code summaries for classes."
         user_prompt_text = f"Summarize the following Python class named '{class_name}' from the file '{file_path}'. Describe its purpose, key attributes, and main methods. The class code is:\n\n```python\n{class_code}\n```"
         

@@ -99,13 +99,13 @@ class Repository:
         """
         return self.mapper.extract_symbols(file_path)
 
-    def search_text(self, query: str, file_pattern: str = "*.py") -> List[Dict[str, Any]]:
+    def search_text(self, query: str, file_pattern: str = "*") -> List[Dict[str, Any]]:
         """
         Searches for text in the repository.
         
         Args:
             query (str): The text to search for.
-            file_pattern (str, optional): The file pattern to search in. Defaults to "*.py".
+            file_pattern (str, optional): The file pattern to search in. Defaults to "*".
         
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the search results.

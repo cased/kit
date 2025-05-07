@@ -115,6 +115,328 @@ One of the core features of `kit` is its ability to parse source code and extrac
 
 </Steps>
 
+## Listing All Files in the Repository
+
+To get an overview of all files and directories that `kit` recognizes within your repository, you can use the `repo.get_file_tree()` method. This is helpful for understanding the scope of what `kit` will operate on.
+
+<Steps>
+
+1.  **Call `get_file_tree()`**
+
+    ```python
+    # Assuming 'repo' is your Repository instance
+
+    print("\n--- Getting File Tree ---")
+    file_tree = repo.get_file_tree()
+
+    if file_tree:
+        print(f"Found {len(file_tree)} files/items in the repository.")
+        print("\nFirst 5 items in the file tree:")
+        for i, item in enumerate(file_tree[:5]): # Print the first 5 items
+            print(f"{i+1}. {item}")
+        print("------")
+        
+        # Example of what one item might look like:
+        # {'path': 'src/kit/repository.py', 'is_dir': False, 'name': 'repository.py', 'size': 14261}
+    else:
+        print("File tree is empty or could not be retrieved.")
+    ```
+
+2.  **Understanding the Output**
+
+    The `get_file_tree()` method returns a list of dictionaries. Each dictionary represents a file or directory and typically includes:
+    *   `'path'`: The relative path from the repository root.
+    *   `'is_dir'`: `True` if it's a directory, `False` if it's a file.
+    *   `'name'`: The base name of the file or directory.
+    *   `'size'`: The size in bytes (often 0 for directories in this view).
+
+    This method respects rules defined in `.gitignore` (by default) and gives you a snapshot of the files `kit` is aware of.
+
+</Steps>
+
+## Searching for Text in Files
+
+`kit` allows you to perform text-based searches across your repository, similar to using `grep`. This is handled by the `repo.search_text()` method.
+
+<Steps>
+
+1.  **Perform a Search (Default: All Files)**
+
+    Let's search for the term "app". By default, `search_text` now looks in all files (`*`).
+
+    ```python
+    # Assuming 'repo' is your Repository instance
+
+    print("\n--- Searching for Text ---")
+    query_text = "app"
+    # The default file_pattern is now "*", so it searches all files
+    search_results_all = repo.search_text(query=query_text)
+
+    if search_results_all:
+        print(f"Found {len(search_results_all)} occurrences of '{query_text}' in all files.")
+        print("\nFirst 3 search results (all files):")
+        for i, result in enumerate(search_results_all[:3]):
+            print(f"\nResult {i+1}:")
+            print(f"  File: {result.get('file')}")
+            print(f"  Line Number (0-indexed): {result.get('line_number')}") 
+            print(f"  Line Content: {result.get('line', '').strip()}")
+    else:
+        print(f"No occurrences of '{query_text}' found in any files.")
+    print("------")
+    ```
+
+2.  **Search in Specific File Types**
+
+    You can still specify a `file_pattern` to search in specific file types. For example, to search for "Repository" only in Python (`*.py`) files:
+
+    ```python
+    query_repo = "Repository"
+    pattern_py = "*.py"
+    print(f"\nSearching for '{query_repo}' in '{pattern_py}' files...")
+    repo_py_results = repo.search_text(query=query_repo, file_pattern=pattern_py)
+
+    if repo_py_results:
+        print(f"Found {len(repo_py_results)} occurrences of '{query_repo}' in Python files.")
+        print("First result (Python files):")
+        first_py_result = repo_py_results[0]
+        print(f"  File: {first_py_result.get('file')}")
+        print(f"  Line Number (0-indexed): {first_py_result.get('line_number')}")
+        print(f"  Line Content: {first_py_result.get('line', '').strip()}")
+    else:
+        print(f"No occurrences of '{query_repo}' found in '{pattern_py}' files.")
+    print("------")
+    ```
+
+3.  **Understanding the Output**
+
+    `search_text()` returns a list of dictionaries, each representing a match. Key fields include:
+    *   `'file'`: The path to the file where the match was found.
+    *   `'line_number'`: The (often 0-indexed) line number of the match.
+    *   `'line'`: The full content of the line containing the match.
+    *   `'context_before'` and `'context_after'`: Lists for lines before/after the match (may be empty depending on search configuration).
+
+    Keep in mind this is a literal text search and is case-sensitive by default. It will find the query string as a substring anywhere it appears (e.g., "app" within "mapper" or "happy").
+
+</Steps>
+
+## Workflow: Get First File's Content
+
+A common task is to list files, select one, and then retrieve its contents. Here's a simple workflow to get the content of the first file listed by `get_file_tree()`.
+
+<Steps>
+
+1.  **Get File Tree, Pick First File, and Get Content**
+
+    This script finds the first item in the `file_tree` that is a file (not a directory) and prints a snippet of its content.
+
+    ```python
+    # Assuming 'repo' is your Repository instance
+
+    print("\n--- Workflow: Get First *File's* Content ---")
+
+    # 1. List all items
+    file_tree = repo.get_file_tree()
+
+    first_file_path = None
+    if file_tree:
+        # 2. Find the path of the first actual file in the tree
+        for item in file_tree:
+            if not item.get('is_dir', False): # Make sure it's a file
+                first_file_path = item['path']
+                break # Stop once we've found the first file
+
+    if not first_file_path:
+        print("No actual files (non-directories) found in the repository.")
+    else:
+        print(f"\nPicking the first *file* found in the tree: {first_file_path}")
+
+        # 3. Get its content
+        print(f"Attempting to read content from: {first_file_path}")
+        try:
+            content = repo.get_file_content(first_file_path)
+            print(f"\n--- Content of {first_file_path} (first 300 chars) ---")
+            print(content[:300] + "..." if len(content) > 300 else content)
+            print(f"------ End of {first_file_path} snippet ------")
+        except FileNotFoundError:
+            print(f"Error: File not found at '{first_file_path}'.")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+    print("------")
+    ```
+
+2.  **Example Output**
+
+    If the first file in your repository is `LICENSE`, the output might look like:
+
+    ```text
+    --- Workflow: Get First *File's* Content ---
+
+    Picking the first *file* found in the tree: LICENSE
+    Attempting to read content from: LICENSE
+
+    --- Content of LICENSE (first 300 chars) ---
+    MIT License
+
+    Copyright (c) 2024 Cased
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, dis...
+    ------ End of LICENSE snippet ------
+    ------
+    ```
+
+    This demonstrates successfully using `get_file_tree()` to discover a file and `get_file_content()` to read it.
+
+</Steps>
+
+### Chunking File Content by Lines (`repo.chunk_file_by_lines()`)
+
+The `Repository` class provides a method to break down a file's content into smaller string chunks based on a target maximum number of lines. This is useful for preprocessing text for Large Language Models (LLMs) or other tools that have input size limits.
+
+The method signature is: `repo.chunk_file_by_lines(file_path: str, max_lines: int = 50) -> List[str]`
+
+-   `file_path`: The relative path to the file within the repository.
+-   `max_lines`: The desired maximum number of lines for each chunk. The actual number of lines in a chunk might vary slightly as the method attempts to find reasonable break points.
+-   It returns a list of strings, where each string is a content chunk.
+
+**Example 1: Chunking a small file (e.g., `LICENSE`)**
+
+If the file is smaller than `max_lines`, it will be returned as a single chunk.
+
+```python
+license_path = "LICENSE"
+license_chunks = repo.chunk_file_by_lines(license_path)
+
+print(f"Number of chunks for {license_path}: {len(license_chunks)}")
+if license_chunks:
+    print(f"Content of the first chunk (first 50 chars):\n---\n{license_chunks[0][:50]}...\n---")
+```
+
+**Expected Output (for `LICENSE`):**
+
+```text
+Number of chunks for LICENSE: 1
+Content of the first chunk (first 50 chars):
+---
+MIT License
+
+Copyright (c) 2024 Cased
+
+Permiss...
+---
+```
+
+**Example 2: Chunking a larger file (e.g., `src/kit/repository.py`)**
+
+For larger files, the content will be split into multiple string chunks.
+
+```python
+repo_py_path = "src/kit/repository.py"
+repo_py_chunks = repo.chunk_file_by_lines(repo_py_path, max_lines=50)
+
+print(f"\nNumber of chunks for {repo_py_path} (with max_lines=50): {len(repo_py_chunks)}")
+
+for i, chunk_content in enumerate(repo_py_chunks[:2]):
+    print(f"\n--- Chunk {i+1} for {repo_py_path} ---")
+    print(f"  Approx. line count: {len(chunk_content.splitlines())}")
+    print(f"  Content (first 100 chars):\n  \"\"\"\n{chunk_content[:100]}...\n  \"\"\"")
+```
+
+**Expected Output (for `src/kit/repository.py`, showing 2 of 7 chunks):**
+
+```text
+Number of chunks for src/kit/repository.py (with max_lines=50): 7
+
+--- Chunk 1 for src/kit/repository.py ---
+  Approx. line count: 48
+  Content (first 100 chars):
+  """
+from __future__ import annotations
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Unio...
+  """
+
+--- Chunk 2 for src/kit/repository.py ---
+  Approx. line count: 20 
+  Content (first 100 chars):
+  """
+                    # If not on a branch (detached HEAD), get commit SHA
+                    sha_cmd = ["git", "rev...
+  """
+```
+*(Note: Actual line counts per chunk may vary slightly based on how the chunker splits the content. The second chunk from your output had fewer lines than the first.)*
+
+### Chunking File Content by Symbols (`repo.chunk_file_by_symbols()`)
+
+A more semantically aware way to chunk files is by symbols. This method uses `kit`'s understanding of code structure to break the file into chunks that correspond to whole symbols like functions, classes, or methods. Each chunk represents a meaningful structural unit of the code.
+
+The method signature is: `repo.chunk_file_by_symbols(file_path: str) -> List[Dict[str, Any]]`
+
+-   `file_path`: The relative path to the file within the repository.
+-   It returns a list of dictionaries. Each dictionary represents one symbol-chunk and contains details like the symbol's `name`, `type`, `code` content, and `start_line`/`end_line` numbers.
+
+**Example: Chunking `src/kit/tree_sitter_symbol_extractor.py` by symbols**
+
+```python
+extractor_path = "src/kit/tree_sitter_symbol_extractor.py"
+symbol_chunks = repo.chunk_file_by_symbols(file_path=extractor_path)
+
+print(f"Successfully chunked '{extractor_path}' into {len(symbol_chunks)} symbol-based chunks.")
+
+for i, chunk_dict in enumerate(symbol_chunks[:2]): # Show first 2 symbol chunks
+    print(f"\n--- Symbol Chunk {i+1} ---")
+    symbol_name = chunk_dict.get('name', 'N/A')
+    symbol_type = chunk_dict.get('type', 'N/A')
+    start_line = chunk_dict.get('start_line', 'N/A')
+    end_line = chunk_dict.get('end_line', 'N/A')
+    code_content = chunk_dict.get('code', '')
+    
+    print(f"  Symbol Name: {symbol_name}")
+    print(f"  Symbol Type: {symbol_type}")
+    print(f"  Start Line (0-indexed): {start_line}")
+    print(f"  End Line (0-indexed): {end_line}")
+    print(f"  Line Count of code: {len(code_content.splitlines())}")
+    print(f"  Content (first 150 chars of code):\n  \"\"\"\n{code_content[:150]}...\n  \"\"\"")
+```
+
+**Expected Output (for `src/kit/tree_sitter_symbol_extractor.py`, showing 2 of 4 chunks):**
+
+```text
+Successfully chunked 'src/kit/tree_sitter_symbol_extractor.py' into 4 symbol-based chunks.
+
+--- Symbol Chunk 1 ---
+  Symbol Name: TreeSitterSymbolExtractor
+  Symbol Type: class
+  Start Line (0-indexed): 28
+  End Line (0-indexed): 197
+  Line Count of code: 170
+  Content (first 150 chars of code):
+  """
+class TreeSitterSymbolExtractor:
+    """
+    Multi-language symbol extractor using tree-sitter queries (tags.scm).
+    Register new languages by addin...
+  """
+
+--- Symbol Chunk 2 ---
+  Symbol Name: get_parser
+  Symbol Type: method
+  Start Line (0-indexed): 38
+  End Line (0-indexed): 45
+  Line Count of code: 8
+  Content (first 150 chars of code):
+  """
+def get_parser(cls, ext: str) -> Optional[Any]:
+        if ext not in LANGUAGES:
+            return None
+        if ext not in cls._parsers:
+         ...
+  """
+```
+
+This provides a more structured way to access and process individual components of a code file.
+
 We'll add more examples here as we try them out.
 
 *(This document will be updated as we explore more features.)*

@@ -71,7 +71,7 @@ class DocstringIndexer:
         self.persist_dir = persist_dir or os.path.join(".kit", "docstring_db")
         self.backend: VectorDBBackend = backend or ChromaDBBackend(self.persist_dir)
 
-    def build(self, force: bool = False, level: str = "file", file_extensions: Optional[List[str]] = None) -> None:
+    def build(self, force: bool = False, level: str = "symbol", file_extensions: Optional[List[str]] = None) -> None:
         """(Re)build the docstring index.
 
         If *force* is ``False`` and the backend already contains data we do
