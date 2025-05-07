@@ -1,0 +1,63 @@
+---
+title: Tutorial – Build a Docstring Search Engine
+---
+
+In this short tutorial you’ll build a semantic search tool on top of `kit`
+using **docstring-based indexing**.
+
+> **Prerequisites**
+>
+> * Python ≥3.10  
+> * `uv` package manager  
+> * An LLM API key (e.g. `OPENAI_API_KEY`)
+
+---
+
+## 1. Install dependencies
+
+```bash
+uv pip install kit[openai] sentence-transformers chromadb
+```
+
+## 2. Initialise a repo and summarizer
+
+```python
+import kit
+from sentence_transformers import SentenceTransformer
+
+REPO_PATH = "/path/to/your/project"
+repo = kit.Repository(REPO_PATH)
+
+summarizer = repo.get_summarizer()  # defaults to OpenAIConfig
+```
+
+## 3. Build the docstring index
+
+```python
+embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+embed_fn = lambda txt: embed_model.encode(txt).tolist()
+
+indexer = kit.DocstringIndexer(repo, summarizer, embed_fn)
+indexer.build()          # writes .kit/docstring_db
+```
+
+The first run will take a few minutes depending on repo size and LLM latency.
+Summaries are cached inside the vector DB, so subsequent runs are cheap.
+
+## 4. Query the index
+
+```python
+searcher = kit.SummarySearcher(indexer)
+
+results = searcher.search("How is the retry back-off implemented?", top_k=3)
+for hit in results:
+    print("→", hit["file"], "\n", hit["summary"])
+```
+
+You now have a lightweight semantic code searcher – without fine-tuning!
+
+## 5. Next steps
+
+* Switch to **per-symbol** indexing when that lands (see roadmap).  
+* Combine with `repo.search_semantic()` to cross-check raw-code and docstring hits.
+* Build a CLI wrapper (`python -m kit.search "your query"`).

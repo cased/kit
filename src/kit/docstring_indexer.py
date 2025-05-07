@@ -48,7 +48,7 @@ class DocstringIndexer:
     backend
         Optional vector-DB backend, defaults to :class:`ChromaDBBackend`.
     persist_dir
-        Where on disk to store backend data (if backend honours it).
+        Where on disk to store backend data (if backend honors persistence).
     """
 
     def __init__(
@@ -66,9 +66,6 @@ class DocstringIndexer:
         self.persist_dir = persist_dir or os.path.join(".kit", "docstring_db")
         self.backend: VectorDBBackend = backend or ChromaDBBackend(self.persist_dir)
 
-    # ---------------------------------------------------------------------
-    # Public API
-    # ---------------------------------------------------------------------
     def build(self, force: bool = False) -> None:
         """(Re)build the docstring index.
 

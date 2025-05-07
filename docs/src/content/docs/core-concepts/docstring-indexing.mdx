@@ -1,0 +1,67 @@
+---
+title: Docstring-Based Vector Index
+---
+
+> **New in Kit 0.1.0** – Search your repo by *semantics*, not raw tokens.
+
+`DocstringIndexer` builds a vector index using **LLM-generated summaries** of
+source files ("docstrings") instead of the raw code.  This often yields more
+relevant results because the embedded text focuses on *intent* rather than
+syntax.
+
+## Why use it?
+
+* **Cleaner embeddings** – Comments like *“Summary of retry logic”* embed better
+  than nested `for`-loops.
+* **Smaller index** – One summary per file (or symbol) is < 1 kB, while the file
+  itself might be thousands of tokens.
+* **Provider-agnostic** – Works with any LLM supported by `kit.Summarizer`
+  (OpenAI, Anthropic, Google…).
+
+## Quick start
+
+```python
+import kit
+from sentence_transformers import SentenceTransformer
+
+repo = kit.Repository("/path/to/your/project")
+
+# 1. LLM summarizer (make sure OPENAI_API_KEY / etc. is set)
+summarizer = repo.get_summarizer()
+
+# 2. Embedding function (any model that returns list[float])
+embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+embed_fn = lambda txt: embed_model.encode(txt).tolist()
+
+# 3. Build the index (stored in .kit/docstring_db)
+indexer = kit.DocstringIndexer(repo, summarizer, embed_fn)
+indexer.build()
+
+# 4. Search
+searcher = kit.SummarySearcher(indexer)
+for hit in searcher.search("retry back-off", top_k=5):
+    print(hit["file"], "→", hit["summary"])
+```
+
+### Storage details
+
+`DocstringIndexer` delegates persistence to any
+`kit.vector_searcher.VectorDBBackend`.  The default backend is
+[`Chroma`](https://docs.trychroma.com/) and lives in
+`.kit/docstring_db/` inside your repo.
+
+## Advanced
+
+* **Per-symbol summaries** – Pass `chunk_by="symbols"` (coming soon) to store a
+  docstring for every function & class.
+* **Custom backends** – Implement the two-method `VectorDBBackend` interface and
+  supply `backend=YourBackend()` when constructing the indexer.
+
+## API reference
+
+| Class | Purpose |
+|-------|---------|
+| `DocstringIndexer` | Build / refresh the index |
+| `SummarySearcher`  | Query the index |
+
+See the [API docs](/docs/api) for full signatures.
