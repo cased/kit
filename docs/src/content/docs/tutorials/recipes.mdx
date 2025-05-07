@@ -48,17 +48,7 @@ print(summary)
 
 ---
 
-## 3. Show what `main.py` calls (static call graph)
-
-```python
-repo = Repository("/path/to/project")
-for callee in sorted(repo.get_call_graph().get("main.py", set())):
-    print("main.py ➜", callee)
-```
-
----
-
-## 4. Semantic search for authentication code
+## 3. Semantic search for authentication code
 
 ```python
 from sentence_transformers import SentenceTransformer
@@ -76,7 +66,7 @@ for h in hits:
 
 ---
 
-## 5. Export full repo index to JSON (file tree + symbols)
+## 4. Export full repo index to JSON (file tree + symbols)
 
 ```python
 repo = Repository("/path/to/project")
@@ -85,7 +75,7 @@ repo.write_index("repo_index.json")
 
 ---
 
-## 6. Find All Callers of a Specific Function (Cross-File)
+## 5. Find All Callers of a Specific Function (Cross-File)
 
 This recipe helps you understand where a particular function is being used throughout your entire codebase, which is crucial for impact analysis or refactoring.
 
@@ -131,7 +121,7 @@ for usage in usages:
 
 ---
 
-## 7. Identify Potentially Unused Functions (Heuristic)
+## 6. Identify Potentially Unused Functions (Heuristic)
 
 This recipe provides a heuristic to find functions that *might* be unused within the analyzed codebase. This can be a starting point for identifying dead code. Note that this is a heuristic because it might not catch dynamically called functions, functions part of a public API but not used internally, or functions used only in parts of the codebase not analyzed (e.g., separate test suites).
 
@@ -190,7 +180,6 @@ for func_def in defined_functions:
     # It's a candidate for being unused. The threshold (e.g., 0 or 1) can be adjusted.
     if len(actual_references) == 0:
         print(f"- Function '{function_name}' defined in {definition_file}:L{definition_line + 1} has no apparent internal usages.")
-```
 
 :::caution[Limitations of this heuristic:]
 **Limitations of this heuristic:**

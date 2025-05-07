@@ -152,21 +152,6 @@ Code Diff:
   Pair this context with specific line numbers for targeted analysis.
 </Aside>
 
-### 8. Dependency Context via Call Graph (`repo.get_call_graph`)
-
-*   **Context:** Related files that a given file calls (static analysis).
-*   **Use Cases:** Providing additional context when a function relies on helpers defined elsewhere.
-*   **Prompting Tip:** When analyzing a change in `foo.py`, include its direct callees:
-
-```yaml
-# Example Context Block
-Related files called by foo.py:
-- utils/helpers.py
-- services/auth.py
-```
-
-Use `ContextAssembler.add_symbol_dependencies("foo.py")` to pull these files automatically.
-
 ### 9. Vector Search Results (`repo.search_vectors`)
 
 *   **Context:** Code chunks similar to a given vector representation.

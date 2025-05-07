@@ -65,51 +65,71 @@ Now `repo` can *instantly* answer questions like:
 These capabilities allow our AI reviewer to gather rich contextual information far beyond the simple diff.
 
 ---
-## 3. Identify changed files
+## 3. Build context for the LLM
 
-From the diff text, we need a list of files that were modified in the PR. This list will guide our context assembly process, focusing `kit`'s attention on the most relevant parts of the codebase. While `kit` might offer more sophisticated diff parsing in the future, a simple regular expression is often sufficient for this step in many scenarios.
-
-```python
-import re
-changed = re.findall(r"^diff --git a/.* b/(.*)$", diff, re.M)
-```
-
----
-## 4. Assemble **whole-repo** context
-
-This is where `kit` truly empowers our AI reviewer. We'll use `kit.llm_context.ContextAssembler`, a specialized `kit` component designed to build comprehensive, LLM-friendly context packages from a repository. It intelligently selects, combines, and formats various pieces of code and metadata to give the LLM the best possible understanding of the changes.
+The `ContextAssembler` is the workhorse for preparing the input to the LLM. It orchestrates several `kit` features to build a comprehensive understanding of the PR:
 
 ```python
-from kit.llm_context import ContextAssembler
+from kit import Repository, ContextAssembler
+from unidiff import PatchedFile, PatchSet
 
-assembler = ContextAssembler(repo)
-assembler.add_diff(diff)
+# Assume `repo`, `diff`, `pr_title`, `pr_description` are defined
+# `diff` is the raw diff string
+# `pr_title`, `pr_description` are strings from your PR metadata
 
-for path in changed:
-    assembler.add_file(path, highlight_changes=True)
-    assembler.add_symbol_dependencies(path, max_depth=1)  # 👈 follow imports/calls
+assembler = repo.get_context_assembler()
+patch = PatchSet(diff)
+changed_files_paths = [pf.path for pf in patch]
 
-# Optional: semantic search to pull in *related* code
-# for q in (pr_title, pr_description):
-#     assembler.add_search_results(repo.search_semantic(q, k=5), query=q)
+assembler.add_diff(diff, changed_files_paths)
+assembler.add_changed_files_full_content(diff, changed_files_paths)
+
+for path in changed_files_paths:
+    assembler.add_neighboring_symbols(path, max_neighbors=5)
+    # assembler.add_symbol_dependencies(path, max_depth=1)  # This method was removed as it relied on get_call_graph
+
+# Optional but powerful: semantic search for related code using PR title/description.
+# This leverages `repo.search_semantic()`. For the most insightful results, 
+# this method can be backed by a `DocstringIndexer` that uses AI-generated summaries, 
+# enabling matches based on conceptual similarity rather than just keyword overlap.
+# Ensure your `Repository` instance is configured with an appropriate embedding function
+# and (ideally) a pre-built `DocstringIndexer`. 
+# See the "[Docstring Search](/tutorials/docstring_search)" and "[Semantic Code Search](/tutorials/semantic_code_search)" tutorials for setup details.
+
+# Example (ensure pr_title and pr_description are available strings from your PR data):
+queries_for_semantic_search = []
+if pr_title: queries_for_semantic_search.append(pr_title)
+if pr_description: queries_for_semantic_search.append(pr_description)
+
+for original_query in queries_for_semantic_search:
+    if original_query.strip(): # Ensure the query string is not empty or just whitespace
+        search_hits = repo.search_semantic(original_query, top_k=3) 
+        # Add a descriptive label for the LLM to understand the source of these results
+        assembler.add_search_results(
+            search_hits, 
+            query_description=f"Code semantically related to: '{original_query}'"
+        )
 
 context_blob = assembler.format_context()
 ```
 
-Why all this?  Large-language models produce far better reviews when they see **the diff *and* the surrounding code, plus any functions that call or are called by the change**. The `ContextAssembler` orchestrates this by:
+The `ContextAssembler` is used as follows:
 
-1.  **`assembler.add_diff(diff)`**: This incorporates the raw diff into the context, ensuring the LLM sees the precise lines that were added, removed, or modified. This is the focal point of the review.
+1.  **`assembler.add_diff(diff, changed_files_paths)`**: This provides the LLM with the direct changes from the PR.
+2.  **`assembler.add_changed_files_full_content(diff, changed_files_paths)`**: Supplying the full content of changed files allows the LLM to see modifications in their complete original context, not just the diff hunks.
+3.  **`assembler.add_neighboring_symbols(path, max_neighbors=5)`**: For each changed file, this method intelligently fetches the source code of symbols (functions, classes) that are defined immediately before or after the changed lines, or that contain the changed lines. This provides local context, helping the LLM understand the immediate surroundings of a modification.
+4.  **Augment with Semantic Search (`assembler.add_search_results(...)`)**: This is a key step where `kit` truly empowers the AI reviewer. Beyond direct code connections, `kit`'s `repo.search_semantic()` method can unearth other code sections that are *conceptually related* to the PR's intent, even if not directly linked by calls or imports.
 
-2.  **`assembler.add_file(path, highlight_changes=True)`**: For each file identified in the previous step, this adds its *entire content* to the context. The crucial `highlight_changes=True` option (a planned or existing feature) allows `kit` to mark the changed lines *within* the full file view. This gives the LLM a much clearer picture than just isolated diff hunks, as it shows the changes in their immediate surrounding code.
+    You can use queries derived from the PR's title or description to find examples of similar functionality, relevant design patterns, or areas that might require parallel updates.
 
-3.  **`assembler.add_symbol_dependencies(path, max_depth=1)`**: This is a powerful demonstration of `kit`'s code understanding. For each changed file, `kit` uses its internal knowledge of the code structure (derived from `RepoMapper` and `CallGraph` capabilities) to identify symbols (like functions or classes) defined within that file. It then traces their dependencies—such as functions that call them, functions they call, or classes they inherit from or use—up to the specified `max_depth`. Including these related symbols helps the LLM understand the broader implications of the PR's changes, potentially catching ripple effects or ensuring consistency with interconnected components.
+    **The Power of Summaries**: While `repo.search_semantic()` can operate on raw code, its effectiveness is significantly amplified when your `Repository` instance is configured with a `DocstringIndexer`. The `DocstringIndexer` (as detailed in the [Docstring Search Tutorial](/tutorials/docstring_search)) preprocesses your codebase, generating AI summaries for files or symbols. When `repo.search_semantic()` leverages this index, it matches based on the *meaning and purpose captured in these summaries*, leading to far more relevant and insightful results than simple keyword or raw code vector matching. This allows the AI reviewer to understand context like "find other places where we handle user authentication" even if the exact phrasing or code structure varies.
 
-4.  **Optional `assembler.add_search_results(...)`**: Beyond direct code connections, `kit`'s semantic search can find other code sections that are *conceptually related* to the PR's intent, even if not directly linked by calls or imports. By searching with terms from the PR title or description, we can pull in examples of similar functionality, relevant design patterns, or areas that might require parallel updates. This further enriches the LLM's understanding.
+    The Python code snippet above illustrates how you might integrate this. Remember to ensure your `repo` object is properly set up with an embedding function and, for best results, a `DocstringIndexer`. Refer to the "[Docstring Search](/tutorials/docstring_search)" and "[Semantic Code Search](/tutorials/semantic_code_search)" tutorials for detailed setup guidance.
 
 Finally, `assembler.format_context()` consolidates all the added information into a single string (`context_blob`), ready to be sent to the LLM. This step might also involve applying truncation or specific formatting to optimize for the LLM's input requirements.
 
 ---
-## 5. Ask the LLM for a review
+## 4. Prepare the LLM Prompt
 
 With the meticulously assembled `context_blob` from `kit`, we can now prompt an LLM. The quality of the prompt, including the system message that sets the LLM's role and the user message containing the context, is vital. Because `kit` has provided such comprehensive and well-structured context, the LLM is significantly better equipped to act like an "expert software engineer" and provide a nuanced, insightful review.
 
@@ -129,7 +149,7 @@ review = msg.choices[0].message.content.strip()
 ```
 
 ---
-## 6. Post the review back to GitHub
+## 5. Post the review back to GitHub
 
 This final step completes the loop by taking the LLM's generated review and posting it as a comment on the GitHub pull request. This delivers the AI's insights directly to the developers, integrating the AI reviewer into the existing development workflow.
 

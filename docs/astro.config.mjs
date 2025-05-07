@@ -36,10 +36,15 @@ export default defineConfig({
 				{
 					label: ' Tutorials',
 					items: [
-						'tutorials/getting-started',
-						'tutorials/docstring_search',
-						'tutorials/codebase-qa-bot',
 						'tutorials/ai_pr_reviewer',
+						'tutorials/codebase-qa-bot',
+						'tutorials/codebase_summarizer',
+						'tutorials/dependency_graph_visualizer',
+						'tutorials/docstring_search',
+						'tutorials/dump_repo_map',
+						'tutorials/integrating_supersonic',
+						'tutorials/recipes',
+						'tutorials/semantic_code_search',
 					]
 				},
 				// Remove the dedicated Recipes link, it will be picked up by Tutorials autogeneration
