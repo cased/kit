@@ -1,0 +1,190 @@
+---
+title: Codebase Q&A Bot with Summaries
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+This tutorial demonstrates how to build a simple question-answering bot for your codebase. The bot will:
+
+1.  Use `DocstringIndexer` to create semantic summaries of each file.
+2.  When a user asks a question, use `SummarySearcher` to find relevant file summaries.
+3.  Fetch the full code of those top files.
+4.  Use `ContextAssembler` to build a concise prompt for an LLM.
+5.  Get an answer from the LLM.
+
+This approach is powerful because it combines semantic understanding (from summaries) with the full detail of the source code, allowing an LLM to answer nuanced questions.
+
+## Prerequisites
+
+*   You have `kit` installed (`pip install cased-kit`).
+*   You have an OpenAI API key set (`export OPENAI_API_KEY=...`).
+*   You have a local Git repository you want to query.
+
+## Steps
+
+<Steps>
+
+1.  **Initialize Components**
+
+    First, let's set up our `Repository`, `DocstringIndexer`, `Summarizer` (for the indexer), `SummarySearcher`, and `ContextAssembler`.
+
+    ```python
+    from kit import Repository, DocstringIndexer, Summarizer, SummarySearcher, ContextAssembler
+    from kit.llms.openai import OpenAIConfig # Or AnthropicConfig, GoogleConfig
+
+    # --- Configuration ---
+    REPO_PATH = "/path/to/your/local/git/repo" #! MODDIFY
+    INDEX_DB_PATH = "./my_code_qa_index.db" # ChromaDB path
+    # Use a specific summarizer model for indexing, can be different from Q&A LLM
+    INDEXER_LLM_CONFIG = OpenAIConfig(model="gpt-3.5-turbo")
+    # LLM for answering the question based on context
+    QA_LLM_CONFIG = OpenAIConfig(model="gpt-4o") # Or your preferred model
+    MAX_CONTEXT_CHARS = 12000 # For ContextAssembler
+    TOP_K_SUMMARIES = 3 # How many file summaries to retrieve
+    # --- END Configuration ---
+
+    repo = Repository(REPO_PATH)
+
+    # For DocstringIndexer
+    summarizer_for_indexing = Summarizer(config=INDEXER_LLM_CONFIG)
+    indexer = DocstringIndexer(repo, summarizer_for_indexing, db_path=INDEX_DB_PATH)
+
+    # For SummarySearcher
+    searcher = SummarySearcher(repo, db_path=INDEX_DB_PATH)
+
+    # For assembling context for the Q&A LLM
+    assembler = ContextAssembler(repo) # Using default max_chars, etc.
+
+    # We'll need an LLM client to ask the final question
+    # (Using Summarizer as a convenient way to get a configured client)
+    qa_llm_client = Summarizer(config=QA_LLM_CONFIG)._get_llm_client()
+    print("Components initialized.")
+    ```
+
+    Make sure to replace `"/path/to/your/local/git/repo"` with the actual path to your repository.
+
+2.  **Build or Load the Index**
+
+    The `DocstringIndexer` needs to process your repository to create summaries and embed them. This can take time for large repositories. We'll check if an index already exists and build it if not.
+
+    ```python
+    import os
+
+    if not os.path.exists(INDEX_DB_PATH):
+        print(f"Index not found at {INDEX_DB_PATH}. Building...")
+        # You can customize which files to index, e.g., by extension
+        indexer.build_index(file_extensions=[".py", ".js", ".md"])
+        print("Index built successfully.")
+    else:
+        print(f"Found existing index at {INDEX_DB_PATH}.")
+    ```
+
+3.  **Define the Question-Answering Function**
+
+    This function will orchestrate the search, context assembly, and LLM query.
+
+    ```python
+    def answer_question(user_query: str) -> str:
+        print(f"\nSearching for files relevant to: '{user_query}'")
+        # 1. Search for relevant file summaries
+        #    search_results format: [{'file_path': str, 'summary': str, 'score': float}, ...]
+        search_results = searcher.search(user_query, top_k=TOP_K_SUMMARIES)
+
+        if not search_results:
+            return "I couldn't find any relevant files in the codebase to answer your question."
+
+        print(f"Found {len(search_results)} relevant file summaries.")
+        for i, res in enumerate(search_results):
+            print(f"  {i+1}. {res['file_path']} (Score: {res['score']:.4f})")
+
+        # 2. Get full code for these top files to build context
+        #    ContextAssembler expects chunks like [{'code': str, 'file_path': str}, ...]
+        context_chunks = []
+        for res in search_results:
+            try:
+                file_content = repo.get_file_content(res['file_path'])
+                context_chunks.append({
+                    "code": file_content,
+                    "file_path": res['file_path']
+                })
+            except FileNotFoundError:
+                print(f"Warning: Could not retrieve content for {res['file_path']}")
+        
+        if not context_chunks:
+             return "Found relevant file names, but could not retrieve their content."
+
+        # 3. Assemble the context for the LLM
+        #    Here, we use the simpler from_chunks method. The ContextAssembler class has
+        #    more granular methods (add_file, add_diff) if you need more control.
+        prompt_context = assembler.from_chunks(context_chunks, max_chars=MAX_CONTEXT_CHARS)
+
+        # 4. Formulate the prompt and ask the LLM
+        system_message = (
+            "You are a helpful AI assistant with expertise in the provided codebase. "
+            "Answer the user's question based *only* on the following code context. "
+            "If the answer is not found in the context, say so. Be concise."
+        )
+        final_prompt = f"## Code Context:\n\n{prompt_context}\n\n## User Question:\n\n{user_query}\n\n## Answer:"
+
+        print("\nSending request to LLM...")
+        
+        # Assuming OpenAI client for this example structure
+        # Adapt if using Anthropic or Google
+        if isinstance(QA_LLM_CONFIG, OpenAIConfig):
+            response = qa_llm_client.chat.completions.create(
+                model=QA_LLM_CONFIG.model,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": final_prompt}
+                ]
+            )
+            answer = response.choices[0].message.content
+        # Add elif for AnthropicConfig, GoogleConfig if desired, or abstract further
+        else:
+            # Simplified fallback or placeholder for other LLMs
+            # In a real app, you'd implement the specific API calls here
+            raise NotImplementedError(f"LLM client for {type(QA_LLM_CONFIG)} not fully implemented in this example.")
+
+        return answer
+    ```
+
+4.  **Ask a Question!**
+
+    Now, let's try it out.
+
+    ```python
+    my_question = "How does the authentication middleware handle expired JWTs?"
+    # Or try: "What's the main purpose of the UserNotifications class?"
+    # Or: "Where is the database connection retry logic implemented?"
+
+    llm_answer = answer_question(my_question)
+    print(f"\nLLM's Answer:\n{llm_answer}")
+    ```
+
+    ```text title="Example Output (will vary based on your repo & LLM)"
+    Components initialized.
+    Found existing index at ./my_code_qa_index.db.
+
+    Searching for files relevant to: 'How does the authentication middleware handle expired JWTs?'
+    Found 3 relevant file summaries.
+      1. src/auth/middleware.py (Score: 0.8765)
+      2. src/utils/jwt_helpers.py (Score: 0.7912)
+      3. tests/auth/test_middleware.py (Score: 0.7500)
+
+    Sending request to LLM...
+
+    LLM's Answer:
+    The authentication middleware in `src/auth/middleware.py` checks for JWT expiration. If an `ExpiredSignatureError` is caught during token decoding (likely using a helper from `src/utils/jwt_helpers.py`), it returns a 401 Unauthorized response, typically with a JSON body like `{"error": "Token expired"}`.
+    ```
+
+</Steps>
+
+## Further Enhancements
+
+*   **Symbol-Level Context**: Instead of entire files, fetch only the relevant functions or classes identified by a symbol-aware searcher. `ContextAssembler` can take symbol chunks too.
+*   **More Sophisticated RAG**: Implement techniques like query rewriting, HyDE (Hypothetical Document Embeddings), or multi-query retrieval for better search results.
+*   **Streaming Responses**: For a more interactive feel, stream the LLM's response.
+*   **Error Handling**: Add robust error handling for API calls, file operations, etc.
+*   **LLM Abstraction**: Create a cleaner interface for interacting with different LLM providers rather than embedding the logic in the `answer_question` function.
+
+This tutorial provides a solid foundation for building powerful, context-aware AI tools for your codebase using `kit`!

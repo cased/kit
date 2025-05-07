@@ -35,7 +35,12 @@ export default defineConfig({
 				},
 				{
 					label: ' Tutorials',
-					autogenerate: { directory: 'tutorials' },
+					items: [
+						'tutorials/getting-started',
+						'tutorials/docstring-search',
+						'tutorials/codebase-qa-bot',
+						'tutorials/ai-pr-reviewer',
+					]
 				},
 				// Remove the dedicated Recipes link, it will be picked up by Tutorials autogeneration
 				// {
