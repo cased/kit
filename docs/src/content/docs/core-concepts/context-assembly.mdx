@@ -1,0 +1,96 @@
+---
+title: Context Assembly (LLM Prompts)
+---
+
+When you send code to an LLM you usually **don’t** want the entire repository –
+just the *most relevant* bits.  `ContextAssembler` helps you stitch those bits
+together into a single prompt-sized string.
+
+## Why you need it
+
+* **Token limits** – GPT-4o tops out at ~128k tokens; most models much less.
+* **Signal-to-noise** – Cut boilerplate, focus the model on what matters.
+* **Automatic truncation** – Keeps prompts within your chosen character budget.
+
+## Quick start
+
+```python
+from kit import Repository, ContextAssembler
+
+repo = Repository("/path/to/project")
+
+# Assume you already have chunks, e.g. from repo.search_semantic()
+chunks = repo.search_text("jwt decode")
+
+assembler = ContextAssembler(max_chars=12_000)
+context = assembler.from_chunks(chunks)
+
+print(context)  # → Ready to drop into your chat prompt
+```
+
+`chunks` can be any list of dicts that include a `code` key – the helper trims
+and orders them by length until the budget is filled.
+
+### Fine-tuning
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `max_chars` | `12000` | Rough character cap for the final string. |
+| `separator` | `"\n\n---\n\n"` | Separator inserted between chunks. |
+| `header` / `footer` | `""` | Optional strings prepended/appended. |
+
+```python
+assembler = ContextAssembler(
+    max_chars=8000,
+    header="### Code context\n",
+    footer="\n### End context",
+)
+```
+
+## Combining with other tools
+
+1. **Vector search → assemble → chat**
+   ```python
+   chunks = repo.search_semantic("retry backoff", embed_fn, top_k=10)
+   prompt = assembler.from_chunks(chunks)
+   response = my_llm.chat(prompt + "\n\nQ: …")
+   ```
+2. **Docstring search first** – Use `SummarySearcher` for high-level matches,
+   then pull full code for those files via `repo.context`.  
+3. **Diff review bots** – Feed only the changed lines + surrounding context.
+
+## API reference
+
+```python
+from kit.llm_context import ContextAssembler
+```
+
+### `__init__(repo, *, title=None)`
+
+Constructs a new `ContextAssembler`.
+
+*   `repo`: A `kit.repository.Repository` instance.
+*   `title` (optional): A string to prepend to the assembled context.
+
+### `from_chunks(chunks, max_chars=12000, separator="...", header="", footer="")`
+
+This is the primary method for assembling context from a list of code chunks.
+
+*   `chunks`: A list of dictionaries, each with a `"code"` key.
+*   `max_chars`: Target maximum character length for the output string.
+*   `separator`: String to insert between chunks.
+*   `header` / `footer`: Optional strings to wrap the entire context.
+
+Returns a single string with concatenated, truncated chunks.
+
+### Other methods
+
+While `from_chunks` is the most common entry point, `ContextAssembler` also offers methods to add specific types of context if you're building a prompt manually:
+
+*   `add_diff(diff_text)`: Adds a Git diff.
+*   `add_file(file_path, highlight_changes=False)`: Adds the full content of a file.
+*   `add_symbol_dependencies(file_path, max_depth=1)`: Adds content of files that `file_path` depends on.
+*   `add_search_results(results, query)`: Formats and adds semantic search results.
+*   `format_context()`: Returns the accumulated context as a string.
+
+See the docstrings in `kit.llm_context.ContextAssembler` for full signatures and more details.

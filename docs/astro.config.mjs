@@ -29,6 +29,7 @@ export default defineConfig({
 						'core-concepts/semantic-search',
 						'core-concepts/configuring-semantic-search',
 						'core-concepts/llm-context-best-practices',
+						'core-concepts/context-assembly',
 						'core-concepts/file-exclusion',
 					]
 				},

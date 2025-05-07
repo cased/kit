@@ -34,8 +34,8 @@ repo.search_text("parse_jwt", file_pattern="*.py")
 
 ### 2. Symbol indexing
 
-`extract_symbols()` parses Python ASTs to list functions, classes, variables –
-useful for building nav trees or refactoring tools.
+`extract_symbols()` uses **tree-sitter** queries (Python, JS, Go, etc.) to list
+functions, classes, variables – handy for nav trees or refactoring tools.
 
 ### 3. LLM summarization
 
@@ -44,8 +44,9 @@ Generate natural-language summaries for files, classes, or functions with
 
 ### 4. Vector search (raw code)
 
-`VectorSearcher` chunks code (symbols or lines) → embeds chunks → stores in
-Chroma.  Good when wording of the query is *similar* to the code.
+`VectorSearcher` chunks code (symbols or lines) → embeds chunks → stores them in
+a local vector database.  Good when wording of the query is *similar* to the
+code.
 
 ### 5. Docstring vector search
 
