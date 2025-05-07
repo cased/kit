@@ -15,13 +15,18 @@ class VectorDBBackend:
     """
     def add(self, embeddings: List[List[float]], metadatas: List[Dict[str, Any]]):
         raise NotImplementedError
+
     def query(self, embedding: List[float], top_k: int) -> List[Dict[str, Any]]:
         raise NotImplementedError
+
     def persist(self):
         pass
-    # New: allow deleting vectors by IDs (needed for incremental indexing)
+    
     def delete(self, ids: List[str]):  # noqa: D401 – simple interface, no return
         """Remove vectors by their IDs. Backends that don't support fine-grained deletes may no-op."""
+        raise NotImplementedError
+
+    def count(self) -> int:
         raise NotImplementedError
 
 class ChromaDBBackend(VectorDBBackend):
@@ -78,6 +83,9 @@ class ChromaDBBackend(VectorDBBackend):
     def persist(self):
         # ChromaDB v1.x does not require or support explicit persist, it is automatic.
         pass
+
+    def count(self) -> int:
+        return self.collection.count()
 
     # ------------------------------------------------------------------
     # Incremental-index support helpers
