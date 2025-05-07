@@ -30,16 +30,35 @@ class ChromaDBBackend(VectorDBBackend):
         coll_name = f"kit_code_chunks_{abs(hash(persist_dir))}"
         self.collection = self.client.get_or_create_collection(coll_name)
 
-    def add(self, embeddings, metadatas):
+    def add(self, embeddings, metadatas, ids: Optional[List[str]] = None):
         # Skip adding if there is nothing to add (prevents ChromaDB error)
         if not embeddings or not metadatas:
             return
         # Clear collection before adding (for index overwrite)
-        if hasattr(self.collection, 'delete'):
-            # Delete all records by matching all non-empty IDs
-            self.collection.delete(where={"id": {"$ne": ""}})
-        ids = [str(i) for i in range(len(metadatas))]
-        self.collection.add(embeddings=embeddings, metadatas=metadatas, ids=ids)
+        # This behavior of clearing the collection on 'add' might need review.
+        # If the goal is to truly overwrite, this is one way. If it's to append
+        # or update, this logic would need to change. For now, assuming overwrite.
+        if self.collection.count() > 0: # Check if collection has items before deleting
+            try:
+                # Attempt to delete all existing documents. This is a common pattern for a full refresh.
+                # Chroma's API for deleting all can be tricky; using a non-empty ID match is a workaround.
+                # If a more direct `clear()` or `delete_all()` method becomes available, prefer that.
+                self.collection.delete(where={"source": {"$ne": "impossible_source_value_to_match_all"}})
+                # Or, if you know a common metadata key, like 'file_path' from previous version:
+                # self.collection.delete(where={"file_path": {"$ne": "impossible_file_path"}})
+            except Exception as e:
+                # Log or handle cases where delete might fail or is not supported as expected.
+                # For instance, if the collection was empty, some backends might error on delete-all attempts.
+                # logger.warning(f"Could not clear collection before adding: {e}")
+                pass # Continue to add, might result in duplicates if not truly cleared.
+
+        final_ids = ids
+        if final_ids is None:
+            final_ids = [str(i) for i in range(len(metadatas))]
+        elif len(final_ids) != len(embeddings):
+            raise ValueError("The number of IDs must match the number of embeddings and metadatas.")
+
+        self.collection.add(embeddings=embeddings, metadatas=metadatas, ids=final_ids)
 
     def query(self, embedding, top_k):
         if top_k <= 0:

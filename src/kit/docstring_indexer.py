@@ -12,7 +12,9 @@ This module introduces two public classes:
 from __future__ import annotations
 
 import os
+import logging
 from typing import Callable, List, Dict, Any, Optional
+from tqdm import tqdm
 
 from pathlib import Path
 
@@ -27,6 +29,7 @@ __all__ = [
     "SummarySearcher",
 ]
 
+logger = logging.getLogger(__name__)
 
 class DocstringIndexer:
     """Builds a vector index of LLM-generated docstrings (summaries).
@@ -66,37 +69,126 @@ class DocstringIndexer:
         self.persist_dir = persist_dir or os.path.join(".kit", "docstring_db")
         self.backend: VectorDBBackend = backend or ChromaDBBackend(self.persist_dir)
 
-    def build(self, force: bool = False) -> None:
+    def build(self, force: bool = False, level: str = "file", file_extensions: Optional[List[str]] = None) -> None:
         """(Re)build the docstring index.
 
         If *force* is ``False`` and the backend already contains data we do
-        nothing.  (Chroma doesn’t expose a simple count API, so callers may
-        choose to always pass ``force=True``.)
+        nothing.
+
+        Parameters
+        ----------
+        force
+            If ``True``, rebuild even if data exists.
+        level
+            Granularity of indexing: "file" or "symbol".
+        file_extensions
+            Optional list of file extensions to include (e.g., [".py", ".js"]).
+            If None, all files are considered (respecting .gitignore).
         """
-        file_paths: List[str] = [f["path"] for f in self.repo.get_file_tree() if not f.get("is_dir", False)]
-        if not file_paths:
+        if not force and self.backend.count() > 0:
+            logger.info("Index already contains data and force=False. Skipping build.")
+            return
+
+        all_files = [f["path"] for f in self.repo.get_file_tree() if not f.get("is_dir", False)]
+
+        if file_extensions:
+            files_to_process = [
+                fp for fp in all_files
+                if any(fp.endswith(ext) for ext in file_extensions)
+            ]
+        else:
+            files_to_process = all_files
+
+        if not files_to_process:
+            logger.warning("No files found to index after extension filtering.")
             return
 
         embeddings: List[List[float]] = []
         metadatas: List[Dict[str, Any]] = []
+        ids: List[str] = []
 
-        for path in file_paths:
-            try:
-                summary = self.summarizer.summarize_file(path)
-            except Exception as exc:  # pragma: no cover – keep indexing robust
-                # Skip files that fail to summarise rather than abort entire index.
-                continue
+        for path in tqdm(files_to_process, desc=f"Indexing ({level} level)"):
+            if level == "file":
+                try:
+                    summary = self.summarizer.summarize_file(path)
+                    if not summary.strip():
+                        logger.warning(f"Empty summary for file {path}, skipping.")
+                        continue
+                    doc_id = path
+                    meta = {"file_path": path, "summary": summary, "level": "file"}
+                    emb = self.embed_fn(summary)
+                    embeddings.append(emb)
+                    metadatas.append(meta)
+                    ids.append(doc_id)
+                except Exception as exc:
+                    logger.error(f"Failed to summarize file {path}: {exc}", exc_info=True)
+                    continue
+            elif level == "symbol":
+                try:
+                    symbols = self.repo.extract_symbols(path) # type: ignore
+                except Exception as exc:
+                    logger.error(f"Failed to extract symbols from {path}: {exc}", exc_info=True)
+                    continue
 
-            emb = self.embed_fn(summary)
-            embeddings.append(emb)
-            metadatas.append({
-                "file": path,
-                "summary": summary,
-            })
+                for symbol_info in symbols:
+                    symbol_name = symbol_info.get("name")
+                    symbol_type = symbol_info.get("type") # e.g., 'FUNCTION', 'CLASS'
+                    
+                    if not symbol_name or not symbol_type:
+                        continue
+                    
+                    # Construct a fully qualified name if possible (e.g., for methods in classes)
+                    # This might need refinement based on how `extract_symbols` structures names.
+                    # For now, using the basic name provided.
+                    display_name = symbol_info.get("node_path", symbol_name) # Use node_path if available
+
+                    try:
+                        summary = ""
+                        if symbol_type.upper() == "FUNCTION" or symbol_type.upper() == "METHOD":
+                            summary = self.summarizer.summarize_function(path, display_name)
+                        elif symbol_type.upper() == "CLASS":
+                            summary = self.summarizer.summarize_class(path, display_name)
+                        else:
+                            # Potentially support other types or just skip
+                            continue 
+
+                        if not summary.strip():
+                            logger.warning(f"Empty summary for symbol {display_name} in {path}, skipping.")
+                            continue
+
+                        doc_id = f"{path}::{display_name}"
+                        meta = {
+                            "file_path": path,
+                            "symbol_name": display_name,
+                            "symbol_type": symbol_type,
+                            "summary": summary,
+                            "level": "symbol"
+                        }
+                        emb = self.embed_fn(summary)
+                        embeddings.append(emb)
+                        metadatas.append(meta)
+                        ids.append(doc_id)
+                    except ValueError as ve:
+                        # Raised by summarizer if symbol not found by get_symbol_text
+                        logger.warning(f"Skipping symbol {display_name} in {path}: {ve}")
+                        continue
+                    except Exception as exc:
+                        logger.error(f"Failed to summarize symbol {display_name} in {path}: {exc}", exc_info=True)
+                        continue
+            else:
+                raise ValueError(f"Invalid indexing level: {level}. Choose 'file' or 'symbol'.")
 
         if embeddings:
-            self.backend.add(embeddings, metadatas)
+            logger.info(f"Adding {len(embeddings)} embeddings to the index.")
+            # Assuming backend.add can take ids now, or we modify it.
+            # If ChromaDBBackend.add doesn't take IDs, we might need to reconsider how to ensure uniqueness
+            # or rely on Chroma's auto-generated IDs and manage mappings if needed.
+            # For now, let's assume we want to provide our own IDs for better control.
+            self.backend.add(embeddings=embeddings, metadatas=metadatas, ids=ids) # Chroma needs 'ids'
             self.backend.persist()
+            logger.info("Index build complete and persisted.")
+        else:
+            logger.warning("No embeddings were generated during indexing.")
 
 
 class SummarySearcher:

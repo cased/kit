@@ -1,11 +1,11 @@
 ---
-title: Docstring-Based Vector Index
+title: Docstring-based Vector Indexing
 ---
 
 `DocstringIndexer` builds a vector index using **LLM-generated summaries** of
 source files ("docstrings") instead of the raw code.  This often yields more
 relevant results because the embedded text focuses on *intent* rather than
-syntax.
+syntax or specific variable names.
 
 ## Why use it?
 
@@ -15,6 +15,82 @@ syntax.
   itself might be thousands of tokens.
 * **Provider-agnostic** – Works with any LLM supported by `kit.Summarizer`
   (OpenAI, Anthropic, Google…).
+
+## How it Works
+
+<Steps>
+
+1.  **Configuration**: Instantiate `DocstringIndexer` with a `Repository` object,
+a   `Summarizer` (configured with your desired LLM, e.g., OpenAI, Anthropic, Google),
+    and an embedding function (`embed_fn`).
+
+    ```python
+    from kit import Repository, DocstringIndexer, Summarizer
+    from kit.embeddings import VoyageAIEmbeddings # Or your preferred embedder
+    from kit.llms.openai import OpenAIConfig
+
+    repo = Repository("/path/to/your/code")
+    llm_config = OpenAIConfig(model="gpt-3.5-turbo")
+    summarizer = Summarizer(repo, config=llm_config)
+    embed_fn = VoyageAIEmbeddings().embed_document # Example embedding function
+
+    indexer = DocstringIndexer(repo, summarizer, embed_fn)
+    ```
+
+2.  **Building the Index**: Call `indexer.build_index()`.
+    By default, this creates summaries for each *file*.
+
+    ```python
+    # Build a file-level index (default)
+    indexer.build_index()
+    ```
+
+    You can also specify `file_extensions` to only index certain file types:
+    ```python
+    indexer.build_index(file_extensions=[".py", ".md"])
+    ```
+
+### Symbol-Level Indexing
+
+For more granular search, you can instruct `DocstringIndexer` to create summaries for individual **functions and classes** within your files. This allows for highly specific semantic queries like "find the class that manages database connections" or "what function handles user authentication?"
+
+To enable symbol-level indexing, pass `level="symbol"` to `build_index()`:
+
+```python
+# Build a symbol-level index
+indexer.build_index(level="symbol", file_extensions=[".py"], force=True)
+```
+
+When `level="symbol"`:
+*   `DocstringIndexer` iterates through files, then extracts symbols (functions, classes) from each file using `repo.extract_symbols()`.
+*   It then calls `summarizer.summarize_function()` or `summarizer.summarize_class()` for each symbol.
+*   The resulting embeddings are stored with metadata including:
+    *   `file_path`: The path to the file containing the symbol.
+    *   `symbol_name`: The name of the function or class (e.g., `my_function`, `MyClass`, `MyClass.my_method`).
+    *   `symbol_type`: The type of symbol (e.g., "FUNCTION", "CLASS", "METHOD").
+    *   `summary`: The LLM-generated summary of the symbol.
+    *   `level`: Set to `"symbol"`.
+
+3.  **Querying**: Use `SummarySearcher` to find relevant summaries.
+
+    ```python
+    from kit import SummarySearcher
+
+    searcher = SummarySearcher(indexer) # Pass the built indexer
+    results = searcher.search("user authentication logic", top_k=3)
+
+    for res in results:
+        print(f"Score: {res['score']:.4f}")
+        if res.get('level') == 'symbol':
+            print(f"  Symbol: {res['symbol_name']} ({res['symbol_type']}) in {res['file_path']}")
+        else:
+            print(f"  File: {res['file_path']}")
+        print(f"  Summary: {res['summary'][:100]}...")
+        print("---")
+    ```
+    The `results` will contain the summary and associated metadata, including the `level` and symbol details if applicable.
+
+</Steps>
 
 ## Quick start
 
@@ -48,12 +124,25 @@ for hit in searcher.search("retry back-off", top_k=5):
 [`Chroma`](https://docs.trychroma.com/) and lives in
 `.kit/docstring_db/` inside your repo.
 
-## Advanced
+## Use Cases
 
-* **Per-symbol summaries** – Pass `chunk_by="symbols"` (coming soon) to store a
-  docstring for every function & class.
-* **Custom backends** – Implement the two-method `VectorDBBackend` interface and
-  supply `backend=YourBackend()` when constructing the indexer.
+*   **Semantic Code Search**: Find code by describing what it *does*, not just
+    what keywords it contains. (e.g., “retry back-off logic” instead of trying to
+    guess variable names like `exponential_delay` or `MAX_RETRIES`).
+*   **Onboarding**: Quickly understand what different parts of a codebase are for.
+*   **Automated Documentation**: Use the summaries as a starting point for API docs.
+*   **Codebase Q&A**: As shown in the [Codebase Q&A Bot tutorial](/docs/tutorials/codebase-qa-bot), combine `SummarySearcher` with an LLM to answer questions about your code, using summaries to find relevant context at either the file or symbol level.
+
+## Choosing an Embedding Model
+
+The quality of your search results will heavily depend on the embedding model
+used.  Consider models like:
+*   [Voyage AI](https://voyageai.com/) (good for code)
+*   OpenAI `text-embedding-ada-002` or newer `text-embedding-3-small`/`large`
+*   Sentence Transformers (various open-source models)
+
+Remember to align the `embed_fn` you provide to `DocstringIndexer` with the
+model you intend to use for querying with `SummarySearcher`.
 
 ## API reference
 

@@ -72,9 +72,9 @@ This approach is powerful because it combines semantic understanding (from summa
 
     if not os.path.exists(INDEX_DB_PATH):
         print(f"Index not found at {INDEX_DB_PATH}. Building...")
-        # You can customize which files to index, e.g., by extension
-        indexer.build_index(file_extensions=[".py", ".js", ".md"])
-        print("Index built successfully.")
+        # Build a symbol-level index for more granular results
+        indexer.build_index(level="symbol", file_extensions=[".py", ".js", ".md"], force=True)
+        print("Symbol-level index built successfully.")
     else:
         print(f"Found existing index at {INDEX_DB_PATH}.")
     ```
@@ -93,22 +93,44 @@ This approach is powerful because it combines semantic understanding (from summa
         if not search_results:
             return "I couldn't find any relevant files in the codebase to answer your question."
 
-        print(f"Found {len(search_results)} relevant file summaries.")
+        print(f"Found {len(search_results)} relevant document summaries.")
         for i, res in enumerate(search_results):
-            print(f"  {i+1}. {res['file_path']} (Score: {res['score']:.4f})")
+            if res.get('level') == 'symbol':
+                print(f"  {i+1}. Symbol: {res.get('symbol_name')} in {res['file_path']} (Type: {res.get('symbol_type')}, Score: {res['score']:.4f})")
+            else:
+                print(f"  {i+1}. File: {res['file_path']} (Score: {res['score']:.4f})")
 
-        # 2. Get full code for these top files to build context
+        # 2. Get code for these top results to build context
         #    ContextAssembler expects chunks like [{'code': str, 'file_path': str}, ...]
         context_chunks = []
         for res in search_results:
             try:
-                file_content = repo.get_file_content(res['file_path'])
+                code_content = ""
+                chunk_identifier = ""
+                if res.get('level') == 'symbol':
+                    symbol_name = res.get('symbol_name')
+                    if symbol_name:
+                        code_content = repo.get_symbol_text(res['file_path'], symbol_name)
+                        chunk_identifier = f"{res['file_path']}::{symbol_name}"
+                    else:
+                        logger.warning(f"Symbol level result missing symbol_name: {res}")
+                        continue
+                else: # Default to file level
+                    code_content = repo.get_file_content(res['file_path'])
+                    chunk_identifier = res['file_path']
+                
+                if not code_content.strip():
+                    logger.warning(f"No content retrieved for {chunk_identifier}, skipping.")
+                    continue
+
                 context_chunks.append({
-                    "code": file_content,
-                    "file_path": res['file_path']
+                    "code": code_content,
+                    "identifier": chunk_identifier # Use a generic 'identifier' key
                 })
             except FileNotFoundError:
                 print(f"Warning: Could not retrieve content for {res['file_path']}")
+            except ValueError as ve: # From get_symbol_text if symbol not found
+                print(f"Warning: Could not retrieve symbol text for {res.get('symbol_name')} in {res['file_path']}: {ve}")
         
         if not context_chunks:
              return "Found relevant file names, but could not retrieve their content."
@@ -154,8 +176,8 @@ This approach is powerful because it combines semantic understanding (from summa
 
     ```python
     my_question = "How does the authentication middleware handle expired JWTs?"
-    # Or try: "What's the main purpose of the UserNotifications class?"
-    # Or: "Where is the database connection retry logic implemented?"
+    # Or try: "What's the main purpose of the UserNotifications class's send_email method?"
+    # Or: "Where is the database connection retry logic implemented in the db_utils module?"
 
     llm_answer = answer_question(my_question)
     print(f"\nLLM's Answer:\n{llm_answer}")
@@ -166,22 +188,22 @@ This approach is powerful because it combines semantic understanding (from summa
     Found existing index at ./my_code_qa_index.db.
 
     Searching for files relevant to: 'How does the authentication middleware handle expired JWTs?'
-    Found 3 relevant file summaries.
-      1. src/auth/middleware.py (Score: 0.8765)
-      2. src/utils/jwt_helpers.py (Score: 0.7912)
-      3. tests/auth/test_middleware.py (Score: 0.7500)
+    Found 3 relevant document summaries.
+      1. Symbol: authenticate in src/auth/middleware.py (Type: function, Score: 0.8765)
+      2. File: src/utils/jwt_helpers.py (Score: 0.7912)
+      3. File: tests/auth/test_middleware.py (Score: 0.7500)
 
     Sending request to LLM...
 
     LLM's Answer:
-    The authentication middleware in `src/auth/middleware.py` checks for JWT expiration. If an `ExpiredSignatureError` is caught during token decoding (likely using a helper from `src/utils/jwt_helpers.py`), it returns a 401 Unauthorized response, typically with a JSON body like `{"error": "Token expired"}`.
+    The `authenticate` function in `src/auth/middleware.py` checks for JWT expiration. If an `ExpiredSignatureError` is caught during token decoding (likely using a helper from `src/utils/jwt_helpers.py`), it returns a 401 Unauthorized response, typically with a JSON body like `{"error": "Token expired"}`.
     ```
 
 </Steps>
 
 ## Further Enhancements
 
-*   **Symbol-Level Context**: Instead of entire files, fetch only the relevant functions or classes identified by a symbol-aware searcher. `ContextAssembler` can take symbol chunks too.
+*   **Hybrid Search**: Combine file-level and symbol-level search results for broader context or more precise answers.
 *   **More Sophisticated RAG**: Implement techniques like query rewriting, HyDE (Hypothetical Document Embeddings), or multi-query retrieval for better search results.
 *   **Streaming Responses**: For a more interactive feel, stream the LLM's response.
 *   **Error Handling**: Add robust error handling for API calls, file operations, etc.
