@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import os
 import logging
+import json
+import hashlib
 from typing import Callable, List, Dict, Any, Optional
 from tqdm import tqdm
 
@@ -85,9 +87,20 @@ class DocstringIndexer:
             Optional list of file extensions to include (e.g., [".py", ".js"]).
             If None, all files are considered (respecting .gitignore).
         """
-        if not force and self.backend.count() > 0:
-            logger.info("Index already contains data and force=False. Skipping build.")
-            return
+        meta_path = os.path.join(self.persist_dir, "meta.json")
+        os.makedirs(self.persist_dir, exist_ok=True)
+        if os.path.exists(meta_path):
+            with open(meta_path, "r", encoding="utf-8") as fp:
+                cache: Dict[str, Dict[str, str]] = json.load(fp)
+        else:
+            cache = {}
+
+        if force and cache:
+            try:
+                self.backend.delete(ids=list(cache.keys()))
+            except Exception:
+                pass
+            cache = {}
 
         all_files = [f["path"] for f in self.repo.get_file_tree() if not f.get("is_dir", False)]
 
@@ -106,6 +119,7 @@ class DocstringIndexer:
         embeddings: List[List[float]] = []
         metadatas: List[Dict[str, Any]] = []
         ids: List[str] = []
+        seen_ids: set[str] = set()
 
         for path in tqdm(files_to_process, desc=f"Indexing ({level} level)"):
             if level == "file":
@@ -115,11 +129,17 @@ class DocstringIndexer:
                         logger.warning(f"Empty summary for file {path}, skipping.")
                         continue
                     doc_id = path
+                    file_hash = hashlib.sha1(Path(path).read_bytes()).hexdigest()
+                    if cache.get(doc_id, {}).get("hash") == file_hash:
+                        seen_ids.add(doc_id)
+                        continue
                     meta = {"file_path": path, "summary": summary, "level": "file"}
                     emb = self.embed_fn(summary)
                     embeddings.append(emb)
                     metadatas.append(meta)
                     ids.append(doc_id)
+                    cache[doc_id] = {"hash": file_hash}
+                    seen_ids.add(doc_id)
                 except Exception as exc:
                     logger.error(f"Failed to summarize file {path}: {exc}", exc_info=True)
                     continue
@@ -152,8 +172,10 @@ class DocstringIndexer:
                             # Potentially support other types or just skip
                             continue 
 
-                        if not summary.strip():
-                            logger.warning(f"Empty summary for symbol {display_name} in {path}, skipping.")
+                        symbol_code = self.repo.get_symbol_text(path, display_name)
+                        symbol_hash = hashlib.sha1(symbol_code.encode()).hexdigest()
+                        if cache.get(doc_id, {}).get("hash") == symbol_hash:
+                            seen_ids.add(doc_id)
                             continue
 
                         doc_id = f"{path}::{display_name}"
@@ -168,6 +190,8 @@ class DocstringIndexer:
                         embeddings.append(emb)
                         metadatas.append(meta)
                         ids.append(doc_id)
+                        cache[doc_id] = {"hash": symbol_hash}
+                        seen_ids.add(doc_id)
                     except ValueError as ve:
                         # Raised by summarizer if symbol not found by get_symbol_text
                         logger.warning(f"Skipping symbol {display_name} in {path}: {ve}")
@@ -178,17 +202,27 @@ class DocstringIndexer:
             else:
                 raise ValueError(f"Invalid indexing level: {level}. Choose 'file' or 'symbol'.")
 
+        # remove orphans
+        orphan_ids = set(cache.keys()) - seen_ids
+        if orphan_ids:
+            try:
+                self.backend.delete(ids=list(orphan_ids))
+            except Exception:
+                pass
+            for oid in orphan_ids:
+                cache.pop(oid, None)
+
         if embeddings:
             logger.info(f"Adding {len(embeddings)} embeddings to the index.")
-            # Assuming backend.add can take ids now, or we modify it.
-            # If ChromaDBBackend.add doesn't take IDs, we might need to reconsider how to ensure uniqueness
-            # or rely on Chroma's auto-generated IDs and manage mappings if needed.
-            # For now, let's assume we want to provide our own IDs for better control.
             self.backend.add(embeddings=embeddings, metadatas=metadatas, ids=ids) # Chroma needs 'ids'
             self.backend.persist()
             logger.info("Index build complete and persisted.")
         else:
             logger.warning("No embeddings were generated during indexing.")
+
+        # persist cache
+        with open(meta_path, "w", encoding="utf-8") as fp:
+            json.dump(cache, fp)
 
 
 class SummarySearcher:
