@@ -19,6 +19,10 @@ class VectorDBBackend:
         raise NotImplementedError
     def persist(self):
         pass
+    # New: allow deleting vectors by IDs (needed for incremental indexing)
+    def delete(self, ids: List[str]):  # noqa: D401 – simple interface, no return
+        """Remove vectors by their IDs. Backends that don't support fine-grained deletes may no-op."""
+        raise NotImplementedError
 
 class ChromaDBBackend(VectorDBBackend):
     def __init__(self, persist_dir: str):
@@ -74,6 +78,19 @@ class ChromaDBBackend(VectorDBBackend):
     def persist(self):
         # ChromaDB v1.x does not require or support explicit persist, it is automatic.
         pass
+
+    # ------------------------------------------------------------------
+    # Incremental-index support helpers
+    # ------------------------------------------------------------------
+    def delete(self, ids: List[str]):
+        """Delete vectors by ID if the underlying collection supports it."""
+        if not ids:
+            return
+        try:
+            self.collection.delete(ids=ids)
+        except Exception:
+            # Some Chroma versions require where filter; fall back to no-op
+            pass
 
 class VectorSearcher:
     def __init__(self, repo, embed_fn, backend: Optional[VectorDBBackend] = None, persist_dir: Optional[str] = None):
