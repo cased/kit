@@ -33,6 +33,81 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+def _process_symbol_task(
+    path_str: str,
+    symbol_info: Dict[str, Any],
+    summarizer_instance: Summarizer,
+    embed_fn_instance: Callable[[str], List[float]],
+    current_cache: Dict[str, Dict[str, str]] # Pass for reading cache state
+) -> Dict[str, Any]:
+    """Processes a single symbol: summarize, embed, handle caching and errors."""
+    symbol_name = symbol_info.get("name")
+    symbol_type = symbol_info.get("type")
+
+    display_name = symbol_info.get("node_path", symbol_name)
+    # Ensure doc_id is formed even if symbol_name or display_name is None initially for error reporting
+    doc_id_prefix = f"{path_str}::{display_name if display_name else 'unknown_symbol'}"
+
+    if not symbol_name or not symbol_type:
+        logger.debug(f"Symbol in {path_str} missing name or type, node_path: {display_name}. Skipping.")
+        return {"status": "skipped_no_name_type", "doc_id": doc_id_prefix}
+
+    doc_id = f"{path_str}::{display_name}" # Re-assign with definite display_name
+    symbol_code = symbol_info.get("code", "")
+
+    if not symbol_code:
+        logger.warning(f"Could not retrieve code for symbol {display_name} in {path_str}, skipping.")
+        return {"status": "skipped_no_code", "doc_id": doc_id}
+
+    try:
+        symbol_hash = hashlib.sha1(symbol_code.encode("utf-8", "ignore")).hexdigest()
+        if current_cache.get(doc_id, {}).get("hash") == symbol_hash:
+            logger.debug(f"Symbol {doc_id} unchanged (hash: {symbol_hash}), skipping.")
+            return {"status": "cached", "doc_id": doc_id}
+
+        summary_text = None # Initialize summary_text
+        if symbol_type.upper() == "FUNCTION" or symbol_type.upper() == "METHOD":
+            summary_text = summarizer_instance.summarize_function(path_str, display_name)
+        elif symbol_type.upper() == "CLASS":
+            summary_text = summarizer_instance.summarize_class(path_str, display_name)
+        else:
+            logger.debug(f"Symbol {doc_id} has unsupported type '{symbol_type}'. Skipping summarization.")
+            return {"status": "skipped_unsupported_type", "doc_id": doc_id, "symbol_type": symbol_type}
+
+        # Check if summarizer returned a valid string
+        if not isinstance(summary_text, str):
+            logger.warning(f"Summarizer did not return a valid string for symbol {display_name} in {path_str} (type: {symbol_type}). Received: {type(summary_text)}. Skipping.")
+            return {"status": "skipped_invalid_summary_type", "doc_id": doc_id}
+
+        if not summary_text.strip():
+            logger.warning(f"Empty summary for symbol {display_name} in {path_str} (type: {symbol_type}), skipping.")
+            return {"status": "skipped_empty_summary", "doc_id": doc_id}
+
+        emb = embed_fn_instance(summary_text)
+        meta = {
+            "file_path": path_str,
+            "symbol_name": display_name,
+            "symbol_type": symbol_type,
+            "summary": summary_text,
+            "level": "symbol"
+        }
+        return {
+            "status": "processed",
+            "doc_id": doc_id,
+            "embedding": emb,
+            "metadata": meta,
+            "hash": symbol_hash,
+            "summary_for_embedding": summary_text
+        }
+    except ValueError as ve:
+        logger.warning(f"Skipping symbol {display_name} in {path_str} due to ValueError: {ve}")
+        return {"status": "error", "doc_id": doc_id, "error_type": "ValueError", "message": str(ve)}
+    except Exception as exc:
+        # Log less info from worker to keep main logs cleaner, but still indicate error
+        logger.error(f"Failed to process symbol {display_name} in {path_str}: {type(exc).__name__} - {exc}") 
+        return {"status": "error", "doc_id": doc_id, "error_type": str(type(exc).__name__), "message": str(exc)}
+
+
 class DocstringIndexer:
     """Builds a vector index of LLM-generated docstrings (summaries).
 
@@ -121,6 +196,14 @@ class DocstringIndexer:
         ids: List[str] = []
         seen_ids: set[str] = set()
 
+        from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+
+        try:
+            max_workers = int(os.environ.get("KIT_INDEXER_MAX_WORKERS", os.cpu_count() or 4))
+        except TypeError: # os.cpu_count() can return None
+            max_workers = 4 
+        logger.info(f"Using up to {max_workers} workers for symbol processing.")
+
         for path in tqdm(files_to_process, desc=f"Indexing ({level} level)"):
             if level == "file":
                 abs_file_path = Path(self.repo.repo_path) / path # Create absolute path
@@ -146,65 +229,67 @@ class DocstringIndexer:
                     continue
             elif level == "symbol":
                 try:
-                    symbols = self.repo.extract_symbols(path) # type: ignore
+                    symbols_in_file = self.repo.extract_symbols(path)
                 except Exception as exc:
                     logger.error(f"Failed to extract symbols from {path}: {exc}", exc_info=True)
                     continue
 
-                for symbol_info in symbols:
-                    symbol_name = symbol_info.get("name")
-                    symbol_type = symbol_info.get("type") # e.g., 'FUNCTION', 'CLASS'
-                    
-                    if not symbol_name or not symbol_type:
-                        continue
-                    
-                    # Construct a fully qualified name if possible (e.g., for methods in classes)
-                    # This might need refinement based on how `extract_symbols` structures names.
-                    # For now, using the basic name provided.
-                    display_name = symbol_info.get("node_path", symbol_name) # Use node_path if available
+                if not symbols_in_file:
+                    logger.debug(f"No symbols found in {path}, skipping.")
+                    continue
 
-                    doc_id = f"{path}::{display_name}" # Define doc_id for the current symbol
-                    try:
-                        summary = ""
-                        if symbol_type.upper() == "FUNCTION" or symbol_type.upper() == "METHOD":
-                            summary = self.summarizer.summarize_function(path, display_name)
-                        elif symbol_type.upper() == "CLASS":
-                            summary = self.summarizer.summarize_class(path, display_name)
-                        else:
-                            # Potentially support other types or just skip
-                            continue 
+                # Lists to store results for the current file
+                file_embeddings: List[List[float]] = []
+                file_metadatas: List[Dict[str, Any]] = []
+                file_ids: List[str] = []
+                file_cache_updates: Dict[str, Dict[str, str]] = {}
+                file_seen_ids: set[str] = set()
 
-                        symbol_code = symbol_info.get("code", "") # Get code from symbol_info
-                        if not symbol_code:
-                            logger.warning(f"Could not retrieve code for symbol {display_name} in {path}, skipping.")
-                            continue
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures: List[Future] = []
+                    for s_info in symbols_in_file:
+                        futures.append(executor.submit(
+                            _process_symbol_task,
+                            path_str=path,
+                            symbol_info=s_info,
+                            summarizer_instance=self.summarizer,
+                            embed_fn_instance=self.embed_fn,
+                            current_cache=cache # Pass read-only view of cache
+                        ))
 
-                        symbol_hash = hashlib.sha1(symbol_code.encode()).hexdigest()
-                        if cache.get(doc_id, {}).get("hash") == symbol_hash:
-                            seen_ids.add(doc_id)
-                            logger.debug(f"Symbol {doc_id} unchanged (hash: {symbol_hash}), skipping.")
-                            continue
+                    for future in as_completed(futures):
+                        try:
+                            result = future.result()
+                            status = result.get("status")
+                            doc_id_from_result = result.get("doc_id", "unknown_doc_id_in_future")
 
-                        meta = {
-                            "file_path": path,
-                            "symbol_name": display_name,
-                            "symbol_type": symbol_type,
-                            "summary": summary,
-                            "level": "symbol"
-                        }
-                        emb = self.embed_fn(summary)
-                        embeddings.append(emb)
-                        metadatas.append(meta)
-                        ids.append(doc_id)
-                        cache[doc_id] = {"hash": symbol_hash}
-                        seen_ids.add(doc_id)
-                    except ValueError as ve:
-                        # Raised by summarizer if symbol not found by get_symbol_text
-                        logger.warning(f"Skipping symbol {display_name} in {path}: {ve}")
-                        continue
-                    except Exception as exc:
-                        logger.error(f"Failed to summarize symbol {display_name} in {path}: {exc}", exc_info=True)
-                        continue
+                            if status == "processed":
+                                file_embeddings.append(result["embedding"])
+                                file_metadatas.append(result["metadata"])
+                                file_ids.append(doc_id_from_result)
+                                file_cache_updates[doc_id_from_result] = {"hash": result["hash"]}
+                                file_seen_ids.add(doc_id_from_result)
+                            elif status == "cached":
+                                file_seen_ids.add(doc_id_from_result)
+                            elif status == "error":
+                                logger.debug(f"Symbol processing for {doc_id_from_result} resulted in status '{status}': {result.get('message')}")
+                            elif status in ["skipped_no_name_type", "skipped_no_code", "skipped_unsupported_type", "skipped_empty_summary", "skipped_invalid_summary_type"]:
+                                logger.debug(f"Symbol {doc_id_from_result} was skipped: {status}")
+                            else:
+                                logger.warning(f"Unknown status '{status}' from _process_symbol_task for {doc_id_from_result}")
+                        except Exception as exc_in_future:
+                            logger.error(f"Exception retrieving result from future for a symbol in {path}: {exc_in_future}", exc_info=True)
+                
+                # After processing all symbols for the current file, extend the main lists
+                if file_embeddings: # Only extend if there's something to add
+                    embeddings.extend(file_embeddings)
+                    metadatas.extend(file_metadatas)
+                    ids.extend(file_ids)
+                    cache.update(file_cache_updates) # Update the main cache
+                    seen_ids.update(file_seen_ids)    # Update main seen_ids
+                elif file_seen_ids: # Still update seen_ids if items were cached
+                    seen_ids.update(file_seen_ids)
+
             else:
                 raise ValueError(f"Invalid indexing level: {level}. Choose 'file' or 'symbol'.")
 
