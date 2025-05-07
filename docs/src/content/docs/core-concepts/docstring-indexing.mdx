@@ -1,7 +1,11 @@
 ---
 title: Docstring-based Vector Indexing
 ---
-import { Steps } from '@astrojs/starlight/components';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+<Aside type="note" title="Alpha Feature">
+  The features described on this page, particularly symbol-level indexing and LLM-generated summaries, are currently in **alpha**. API and behavior may change in future releases. Please use with this in mind and report any issues or feedback.
+</Aside>
 
 `DocstringIndexer` builds a vector index using **LLM-generated summaries** of
 source files ("docstrings") instead of the raw code.  This often yields more
@@ -50,6 +54,10 @@ a   `Summarizer` (configured with your desired LLM, e.g., OpenAI, Anthropic, Goo
     ```
 
 ### Symbol-Level Indexing
+
+<Aside type="caution" title="Alpha Feature: Symbol-Level Indexing">
+  Symbol-level indexing is an advanced alpha feature. While powerful, it may require more resources and is undergoing active development. Feedback is highly appreciated.
+</Aside>
 
 For more granular search, you can instruct `DocstringIndexer` to create summaries for individual **functions and classes** within your files. This allows for highly specific semantic queries like "find the class that manages database connections" or "what function handles user authentication?"
 
