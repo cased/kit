@@ -42,6 +42,15 @@ You can perform various code intelligence tasks:
 *   **Integrate with AI:** Obtain configured summarizers (`.get_summarizer()`) or vector searchers (`.get_vector_searcher()`) for advanced AI workflows.
 *   **Export Data:** Save the file tree, symbol information, or full repository index to structured formats like JSON (`.write_index()`, `.write_symbols()`, etc.).
 
+The following table lists some of the key classes and tools you can access through the `Repository` object:
+
+| Class/Tool | Description |
+| --- | --- |
+| `Summarizer` | Generate summaries of code using LLMs |
+| `VectorSearcher` | Query vector index of code for semantic search |
+| `DocstringIndexer` | Build vector index of LLM-generated summaries |
+| `SummarySearcher` | Query that index |
+
 <Aside type="tip">
   For a complete list of methods, parameters, and detailed usage examples, please refer to the **[Repository Class API Reference](/api/repository/)**.
 </Aside>

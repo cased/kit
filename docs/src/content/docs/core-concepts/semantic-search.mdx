@@ -69,6 +69,18 @@ searcher = repo.get_vector_searcher(embed_fn, persist_dir=".kit/my_index")
 results = searcher.search("add user authentication")
 ```
 
+### Docstring index (new!)
+
+Prefer *meaning-first* search?  Instead of embedding raw code you can build an
+index of LLM-generated summaries:
+
+```text
+DocstringIndexer → SummarySearcher
+```
+
+See **[Docstring-Based Vector Index](/docs/core-concepts/docstring-indexing)**
+for details.
+
 ### Feeding Results to an LLM
 
 Combine `VectorSearcher` with `ContextAssembler` to build an LLM prompt containing only *relevant* code:
