@@ -150,12 +150,39 @@ class TreeSitterSymbolExtractor:
                     fallback_label = next(iter(captures.keys()), 'symbol')
                     symbol_type = fallback_label.lstrip('definition.').lstrip('@')
 
+                # Determine the node for the full symbol body, its span, and its code content.
+                # Default to actual_name_node if no specific body capture is found.
+                node_for_body_span_and_code = actual_name_node 
+                if definition_capture:
+                    _, captured_body_node = definition_capture # This is the node from @definition.foo
+                    temp_body_node = None
+                    if isinstance(captured_body_node, list):
+                        temp_body_node = captured_body_node[0] if captured_body_node else None
+                    else:
+                        temp_body_node = captured_body_node
+                    
+                    if temp_body_node: # If a valid body node was found from definition_capture
+                        node_for_body_span_and_code = temp_body_node
+
+                # Extract start_line, end_line, and code content from node_for_body_span_and_code
+                symbol_start_line = node_for_body_span_and_code.start_point[0]
+                symbol_end_line = node_for_body_span_and_code.end_point[0]
+                
+                if hasattr(node_for_body_span_and_code, 'text') and isinstance(node_for_body_span_and_code.text, bytes):
+                    symbol_code_content = node_for_body_span_and_code.text.decode('utf-8', errors='ignore')
+                elif hasattr(node_for_body_span_and_code, 'start_byte') and hasattr(node_for_body_span_and_code, 'end_byte'):
+                    # Fallback for nodes where .text might not be the full desired content or not directly available as decodable bytes
+                    symbol_code_content = source_code[node_for_body_span_and_code.start_byte:node_for_body_span_and_code.end_byte]
+                else:
+                    # Last resort, if node_for_body_span_and_code is unusual and lacks .text (bytes) or start/end_byte
+                    symbol_code_content = symbol_name # Fallback to just the name string
+
                 symbol = {
-                    "name": symbol_name,
+                    "name": symbol_name, # symbol_name is from actual_name_node, potentially modified by HCL logic
                     "type": symbol_type,
-                    "start_line": actual_name_node.start_point[0],
-                    "end_line": actual_name_node.end_point[0],
-                    "code": actual_name_node.text.decode() if hasattr(actual_name_node, 'text') else source_code[actual_name_node.start_byte:actual_name_node.end_byte],
+                    "start_line": symbol_start_line,
+                    "end_line": symbol_end_line,
+                    "code": symbol_code_content, 
                 }
                 if subtype:
                     symbol["subtype"] = subtype

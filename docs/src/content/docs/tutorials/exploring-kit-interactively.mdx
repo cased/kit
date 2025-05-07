@@ -1,0 +1,120 @@
+---
+title: Exploring Kit Interactively with the Python Shell
+description: A hands-on guide to trying out Kit's features directly in a Python interpreter.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+This guide walks you through interactively exploring the `kit` library's capabilities using a Python shell. This is a great way to quickly understand how different components work, test out methods, and see the structure of the data they return.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+1.  Cloned the `kit` repository.
+2.  Set up your Python environment and installed `kit`'s dependencies. Ideally, you've installed `kit` in editable mode if you're also making changes:
+    ```bash
+    pip install -e .
+    ```
+3.  (Optional but recommended) Familiarized yourself with the [Core Concepts](/core-concepts/introduction) of `kit`.
+
+## Getting Started: Your First Exploration
+
+Let's dive in! We'll start by instantiating the `Repository` class and trying out some of its basic methods.
+
+<Steps>
+
+1.  **Launch your Python Interpreter**
+
+    Open your terminal and start Python:
+    ```bash
+    python
+    # or python3
+    ```
+
+2.  **Import `Repository` and Initialize**
+
+    The `Repository` class is your main entry point for interacting with a codebase.
+
+    ```python
+    from kit.repository import Repository
+    import os # We'll use this for path joining
+
+    # Replace with the absolute path to your local clone of the 'kit' repository (or any other repo)
+    # For example, if you are in the root of the 'kit' repo itself:
+    repo_path = os.path.abspath(".") 
+    # Or provide a full path directly:
+    # repo_path = "/path/to/your/repository"
+
+    repo = Repository(repo_path)
+    print(repo) 
+    # This should print something like: <Repository path=/path/to/your/repository, branch=main, files=XX>
+    ```
+    This confirms your `Repository` object is ready.
+
+</Steps>
+
+## Extracting Symbols from a File
+
+One of the core features of `kit` is its ability to parse source code and extract meaningful symbols like classes, functions, and methods. The `repo.extract_symbols()` method is used for this. After recent updates, this method now provides the full source code for each symbol and the correct line numbers spanning the entire symbol definition.
+
+<Steps>
+
+1.  **Choose a File and Extract Symbols**
+
+    Let's try extracting symbols from the `src/kit/repository.py` file itself.
+
+    ```python
+    # Assuming 'repo' is your Repository instance from the previous step
+    # and 'os' is imported.
+
+    file_to_test_relative = "src/kit/repository.py"
+    full_file_path = os.path.join(repo.repo_path, file_to_test_relative)
+
+    print(f"Extracting symbols from: {full_file_path}")
+    symbols_in_repo_py = repo.extract_symbols(full_file_path)
+
+    # You can use pprint for a more readable output of complex objects
+    import pprint 
+    # pprint.pprint(symbols_in_repo_py) # Uncomment to see all symbols
+    ```
+
+2.  **Inspect a Specific Symbol**
+
+    Let's look at the first symbol extracted, which should be the `Repository` class itself.
+
+    ```python
+    if symbols_in_repo_py:
+        repository_class_symbol = None
+        for sym in symbols_in_repo_py:
+            if sym.get('name') == 'Repository' and sym.get('type') == 'class':
+                repository_class_symbol = sym
+                break
+        
+        if repository_class_symbol:
+            print("\n--- Details for 'Repository' class symbol ---")
+            print(f"Name: {repository_class_symbol.get('name')}")
+            print(f"Type: {repository_class_symbol.get('type')}")
+            print(f"Start Line: {repository_class_symbol.get('start_line')}")
+            print(f"End Line: {repository_class_symbol.get('end_line')}")
+            print(f"File: {repository_class_symbol.get('file')}") # Though we know the file, it's good to see it in the output
+            print("\nCode (first ~300 characters):")
+            print(repository_class_symbol.get('code', '')[:300] + "...")
+            print(f"\n(Full code length: {len(repository_class_symbol.get('code', ''))} characters)")
+            print("------")
+        else:
+            print("Could not find the 'Repository' class symbol.")
+    else:
+        print(f"No symbols extracted from {file_to_test_relative}")
+    ```
+
+    You should see that:
+    *   The `code` field contains the *entire* source code of the `Repository` class.
+    *   `start_line` and `end_line` accurately reflect the beginning and end of the class definition.
+    *   This is a significant improvement, providing much richer data for analysis or use in LLM prompts.
+
+</Steps>
+
+We'll add more examples here as we try them out.
+
+*(This document will be updated as we explore more features.)*

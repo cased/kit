@@ -29,6 +29,35 @@ class Repository:
         self.context: ContextExtractor = ContextExtractor(self.repo_path)
         self.vector_searcher: Optional[VectorSearcher] = None
 
+    def __str__(self) -> str:
+        file_count = len(self.get_file_tree())
+        # The self.repo_path is already a string, set in __init__
+        path_info = self.repo_path 
+        
+        # Check if it's a git repo and try to get ref.
+        # This assumes local_path is a Path object and points to a git repo.
+        ref_info = ""
+        # self.local_path is already a Path object from __init__
+        git_dir = self.local_path / ".git"
+        if git_dir.exists() and git_dir.is_dir():
+            try:
+                # Get current branch name
+                branch_cmd = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+                # Use self.repo_path (string) for cwd as subprocess expects string path
+                branch_result = subprocess.run(branch_cmd, cwd=self.repo_path, capture_output=True, text=True, check=False)
+                if branch_result.returncode == 0 and branch_result.stdout.strip() != "HEAD":
+                    ref_info = f", branch: {branch_result.stdout.strip()}"
+                else:
+                    # If not on a branch (detached HEAD), get commit SHA
+                    sha_cmd = ["git", "rev-parse", "--short", "HEAD"]
+                    sha_result = subprocess.run(sha_cmd, cwd=self.repo_path, capture_output=True, text=True, check=False)
+                    if sha_result.returncode == 0:
+                        ref_info = f", commit: {sha_result.stdout.strip()}"
+            except Exception:
+                pass # Silently ignore errors in getting git info for __str__
+
+        return f"<Repository path='{path_info}'{ref_info}, files: {file_count}>"
+
     def _clone_github_repo(self, url: str, token: Optional[str], cache_dir: Optional[str]) -> Path:
         from urllib.parse import urlparse
         
