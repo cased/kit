@@ -4,7 +4,6 @@ from .repo_mapper import RepoMapper
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
 from .vector_searcher import VectorSearcher
-from .call_graph import CallGraphBuilder
 import os
 import tempfile
 import subprocess
@@ -29,7 +28,6 @@ class Repository:
         self.searcher: CodeSearcher = CodeSearcher(self.repo_path)
         self.context: ContextExtractor = ContextExtractor(self.repo_path)
         self.vector_searcher: Optional[VectorSearcher] = None
-        self._call_graph_cache: Optional[dict] = None
 
     def _clone_github_repo(self, url: str, token: Optional[str], cache_dir: Optional[str]) -> Path:
         from urllib.parse import urlparse
@@ -295,10 +293,3 @@ class Repository:
         usages = self.find_symbol_usages(symbol_name, symbol_type)
         with open(file_path, "w") as f:
             json.dump(usages, f, indent=2)
-
-    def get_call_graph(self, *, rebuild: bool = False) -> Dict[str, set[str]]:  # noqa: WPS110 (allow set type)
-        """Return file-level call graph mapping caller -> set(callee files)."""
-        if self._call_graph_cache is None or rebuild:
-            builder = CallGraphBuilder(self.repo_path, self.index())
-            self._call_graph_cache = builder.build_call_graph()
-        return self._call_graph_cache

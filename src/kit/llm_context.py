@@ -52,13 +52,6 @@ class ContextAssembler:
         header = f"## {file_path} (full)" if not highlight_changes else f"## {file_path} (with changes highlighted)"
         self._sections.append(f"{header}\n```{lang}\n{code}\n```")
 
-    def add_symbol_dependencies(self, file_path: str, *, max_depth: int = 1) -> None:
-        """Add the *callee* files (basic static call graph) for a given file."""
-        graph = self.repo.get_call_graph()
-        deps = graph.get(file_path, set())
-        for dep in sorted(deps):
-            self.add_file(dep)
-
     def add_search_results(self, results: Sequence[Dict[str, Any]], *, query: str) -> None:
         """Append semantic search matches to the context."""
         if not results:
