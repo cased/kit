@@ -123,13 +123,14 @@ class DocstringIndexer:
 
         for path in tqdm(files_to_process, desc=f"Indexing ({level} level)"):
             if level == "file":
+                abs_file_path = Path(self.repo.repo_path) / path # Create absolute path
                 try:
                     summary = self.summarizer.summarize_file(path)
                     if not summary.strip():
                         logger.warning(f"Empty summary for file {path}, skipping.")
                         continue
                     doc_id = path
-                    file_hash = hashlib.sha1(Path(path).read_bytes()).hexdigest()
+                    file_hash = hashlib.sha1(abs_file_path.read_bytes()).hexdigest()
                     if cache.get(doc_id, {}).get("hash") == file_hash:
                         seen_ids.add(doc_id)
                         continue
@@ -162,6 +163,7 @@ class DocstringIndexer:
                     # For now, using the basic name provided.
                     display_name = symbol_info.get("node_path", symbol_name) # Use node_path if available
 
+                    doc_id = f"{path}::{display_name}" # Define doc_id for the current symbol
                     try:
                         summary = ""
                         if symbol_type.upper() == "FUNCTION" or symbol_type.upper() == "METHOD":
@@ -172,13 +174,17 @@ class DocstringIndexer:
                             # Potentially support other types or just skip
                             continue 
 
-                        symbol_code = self.repo.get_symbol_text(path, display_name)
+                        symbol_code = symbol_info.get("code", "") # Get code from symbol_info
+                        if not symbol_code:
+                            logger.warning(f"Could not retrieve code for symbol {display_name} in {path}, skipping.")
+                            continue
+
                         symbol_hash = hashlib.sha1(symbol_code.encode()).hexdigest()
                         if cache.get(doc_id, {}).get("hash") == symbol_hash:
                             seen_ids.add(doc_id)
+                            logger.debug(f"Symbol {doc_id} unchanged (hash: {symbol_hash}), skipping.")
                             continue
 
-                        doc_id = f"{path}::{display_name}"
                         meta = {
                             "file_path": path,
                             "symbol_name": display_name,

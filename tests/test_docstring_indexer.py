@@ -111,9 +111,9 @@ def test_index_and_search_symbol_level(repo_with_symbols):
     # Mock Repository's extract_symbols method
     # Ensure dummy_repo itself is not a mock, but its methods can be
     dummy_repo.extract_symbols = MagicMock(return_value=[
-        {"name": "MyClass", "type": "CLASS", "node_path": "MyClass"},
-        {"name": "method_one", "type": "METHOD", "node_path": "MyClass.method_one"}, # Assuming extract_symbols gives qualified name
-        {"name": "my_function", "type": "FUNCTION", "node_path": "my_function"},
+        {"name": "MyClass", "type": "CLASS", "node_path": "MyClass", "code": "class MyClass: pass"},
+        {"name": "method_one", "type": "METHOD", "node_path": "MyClass.method_one", "code": "def method_one(self): pass"}, # Assuming extract_symbols gives qualified name
+        {"name": "my_function", "type": "FUNCTION", "node_path": "my_function", "code": "def my_function(): pass"},
     ])
 
     embed_fn = lambda text: [float(len(text))]  # very simple embedding
