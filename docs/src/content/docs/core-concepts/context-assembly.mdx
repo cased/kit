@@ -8,7 +8,7 @@ together into a single prompt-sized string.
 
 ## Why you need it
 
-* **Token limits** – GPT-4o tops out at ~128k tokens; most models much less.
+* **Token limits** – GPT-4o tops out at ~128k tokens; some models less.
 * **Signal-to-noise** – Cut boilerplate, focus the model on what matters.
 * **Automatic truncation** – Keeps prompts within your chosen character budget.
 
@@ -92,5 +92,3 @@ While `from_chunks` is the most common entry point, `ContextAssembler` also offe
 *   `add_symbol_dependencies(file_path, max_depth=1)`: Adds content of files that `file_path` depends on.
 *   `add_search_results(results, query)`: Formats and adds semantic search results.
 *   `format_context()`: Returns the accumulated context as a string.
-
-See the docstrings in `kit.llm_context.ContextAssembler` for full signatures and more details.

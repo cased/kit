@@ -41,7 +41,6 @@ class TreeSitterSymbolExtractor:
             return None
         if ext not in cls._parsers:
             lang_name = LANGUAGES[ext]
-            # Cast to Any to satisfy mypy, which expects a Literal for the first arg
             parser = get_parser(cast(Any, lang_name))  # type: ignore[arg-type]
             cls._parsers[ext] = parser
         return cls._parsers[ext]
@@ -64,7 +63,6 @@ class TreeSitterSymbolExtractor:
             logger.warning(f"get_query: tags.scm not found at {tags_path}")
             return None
         try:
-            # Cast to Any to satisfy mypy Literal expectations
             language = get_language(cast(Any, lang_name))  # type: ignore[arg-type]
             with open(tags_path, 'r') as f:
                 tags_content = f.read()

@@ -130,12 +130,11 @@ class Summarizer:
                 import google.generativeai as genai
             except ImportError as e:
                 raise ImportError(
-                    "Google Generative AI client not found. Install with 'pip install kit[google]' or 'pip install google-generativeai'"
+                    "Google client not found. Install with 'pip install kit[google]' or 'pip install google-generativeai'"
                 ) from e
             genai.configure(api_key=self.config.api_key)
             self._llm_client = genai.GenerativeModel(self.config.model) # Corrected instantiation
         else:
-            # This case should ideally be caught by __init__, but as a safeguard:
             raise TypeError(f"Unsupported LLM configuration: {type(self.config)}")
             
         return self._llm_client

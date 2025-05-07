@@ -2,14 +2,14 @@
 title: Tutorial – Build a Docstring Search Engine
 ---
 
-In this short tutorial you’ll build a semantic search tool on top of `kit`
-using **docstring-based indexing**.
+In this tutorial you’ll build a semantic search tool on top of `kit`
+using **docstring-based indexing**. 
 
-> **Prerequisites**
->
-> * Python ≥3.10  
-> * `uv` package manager  
-> * An LLM API key (e.g. `OPENAI_API_KEY`)
+Why docstrings?  Summaries distill *intent* rather than syntax.  Embedding these
+short natural-language strings lets the vector DB focus on meaning, giving you
+relevant hits even when the literal code differs (e.g., `retry()` vs
+`attempt_again()`).  It also keeps the index small (one embedding per file or
+symbol instead of dozens of raw-code chunks).
 
 ---
 
@@ -37,8 +37,19 @@ summarizer = repo.get_summarizer()  # defaults to OpenAIConfig
 embed_model = SentenceTransformer("all-MiniLM-L6-v2")
 embed_fn = lambda txt: embed_model.encode(txt).tolist()
 
+###############################################################################
+#  Choose granularity
+#  ------------------
+#  • File-level (default) – one summary per file, fastest to build.
+#  • Symbol-level        – one summary per function/class; slower but precise.
+###############################################################################
+
 indexer = kit.DocstringIndexer(repo, summarizer, embed_fn)
+# Build file-level index (fast):
 indexer.build()          # writes .kit/docstring_db
+
+# Uncomment for per-symbol summaries:
+# indexer.build(level="symbol")
 ```
 
 The first run will take a few minutes depending on repo size and LLM latency.
@@ -58,6 +69,7 @@ You now have a lightweight semantic code searcher – without fine-tuning!
 
 ## 5. Next steps
 
-* Switch to **per-symbol** indexing when that lands (see roadmap).  
+* Use **per-symbol** indexing today – call `indexer.build(level="symbol")`.
 * Combine with `repo.search_semantic()` to cross-check raw-code and docstring hits.
 * Build a CLI wrapper (`python -m kit.search "your query"`).
+* Clear & rebuild the vector DB after big refactors with `indexer.build(force=True)`.
