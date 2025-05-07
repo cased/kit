@@ -59,6 +59,19 @@ dev = [
 openai = [
     "openai>=1.0.0"
 ]
+anthropic = [
+    "anthropic>=0.20.0" # Added Anthropic SDK
+]
+google = [
+    "google-generativeai>=0.3.0" # Added Google Generative AI SDK
+]
+all = [
+    "kit[openai]",
+    "kit[anthropic]",
+    "kit[google]",
+    "kit[vector]",
+    "kit[api]" # Also including api for a complete 'all'
+]
 
 [project.scripts]
 kit = "kit.cli:app"

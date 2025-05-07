@@ -9,19 +9,38 @@ In addition to the non-LLM based functions of the `Repository` class,
 
 ## Getting Started
 
-To use code summarization, you'll need an LLM provider configured. Currently, OpenAI is supported.
+To use code summarization, you'll need an LLM provider configured. Currently, OpenAI, Anthropic, and Google Cloud's Generative AI models are supported.
 
 1.  **Install Extra Dependencies:**
+    Choose the provider(s) you want to use:
     ```bash
     # Ensure you are in your project's virtual environment
-    uv pip install kit[openai] 
-    # or uv pip install openai
+    
+    # For OpenAI
+    uv pip install kit[openai]
+    
+    # For Anthropic
+    uv pip install kit[anthropic]
+    
+    # For Google
+    uv pip install kit[google]
+    
+    # To install SDKs for all supported LLM providers
+    uv pip install kit[all]
     ```
 
-2.  **Set API Key:** Configure your OpenAI API key as an environment variable:
+2.  **Set API Key(s):** Configure the API key(s) for your chosen provider(s) as environment variables:
     ```bash
-    export OPENAI_API_KEY="sk-..." 
+    # For OpenAI
+    export OPENAI_API_KEY="sk-..."
+    
+    # For Anthropic
+    export ANTHROPIC_API_KEY="sk-ant-..."
+    
+    # For Google
+    export GOOGLE_API_KEY="AIzaSy..."
     ```
+    You only need to set the key for the provider(s) you intend to use. If no specific configuration is provided to the `Summarizer` (see 'Configuration (Advanced)' below), `kit` defaults to using OpenAI via `OpenAIConfig()` which expects `OPENAI_API_KEY`.
 
 ## Basic Usage: Summarizing Files
 
@@ -38,7 +57,8 @@ try:
     # Load the repository
     repo = kit.Repository("/path/to/your/project")
 
-    # Get the summarizer instance (defaults to OpenAI using env var)
+    # Get the summarizer instance (defaults to OpenAIConfig using env var OPENAI_API_KEY)
+    # See 'Configuration (Advanced)' for using Anthropic or Google.
     summarizer = repo.get_summarizer()
 
     # Summarize a specific file
@@ -55,7 +75,7 @@ except Exception as e:
 ```
 
 <Aside type="note">
-  The first time you call `repo.get_summarizer()`, it will attempt to import the necessary LLM library (e.g., `openai`). If it's not installed, an `ImportError` will be raised, prompting you to install the required extras (e.g., `kit[openai]`).
+  The first time you call `repo.get_summarizer()` (or instantiate `Summarizer` directly), it will attempt to import the necessary LLM library for the specified or default configuration (e.g., `openai`, `anthropic`, `google.generativeai`). If it's not installed, an `ImportError` will be raised, prompting you to install the required extras (e.g., `kit[openai]`, `kit[anthropic]`, `kit[google]`).
 </Aside>
 
 ### How it Works
@@ -72,23 +92,44 @@ When you call `summarize_file`, `kit` performs the following steps:
 While environment variables are the default, you can provide specific configuration:
 
 ```python
-from kit.summaries import OpenAIConfig # Assuming this path
+from kit.summaries import OpenAIConfig, AnthropicConfig, GoogleConfig
 
 # Load repo
 repo = kit.Repository("/path/to/your/project")
 
-# Define custom configuration
-custom_config = OpenAIConfig(
-    api_key="sk-...", 
-    model="gpt-4o-mini" # Specify a different model
+# --- OpenAI Example --- 
+# Define custom OpenAI configuration
+openai_custom_config = OpenAIConfig(
+    api_key="sk-...", # Can be omitted if OPENAI_API_KEY is set
+    model="gpt-4o-mini"
 )
+# Get summarizer with specific OpenAI config
+openai_summarizer = repo.get_summarizer(config=openai_custom_config)
+# Summarize using the custom OpenAI configuration
+openai_summary = openai_summarizer.summarize_file("src/utils_openai.py")
+print(f"OpenAI Summary:\n{openai_summary}")
 
-# Get summarizer with specific config
-summarizer = repo.get_summarizer(config=custom_config)
+# --- Anthropic Example --- 
+# Define custom Anthropic configuration
+anthropic_config = AnthropicConfig(
+    api_key="sk-ant-...", # Can be omitted if ANTHROPIC_API_KEY is set
+    model="claude-3-haiku-20240307"
+)
+# Get summarizer with specific Anthropic config
+anthropic_summarizer = repo.get_summarizer(config=anthropic_config)
+anthropic_summary = anthropic_summarizer.summarize_file("src/utils_anthropic.py")
+print(f"Anthropic Summary:\n{anthropic_summary}")
 
-# Summarize using the custom configuration
-summary = summarizer.summarize_file("src/utils.py")
-print(summary)
+# --- Google Example --- 
+# Define custom Google configuration
+google_config = GoogleConfig(
+    api_key="AIzaSy...", # Can be omitted if GOOGLE_API_KEY is set
+    model="gemini-1.5-flash-latest"
+)
+# Get summarizer with specific Google config
+google_summarizer = repo.get_summarizer(config=google_config)
+google_summary = google_summarizer.summarize_file("src/utils_google.py")
+print(f"Google Summary:\n{google_summary}")
 ```
 
 ## Advanced Usage
@@ -163,13 +204,26 @@ for sym in class_symbols:
 
   ```python
   from kit import Repository
-  from kit.summaries import Summarizer, OpenAIConfig
+  from kit.summaries import Summarizer, OpenAIConfig, AnthropicConfig, GoogleConfig
 
   my_repo = Repository("/path/to/code")
-  my_config = OpenAIConfig(api_key="sk-...", model="gpt-4o") # Example config
-
-  direct_summarizer = Summarizer(repo=my_repo, config=my_config)
   
+  # Example with AnthropicConfig
+  # Similar approach for OpenAIConfig or GoogleConfig
+  my_anthropic_config = AnthropicConfig(
+      api_key="sk-ant-your-key", 
+      model="claude-3-sonnet-20240229"
+  )
+  direct_summarizer = Summarizer(repo=my_repo, config=my_anthropic_config)
+  
+  # Or for OpenAI:
+  # my_openai_config = OpenAIConfig(api_key="sk-your-key", model="gpt-4o")
+  # direct_summarizer = Summarizer(repo=my_repo, config=my_openai_config)
+  
+  # Or for Google:
+  # my_google_config = GoogleConfig(api_key="AIzaSy-your-key", model="gemini-pro")
+  # direct_summarizer = Summarizer(repo=my_repo, config=my_google_config)
+
   summary = direct_summarizer.summarize_file("some/file.py")
   print(summary)
   ```

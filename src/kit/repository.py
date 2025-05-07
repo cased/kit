@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from .repo_mapper import RepoMapper
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Use TYPE_CHECKING for Summarizer to avoid circular imports
 if TYPE_CHECKING:
-    from .summaries import Summarizer, OpenAIConfig
+    from .summaries import Summarizer, OpenAIConfig, AnthropicConfig, GoogleConfig
 
 class Repository:
     """
@@ -167,38 +167,42 @@ class Repository:
         vs = self.get_vector_searcher(embed_fn=embed_fn)
         return vs.search(query, top_k=top_k)
 
-    def get_summarizer(self, config: Optional['OpenAIConfig'] = None) -> 'Summarizer': 
+    def get_summarizer(self, config: Optional[Union['OpenAIConfig', 'AnthropicConfig', 'GoogleConfig']] = None) -> 'Summarizer': 
         """
         Factory method to get a Summarizer instance configured for this repository.
         
-        Requires LLM dependencies (e.g., openai) to be installed.
-        Example: `pip install kit[openai]`
+        Requires LLM dependencies (e.g., openai, anthropic, google-generativeai) to be installed.
+        Example: `pip install kit[openai,anthropic,google]` or the specific one needed.
         
         Args:
-            config: Optional configuration object (e.g., OpenAIConfig). 
+            config: Optional configuration object (e.g., OpenAIConfig, AnthropicConfig, GoogleConfig). 
                     If None, defaults to OpenAIConfig using environment variables.
         
         Returns:
             A Summarizer instance ready to use.
         
         Raises:
-            ImportError: If required LLM libraries (like openai) are not installed.
+            ImportError: If required LLM libraries are not installed.
             ValueError: If configuration (like API key) is missing.
         """
         # Lazy import Summarizer and its config here to avoid mandatory dependency
         try:
-            from .summaries import Summarizer, OpenAIConfig 
+            from .summaries import Summarizer, OpenAIConfig, AnthropicConfig, GoogleConfig
         except ImportError as e:
              raise ImportError(
-                 "Summarizer dependencies not found. Did you install kit[openai]?"
+                 "Summarizer dependencies not found. Did you install kit with LLM extras (e.g., kit[openai])?"
              ) from e
 
         # Determine config: use provided or default (which checks env vars)
+        # If no config is provided, it defaults to OpenAIConfig. Users must explicitly pass
+        # AnthropicConfig or GoogleConfig if they want to use those providers.
         llm_config = config if config is not None else OpenAIConfig()
         
-        # Currently only supports OpenAIConfig, raise if different type is passed
-        if not isinstance(llm_config, OpenAIConfig):
-             raise NotImplementedError("Currently only OpenAIConfig is supported for summarization.")
+        # Check if the provided or default config is one of the supported types
+        if not isinstance(llm_config, (OpenAIConfig, AnthropicConfig, GoogleConfig)):
+             raise NotImplementedError(
+                 f"Unsupported configuration type: {type(llm_config)}. Supported types are OpenAIConfig, AnthropicConfig, GoogleConfig."
+             )
 
         # Return the initialized Summarizer
         return Summarizer(repo=self, config=llm_config)

@@ -2,7 +2,10 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Optional, Any, Union
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Use TYPE_CHECKING to avoid circular import issues with Repository
 if TYPE_CHECKING:
@@ -36,228 +39,309 @@ class OpenAIConfig:
             )
 
 
+@dataclass
+class AnthropicConfig:
+    """Configuration for Anthropic API access."""
+    api_key: Optional[str] = field(default_factory=lambda: os.environ.get("ANTHROPIC_API_KEY"))
+    model: str = "claude-3-opus-20240229"
+    temperature: float = 0.7
+    max_tokens: int = 1000 # Corresponds to Anthropic's max_tokens_to_sample
+
+    def __post_init__(self):
+        if not self.api_key:
+            raise ValueError(
+                "Anthropic API key not found. "
+                "Set ANTHROPIC_API_KEY environment variable or pass api_key directly."
+            )
+
+
+@dataclass
+class GoogleConfig:
+    """Configuration for Google Generative AI API access."""
+    api_key: Optional[str] = field(default_factory=lambda: os.environ.get("GOOGLE_API_KEY"))
+    model: str = "gemini-1.5-pro-latest"
+    temperature: Optional[float] = 0.7
+    max_output_tokens: Optional[int] = 1000 # Corresponds to Gemini's max_output_tokens
+
+    def __post_init__(self):
+        if not self.api_key:
+            raise ValueError(
+                "Google API key not found. "
+                "Set GOOGLE_API_KEY environment variable or pass api_key directly."
+            )
+
+
 class Summarizer:
     """Provides methods to summarize code using a configured LLM."""
 
-    def __init__(self, repo: 'Repository', config: Optional[OpenAIConfig] = None, llm_client: Optional[Any] = None):
+    def __init__(self, repo: 'Repository', 
+                 config: Optional[Union[OpenAIConfig, AnthropicConfig, GoogleConfig]] = None, 
+                 llm_client: Optional[Any] = None):
         """
         Initializes the Summarizer.
 
         Args:
             repo: The kit.Repository instance containing the code.
-            config: LLM configuration (currently OpenAIConfig). Defaults to
-                    OpenAIConfig loading from environment variables. The config
-                    can specify 'model', 'temperature', and 'max_tokens'.
+            config: LLM configuration (OpenAIConfig, AnthropicConfig, or GoogleConfig).
+                    Defaults to OpenAIConfig loading from environment variables if None.
             llm_client: Optional pre-configured/mock client for testing.
         """
         self.repo = repo
-        self.config = config or OpenAIConfig()  # Default to OpenAI env var config
-        # Allow injecting a pre-configured/mock client (useful for tests)
-        self._llm_client = llm_client
+        
+        if config is None:
+            # Default to OpenAI if no config is provided.
+            self.config = OpenAIConfig()
+        else:
+            self.config = config
+            
+        self._llm_client = llm_client # Allow injecting a pre-configured/mock client
 
-        if not isinstance(self.config, OpenAIConfig):
-            # Extend this later for other config types
-            raise NotImplementedError("Only OpenAIConfig is currently supported.")
+        if not isinstance(self.config, (OpenAIConfig, AnthropicConfig, GoogleConfig)):
+            raise TypeError(
+                "Unsupported LLM configuration type. "
+                "Expected OpenAIConfig, AnthropicConfig, or GoogleConfig."
+            )
 
     def _get_llm_client(self):
-        """Lazy loads the OpenAI client."""
+        """Lazy loads the appropriate LLM client based on self.config."""
         if self._llm_client is not None:
             return self._llm_client
 
-        try:
-            from openai import OpenAI  # Local import to avoid hard dependency
-        except ImportError as e:
-            raise ImportError(
-                "OpenAI client not found. Install with 'pip install kit[openai]' or 'pip install openai'"
-            ) from e
-
-        self._llm_client = OpenAI(api_key=self.config.api_key)
+        if isinstance(self.config, OpenAIConfig):
+            try:
+                from openai import OpenAI
+            except ImportError as e:
+                raise ImportError(
+                    "OpenAI client not found. Install with 'pip install kit[openai]' or 'pip install openai'"
+                ) from e
+            self._llm_client = OpenAI(api_key=self.config.api_key)
+        
+        elif isinstance(self.config, AnthropicConfig):
+            try:
+                from anthropic import Anthropic
+            except ImportError as e:
+                raise ImportError(
+                    "Anthropic client not found. Install with 'pip install kit[anthropic]' or 'pip install anthropic'"
+                ) from e
+            self._llm_client = Anthropic(api_key=self.config.api_key)
+            
+        elif isinstance(self.config, GoogleConfig):
+            try:
+                import google.generativeai as genai
+            except ImportError as e:
+                raise ImportError(
+                    "Google Generative AI client not found. Install with 'pip install kit[google]' or 'pip install google-generativeai'"
+                ) from e
+            genai.configure(api_key=self.config.api_key)
+            self._llm_client = genai.GenerativeModel(self.config.model) # Corrected instantiation
+        else:
+            # This case should ideally be caught by __init__, but as a safeguard:
+            raise TypeError(f"Unsupported LLM configuration: {type(self.config)}")
+            
         return self._llm_client
 
     def summarize_file(self, file_path: str) -> str:
         """
-        Summarizes the content of the specified file using the configured LLM.
+        Summarizes the content of a single file.
 
         Args:
-            file_path: The path to the file within the repository.
+            file_path: The path to the file to summarize.
 
         Returns:
-            The summary text generated by the LLM.
+            A string containing the summary of the file.
 
         Raises:
-            FileNotFoundError: If the file_path does not exist in the repo.
-            LLMError: If there's an issue during LLM interaction.
+            FileNotFoundError: If the file_path does not exist.
+            LLMError: If there's an error from the LLM API or an empty summary.
         """
-        # 1. Get file content from repo
-        try:
-            # Assuming repo has a method like this - we might need to add it
-            content = self.repo.get_file_content(file_path) 
-        except FileNotFoundError:
-             raise # Re-raise the FileNotFoundError
-        except Exception as e:
-             # Handle other potential repo errors if necessary
-             raise RuntimeError(f"Error reading file {file_path} from repo: {e}") from e
+        logger.debug(f"Attempting to summarize file: {file_path}")
+        abs_file_path = self.repo.get_abs_path(file_path)
+        if not os.path.exists(abs_file_path):
+            raise FileNotFoundError(f"File not found: {abs_file_path}")
 
-        # 2. Construct the prompt (basic example)
-        prompt = f"""Please provide a concise summary of the following code file: `{file_path}`.
-Focus on its primary purpose, key functionalities, and how it fits into a larger project if evident.
+        with open(abs_file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
 
-Code:
-```
-{content}
-```
+        system_prompt_text = "You are an expert assistant skilled in creating concise and informative code summaries."
+        user_prompt_text = f"Summarize the following code from the file '{file_path}'. Provide a high-level overview of its purpose, key components, and functionality. Focus on what the code does, not just how it's written. The code is:\n\n```\n{content}\n```"
 
-Summary:"""
-
-        # 3. Get LLM client (lazy loaded)
         client = self._get_llm_client()
+        summary = ""
 
-        # 4. Call LLM API
         try:
-            response = client.chat.completions.create(
-                model=self.config.model,
-                messages=[
-                    {"role": "system", "content": "You are an expert assistant skilled in creating concise and informative code summaries."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-            )
-            summary = response.choices[0].message.content
+            if isinstance(self.config, OpenAIConfig):
+                response = client.chat.completions.create(
+                    model=self.config.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt_text},
+                        {"role": "user", "content": user_prompt_text}
+                    ],
+                    temperature=self.config.temperature,
+                    max_tokens=self.config.max_tokens,
+                )
+                summary = response.choices[0].message.content
+            elif isinstance(self.config, AnthropicConfig):
+                response = client.messages.create(
+                    model=self.config.model,
+                    system=system_prompt_text,
+                    messages=[
+                        {"role": "user", "content": user_prompt_text}
+                    ],
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                )
+                summary = response.content[0].text
+            elif isinstance(self.config, GoogleConfig):
+                full_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
+                # client is already a GenerativeModel instance here
+                response = client.generate_content(
+                    contents=[full_prompt],
+                    generation_config={
+                        'temperature': self.config.temperature,
+                        'max_output_tokens': self.config.max_output_tokens,
+                        'candidate_count': 1
+                    }
+                )
+                summary = response.text
+
             if not summary:
-                 raise LLMError("LLM returned an empty summary.")
+                  raise LLMError("LLM returned an empty summary.")
             return summary.strip()
-        
         except Exception as e:
-            # Catch potential API errors, connection issues, etc.
-            raise LLMError(f"Error communicating with OpenAI API: {e}") from e
+            raise LLMError(f"Error communicating with LLM API: {e}") from e
 
     def summarize_function(self, file_path: str, function_name: str) -> str:
         """
-        Summarizes a specific function within the specified file.
+        Summarizes a specific function within a file.
 
         Args:
             file_path: The path to the file containing the function.
             function_name: The name of the function to summarize.
 
         Returns:
-            The summary text generated by the LLM.
+            A string containing the summary of the function.
 
         Raises:
-            FileNotFoundError: If the file_path does not exist in the repo.
-            SymbolNotFoundError: If the function is not found in the file.
-            LLMError: If there's an issue during LLM interaction.
+            FileNotFoundError: If the file_path does not exist.
+            ValueError: If the function cannot be found in the file.
+            LLMError: If there's an error from the LLM API or an empty summary.
         """
-        try:
-            file_content = self.repo.get_file_content(file_path)
-            repo_mapper: 'RepoMapper' = self.repo.get_repo_mapper() # Assumes Repository provides this
-            symbols = repo_mapper.extract_symbols(file_path) # Gets symbols for this specific file
-        except FileNotFoundError:
-            raise
-        except Exception as e:
-            raise RuntimeError(f"Error preparing to summarize function {function_name} in {file_path}: {e}") from e
+        logger.debug(f"Attempting to summarize function: {function_name} in file: {file_path}")
+        function_code = self.repo.get_symbol_text(file_path, function_name)
+        if not function_code:
+            raise ValueError(f"Could not find function '{function_name}' in '{file_path}'.")
 
-        target_symbol_code = None
-        for symbol in symbols:
-            # Assuming symbol dict has 'name', 'kind' (e.g., 'function', 'method'), 'start_byte', 'end_byte'
-            # Adjust 'kind' based on actual output of TreeSitterSymbolExtractor
-            if symbol.get('name') == function_name and symbol.get('kind') in ['function', 'method']:
-                start = symbol['start_byte']
-                end = symbol['end_byte']
-                target_symbol_code = file_content[start:end]
-                break
-        
-        if target_symbol_code is None:
-            raise SymbolNotFoundError(f"Function '{function_name}' not found in '{file_path}'.")
-
-        prompt = f"""Please provide a concise summary of the following function named `{function_name}` from the file `{file_path}`.
-Focus on its purpose, parameters, return value, and key logic.
-
-Function Code:
-```
-{target_symbol_code}
-```
-
-Summary:"""
+        system_prompt_text = "You are an expert assistant skilled in creating concise code summaries for functions."
+        user_prompt_text = f"Summarize the following Python function named '{function_name}' from the file '{file_path}'. Describe its purpose, parameters, and return value. The function code is:\n\n```python\n{function_code}\n```"
 
         client = self._get_llm_client()
+        summary = ""
+
         try:
-            response = client.chat.completions.create(
-                model=self.config.model,
-                messages=[
-                    {"role": "system", "content": "You are an expert assistant skilled in creating concise code summaries for functions."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-            )
-            summary = response.choices[0].message.content
+            if isinstance(self.config, OpenAIConfig):
+                response = client.chat.completions.create(
+                    model=self.config.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt_text},
+                        {"role": "user", "content": user_prompt_text}
+                    ],
+                    temperature=self.config.temperature,
+                    max_tokens=self.config.max_tokens,
+                )
+                summary = response.choices[0].message.content
+            elif isinstance(self.config, AnthropicConfig):
+                response = client.messages.create(
+                    model=self.config.model,
+                    system=system_prompt_text,
+                    messages=[
+                        {"role": "user", "content": user_prompt_text}
+                    ],
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                )
+                summary = response.content[0].text
+            elif isinstance(self.config, GoogleConfig):
+                full_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
+                response = client.generate_content(
+                    contents=[full_prompt],
+                    generation_config={
+                        'temperature': self.config.temperature,
+                        'max_output_tokens': self.config.max_output_tokens,
+                        'candidate_count': 1
+                    }
+                )
+                summary = response.text
+
             if not summary:
-                 raise LLMError(f"LLM returned an empty summary for function {function_name}.")
+                  raise LLMError(f"LLM returned an empty summary for function {function_name}.")
             return summary.strip()
         except Exception as e:
-            raise LLMError(f"Error communicating with OpenAI API for function {function_name}: {e}") from e
+            raise LLMError(f"Error communicating with LLM API for function {function_name}: {e}") from e
 
     def summarize_class(self, file_path: str, class_name: str) -> str:
         """
-        Summarizes a specific class within the specified file.
+        Summarizes a specific class within a file.
 
         Args:
             file_path: The path to the file containing the class.
             class_name: The name of the class to summarize.
 
         Returns:
-            The summary text generated by the LLM.
+            A string containing the summary of the class.
 
         Raises:
-            FileNotFoundError: If the file_path does not exist in the repo.
-            SymbolNotFoundError: If the class is not found in the file.
-            LLMError: If there's an issue during LLM interaction.
+            FileNotFoundError: If the file_path does not exist.
+            ValueError: If the class cannot be found in the file.
+            LLMError: If there's an error from the LLM API or an empty summary.
         """
-        try:
-            file_content = self.repo.get_file_content(file_path)
-            repo_mapper: 'RepoMapper' = self.repo.get_repo_mapper() # Assumes Repository provides this
-            symbols = repo_mapper.extract_symbols(file_path)
-        except FileNotFoundError:
-            raise
-        except Exception as e:
-            raise RuntimeError(f"Error preparing to summarize class {class_name} in {file_path}: {e}") from e
+        logger.debug(f"Attempting to summarize class: {class_name} in file: {file_path}")
+        class_code = self.repo.get_symbol_text(file_path, class_name)
+        if not class_code:
+            raise ValueError(f"Could not find class '{class_name}' in '{file_path}'.")
 
-        target_symbol_code = None
-        for symbol in symbols:
-            if symbol.get('name') == class_name and symbol.get('kind') == 'class': # Adjust 'kind' as needed
-                start = symbol['start_byte']
-                end = symbol['end_byte']
-                target_symbol_code = file_content[start:end]
-                break
+        system_prompt_text = "You are an expert assistant skilled in creating concise code summaries for classes."
+        user_prompt_text = f"Summarize the following Python class named '{class_name}' from the file '{file_path}'. Describe its purpose, key attributes, and main methods. The class code is:\n\n```python\n{class_code}\n```"
         
-        if target_symbol_code is None:
-            raise SymbolNotFoundError(f"Class '{class_name}' not found in '{file_path}'.")
-
-        prompt = f"""Please provide a concise summary of the following class named `{class_name}` from the file `{file_path}`.
-Focus on its primary responsibilities, key attributes, and important methods.
-
-Class Code:
-```
-{target_symbol_code}
-```
-
-Summary:"""
-
         client = self._get_llm_client()
+        summary = ""
+
         try:
-            response = client.chat.completions.create(
-                model=self.config.model,
-                messages=[
-                    {"role": "system", "content": "You are an expert assistant skilled in creating concise code summaries for classes."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-            )
-            summary = response.choices[0].message.content
+            if isinstance(self.config, OpenAIConfig):
+                response = client.chat.completions.create(
+                    model=self.config.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt_text},
+                        {"role": "user", "content": user_prompt_text}
+                    ],
+                    temperature=self.config.temperature,
+                    max_tokens=self.config.max_tokens,
+                )
+                summary = response.choices[0].message.content
+            elif isinstance(self.config, AnthropicConfig):
+                response = client.messages.create(
+                    model=self.config.model,
+                    system=system_prompt_text,
+                    messages=[
+                        {"role": "user", "content": user_prompt_text}
+                    ],
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                )
+                summary = response.content[0].text
+            elif isinstance(self.config, GoogleConfig):
+                full_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
+                response = client.generate_content(
+                    contents=[full_prompt],
+                    generation_config={
+                        'temperature': self.config.temperature,
+                        'max_output_tokens': self.config.max_output_tokens,
+                        'candidate_count': 1
+                    }
+                )
+                summary = response.text
+
             if not summary:
-                 raise LLMError(f"LLM returned an empty summary for class {class_name}.")
+                  raise LLMError(f"LLM returned an empty summary for class {class_name}.")
             return summary.strip()
         except Exception as e:
-            raise LLMError(f"Error communicating with OpenAI API for class {class_name}: {e}") from e
+            raise LLMError(f"Error communicating with LLM API for class {class_name}: {e}") from e
