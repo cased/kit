@@ -23,7 +23,9 @@ export default defineConfig({
 					items: [
 						// Manually specify order, starting with repository-api
 						'core-concepts/repository-api',
+						'core-concepts/search-approaches',
 						'core-concepts/code-summarization',
+						'core-concepts/docstring-indexing',
 						'core-concepts/semantic-search',
 						'core-concepts/configuring-semantic-search',
 						'core-concepts/llm-context-best-practices',
