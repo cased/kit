@@ -1,5 +1,8 @@
 # kit 🛠️ Code Intelligence Toolkit
 
+
+<img src="https://github.com/user-attachments/assets/7bdfa9c6-94f0-4ee0-9fdd-cbd8bd7ec060" width="360">
+
 `kit` is a modular, production-grade Python toolkit for codebase mapping, symbol extraction, code search, and building LLM-powered developer workflows. 
 
 Use `kit` to build AI-powered developer tools (code reviewers, code generators, even IDEs) enriched with the right code context.
