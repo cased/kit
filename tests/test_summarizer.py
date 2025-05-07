@@ -1,5 +1,4 @@
 import pytest
-
 from kit.summaries import Summarizer, LLMError
 
 
@@ -13,6 +12,10 @@ class FakeRepo:
         if path not in self._files:
             raise FileNotFoundError(path)
         return self._files[path]
+
+    def get_abs_path(self, path: str) -> str:
+        # For FakeRepo, paths are already "absolute" in its context or not relevant.
+        return path
 
 
 # --- Helper fake OpenAI client --------------------------------------------

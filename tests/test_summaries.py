@@ -47,6 +47,7 @@ def mock_repo():
     repo = MagicMock()  # Do not enforce spec to allow arbitrary attributes
     repo.get_abs_path = MagicMock(side_effect=lambda x: f"/abs/path/to/{x}")  # Mock get_abs_path
     repo.get_symbol_text = MagicMock()
+    repo.get_file_content = MagicMock()  # Mock get_file_content
     return repo
 
 @pytest.fixture
@@ -154,21 +155,18 @@ def test_get_llm_client_google(mock_google_generativemodel_constructor, mock_goo
 
 # --- Test summarize_file ---
 
-@patch('kit.summaries.os.path.exists')
-@patch('builtins.open')
 @patch('openai.OpenAI', create=True) # To mock the client obtained via _get_llm_client
-def test_summarize_file_openai(mock_openai_constructor, mock_open_file, mock_path_exists, mock_repo, temp_code_file):
+def test_summarize_file_openai(mock_openai_constructor, mock_repo, temp_code_file):
     """Test summarize_file with OpenAIConfig."""
-    mock_path_exists.return_value = True
-    mock_file_content = "def hello():\n    print('Hello, world!')"
-    mock_open_file.return_value.__enter__.return_value.read.return_value = mock_file_content
+    mock_file_content = "# A simple Python script\nprint('Hello, world!')"
+    mock_repo.get_file_content.return_value = mock_file_content # Mock repo method
 
     # Mock the OpenAI client and its response
-    mock_openai_client_instance = MagicMock()
+    mock_openai_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices[0].message.content = "This is an OpenAI summary."
-    mock_openai_client_instance.chat.completions.create.return_value = mock_response
-    mock_openai_constructor.return_value = mock_openai_client_instance # Mock the constructor
+    mock_openai_client.chat.completions.create.return_value = mock_response
+    mock_openai_constructor.return_value = mock_openai_client
 
     config = OpenAIConfig(api_key="test_openai_key", model="gpt-test", temperature=0.5, max_tokens=100)
     summarizer = Summarizer(repo=mock_repo, config=config)
@@ -176,15 +174,13 @@ def test_summarize_file_openai(mock_openai_constructor, mock_open_file, mock_pat
     file_to_summarize = "sample_code.py"
     summary = summarizer.summarize_file(file_to_summarize)
 
-    abs_file_path = f"/abs/path/to/{file_to_summarize}"
     mock_repo.get_abs_path.assert_called_once_with(file_to_summarize)
-    mock_path_exists.assert_called_once_with(abs_file_path)
-    mock_open_file.assert_called_once_with(abs_file_path, 'r', encoding='utf-8')
+    mock_repo.get_file_content.assert_called_once_with(f"/abs/path/to/{file_to_summarize}")
 
     expected_system_prompt = "You are an expert assistant skilled in creating concise and informative code summaries."
     expected_user_prompt = f"Summarize the following code from the file '{file_to_summarize}'. Provide a high-level overview of its purpose, key components, and functionality. Focus on what the code does, not just how it's written. The code is:\n\n```\n{mock_file_content}\n```"
 
-    mock_openai_client_instance.chat.completions.create.assert_called_once_with(
+    mock_openai_client.chat.completions.create.assert_called_once_with(
         model="gpt-test",
         messages=[
             {"role": "system", "content": expected_system_prompt},
@@ -198,57 +194,52 @@ def test_summarize_file_openai(mock_openai_constructor, mock_open_file, mock_pat
 
 def test_summarize_file_not_found(mock_repo):
     """Test summarize_file raises FileNotFoundError if file does not exist."""
-    with patch('kit.summaries.os.path.exists', return_value=False):
-        config = OpenAIConfig(api_key="test_key") # Any config will do
-        summarizer = Summarizer(repo=mock_repo, config=config)
-        with pytest.raises(FileNotFoundError):
-            summarizer.summarize_file("non_existent_file.py")
+    mock_repo.get_file_content.side_effect = FileNotFoundError("File not found via repo: /abs/path/to/non_existent.py")
+    summarizer = Summarizer(repo=mock_repo, config=OpenAIConfig(api_key="dummy"))
+    with pytest.raises(FileNotFoundError, match="File not found via repo: /abs/path/to/non_existent.py"):
+        summarizer.summarize_file("non_existent.py")
+    mock_repo.get_abs_path.assert_called_once_with("non_existent.py")
+    mock_repo.get_file_content.assert_called_once_with("/abs/path/to/non_existent.py")
 
 @patch('openai.OpenAI', create=True)
 def test_summarize_file_llm_error_empty_summary(mock_openai_constructor, mock_repo, temp_code_file):
     """Test summarize_file raises LLMError if LLM returns an empty summary."""
-    with patch('kit.summaries.os.path.exists', return_value=True):
-        with patch('builtins.open', MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=MagicMock(read=MagicMock(return_value="code")))))):
-            mock_openai_client_instance = MagicMock()
-            mock_response = MagicMock()
-            mock_response.choices[0].message.content = "" # Empty summary
-            mock_openai_client_instance.chat.completions.create.return_value = mock_response
-            mock_openai_constructor.return_value = mock_openai_client_instance
+    mock_repo.get_file_content.return_value = "def hello():\n    print('Hello, world!')"
+    mock_openai_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.choices[0].message.content = "" # Empty summary
+    mock_openai_client.chat.completions.create.return_value = mock_response
+    mock_openai_constructor.return_value = mock_openai_client
 
-            config = OpenAIConfig(api_key="test_key")
-            summarizer = Summarizer(repo=mock_repo, config=config)
-            with pytest.raises(LLMError, match="LLM returned an empty summary."):
-                summarizer.summarize_file(temp_code_file)
+    config = OpenAIConfig(api_key="test_key")
+    summarizer = Summarizer(repo=mock_repo, config=config)
+    with pytest.raises(LLMError, match="LLM returned an empty summary."):
+        summarizer.summarize_file(temp_code_file)
 
 @patch('openai.OpenAI', create=True)
 def test_summarize_file_llm_api_error(mock_openai_constructor, mock_repo, temp_code_file):
     """Test summarize_file raises LLMError on API communication failure."""
-    with patch('kit.summaries.os.path.exists', return_value=True):
-        with patch('builtins.open', MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=MagicMock(read=MagicMock(return_value="code")))))):
-            mock_openai_client_instance = MagicMock()
-            mock_openai_client_instance.chat.completions.create.side_effect = Exception("API Down")
-            mock_openai_constructor.return_value = mock_openai_client_instance
+    mock_repo.get_file_content.return_value = "def hello():\n    print('Hello, world!')"
+    mock_openai_client = MagicMock()
+    mock_openai_client.chat.completions.create.side_effect = Exception("API Down")
+    mock_openai_constructor.return_value = mock_openai_client
 
-            config = OpenAIConfig(api_key="test_key")
-            summarizer = Summarizer(repo=mock_repo, config=config)
-            with pytest.raises(LLMError, match="Error communicating with LLM API: API Down"):
-                summarizer.summarize_file(temp_code_file)
+    config = OpenAIConfig(api_key="test_key")
+    summarizer = Summarizer(repo=mock_repo, config=config)
+    with pytest.raises(LLMError, match="Error communicating with LLM API: API Down"):
+        summarizer.summarize_file(temp_code_file)
 
-@patch('kit.summaries.os.path.exists')
-@patch('builtins.open')
 @patch('anthropic.Anthropic', create=True) # Mock Anthropic client
-def test_summarize_file_anthropic(mock_anthropic_constructor, mock_open_file, mock_path_exists, mock_repo, temp_code_file):
+def test_summarize_file_anthropic(mock_anthropic_constructor, mock_repo, temp_code_file):
     """Test summarize_file with AnthropicConfig."""
-    mock_path_exists.return_value = True
-    mock_file_content = "class Simple:\n    pass"
-    mock_open_file.return_value.__enter__.return_value.read.return_value = mock_file_content
+    mock_file_content = "# Another script for Anthropic\nprint('Claude is neat!')"
+    mock_repo.get_file_content.return_value = mock_file_content # Mock repo method
 
-    # Mock the Anthropic client and its response
-    mock_anthropic_client_instance = MagicMock()
+    mock_anthropic_client = MagicMock()
     mock_response = MagicMock()
     mock_response.content[0].text = "This is an Anthropic summary."
-    mock_anthropic_client_instance.messages.create.return_value = mock_response
-    mock_anthropic_constructor.return_value = mock_anthropic_client_instance
+    mock_anthropic_client.messages.create.return_value = mock_response
+    mock_anthropic_constructor.return_value = mock_anthropic_client
 
     config = AnthropicConfig(api_key="test_anthropic_key", model="claude-test", temperature=0.6, max_tokens=150)
     summarizer = Summarizer(repo=mock_repo, config=config)
@@ -256,15 +247,13 @@ def test_summarize_file_anthropic(mock_anthropic_constructor, mock_open_file, mo
     file_to_summarize = "sample_anthropic_code.py"
     summary = summarizer.summarize_file(file_to_summarize)
 
-    abs_file_path = f"/abs/path/to/{file_to_summarize}"
     mock_repo.get_abs_path.assert_called_once_with(file_to_summarize)
-    mock_path_exists.assert_called_once_with(abs_file_path)
-    mock_open_file.assert_called_once_with(abs_file_path, 'r', encoding='utf-8')
+    mock_repo.get_file_content.assert_called_once_with(f"/abs/path/to/{file_to_summarize}")
 
     expected_system_prompt = "You are an expert assistant skilled in creating concise and informative code summaries."
     expected_user_prompt = f"Summarize the following code from the file '{file_to_summarize}'. Provide a high-level overview of its purpose, key components, and functionality. Focus on what the code does, not just how it's written. The code is:\n\n```\n{mock_file_content}\n```"
 
-    mock_anthropic_client_instance.messages.create.assert_called_once_with(
+    mock_anthropic_client.messages.create.assert_called_once_with(
         model="claude-test",
         system=expected_system_prompt,
         messages=[
@@ -276,22 +265,18 @@ def test_summarize_file_anthropic(mock_anthropic_constructor, mock_open_file, mo
 
     assert summary == "This is an Anthropic summary."
 
-@patch('kit.summaries.os.path.exists')
-@patch('builtins.open')
 @patch('google.generativeai.configure', create=True) # Mock Google SDK
 @patch('google.generativeai.GenerativeModel', create=True) # Mock Google SDK
-def test_summarize_file_google(mock_google_generativemodel_constructor, mock_google_configure, mock_open_file, mock_path_exists, mock_repo, temp_code_file):
+def test_summarize_file_google(mock_google_generativemodel_constructor, mock_google_configure, mock_repo, temp_code_file):
     """Test summarize_file with GoogleConfig."""
-    mock_path_exists.return_value = True
     mock_file_content = "# A simple Python script\nprint('Google AI is fun!')"
-    mock_open_file.return_value.__enter__.return_value.read.return_value = mock_file_content
+    mock_repo.get_file_content.return_value = mock_file_content # Mock repo method
 
-    # Mock the Google client (GenerativeModel instance) and its response
     mock_google_model_instance = MagicMock()
     mock_response = MagicMock()
     mock_response.text = "This is a Google summary."
     mock_google_model_instance.generate_content.return_value = mock_response
-    mock_google_generativemodel_constructor.return_value = mock_google_model_instance # Mock the constructor of GenerativeModel
+    mock_google_generativemodel_constructor.return_value = mock_google_model_instance
 
     config = GoogleConfig(api_key="test_google_key", model="gemini-pro-test", temperature=0.7, max_output_tokens=200)
     summarizer = Summarizer(repo=mock_repo, config=config)
@@ -299,10 +284,8 @@ def test_summarize_file_google(mock_google_generativemodel_constructor, mock_goo
     file_to_summarize = "sample_google_code.py"
     summary = summarizer.summarize_file(file_to_summarize)
 
-    abs_file_path = f"/abs/path/to/{file_to_summarize}"
     mock_repo.get_abs_path.assert_called_once_with(file_to_summarize)
-    mock_path_exists.assert_called_once_with(abs_file_path)
-    mock_open_file.assert_called_once_with(abs_file_path, 'r', encoding='utf-8')
+    mock_repo.get_file_content.assert_called_once_with(f"/abs/path/to/{file_to_summarize}")
 
     expected_system_prompt = "You are an expert assistant skilled in creating concise and informative code summaries."
     expected_user_prompt = f"Summarize the following code from the file '{file_to_summarize}'. Provide a high-level overview of its purpose, key components, and functionality. Focus on what the code does, not just how it's written. The code is:\n\n```\n{mock_file_content}\n```"
@@ -331,11 +314,11 @@ def test_summarize_function_openai(mock_openai_constructor, mock_repo):
     mock_repo.get_symbol_text.return_value = mock_function_code
 
     # Mock the OpenAI client and its response
-    mock_openai_client_instance = MagicMock()
+    mock_openai_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices[0].message.content = "This is an OpenAI function summary."
-    mock_openai_client_instance.chat.completions.create.return_value = mock_response
-    mock_openai_constructor.return_value = mock_openai_client_instance
+    mock_openai_client.chat.completions.create.return_value = mock_response
+    mock_openai_constructor.return_value = mock_openai_client
 
     config = OpenAIConfig(api_key="test_openai_key", model="gpt-func-test", temperature=0.4, max_tokens=90)
     summarizer = Summarizer(repo=mock_repo, config=config)
@@ -349,7 +332,7 @@ def test_summarize_function_openai(mock_openai_constructor, mock_repo):
     expected_system_prompt = "You are an expert assistant skilled in creating concise code summaries for functions."
     expected_user_prompt = f"Summarize the following Python function named '{function_name}' from the file '{file_path}'. Describe its purpose, parameters, and return value. The function code is:\n\n```python\n{mock_function_code}\n```"
 
-    mock_openai_client_instance.chat.completions.create.assert_called_once_with(
+    mock_openai_client.chat.completions.create.assert_called_once_with(
         model="gpt-func-test",
         messages=[
             {"role": "system", "content": expected_system_prompt},
@@ -373,11 +356,11 @@ def test_summarize_function_not_found(mock_repo):
 def test_summarize_function_llm_error_empty_summary(mock_openai_constructor, mock_repo):
     """Test summarize_function raises LLMError if LLM returns an empty summary."""
     mock_repo.get_symbol_text.return_value = "def f(): pass"
-    mock_openai_client_instance = MagicMock()
+    mock_openai_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices[0].message.content = "" # Empty summary
-    mock_openai_client_instance.chat.completions.create.return_value = mock_response
-    mock_openai_constructor.return_value = mock_openai_client_instance
+    mock_openai_client.chat.completions.create.return_value = mock_response
+    mock_openai_constructor.return_value = mock_openai_client
 
     config = OpenAIConfig(api_key="test_key")
     summarizer = Summarizer(repo=mock_repo, config=config)
@@ -388,9 +371,9 @@ def test_summarize_function_llm_error_empty_summary(mock_openai_constructor, moc
 def test_summarize_function_llm_api_error(mock_openai_constructor, mock_repo):
     """Test summarize_function raises LLMError on API communication failure."""
     mock_repo.get_symbol_text.return_value = "def f(): pass"
-    mock_openai_client_instance = MagicMock()
-    mock_openai_client_instance.chat.completions.create.side_effect = Exception("API Error")
-    mock_openai_constructor.return_value = mock_openai_client_instance
+    mock_openai_client = MagicMock()
+    mock_openai_client.chat.completions.create.side_effect = Exception("API Error")
+    mock_openai_constructor.return_value = mock_openai_client
 
     config = OpenAIConfig(api_key="test_key")
     summarizer = Summarizer(repo=mock_repo, config=config)
@@ -403,11 +386,11 @@ def test_summarize_function_anthropic(mock_anthropic_constructor, mock_repo):
     mock_function_code = "def greet(name: str) -> str:\n    return f'Hello, {name}'"
     mock_repo.get_symbol_text.return_value = mock_function_code
 
-    mock_anthropic_client_instance = MagicMock()
+    mock_anthropic_client = MagicMock()
     mock_response = MagicMock()
     mock_response.content[0].text = "This is an Anthropic function summary."
-    mock_anthropic_client_instance.messages.create.return_value = mock_response
-    mock_anthropic_constructor.return_value = mock_anthropic_client_instance
+    mock_anthropic_client.messages.create.return_value = mock_response
+    mock_anthropic_constructor.return_value = mock_anthropic_client
 
     config = AnthropicConfig(api_key="test_anthropic_key", model="claude-func-test", temperature=0.5, max_tokens=100)
     summarizer = Summarizer(repo=mock_repo, config=config)
@@ -421,7 +404,7 @@ def test_summarize_function_anthropic(mock_anthropic_constructor, mock_repo):
     expected_system_prompt = "You are an expert assistant skilled in creating concise code summaries for functions."
     expected_user_prompt = f"Summarize the following Python function named '{function_name}' from the file '{file_path}'. Describe its purpose, parameters, and return value. The function code is:\n\n```python\n{mock_function_code}\n```"
 
-    mock_anthropic_client_instance.messages.create.assert_called_once_with(
+    mock_anthropic_client.messages.create.assert_called_once_with(
         model="claude-func-test",
         system=expected_system_prompt,
         messages=[

@@ -155,14 +155,19 @@ class Summarizer:
         """
         logger.debug(f"Attempting to summarize file: {file_path}")
         abs_file_path = self.repo.get_abs_path(file_path)
-        if not os.path.exists(abs_file_path):
-            raise FileNotFoundError(f"File not found: {abs_file_path}")
+        
+        try:
+            file_content = self.repo.get_file_content(abs_file_path)
+        except FileNotFoundError:
+            # Re-raise to ensure the Summarizer's contract is met
+            raise FileNotFoundError(f"File not found via repo: {abs_file_path}")
 
-        with open(abs_file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+        if not file_content.strip():
+            logger.warning(f"File {abs_file_path} is empty or contains only whitespace. Skipping summary.")
+            return ""
 
         system_prompt_text = "You are an expert assistant skilled in creating concise and informative code summaries."
-        user_prompt_text = f"Summarize the following code from the file '{file_path}'. Provide a high-level overview of its purpose, key components, and functionality. Focus on what the code does, not just how it's written. The code is:\n\n```\n{content}\n```"
+        user_prompt_text = f"Summarize the following code from the file '{file_path}'. Provide a high-level overview of its purpose, key components, and functionality. Focus on what the code does, not just how it's written. The code is:\n\n```\n{file_content}\n```"
 
         client = self._get_llm_client()
         summary = ""

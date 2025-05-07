@@ -1,6 +1,7 @@
 ---
 title: Docstring-based Vector Indexing
 ---
+import { Steps } from '@astrojs/starlight/components';
 
 `DocstringIndexer` builds a vector index using **LLM-generated summaries** of
 source files ("docstrings") instead of the raw code.  This often yields more
@@ -17,8 +18,6 @@ syntax or specific variable names.
   (OpenAI, Anthropic, Google…).
 
 ## How it Works
-
-<Steps>
 
 1.  **Configuration**: Instantiate `DocstringIndexer` with a `Repository` object,
 a   `Summarizer` (configured with your desired LLM, e.g., OpenAI, Anthropic, Google),
@@ -90,8 +89,6 @@ When `level="symbol"`:
     ```
     The `results` will contain the summary and associated metadata, including the `level` and symbol details if applicable.
 
-</Steps>
-
 ## Quick start
 
 ```python
@@ -133,16 +130,6 @@ for hit in searcher.search("retry back-off", top_k=5):
 *   **Automated Documentation**: Use the summaries as a starting point for API docs.
 *   **Codebase Q&A**: As shown in the [Codebase Q&A Bot tutorial](/docs/tutorials/codebase-qa-bot), combine `SummarySearcher` with an LLM to answer questions about your code, using summaries to find relevant context at either the file or symbol level.
 
-## Choosing an Embedding Model
-
-The quality of your search results will heavily depend on the embedding model
-used.  Consider models like:
-*   [Voyage AI](https://voyageai.com/) (good for code)
-*   OpenAI `text-embedding-ada-002` or newer `text-embedding-3-small`/`large`
-*   Sentence Transformers (various open-source models)
-
-Remember to align the `embed_fn` you provide to `DocstringIndexer` with the
-model you intend to use for querying with `SummarySearcher`.
 
 ## API reference
 

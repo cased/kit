@@ -33,14 +33,18 @@ class Repository:
 
     def _clone_github_repo(self, url: str, token: Optional[str], cache_dir: Optional[str]) -> Path:
         from urllib.parse import urlparse
+        
         repo_name = urlparse(url).path.strip("/").replace("/", "-")
         cache_root = Path(cache_dir or tempfile.gettempdir()) / "kit-repo-cache"
         cache_root.mkdir(parents=True, exist_ok=True)
+        
         repo_path = cache_root / repo_name
         if repo_path.exists() and (repo_path / ".git").exists():
             # Optionally: git pull to update
             return repo_path
+        
         clone_url = url
+        
         if token:
             # Insert token for private repos
             clone_url = url.replace("https://", f"https://{token}@")
@@ -207,9 +211,6 @@ class Repository:
         # Return the initialized Summarizer
         return Summarizer(repo=self, config=llm_config)
 
-    # ------------------------------------------------------------------
-    # Convenience helpers
-    # ------------------------------------------------------------------
 
     def get_context_assembler(self) -> 'ContextAssembler':
         """Return a ContextAssembler bound to this repository."""
@@ -294,10 +295,6 @@ class Repository:
         usages = self.find_symbol_usages(symbol_name, symbol_type)
         with open(file_path, "w") as f:
             json.dump(usages, f, indent=2)
-
-    # ------------------------------------------------------------------
-    # Call-graph helpers
-    # ------------------------------------------------------------------
 
     def get_call_graph(self, *, rebuild: bool = False) -> Dict[str, set[str]]:  # noqa: WPS110 (allow set type)
         """Return file-level call graph mapping caller -> set(callee files)."""

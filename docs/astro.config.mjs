@@ -37,9 +37,9 @@ export default defineConfig({
 					label: ' Tutorials',
 					items: [
 						'tutorials/getting-started',
-						'tutorials/docstring-search',
+						'tutorials/docstring_search',
 						'tutorials/codebase-qa-bot',
-						'tutorials/ai-pr-reviewer',
+						'tutorials/ai_pr_reviewer',
 					]
 				},
 				// Remove the dedicated Recipes link, it will be picked up by Tutorials autogeneration
