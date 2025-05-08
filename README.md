@@ -35,13 +35,13 @@ uv pip install -e .
 ## Basic Usage
 
 ```python
-import kit
+from kit import Repository
 
 # Load a local repository
-repo = kit.Repository("/path/to/your/local/codebase")
+repo = Repository("/path/to/your/local/codebase")
 
 # Load a remote public GitHub repo
-# repo = kit.Repository("https://github.com/owner/repo")
+# repo = Repository("https://github.com/owner/repo")
 
 # Explore the repo
 print(repo.get_file_tree())

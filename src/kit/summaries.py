@@ -2,9 +2,16 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, Any, Union, Dict, List
+from typing import TYPE_CHECKING, Optional, Any, Union, Dict, List, Protocol, runtime_checkable
 import logging
 import tiktoken
+
+# Define a Protocol for LLM clients to help with type checking
+@runtime_checkable
+class LLMClientProtocol(Protocol):
+    """Protocol defining the interface for LLM clients."""
+    # This is a structural protocol - any object with compatible methods will be accepted
+    pass
 
 # Conditionally import google.genai
 try:
@@ -91,7 +98,7 @@ class Summarizer:
     _tokenizer_cache: Dict[str, Any] = {} # Cache for tiktoken encoders
     config: Optional[Union[OpenAIConfig, AnthropicConfig, GoogleConfig]]
     repo: 'Repository'
-    _llm_client: Optional[Any]
+    _llm_client: Optional[Any]  # Using Any to avoid type errors with different client types
 
     def _get_tokenizer(self, model_name: str):
         if model_name in self._tokenizer_cache:
@@ -656,8 +663,6 @@ class Summarizer:
                     )
                     summary = response.choices[0].message.content
                 except (AttributeError, TypeError) as e:
-                    # If that fails, the client might have a different interface
-                    # In a real implementation, you'd need more robust handling here
                     logger.warning(f"Custom LLM client doesn't support OpenAI-style interface: {e}")
                     raise LLMError(f"Custom LLM client without config doesn't support expected interface: {e}")
             elif isinstance(self.config, OpenAIConfig):
