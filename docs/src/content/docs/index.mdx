@@ -5,39 +5,68 @@ tableOfContents: false
 bodyClass: kit-homepage
 ---
 
-import Card from '../../components/Card.astro';
-import CardGroup from '../../components/CardGroup.astro';
+import Card from "../../components/Card.astro";
+import CardGroup from "../../components/CardGroup.astro";
 
-<div style="overflow: hidden; margin-bottom: 1.5rem;">
-  <img src="/kit.png" alt="Kit Toolkit Logo" style="float: right; margin-left: 15px; margin-bottom: 10px; max-width: 280px; border-radius: 8px;" />
-  Welcome to **kit** – the Python toolkit from [Cased](https://cased.com) for building LLM-powered developer tools and workflows.
+<div class="hero-container">
+  <div class="hero-image">
+    <img src="/kit.png" alt="Kit Toolkit Logo" />
+  </div>
+  <div class="hero-text">
+    Welcome to **kit** – the Python toolkit from [Cased](https://cased.com) for building LLM-powered developer tools and workflows.
 
+<<<<<<< HEAD
   Use kit to build code reviewers, code generators, even full-fledged IDEs, all enriched with the right code context. 
   MIT-licensed.
   
   kit shines for getting **precise, accurate, and relevant context** to 
   LLMs, so you can build better tools: whether internal, public, or commercial.
+=======
+    Use kit to build code reviewers, code generators, even full-fledged IDEs, all enriched with the right code context.
+
+    kit shines for getting **precise, accurate, and relevant context** to
+    LLMs, so you can build better tools: whether internal, public, or commercial.
+  </div>
+>>>>>>> a597ec1 (Update landing page hero section with responsive layout and styling)
 </div>
 
 <hr />
 
 {/* Features Section - Full Width Items */}
+
 <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; margin-bottom: 2rem;">
   <div style="padding: 1.25rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem;">
     <h4 style="margin-top: 0; font-size: 1.1rem;">Map any codebase</h4>
-    <p style="font-size: 0.95rem; color: var(--sl-color-gray-2); margin-bottom: 0;">Get a structured view with file trees, language-aware symbol extraction (powered by tree-sitter), and dependency insights.</p>
+    <p style="font-size: 0.95rem; color: var(--sl-color-gray-2); margin-bottom: 0;">
+      Get a structured view with file trees, language-aware symbol extraction
+      (powered by tree-sitter), and dependency insights.
+    </p>
   </div>
   <div style="padding: 1.25rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem;">
-    <h4 style="margin-top: 0; font-size: 1.1rem;">Support for multiple search methods</h4>
-    <p style="font-size: 0.95rem; color: var(--sl-color-gray-2); margin-bottom: 0;">Mix and match to optimize for speed, accuracy, and use case. Combine fast text search with semantic vector search to find relevant code snippets instantly.</p>
+    <h4 style="margin-top: 0; font-size: 1.1rem;">
+      Support for multiple search methods
+    </h4>
+    <p style="font-size: 0.95rem; color: var(--sl-color-gray-2); margin-bottom: 0;">
+      Mix and match to optimize for speed, accuracy, and use case. Combine fast
+      text search with semantic vector search to find relevant code snippets
+      instantly.
+    </p>
   </div>
   <div style="padding: 1.25rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem;">
-    <h4 style="margin-top: 0; font-size: 1.1rem;">Fine-grained docstring context</h4>
-    <p style="font-size: 0.95rem; color: var(--sl-color-gray-2); margin-bottom: 0;">Use generated docstrings to find code snippets, answer questions, and improve code generation based on summarized content.</p>
+    <h4 style="margin-top: 0; font-size: 1.1rem;">
+      Fine-grained docstring context
+    </h4>
+    <p style="font-size: 0.95rem; color: var(--sl-color-gray-2); margin-bottom: 0;">
+      Use generated docstrings to find code snippets, answer questions, and
+      improve code generation based on summarized content.
+    </p>
   </div>
   <div style="padding: 1.25rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem;">
     <h4 style="margin-top: 0; font-size: 1.1rem;">Build AI Workflows</h4>
-    <p style="font-size: 0.95rem; color: var(--sl-color-gray-2); margin-bottom: 0;">Leverage ready-made utilities for code chunking, context retrieval, and interacting with LLMs.</p>
+    <p style="font-size: 0.95rem; color: var(--sl-color-gray-2); margin-bottom: 0;">
+      Leverage ready-made utilities for code chunking, context retrieval, and
+      interacting with LLMs.
+    </p>
   </div>
 </div>
 
@@ -48,7 +77,8 @@ import CardGroup from '../../components/CardGroup.astro';
     What Kit is, why it exists, and how to install it.
   </Card>
   <Card title="Core Concepts" href="/core-concepts/repository-api">
-    Deep-dive into the Repository API, symbol extraction, vector search, and architecture.
+    Deep-dive into the Repository API, symbol extraction, vector search, and
+    architecture.
   </Card>
   <Card title="Tutorials" href="/tutorials/ai_pr_reviewer">
     Step-by-step tutorials to build real-world tools with Kit.

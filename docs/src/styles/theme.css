@@ -311,6 +311,36 @@ body.kit-homepage {
   }
 }
 
+/* Hero container with responsive layout */
+.hero-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1rem;
+  width: 100%;
+}
+
+.hero-text, .hero-image {
+  width: 100%;
+}
+
+.hero-image img {
+  width: 100%;
+  height: auto;
+}
+
+/* On larger screens, display side by side with image on right */
+@media (min-width: 768px) {
+  .hero-container {
+    flex-direction: row-reverse;
+    align-items: center;
+  }
+  
+  .hero-text, .hero-image {
+    width: 50%;
+  }
+}
+
 /* Dark theme overrides for Card.astro */
 :root[data-theme='dark'] .card {
   background-color: var(--sl-color-black); /* Use main dark background color */
