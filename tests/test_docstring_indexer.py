@@ -107,10 +107,16 @@ def test_index_and_search_symbol_level(repo_with_symbols):
     # --- Arrange --------------------------------------------------------
     mock_summarizer = MagicMock(spec=Summarizer)
     mock_summarizer.summarize_class.return_value = "Summary of MyClass"
-    mock_summarizer.summarize_function.side_effect = [
-        "Summary of MyClass.method_one", 
-        "Summary of my_function"
-    ]
+    
+    # Define a side_effect function for summarize_function
+    def mock_summarize_func_side_effect(file_path_arg, symbol_name_or_node_path_arg, **kwargs):
+        if symbol_name_or_node_path_arg == "MyClass.method_one":
+            return "Summary of MyClass.method_one"
+        elif symbol_name_or_node_path_arg == "my_function":
+            return "Summary of my_function"
+        return "Unknown function summary" # Fallback, should not be hit in this test
+
+    mock_summarizer.summarize_function.side_effect = mock_summarize_func_side_effect
 
     # Mock Repository's extract_symbols method
     # Ensure dummy_repo itself is not a mock, but its methods can be

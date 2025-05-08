@@ -63,6 +63,28 @@ def temp_code_file(tmp_path):
 
 # --- Test Summarizer Initialization ---
 
+@patch('openai.OpenAI', create=True) # Mock OpenAI client constructor
+@patch('kit.summaries.tiktoken', create=True) # Mock tiktoken
+def test_summarizer_init_default_is_openai(mock_tiktoken, mock_openai_constructor, mock_repo):
+    # Test that Summarizer defaults to OpenAIConfig if no config is provided.
+    # The Summarizer will then attempt to initialize an OpenAI client.
+    # We patch os.environ to simulate API key being set to avoid actual ValueError.
+    
+    mock_openai_client_instance = MagicMock()
+    mock_openai_constructor.return_value = mock_openai_client_instance
+
+    # We need to patch the import in __init__ to return our mock module
+    with patch.dict(os.environ, {"OPENAI_API_KEY": "test_dummy_key"}):
+        with patch('builtins.__import__', side_effect=lambda name, *args, **kwargs: 
+                  MagicMock(OpenAI=mock_openai_constructor) if name == 'openai' else __import__(name, *args, **kwargs)):
+            try:
+                summarizer = Summarizer(repo=mock_repo) # No config provided
+                assert isinstance(summarizer.config, OpenAIConfig), "Config should default to OpenAIConfig"
+                # The OpenAI constructor should be called once with our API key
+                mock_openai_constructor.assert_called_once_with(api_key="test_dummy_key")
+            except ValueError as e:
+                pytest.fail(f"Summarizer initialization with dummy API key failed unexpectedly: {e}")
+
 def test_summarizer_init_openai(mock_repo):
     config = OpenAIConfig(api_key="test_openai_key")
     summarizer = Summarizer(repo=mock_repo, config=config)
@@ -84,15 +106,6 @@ def test_summarizer_init_google(mock_repo):
     assert summarizer.config == config
     assert isinstance(summarizer.config, GoogleConfig)
 
-def test_summarizer_init_default_is_openai(mock_repo):
-    # This test assumes OPENAI_API_KEY might not be set, 
-    # so direct instantiation might be tricky if OpenAIConfig tries to validate key on init.
-    # For now, we'll just check the type if config is None.
-    # Actual API key validation is responsibility of OpenAIConfig or the API call itself.
-    summarizer = Summarizer(repo=mock_repo) # No config provided
-    assert summarizer.repo == mock_repo
-    assert isinstance(summarizer.config, OpenAIConfig) # Defaults to OpenAIConfig
-
 def test_summarizer_init_invalid_config_type(mock_repo):
     class InvalidConfig:
         pass
@@ -104,15 +117,23 @@ def test_summarizer_init_invalid_config_type(mock_repo):
 
 @patch('openai.OpenAI', create=True)
 def test_get_llm_client_openai(mock_openai_constructor, mock_repo):
-    """Test _get_llm_client returns and caches OpenAI client."""
-    config = OpenAIConfig(api_key="test_openai_key")
-    summarizer = Summarizer(repo=mock_repo, config=config)
+    """Test _get_llm_client returns the client created in __init__."""
+    # Set up mock before creating Summarizer
     mock_openai_instance = MagicMock()
     mock_openai_constructor.return_value = mock_openai_instance
-
-    client = summarizer._get_llm_client()
-    mock_openai_constructor.assert_called_once_with(api_key="test_openai_key")
-    assert client == mock_openai_instance
+    
+    # Patch the import to return our mock module
+    with patch('builtins.__import__', side_effect=lambda name, *args, **kwargs: 
+              MagicMock(OpenAI=mock_openai_constructor) if name == 'openai' else __import__(name, *args, **kwargs)):
+        config = OpenAIConfig(api_key="test_openai_key")
+        summarizer = Summarizer(repo=mock_repo, config=config)
+        
+        # The client should have been created in __init__
+        mock_openai_constructor.assert_called_once_with(api_key="test_openai_key")
+        
+        # _get_llm_client should return the already created client
+        client = summarizer._get_llm_client()
+        assert client is summarizer._llm_client
 
     # Call again to check caching
     client2 = summarizer._get_llm_client()
@@ -121,15 +142,23 @@ def test_get_llm_client_openai(mock_openai_constructor, mock_repo):
 
 @patch('anthropic.Anthropic', create=True)
 def test_get_llm_client_anthropic(mock_anthropic_constructor, mock_repo):
-    """Test _get_llm_client returns and caches Anthropic client."""
-    config = AnthropicConfig(api_key="test_anthropic_key")
-    summarizer = Summarizer(repo=mock_repo, config=config)
+    """Test _get_llm_client returns the client created in __init__."""
+    # Set up mock before creating Summarizer
     mock_anthropic_instance = MagicMock()
     mock_anthropic_constructor.return_value = mock_anthropic_instance
-
-    client = summarizer._get_llm_client()
-    mock_anthropic_constructor.assert_called_once_with(api_key="test_anthropic_key")
-    assert client == mock_anthropic_instance
+    
+    # Patch the import to return our mock module
+    with patch('builtins.__import__', side_effect=lambda name, *args, **kwargs: 
+              MagicMock(Anthropic=mock_anthropic_constructor) if name == 'anthropic' else __import__(name, *args, **kwargs)):
+        config = AnthropicConfig(api_key="test_anthropic_key")
+        summarizer = Summarizer(repo=mock_repo, config=config)
+        
+        # The client should have been created in __init__
+        mock_anthropic_constructor.assert_called_once_with(api_key="test_anthropic_key")
+        
+        # _get_llm_client should return the already created client
+        client = summarizer._get_llm_client()
+        assert client is summarizer._llm_client
 
     # Call again to check caching
     client2 = summarizer._get_llm_client()
@@ -285,8 +314,10 @@ def test_summarize_file_google(mock_google_client_constructor, mock_repo, temp_c
         pytest.skip("google.genai not available to kit.summaries")
 
     mock_file_content = "# A simple Python script\nprint('Google AI is fun!')"
-    mock_repo.get_file_content.return_value = mock_file_content # Mock repo method
-
+    # Ensure get_abs_path returns the path as is, assuming temp_code_file is absolute
+    mock_repo.get_abs_path.return_value = temp_code_file 
+    mock_repo.get_file_content.return_value = mock_file_content
+    
     mock_google_client_instance = MagicMock()
     mock_response = MagicMock()
     mock_response.text = "This is a Google file summary."
@@ -299,21 +330,19 @@ def test_summarize_file_google(mock_google_client_constructor, mock_repo, temp_c
     
     summary = summarizer.summarize_file(temp_code_file)
 
+    mock_repo.get_abs_path.assert_called_once_with(temp_code_file)
     mock_repo.get_file_content.assert_called_once_with(temp_code_file)
     mock_google_client_constructor.assert_called_once_with(api_key="test_google_key")
 
     expected_system_prompt = "You are an expert assistant skilled in creating concise code summaries for entire files."
-    expected_user_prompt = f"Summarize the following code from the file '{temp_code_file}'. Focus on the overall purpose, primary functionalities, and key components defined within the file. The file content is:\n\n```\n{mock_file_content}\n```"
+    expected_user_prompt = f"Summarize the following Python file named '{Path(temp_code_file).name}'. The file content is:\n\n```python\n{mock_file_content}\n```"
     
-    expected_generation_config = kit_s_genai_types.GenerateContentConfig(
-        temperature=0.6,
-        max_output_tokens=110
-    )
+    expected_generation_params = {'temperature': 0.6, 'max_output_tokens': 110}
 
     mock_google_client_instance.models.generate_content.assert_called_once_with(
         model="gemini-file-test",
         contents=f"{expected_system_prompt}\n\n{expected_user_prompt}",
-        config=expected_generation_config
+        generation_config=expected_generation_params
     )
 
     assert summary == "This is a Google file summary."
@@ -478,15 +507,15 @@ def test_summarize_function_google(mock_google_client_constructor, mock_repo):
     expected_system_prompt = "You are an expert assistant skilled in creating concise code summaries for functions."
     expected_user_prompt = f"Summarize the following function named '{function_name}' from the file '{file_path}'. Describe its purpose, parameters, and return value. The function definition is:\n\n```\n{mock_func_code}\n```"
 
-    expected_generation_config = kit_s_genai_types.GenerateContentConfig(
-        temperature=0.3,
-        max_output_tokens=100
-    )
+    expected_generation_params = {
+        'temperature': 0.3,
+        'max_output_tokens': 100
+    }
 
     mock_google_client_instance.models.generate_content.assert_called_once_with(
         model="gemini-func-test",
         contents=f"{expected_system_prompt}\n\n{expected_user_prompt}",
-        config=expected_generation_config
+        generation_config=expected_generation_params
     )
 
     assert summary == "This is a Google function summary."
@@ -651,15 +680,17 @@ def test_summarize_class_google(mock_google_client_constructor, mock_repo):
     expected_system_prompt = "You are an expert assistant skilled in creating concise code summaries for classes."
     expected_user_prompt = f"Summarize the following class named '{class_name}' from the file '{file_path}'. Describe its purpose, key attributes, and main methods. The class definition is:\n\n```\n{mock_class_code}\n```"
     
-    expected_generation_config = kit_s_genai_types.GenerateContentConfig(
-        temperature=0.5,
-        max_output_tokens=130
-    )
+    expected_generation_params = {
+        'temperature': 0.5,
+        'max_output_tokens': 130
+    }
 
     mock_google_client_instance.models.generate_content.assert_called_once_with(
         model="gemini-class-test",
         contents=f"{expected_system_prompt}\n\n{expected_user_prompt}",
-        config=expected_generation_config
+        generation_config=expected_generation_params
     )
 
     assert summary == "This is a Google class summary."
+
+# --- Test Helper for Mocking Summarizer --- 

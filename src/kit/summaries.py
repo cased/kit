@@ -71,6 +71,7 @@ class GoogleConfig:
     model: str = "gemini-1.5-pro-latest"
     temperature: Optional[float] = 0.7
     max_output_tokens: Optional[int] = 1000 # Corresponds to Gemini's max_output_tokens
+    model_kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.api_key:
@@ -88,9 +89,9 @@ class Summarizer:
     """Provides methods to summarize code using a configured LLM."""
 
     _tokenizer_cache: Dict[str, Any] = {} # Cache for tiktoken encoders
-    config: Union[OpenAIConfig, AnthropicConfig, GoogleConfig]
+    config: Optional[Union[OpenAIConfig, AnthropicConfig, GoogleConfig]]
     repo: 'Repository'
-    llm_client: Optional[Any]
+    _llm_client: Optional[Any]
 
     def _get_tokenizer(self, model_name: str):
         if model_name in self._tokenizer_cache:
@@ -102,24 +103,52 @@ class Summarizer:
         except KeyError:
             try:
                 # Fallback for models not directly in tiktoken.model.MODEL_TO_ENCODING
-                # For gpt-3.5-turbo and gpt-4 series, cl100k_base is standard.
-                # Adjust if other model families need different fallback encodings.
-                if "gpt-4" in model_name or "gpt-3.5-turbo" in model_name:
-                    encoding = tiktoken.get_encoding("cl100k_base")
-                    self._tokenizer_cache[model_name] = encoding
-                    return encoding
-                else:
-                    logger.warning(f"No tiktoken encoder found for model {model_name}, token count will be approximate (char count).")
-                    return None
+                encoding = tiktoken.get_encoding("cl100k_base")
+                self._tokenizer_cache[model_name] = encoding
+                return encoding
             except Exception as e:
                 logger.warning(f"Could not load tiktoken encoder for {model_name} due to {e}, token count will be approximate (char count).")
                 return None
 
-    def _count_tokens(self, text: str, model_name: str) -> Optional[int]:
-        tokenizer = self._get_tokenizer(model_name)
-        if tokenizer:
-            return len(tokenizer.encode(text))
-        return None # Indicates token count could not be determined
+    def _count_tokens(self, text: str, model_name: Optional[str] = None) -> int:
+        """Count the number of tokens in a text string for a given model."""
+        if not text:
+            return 0
+        
+        # Use model from config if available, otherwise use a default
+        if model_name is None:
+            if self.config is not None and hasattr(self.config, 'model'):
+                model_name = self.config.model
+            else:
+                # Default to a common model if no config or model specified
+                model_name = "gpt-4o"  # Default fallback
+        
+        try:
+            # Try to use tiktoken for accurate token counting
+            if tiktoken:
+                try:
+                    if model_name in self._tokenizer_cache:
+                        encoder = self._tokenizer_cache[model_name]
+                    else:
+                        try:
+                            encoder = tiktoken.encoding_for_model(model_name)
+                        except KeyError:
+                            # Model not found, use cl100k_base as fallback
+                            encoder = tiktoken.get_encoding("cl100k_base")
+                        self._tokenizer_cache[model_name] = encoder
+                    
+                    return len(encoder.encode(text))
+                except Exception as e:
+                    logger.warning(f"Error using tiktoken for model {model_name}: {e}")
+                    # Fall through to character-based approximation
+            else:
+                logger.warning(f"No tiktoken encoder found for model {model_name}, token count will be approximate (char count).")
+        except NameError:
+            # tiktoken not available
+            logger.warning("tiktoken not available, token count will be approximate (char count).")
+        
+        # Fallback: approximate token count based on characters (4 chars ~= 1 token)
+        return len(text) // 4
 
     def _count_openai_chat_tokens(self, messages: List[Dict[str, str]], model_name: str) -> Optional[int]:
         """Return the number of tokens used by a list of messages for OpenAI chat models."""
@@ -196,21 +225,48 @@ class Summarizer:
                         lazy-loaded on first use based on the config.
         """
         self.repo = repo
-        if config is None:
-            self.config = OpenAIConfig()
-        elif not isinstance(config, (OpenAIConfig, AnthropicConfig, GoogleConfig)):
-            raise TypeError(
-                "Unsupported LLM configuration. Expected OpenAIConfig, AnthropicConfig, or GoogleConfig."
-            )
-        else:
-            self.config = config
-        
-        self.llm_client = llm_client # Initialize the public llm_client attribute
+        self._llm_client = llm_client  # Store provided llm_client directly
+        self.config = config          # Store provided config
 
-    def _get_llm_client(self):
+        if self._llm_client is None:
+            # Only create/setup LLM if a client wasn't directly provided
+            if self.config is None:
+                # If no config is provided either, default to OpenAIConfig
+                # This will raise ValueError if OPENAI_API_KEY is not set.
+                self.config = OpenAIConfig()
+            
+            if isinstance(self.config, OpenAIConfig):
+                try:
+                    import openai
+                    self._llm_client = openai.OpenAI(api_key=self.config.api_key)
+                except ImportError:
+                    raise LLMError("OpenAI SDK (openai) not available. Please install it.")
+            elif isinstance(self.config, AnthropicConfig):
+                try:
+                    import anthropic
+                    self._llm_client = anthropic.Anthropic(api_key=self.config.api_key)
+                except ImportError:
+                    raise LLMError("Anthropic SDK (anthropic) not available. Please install it.")
+            elif isinstance(self.config, GoogleConfig):
+                try:
+                    import google.genai as genai
+                    self._llm_client = genai.Client(api_key=self.config.api_key) # Use the new client
+                except ImportError:
+                    raise LLMError("Google Gen AI SDK (google-genai) not available. Please install it.")
+            else:
+                # This case implies self.config was set to something unexpected if self._llm_client was None
+                # and self.config was also None initially. Or self.config was passed with an invalid type.
+                if self.config is not None: # Only raise if config is of an unsupported type
+                    raise TypeError(f"Unsupported LLM configuration type: {type(self.config)}")
+                # If self.config is None here, it means OpenAIConfig() failed, but that should raise its own error.
+                # Or, it implies a logic flaw if this path is reached with self.config being None.
+        # If _llm_client was provided, we assume it's configured and ready.
+        # self.config might be None if only llm_client was passed.
+
+    def _get_llm_client(self) -> Any:
         """Lazy loads the appropriate LLM client based on self.config."""
-        if self.llm_client is not None:
-            return self.llm_client
+        if self._llm_client is not None:
+            return self._llm_client
 
         try:
             if isinstance(self.config, OpenAIConfig):
@@ -230,8 +286,8 @@ class Summarizer:
                 # but as a safeguard:
                 raise LLMError(f"Unsupported LLM configuration type: {type(self.config)}")
             
-            self.llm_client = client
-            return self.llm_client
+            self._llm_client = client
+            return self._llm_client
         except ImportError as e:
             sdk_name = ""
             if "openai" in str(e).lower(): sdk_name = "openai"
@@ -294,14 +350,33 @@ class Summarizer:
 
         logger.debug(f"System Prompt for {file_path}: {system_prompt_text}")
         logger.debug(f"User Prompt for {file_path} (first 200 chars): {user_prompt_text[:200]}...")
-        token_count = self._count_tokens(user_prompt_text, self.config.model)
+        # Get model name from config if available, otherwise pass None for default
+        model_name = self.config.model if self.config is not None and hasattr(self.config, 'model') else None
+        token_count = self._count_tokens(user_prompt_text, model_name)
         if token_count is not None:
             logger.debug(f"Estimated tokens for user prompt ({file_path}): {token_count}")
         else:
             logger.debug(f"Approximate characters for user prompt ({file_path}): {len(user_prompt_text)}")
 
         try:
-            if isinstance(self.config, OpenAIConfig):
+            # If a custom llm_client was provided without a config, use it directly
+            if self.config is None:
+                # For custom llm_client without config, assume it knows how to handle the prompt
+                # This is used in tests with FakeOpenAI
+                try:
+                    # Try OpenAI-style interface first
+                    response = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": system_prompt_text},
+                            {"role": "user", "content": user_prompt_text}
+                        ]
+                    )
+                    summary = response.choices[0].message.content
+                except (AttributeError, TypeError) as e:
+                    # If that fails, the client might have a different interface
+                    logger.warning(f"Custom LLM client doesn't support OpenAI-style interface: {e}")
+                    raise LLMError(f"Custom LLM client without config doesn't support expected interface: {e}")
+            elif isinstance(self.config, OpenAIConfig):
                 messages_for_api = [
                     {"role": "system", "content": system_prompt_text},
                     {"role": "user", "content": user_prompt_text}
@@ -330,22 +405,23 @@ class Summarizer:
                     temperature=self.config.temperature,
                 )
                 summary = response.content[0].text
-                # Anthropic usage might be in response.usage (confirm API docs)
-                # Example: logger.debug(f"Anthropic API usage for {file_path}: {response.usage}")
             elif isinstance(self.config, GoogleConfig):
                 if not genai_types:
                     raise LLMError("Google Gen AI SDK (google-genai) types not available. SDK might not be installed correctly.")
                 
-                generation_config_params = {}
+                generation_config_params: Dict[str, Any] = self.config.model_kwargs.copy() if self.config.model_kwargs is not None else {}
+
                 if self.config.temperature is not None:
                     generation_config_params["temperature"] = self.config.temperature
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
+                
+                final_sdk_params = generation_config_params if generation_config_params else None
 
                 response = client.models.generate_content(
                     model=self.config.model,
                     contents=user_prompt_text,
-                    config=genai_types.GenerationConfig(**generation_config_params) 
+                    generation_config=final_sdk_params
                 )
                 # Check for blocked prompt first
                 if hasattr(response, 'prompt_feedback') and response.prompt_feedback and response.prompt_feedback.block_reason:
@@ -415,15 +491,32 @@ class Summarizer:
         summary = ""
 
         logger.debug(f"System Prompt for {function_name} in {file_path}: {system_prompt_text}")
-        logger.debug(f"User Prompt for {function_name} (first 200 chars): {user_prompt_text[:200]}...")
-        token_count = self._count_tokens(user_prompt_text, self.config.model)
-        if token_count is not None:
-            logger.debug(f"Estimated tokens for user prompt ({function_name} in {file_path}): {token_count}")
-        else:
-            logger.debug(f"Approximate characters for user prompt ({function_name} in {file_path}): {len(user_prompt_text)}")
+        logger.debug(f"User Prompt for {function_name} in {file_path} (first 200 chars): {user_prompt_text[:200]}...")
+        # Get model name from config if available, otherwise pass None for default
+        model_name = self.config.model if self.config is not None and hasattr(self.config, 'model') else None
+        token_count = self._count_tokens(user_prompt_text, model_name)
+        logger.debug(f"Token count for {function_name} in {file_path}: {token_count}")
 
         try:
-            if isinstance(self.config, OpenAIConfig):
+            # If a custom llm_client was provided without a config, use it directly
+            if self.config is None:
+                # For custom llm_client without config, assume it knows how to handle the prompt
+                # This is used in tests with FakeOpenAI
+                try:
+                    # Try OpenAI-style interface first
+                    response = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": system_prompt_text},
+                            {"role": "user", "content": user_prompt_text}
+                        ]
+                    )
+                    summary = response.choices[0].message.content
+                except (AttributeError, TypeError) as e:
+                    # If that fails, the client might have a different interface
+                    # In a real implementation, you'd need more robust handling here
+                    logger.warning(f"Custom LLM client doesn't support OpenAI-style interface: {e}")
+                    raise LLMError(f"Custom LLM client without config doesn't support expected interface: {e}")
+            elif isinstance(self.config, OpenAIConfig):
                 messages_for_api = [
                     {"role": "system", "content": system_prompt_text},
                     {"role": "user", "content": user_prompt_text}
@@ -452,21 +545,25 @@ class Summarizer:
                     temperature=self.config.temperature,
                 )
                 summary = response.content[0].text
-                # logger.debug(f"Anthropic API usage for {function_name} in {file_path}: {response.usage}")
+                # Anthropic usage might be in response.usage (confirm API docs)
+                # Example: logger.debug(f"Anthropic API usage for {function_name} in {file_path}: {response.usage}")
             elif isinstance(self.config, GoogleConfig):
                 if not genai_types:
                     raise LLMError("Google Gen AI SDK (google-genai) types not available. SDK might not be installed correctly.")
-                
-                generation_config_params = {}
+
+                generation_config_params: Dict[str, Any] = self.config.model_kwargs.copy() if self.config.model_kwargs is not None else {}
+
                 if self.config.temperature is not None:
                     generation_config_params["temperature"] = self.config.temperature
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
+                
+                final_sdk_params = generation_config_params if generation_config_params else None
 
                 response = client.models.generate_content(
                     model=self.config.model,
                     contents=user_prompt_text,
-                    config=genai_types.GenerationConfig(**generation_config_params) 
+                    generation_config=final_sdk_params
                 )
                 if hasattr(response, 'prompt_feedback') and response.prompt_feedback and response.prompt_feedback.block_reason:
                     logger.warning(f"Google LLM prompt for {function_name} in {file_path} blocked. Reason: {response.prompt_feedback.block_reason}")
@@ -476,6 +573,9 @@ class Summarizer:
                     summary = "Summary generation failed: No text returned by API."
                 else:
                     summary = response.text
+            else:
+                # This should never happen with our current logic, but as a safeguard
+                raise LLMError(f"Unsupported LLM configuration type: {type(self.config) if self.config else None}")
             
             if not summary or not summary.strip():
                 logger.warning(f"LLM returned an empty or whitespace-only summary for function {function_name} in {file_path}.")
@@ -536,14 +636,31 @@ class Summarizer:
 
         logger.debug(f"System Prompt for {class_name} in {file_path}: {system_prompt_text}")
         logger.debug(f"User Prompt for {class_name} (first 200 chars): {user_prompt_text[:200]}...")
-        token_count = self._count_tokens(user_prompt_text, self.config.model)
-        if token_count is not None:
-            logger.debug(f"Estimated tokens for user prompt ({class_name} in {file_path}): {token_count}")
-        else:
-            logger.debug(f"Approximate characters for user prompt ({class_name} in {file_path}): {len(user_prompt_text)}")
+        # Get model name from config if available, otherwise pass None for default
+        model_name = self.config.model if self.config is not None and hasattr(self.config, 'model') else None
+        token_count = self._count_tokens(user_prompt_text, model_name)
+        logger.debug(f"Token count for {class_name} in {file_path}: {token_count}")
 
         try:
-            if isinstance(self.config, OpenAIConfig):
+            # If a custom llm_client was provided without a config, use it directly
+            if self.config is None:
+                # For custom llm_client without config, assume it knows how to handle the prompt
+                # This is used in tests with FakeOpenAI
+                try:
+                    # Try OpenAI-style interface first
+                    response = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": system_prompt_text},
+                            {"role": "user", "content": user_prompt_text}
+                        ]
+                    )
+                    summary = response.choices[0].message.content
+                except (AttributeError, TypeError) as e:
+                    # If that fails, the client might have a different interface
+                    # In a real implementation, you'd need more robust handling here
+                    logger.warning(f"Custom LLM client doesn't support OpenAI-style interface: {e}")
+                    raise LLMError(f"Custom LLM client without config doesn't support expected interface: {e}")
+            elif isinstance(self.config, OpenAIConfig):
                 messages_for_api = [
                     {"role": "system", "content": system_prompt_text},
                     {"role": "user", "content": user_prompt_text}
@@ -572,21 +689,25 @@ class Summarizer:
                     temperature=self.config.temperature,
                 )
                 summary = response.content[0].text
-                # logger.debug(f"Anthropic API usage for {class_name} in {file_path}: {response.usage}")
+                # Anthropic usage might be in response.usage (confirm API docs)
+                # Example: logger.debug(f"Anthropic API usage for {class_name} in {file_path}: {response.usage}")
             elif isinstance(self.config, GoogleConfig):
                 if not genai_types:
                     raise LLMError("Google Gen AI SDK (google-genai) types not available. SDK might not be installed correctly.")
                 
-                generation_config_params = {}
+                generation_config_params: Dict[str, Any] = self.config.model_kwargs.copy() if self.config.model_kwargs is not None else {}
+
                 if self.config.temperature is not None:
                     generation_config_params["temperature"] = self.config.temperature
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
+                
+                final_sdk_params = generation_config_params if generation_config_params else None
 
                 response = client.models.generate_content(
                     model=self.config.model,
                     contents=user_prompt_text,
-                    config=genai_types.GenerationConfig(**generation_config_params) 
+                    generation_config=final_sdk_params
                 )
                 if hasattr(response, 'prompt_feedback') and response.prompt_feedback and response.prompt_feedback.block_reason:
                     logger.warning(f"Google LLM prompt for {class_name} in {file_path} blocked. Reason: {response.prompt_feedback.block_reason}")
@@ -596,6 +717,9 @@ class Summarizer:
                     summary = "Summary generation failed: No text returned by API."
                 else:
                     summary = response.text
+            else:
+                # This should never happen with our current logic, but as a safeguard
+                raise LLMError(f"Unsupported LLM configuration type: {type(self.config) if self.config else None}")
             
             if not summary or not summary.strip():
                 logger.warning(f"LLM returned an empty or whitespace-only summary for class {class_name} in {file_path}.")

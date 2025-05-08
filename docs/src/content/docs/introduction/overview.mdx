@@ -8,6 +8,33 @@ A modular, production-grade toolkit for codebase mapping, symbol extraction, cod
 
 `kit` features a "mid-level API" to build your own custom tools, applications, agents, and workflows: easily build code review bots, semantic code search, documentation generators, and more.
 
+`kit` is **free and open source** with a permissive MIT license. Check it out on [GitHub](https://github.com/cased/kit).
+
+## Installation
+
+### Install from PyPI
+
+```bash
+# Basic installation, it's currently `cased-kit` on pypi
+pip install cased-kit
+
+# With OpenAI support
+pip install cased-kit[openai]
+
+# With all features (OpenAI, Anthropic, Google, vector search, API)
+pip install cased-kit[all]
+```
+
+### Install from Source
+
+```bash
+git clone https://github.com/cased/kit.git
+cd kit
+uv venv .venv
+source .venv/bin/activate
+uv pip install -e .
+```
+
 ## Why Use kit?
 
 `kit` helps with:

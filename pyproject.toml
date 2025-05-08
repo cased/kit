@@ -1,6 +1,6 @@
 [project]
-name = "kit"
-version = "0.0.1"
+name = "cased-kit"
+version = "0.1.0"
 description = "A modular toolkit for LLM-powered codebase understanding."
 authors = [
     { name = "Cased", email = "ted@cased.com" }
@@ -67,11 +67,11 @@ google = [
     "google-genai>=1.14.0"
 ]
 all = [
-    "kit[openai]",
-    "kit[anthropic]",
-    "kit[google]",
-    "kit[vector]",
-    "kit[api]"
+    "cased-kit[openai]",
+    "cased-kit[anthropic]",
+    "cased-kit[google]",
+    "cased-kit[vector]",
+    "cased-kit[api]"
 ]
 
 [project.scripts]
