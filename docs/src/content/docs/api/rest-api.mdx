@@ -1,0 +1,136 @@
+---
+title: REST API Reference
+description: Details for the kit REST API to access repository information.
+---
+
+import { Aside, Code } from '@astrojs/starlight/components';
+
+The `kit` tool provides a RESTful HTTP API to access information about a loaded code repository. This API is served by the `kit serve` command when a repository path is provided.
+
+## Enabling and Accessing the API
+
+To enable the REST API, run the `serve` command with the `--repo-path` option:
+
+```bash
+kit serve --repo-path /path/to/your/codebase
+```
+
+By default, the server runs on `http://localhost:8000`. The API endpoints detailed below will be available under this base URL.
+
+<Aside type="note">
+  The API also provides an auto-generated OpenAPI (Swagger) specification at `/openapi.json` and interactive Swagger UI documentation at `/docs` when the server is running.
+</Aside>
+
+## Repository Endpoints
+
+All repository-related endpoints are prefixed with `/repository`.
+
+### 1. Get File Tree
+
+Retrieves the complete file and directory structure of the loaded repository.
+
+- **Method:** `GET`
+- **Path:** `/repository/file_tree`
+- **Query Parameters:** None
+- **Success Response (200 OK):**
+  - **Content-Type:** `application/json`
+  - **Body:** A JSON list of objects, where each object represents a file or directory and includes `path` (str), `is_dir` (bool), and `size` (int, in bytes for files).
+    ```json
+    [
+      {"path": "src", "is_dir": true, "size": 0},
+      {"path": "src/main.py", "is_dir": false, "size": 1024},
+      {"path": "README.md", "is_dir": false, "size": 2048}
+    ]
+    ```
+- **Error Responses:**
+  - `503 Service Unavailable`: If the repository was not loaded (e.g., `--repo-path` not provided at startup).
+  - `500 Internal Server Error`: If there's an issue processing the request on the server.
+
+### 2. Get File Content
+
+Retrieves the text content of a specific file within the repository.
+
+- **Method:** `GET`
+- **Path:** `/repository/file_content`
+- **Query Parameters:**
+  - `path` (string, **required**): The relative path to the file from the repository root (e.g., `src/main.py`).
+- **Success Response (200 OK):**
+  - **Content-Type:** `text/plain`
+  - **Body:** The raw text content of the file.
+    ```python
+    # Example content for a Python file
+    def hello():
+        print("Hello, Kit!")
+    ```
+- **Error Responses:**
+  - `422 Unprocessable Entity`: If the required `path` query parameter is missing.
+  - `404 Not Found`: If the specified `path` does not exist in the repository.
+  - `503 Service Unavailable`: If the repository was not loaded.
+  - `500 Internal Server Error`: For other server-side issues.
+
+### 3. Get Symbols in File
+
+Retrieves a list of extracted symbols (functions, classes, methods, etc.) for a specific file.
+
+- **Method:** `GET`
+- **Path:** `/repository/symbols`
+- **Query Parameters:**
+  - `file_path` (string, **required**): The relative path to the file from the repository root.
+- **Success Response (200 OK):**
+  - **Content-Type:** `application/json`
+  - **Body:** A JSON list of objects, where each object represents a symbol with details such as `name`, `type`, `file`, `start_line`, `end_line`, `code_snippet`, etc. (The exact fields depend on `kit.Repository.extract_symbols()` output).
+    ```json
+    [
+      {
+        "name": "my_function", 
+        "type": "function", 
+        "file": "src/utils.py", 
+        "start_line": 10, 
+        "end_line": 25,
+        "code": "def my_function(a, b):\n  return a + b"
+      },
+      {
+        "name": "MyClass", 
+        "type": "class", 
+        "file": "src/utils.py", 
+        "start_line": 30, 
+        "end_line": 55
+      }
+    ]
+    ```
+- **Error Responses:**
+  - `422 Unprocessable Entity`: If the required `file_path` query parameter is missing.
+  - `404 Not Found`: If the specified `file_path` does not exist.
+  - `503 Service Unavailable`: If the repository was not loaded.
+  - `500 Internal Server Error`: For other server-side issues.
+
+### 4. Search Text in Repository
+
+Performs a textual or regular expression search across files in the repository.
+
+- **Method:** `GET`
+- **Path:** `/repository/search_text`
+- **Query Parameters:**
+  - `query` (string, **required**): The text or regex pattern to search for.
+  - `file_pattern` (string, *optional*): A glob pattern to filter files for the search (e.g., `*.py`, `src/**/*.js`). If omitted, behavior depends on the `kit.Repository.search_text()` method's default (likely searches all files).
+- **Success Response (200 OK):**
+  - **Content-Type:** `application/json`
+  - **Body:** A JSON list of objects, where each object represents a search match. Each match typically includes `file` (path), `line_number`, and `line_content`.
+    ```json
+    [
+      {
+        "file": "src/main.py", 
+        "line_number": 42, 
+        "line_content": "  # TODO: Implement search_text functionality here"
+      }
+    ]
+    ```
+    An empty list `[]` is returned if no matches are found.
+- **Error Responses:**
+  - `422 Unprocessable Entity`: If the required `query` query parameter is missing.
+  - `503 Service Unavailable`: If the repository was not loaded.
+  - `500 Internal Server Error`: For other server-side issues.
+
+<Aside type="caution" title="Work in Progress">
+  This REST API is currently under development. Endpoint structures, request parameters, and response formats may change.
+</Aside> 

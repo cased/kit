@@ -1,24 +1,48 @@
 """kit Command Line Interface."""
 import typer
+import os
+from typing import Optional
 
 app = typer.Typer(help="A modular toolkit for LLM-powered codebase understanding.")
 
 
 @app.command()
-def serve(host: str = "0.0.0.0", port: int = 8000, reload: bool = True):
+def serve(
+    host: str = "0.0.0.0", 
+    port: int = 8000, 
+    reload: bool = True,
+    repo_path: Optional[str] = typer.Option(
+        None, 
+        "--repo-path", 
+        help="Path to the repository to load and serve via the API."
+    )
+):
     """Run the kit REST API server (requires `kit[api]` dependencies)."""
     try:
         import uvicorn
-        from kit.api import app as fastapi_app  # Import the FastAPI app instance
-    except ImportError:
+        # No FastMCP import here
+    except ImportError as e:
         typer.secho(
-            "Error: FastAPI or Uvicorn not installed. Please run `pip install kit[api]`",
+            f"Error: Necessary import failed. Ensure kit[api] dependencies are installed. Details: {e}",
             fg=typer.colors.RED,
         )
         raise typer.Exit(code=1)
 
-    typer.echo(f"Starting kit API server on http://{host}:{port}")
-    uvicorn.run(fastapi_app, host=host, port=port, reload=reload)
+    # Set environment variable for the FastAPI app to pick up
+    if repo_path:
+        abs_repo_path = os.path.abspath(repo_path)
+        if not os.path.isdir(abs_repo_path):
+            typer.secho(f"Error: Repository path not found or not a directory: {abs_repo_path}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+        os.environ["KIT_REPO_PATH"] = abs_repo_path
+        typer.echo(f"Kit server will attempt to load repository from: {abs_repo_path}")
+    else:
+        if "KIT_REPO_PATH" in os.environ: del os.environ["KIT_REPO_PATH"]
+        typer.echo("No --repo-path provided. Repository features will be disabled.")
+    
+    typer.echo(f"Starting kit REST API server on http://{host}:{port}")
+    app_import_string = "kit.api.app:app" 
+    uvicorn.run(app_import_string, host=host, port=port, reload=reload)
 
 
 @app.command()
@@ -28,7 +52,7 @@ def search(
     pattern: str = typer.Option("*.py", "--pattern", "-p", help="Glob pattern for files to search.")
 ):
     """Perform a textual search in a local repository."""
-    from kit import Repository  # Local import to avoid circular deps if CLI is imported elsewhere
+    from kit import Repository
 
     try:
         repo = Repository(path)

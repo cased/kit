@@ -101,18 +101,23 @@ class Repository:
         """
         return self.mapper.extract_symbols(file_path)  # type: ignore[arg-type]
 
-    def search_text(self, query: str, file_pattern: str = "*") -> List[Dict[str, Any]]:
+    def search_text(self, query: str, file_pattern: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Searches for text in the repository.
         
         Args:
             query (str): The text to search for.
-            file_pattern (str, optional): The file pattern to search in. Defaults to "*".
+            file_pattern (Optional[str], optional): The file pattern to search in. 
+                                                 Defaults to "*" (all files, recursively) if None.
         
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the search results.
         """
-        return self.searcher.search_text(query, file_pattern)
+        # If file_pattern is None (e.g., from API when param omitted), default to "*" for CodeSearcher.
+        # CodeSearcher itself defaults its file_pattern param to "*.py" if not provided, 
+        # but here Repository wants to define its own default for when the API doesn't specify one.
+        effective_file_pattern = file_pattern if file_pattern is not None else "*"
+        return self.searcher.search_text(query, effective_file_pattern)
 
     def chunk_file_by_lines(self, file_path: str, max_lines: int = 50) -> List[str]:
         """

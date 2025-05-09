@@ -1,47 +1,37 @@
 """FastAPI application exposing core kit capabilities."""
 from __future__ import annotations
 
-from typing import Dict
+import os
+from typing import Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Body
-from pydantic import BaseModel
+from fastapi import FastAPI
 
 from ..repository import Repository
-from ..llm_context import ContextAssembler
+from .repository_routes import router as repository_api_router
 
-app = FastAPI(title="kit API", version="0.1.0")
+app = FastAPI(title="kit REST API", version="0.1.0")
 
+# Function to initialize repository and add REST API routes
+def _configure_repository_api(app_to_configure: FastAPI, repo_path_str: Optional[str]):
+    if repo_path_str:
+        try:
+            abs_repo_path = os.path.abspath(repo_path_str)
+            if not os.path.isdir(abs_repo_path):
+                print(f"ERROR: Repository path '{abs_repo_path}' not found or not a directory. REST API will be limited.")
+                app_to_configure.state.repository = None
+            else:
+                print(f"INFO: Initializing repository for REST API from: {abs_repo_path}")
+                repository_instance = Repository(abs_repo_path)
+                app_to_configure.state.repository = repository_instance
+                app_to_configure.include_router(repository_api_router) # Add our /repository routes
+                print(f"INFO: Repository REST API enabled for {abs_repo_path}.")
+        except Exception as e:
+            print(f"ERROR: Error initializing repository from '{repo_path_str}': {e}. REST API will be limited.")
+            app_to_configure.state.repository = None
+    else:
+        print("INFO: No repository path provided. Repository REST API will be limited/unavailable.")
+        app_to_configure.state.repository = None
 
-class RepoIn(BaseModel):
-    path_or_url: str
-    github_token: str | None = None
-
-
-_repos: Dict[str, Repository] = {}
-
-
-@app.post("/repos", status_code=201)
-def open_repo(body: RepoIn):
-    """Create/open a repository and return its ID."""
-    repo = Repository(body.path_or_url, github_token=body.github_token)
-    repo_id = str(len(_repos) + 1)
-    _repos[repo_id] = repo
-    return {"id": repo_id}
-
-
-@app.get("/repos/{repo_id}/search")
-def search_text(repo_id: str, q: str, pattern: str = "*.py"):
-    repo = _repos.get(repo_id)
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repo not found")
-    return repo.search_text(q, file_pattern=pattern)
-
-
-@app.post("/repos/{repo_id}/context")
-def build_context(repo_id: str, diff: str = Body(..., embed=True)):
-    repo = _repos.get(repo_id)
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repo not found")
-    assembler: ContextAssembler = repo.get_context_assembler()
-    assembler.add_diff(diff)
-    return {"context": assembler.format_context()}
+# Configure the app when this module is imported, based on KIT_REPO_PATH set by cli.py
+_repo_path_on_load = os.environ.get("KIT_REPO_PATH")
+_configure_repository_api(app, _repo_path_on_load)
