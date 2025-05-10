@@ -6,7 +6,7 @@ authors = [
     { name = "Cased", email = "ted@cased.com" }
 ]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 dependencies = [
     "tree-sitter-language-pack>=0.7.2",

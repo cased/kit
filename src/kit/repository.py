@@ -72,12 +72,27 @@ class Repository:
             # Optionally: git pull to update
             return repo_path
         
-        clone_url = url
-        
+        # Use GIT_ASKPASS so the token never appears in argv / process list
+        env = os.environ.copy()
+        clone_cmd = ["git", "clone", "--depth=1", url, str(repo_path)]
+
         if token:
-            # Insert token for private repos
-            clone_url = url.replace("https://", f"https://{token}@")
-        subprocess.run(["git", "clone", "--depth=1", clone_url, str(repo_path)], check=True)
+            # Create a temporary ask-pass helper that echoes the token once
+            askpass_script = tempfile.NamedTemporaryFile("w", delete=False)
+            askpass_script.write("#!/bin/sh\necho \"%s\"\n" % token)
+            askpass_script.flush()
+            os.chmod(askpass_script.name, 0o700)
+            env["GIT_ASKPASS"] = askpass_script.name
+            env["GIT_TERMINAL_PROMPT"] = "0"  # disable interactive prompts
+
+        try:
+            subprocess.run(clone_cmd, env=env, check=True)
+        finally:
+            if token:
+                try:
+                    os.unlink(askpass_script.name)
+                except OSError:
+                    pass
         return repo_path
 
     def get_file_tree(self) -> List[Dict[str, Any]]:

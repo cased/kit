@@ -2,6 +2,7 @@ from unittest.mock import patch, MagicMock
 from kit.summaries import LLMError
 import pytest
 from kit.mcp.server import KitServerLogic, MCPError, INVALID_PARAMS
+import uuid
 
 
 @pytest.fixture
@@ -11,7 +12,7 @@ def logic():
 
 def test_open_repository(logic):
     repo_id = logic.open_repository(".")
-    assert repo_id == "1"
+    uuid.UUID(repo_id)
     assert repo_id in logic._repos
 
 
@@ -278,3 +279,19 @@ def test_get_code_summary_error(logic):
             "function": None,  # None because ValueError was caught
             "class": None     # None because ValueError was caught
         }
+
+
+def test_get_file_content_path_traversal(logic):
+    """Attempting to read ../ should raise INVALID_PARAMS."""
+    repo_id = logic.open_repository(".")
+    with pytest.raises(MCPError) as exc:
+        logic.get_file_content(repo_id, "../pyproject.toml")
+    assert exc.value.code == INVALID_PARAMS
+    assert "Path traversal" in exc.value.message
+
+
+def test_extract_symbols_path_traversal(logic):
+    """Path outside repo for extract_symbols should be rejected."""
+    repo_id = logic.open_repository(".")
+    with pytest.raises(MCPError):
+        logic.extract_symbols(repo_id, "../../secrets.txt")

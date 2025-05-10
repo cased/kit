@@ -32,6 +32,7 @@ export default defineConfig({
             "core-concepts/docstring-indexing",
             "core-concepts/semantic-search",
             "core-concepts/configuring-semantic-search",
+            "core-concepts/dependency-analysis",
             "core-concepts/llm-context-best-practices",
             "core-concepts/context-assembly",
           ],
