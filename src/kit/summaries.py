@@ -7,15 +7,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union, ru
 
 import tiktoken
 
-
-# Define a Protocol for LLM clients to help with type checking
-@runtime_checkable
-class LLMClientProtocol(Protocol):
-    """Protocol defining the interface for LLM clients."""
-
-    # This is a structural protocol - any object with compatible methods will be accepted
-    pass
-
+from kit.models.base import LLMClientProtocol, LLMError
+from kit.models.config import AnthropicConfig, GoogleConfig, OpenAIConfig
 
 # Conditionally import google.genai
 try:
@@ -32,66 +25,10 @@ if TYPE_CHECKING:
     from kit.repository import Repository
 
 
-class LLMError(Exception):
-    """Custom exception for LLM related errors."""
-
-    pass
-
-
 class SymbolNotFoundError(Exception):
     """Custom exception for when a symbol (function, class) is not found."""
 
     pass
-
-
-@dataclass
-class OpenAIConfig:
-    """Configuration for OpenAI API access."""
-
-    api_key: Optional[str] = field(default_factory=lambda: os.environ.get("OPENAI_API_KEY"))
-    model: str = "gpt-4o"
-    temperature: float = 0.7
-    max_tokens: int = 1000  # Default max tokens for summary
-    base_url: Optional[str] = None
-
-    def __post_init__(self):
-        if not self.api_key:
-            raise ValueError(
-                "OpenAI API key not found. Set OPENAI_API_KEY environment variable or pass api_key directly."
-            )
-
-
-@dataclass
-class AnthropicConfig:
-    """Configuration for Anthropic API access."""
-
-    api_key: Optional[str] = field(default_factory=lambda: os.environ.get("ANTHROPIC_API_KEY"))
-    model: str = "claude-3-opus-20240229"
-    temperature: float = 0.7
-    max_tokens: int = 1000  # Corresponds to Anthropic's max_tokens_to_sample
-
-    def __post_init__(self):
-        if not self.api_key:
-            raise ValueError(
-                "Anthropic API key not found. Set ANTHROPIC_API_KEY environment variable or pass api_key directly."
-            )
-
-
-@dataclass
-class GoogleConfig:
-    """Configuration for Google Generative AI API access."""
-
-    api_key: Optional[str] = field(default_factory=lambda: os.environ.get("GOOGLE_API_KEY"))
-    model: str = "gemini-1.5-pro-latest"
-    temperature: Optional[float] = 0.7
-    max_output_tokens: Optional[int] = 1000  # Corresponds to Gemini's max_output_tokens
-    model_kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)
-
-    def __post_init__(self):
-        if not self.api_key:
-            raise ValueError(
-                "Google API key not found. Set GOOGLE_API_KEY environment variable or pass api_key directly."
-            )
 
 
 # todo: make configurable
