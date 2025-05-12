@@ -75,17 +75,15 @@ def test_missing_tags_scm(monkeypatch):
 
     TreeSitterSymbolExtractor._queries.pop(".rb", None)
 
-    # Mock the joinpath method to raise FileNotFoundError for ruby/tags.scm
-    original_joinpath = Path.joinpath
+    # Mock the read_text method to raise FileNotFoundError for ruby/tags.scm
+    original_read_text = Path.read_text
 
-    def _mock_joinpath(self, *args):
-        path = original_joinpath(self, *args)
-        if args and "ruby" in str(args[0]) and isinstance(path, Path) and path.name == "tags.scm":
-            # Return a path that doesn't exist
-            return Path("/non/existent/path")
-        return path
+    def _mock_read_text(self, *args, **kwargs):
+        if "ruby" in str(self) and self.name == "tags.scm":
+            raise FileNotFoundError(f"Simulated missing file: {self}")
+        return original_read_text(self, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "joinpath", _mock_joinpath)
+    monkeypatch.setattr(Path, "read_text", _mock_read_text)
 
     symbols = TreeSitterSymbolExtractor.extract_symbols(".rb", "class Foo; end")
     assert symbols == [], "Expected empty symbol list when tags.scm is missing"
