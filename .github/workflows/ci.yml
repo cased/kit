@@ -39,5 +39,5 @@ jobs:
         run: |
           # Activate the virtual environment
           source .venv/bin/activate
-          # Run tests via scripts/test.sh
-          bash scripts/test.sh -v
+          # Run tests with coverage
+          uv run pytest --cov=src/kit --cov-report=term-missing --cov-report=xml

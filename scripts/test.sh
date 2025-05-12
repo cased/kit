@@ -2,4 +2,4 @@
 # Ensure all deps (including vector search) are installed, then run tests
 
 export PYTHONPATH=src
-python -m pytest "$@"
+uv run pytest --cov=src/kit --cov-report=term-missing "$@"
