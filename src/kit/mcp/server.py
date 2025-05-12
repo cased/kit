@@ -447,8 +447,10 @@ class KitServerLogic:
                 arguments=[
                     PromptArgument(name="repo_id", description="ID of the repository", required=True),
                     PromptArgument(name="file_path", description="Path to the file", required=True),
-            
+                ],  
+            ),
         ]
+
 
     def get_prompt(self, name: str, arguments: dict | None) -> GetPromptResult:
         if not arguments:
