@@ -317,17 +317,17 @@ class KitServerLogic:
     
     def list_tools(self) -> list[Tool]:
         ro_ann = ToolAnnotations(readOnlyHint=True)
-        return [
-        Tool(name="open_repository", description="Open a repository and return its ID", inputSchema=OpenRepoParams.model_json_schema(), annotations=ro_ann),
-        Tool(name="search_code", description="Search text in a repository", inputSchema=SearchParams.model_json_schema(), annotations=ro_ann),
-        Tool(name="get_file_content", description="Get file contents", inputSchema=GetFileContentParams.model_json_schema(), annotations=ro_ann),
-        Tool(name="extract_symbols", description="Extract symbols from a file", inputSchema=ExtractSymbolsParams.model_json_schema(), annotations=ro_ann),
-        Tool(name="find_symbol_usages", description="Find symbol usages", inputSchema=FindSymbolUsagesParams.model_json_schema(), annotations=ro_ann),
-        Tool(name="get_file_tree", description="Return repo file structure", inputSchema=GetFileTreeParams.model_json_schema(), annotations=ro_ann),
-        Tool(name="semantic_search", description="Semantic similarity search", inputSchema=SemanticSearchParams.model_json_schema(), annotations=ro_ann),
-        Tool(name="get_documentation", description="Fetch docstrings / docs", inputSchema=GetDocumentationParams.model_json_schema(), annotations=ro_ann),
-        Tool(name="get_code_summary", description="Get a summary of code for a given file. If symbol_name is provided, also attempts to summarize it as a function and class.", inputSchema=GetCodeSummaryParams.model_json_schema(), annotations=ro_ann),
-    ]
+        tools_to_return = [
+            Tool(name="open_repository", description="Open a repository and return its ID", inputSchema=OpenRepoParams.model_json_schema(), annotations=ro_ann),
+            Tool(name="search_code", description="Search text in a repository", inputSchema=SearchParams.model_json_schema(), annotations=ro_ann),
+            Tool(name="get_file_content", description="Get file contents", inputSchema=GetFileContentParams.model_json_schema(), annotations=ro_ann),
+            Tool(name="extract_symbols", description="Extract symbols from a file", inputSchema=ExtractSymbolsParams.model_json_schema(), annotations=ro_ann),
+            Tool(name="find_symbol_usages", description="Find symbol usages", inputSchema=FindSymbolUsagesParams.model_json_schema(), annotations=ro_ann),
+            Tool(name="get_file_tree", description="Return repo file structure", inputSchema=GetFileTreeParams.model_json_schema(), annotations=ro_ann),
+            Tool(name="get_code_summary", description="Get a summary of code for a given file. If symbol_name is provided, also attempts to summarize it as a function and class.", inputSchema=GetCodeSummaryParams.model_json_schema(), annotations=ro_ann),
+        ]
+        logger.info(f"KitServerLogic.list_tools is returning: {[tool.name for tool in tools_to_return]}")
+        return tools_to_return
 
     def list_prompts(self) -> list[Prompt]:
         return [
@@ -382,23 +382,6 @@ class KitServerLogic:
             ],
         ),
         Prompt(
-            name="semantic_search",
-            description="Perform semantic code search",
-            arguments=[
-                PromptArgument(name="repo_id", description="ID of the repository", required=True),
-                PromptArgument(name="query", description="Semantic query", required=True),
-            ],
-        ),
-        Prompt(
-            name="get_documentation",
-            description="Extract docstrings or documentation from code",
-            arguments=[
-                PromptArgument(name="repo_id", description="ID of the repository", required=True),
-                PromptArgument(name="symbol_name", description="Symbol to get documentation for", required=False),
-                PromptArgument(name="file_path", description="File to extract documentation from", required=False),
-            ],
-        ),
-        Prompt(
             name="get_code_summary",
             description="Get a summary of code for a given file. If symbol_name is provided, also attempts to summarize it as a function and class.",
             arguments=[
@@ -450,16 +433,6 @@ class KitServerLogic:
                     gft_args = GetFileTreeParams(**arguments)
                     tree = self.get_file_tree(gft_args.repo_id)
                     return GetPromptResult(description="File tree", messages=[PromptMessage(role="user", content=TextContent(type="text", text=json.dumps(tree, indent=2)))])
-                case "semantic_search":
-                    ss_args = SemanticSearchParams(**arguments)
-                    results = self.semantic_search(ss_args.repo_id, ss_args.query)
-                    return GetPromptResult(description="Semantic search results", messages=[PromptMessage(role="user", content=TextContent(type="text", text=json.dumps(results, indent=2)))])
-                case "get_documentation":
-                    gd_args = GetDocumentationParams(**arguments)
-                    docs = self.get_documentation(
-                        gd_args.repo_id, gd_args.symbol_name, gd_args.file_path
-                    )
-                    return GetPromptResult(description="Documentation", messages=[PromptMessage(role="user", content=TextContent(type="text", text=json.dumps(docs, indent=2)))])
                 case "get_code_summary":
                     gcs_args = GetCodeSummaryParams(**arguments)
                     summary = self.get_code_summary(
@@ -600,16 +573,6 @@ async def serve() -> None:
                 gft_args = GetFileTreeParams(**arguments)
                 tree = logic.get_file_tree(gft_args.repo_id)
                 return [TextContent(type="text", text=json.dumps(tree, indent=2))]
-            elif name == "semantic_search":
-                ss_args = SemanticSearchParams(**arguments)
-                results = logic.semantic_search(ss_args.repo_id, ss_args.query)
-                return [TextContent(type="text", text=json.dumps(results, indent=2))]
-            elif name == "get_documentation":
-                gd_args = GetDocumentationParams(**arguments)
-                docs = logic.get_documentation(
-                    gd_args.repo_id, gd_args.symbol_name, gd_args.file_path
-                )
-                return [TextContent(type="text", text=json.dumps(docs, indent=2))]
             elif name == "get_code_summary":
                 gcs_args = GetCodeSummaryParams(**arguments)
                 summary = logic.get_code_summary(
