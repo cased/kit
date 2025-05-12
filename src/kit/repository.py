@@ -24,9 +24,24 @@ class Repository:
     Provides a unified API for downstream tools and workflows.
     """
 
-    def __init__(self, path_or_url: str, github_token: Optional[str] = None, cache_dir: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        path_or_url: str,
+        github_token: Optional[str] = None,
+        cache_dir: Optional[str] = None,
+        revision: Optional[str] = None,
+    ) -> None:
+        """
+        Initialize a Repository instance.
+
+        Args:
+            path_or_url (str): Local path or remote URL to repository
+            github_token (Optional[str], optional): GitHub token for private repos. Defaults to None.
+            cache_dir (Optional[str], optional): Directory to cache cloned repos. Defaults to None.
+            revision (Optional[str], optional): Specific git revision (SHA, tag, or branch) to checkout. Defaults to None.
+        """
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):  # Remote repo
-            self.local_path = self._clone_github_repo(path_or_url, github_token, cache_dir)
+            self.local_path = self._clone_github_repo(path_or_url, github_token, cache_dir, revision)
         else:
             self.local_path = Path(path_or_url).resolve()
         self.repo_path: str = str(self.local_path)
@@ -68,21 +83,73 @@ class Repository:
 
         return f"<Repository path='{path_info}'{ref_info}, files: {file_count}>"
 
-    def _clone_github_repo(self, url: str, token: Optional[str], cache_dir: Optional[str]) -> Path:
+    def _clone_github_repo(
+        self, url: str, token: Optional[str], cache_dir: Optional[str], revision: Optional[str] = None
+    ) -> Path:
         from urllib.parse import urlparse
 
         repo_name = urlparse(url).path.strip("/").replace("/", "-")
         cache_root = Path(cache_dir or tempfile.gettempdir()) / "kit-repo-cache"
         cache_root.mkdir(parents=True, exist_ok=True)
 
-        repo_path = cache_root / repo_name
+        # Create a unique folder for each revision to avoid conflicts
+        repo_folder = repo_name
+        if revision:
+            # Use a safe version of the revision in the folder name by replacing unsafe chars
+            safe_revision = revision.replace("/", "-").replace("\\", "-")
+            repo_folder = f"{repo_name}-{safe_revision}"
+
+        repo_path = cache_root / repo_folder
+
+        # Check if the repo exists and has the right revision
         if repo_path.exists() and (repo_path / ".git").exists():
+            # If a specific revision is requested, verify or update it
+            if revision:
+                try:
+                    # Check the current revision
+                    get_rev_cmd = ["git", "rev-parse", "HEAD"]
+                    current_rev = subprocess.run(
+                        get_rev_cmd, cwd=str(repo_path), capture_output=True, text=True, check=True
+                    ).stdout.strip()
+
+                    # Try to resolve the requested revision to a commit SHA
+                    resolve_rev_cmd = ["git", "rev-parse", "--quiet", "--verify", revision]
+                    resolved_rev = subprocess.run(
+                        resolve_rev_cmd, cwd=str(repo_path), capture_output=True, text=True, check=False
+                    )
+
+                    # If the revision can be resolved and it doesn't match the current HEAD, checkout the requested revision
+                    if resolved_rev.returncode == 0 and resolved_rev.stdout.strip() != current_rev:
+                        checkout_cmd = ["git", "checkout", "-q", revision]
+                        subprocess.run(checkout_cmd, cwd=str(repo_path), check=True)
+                except subprocess.SubprocessError:
+                    # If there was an error checking or updating the revision, we'll do a fresh clone
+                    pass
+
             # Optionally: git pull to update
             return repo_path
 
         # Use GIT_ASKPASS so the token never appears in argv / process list
         env = os.environ.copy()
-        clone_cmd = ["git", "clone", "--depth=1", url, str(repo_path)]
+
+        # Basic clone command
+        clone_cmd = ["git", "clone"]
+
+        # If a specific revision is provided and it's a branch or tag, specify it directly in the clone
+        # This is more efficient than cloning everything and then checking out
+        if revision and not revision.startswith("@"):  # To avoid SHA-like revisions in clone command
+            # For branches or tags, we can use --branch
+            # For a specific commit, we'll clone first and checkout later
+            if "/" in revision or revision in ["main", "master"] or revision.startswith("v"):
+                clone_cmd.extend(["--branch", revision])
+
+        # Clone with depth=1 for speed if no specific SHA is provided
+        # If a specific SHA is provided, we need the full history to check it out
+        if not revision or not revision.startswith("@"):
+            clone_cmd.append("--depth=1")
+
+        # Add URL and destination
+        clone_cmd.extend([url, str(repo_path)])
 
         if token:
             # Create a temporary ask-pass helper that echoes the token once
@@ -95,6 +162,17 @@ class Repository:
 
         try:
             subprocess.run(clone_cmd, env=env, check=True)
+
+            # If a specific SHA was provided, checkout after cloning
+            if revision and (revision.startswith("@") or "@" in revision):
+                # Extract the SHA part - support both @sha format and ref@sha format
+                sha = revision.split("@")[-1]
+                checkout_cmd = ["git", "checkout", sha]
+                subprocess.run(checkout_cmd, cwd=str(repo_path), check=True)
+            elif revision:
+                # Ensure the revision is checked out (for cases where --branch might not have worked)
+                checkout_cmd = ["git", "checkout", revision]
+                subprocess.run(checkout_cmd, cwd=str(repo_path), check=True)
         finally:
             if token:
                 try:
