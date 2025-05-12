@@ -1,13 +1,11 @@
 """Handles code summarization using LLMs."""
 
 import logging
-import os
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import tiktoken
 
-from kit.models.base import LLMClientProtocol, LLMError
+from kit.models.base import LLMError
 from kit.models.config import AnthropicConfig, GoogleConfig, OpenAIConfig
 
 # Conditionally import google.genai
