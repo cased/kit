@@ -1,0 +1,33 @@
+# Base configuration from pyproject.toml
+line-length = 120
+target-version = "py310"
+
+[lint]
+select = ["E", "F", "W", "I", "RUF"]
+# Ignore unicode dash issues - these are stylistic
+ignore = ["RUF002", "RUF003", "E741"]
+
+# Ignore specific issues in certain files
+[lint.per-file-ignores]
+# Example files don't need strict import ordering
+"tests/examples/**/*.py" = ["E402"]
+"src/kit/mcp/__main__.py" = ["E402"]
+
+# Test files can have long lines in test data
+"tests/**/*.py" = ["E501"]
+
+# Allow mutable default attributes in these files
+"src/kit/tree_sitter_symbol_extractor.py" = ["RUF012", "E501"]
+"src/kit/summaries.py" = ["RUF012", "E501"]
+
+# MCP files have complex formatting needs and may exceed line limits
+"src/kit/mcp/**/*.py" = ["E501"]
+
+# Library files with long lines we'll fix later
+"src/kit/**/*.py" = ["E501"]
+
+# Files to skip import sorting completely
+"**/__init__.py" = ["F401"]
+
+[lint.isort]
+known-first-party = ["kit", "cased_kit"] 

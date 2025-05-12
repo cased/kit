@@ -25,7 +25,6 @@ dependencies = [
     "python-hcl2>=7.2.0",
     "mypy",
     "ruff",
-    "black",
     "mcp==1.8.0"
 ]
 
@@ -66,3 +65,23 @@ dev = [
     "build", # build wheels
     "twine",  # publish to PyPI
 ]
+
+[tool.ruff]
+# Set line length to 120 characters
+line-length = 120
+# Target Python 3.10 as specified in our requires-python
+target-version = "py310"
+
+# Configure linting
+[tool.ruff.lint]
+# Select these rule sets (categories)
+select = ["E", "F", "W", "I", "RUF"]
+ignore = []
+
+# Configure isort rules
+[tool.ruff.lint.isort]
+known-first-party = ["kit", "cased_kit"]
+
+# Configure formatter
+[tool.ruff.format]
+# Formatting uses line-length from the top level

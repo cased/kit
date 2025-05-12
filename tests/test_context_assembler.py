@@ -1,4 +1,5 @@
-from kit import Repository, ContextAssembler
+from kit import ContextAssembler, Repository
+
 
 def test_context_assembler_basic(tmp_path):
     # Create a simple repo with one file

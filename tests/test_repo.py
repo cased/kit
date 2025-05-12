@@ -1,7 +1,10 @@
-import tempfile
 import os
+import tempfile
+
 import pytest
+
 from kit import Repository
+
 
 def test_repo_get_file_tree_and_symbols():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -25,10 +28,14 @@ def baz(): pass
         assert "class" in types
         assert "function" in types
 
-@pytest.mark.parametrize("structure", [
-    ["a.py", "b.py", "c.txt"],
-    ["dir1/x.py", "dir2/y.py"],
-])
+
+@pytest.mark.parametrize(
+    "structure",
+    [
+        ["a.py", "b.py", "c.txt"],
+        ["dir1/x.py", "dir2/y.py"],
+    ],
+)
 def test_repo_file_tree_various(structure):
     with tempfile.TemporaryDirectory() as tmpdir:
         for relpath in structure:
@@ -40,6 +47,7 @@ def test_repo_file_tree_various(structure):
         tree = repository.get_file_tree()
         for relpath in structure:
             assert any(item["path"].endswith(relpath) for item in tree)
+
 
 def test_repo_get_file_content():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -54,7 +62,7 @@ def test_repo_get_file_content():
         empty_file_path = "empty.txt"
         full_empty_file_path = os.path.join(tmpdir, empty_file_path)
         with open(full_empty_file_path, "w") as f:
-            pass # Create an empty file
+            pass  # Create an empty file
 
         repository = Repository(tmpdir)
 
@@ -72,5 +80,5 @@ def test_repo_get_file_content():
             repository.get_file_content(non_existent_file_path)
 
         # Test 4: Attempt to read content from a directory (should also fail)
-        with pytest.raises(IOError): # Or perhaps FileNotFoundError or IsADirectoryError, adjust as per actual behavior
+        with pytest.raises(IOError):  # Or perhaps FileNotFoundError or IsADirectoryError, adjust as per actual behavior
             repository.get_file_content("dir1")

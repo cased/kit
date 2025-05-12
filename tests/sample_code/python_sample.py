@@ -7,4 +7,4 @@ class Greeter:
         self.name = name
 
     def greet(self) -> str:
-        return f"Hello {self.name}" 
+        return f"Hello {self.name}"

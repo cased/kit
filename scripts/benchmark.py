@@ -1,8 +1,11 @@
 import time
+
 from kit.repository import Repository as Repo
+
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="Benchmark kit repo indexing.")
     parser.add_argument("repo", nargs="?", default=".", help="Path to repo root (default: .)")
     args = parser.parse_args()
@@ -15,6 +18,7 @@ def main():
     num_files = len(idx["file_tree"])
     num_symbols = sum(len(syms) for syms in idx["symbols"].values())
     print(f"Indexed {num_files} files, {num_symbols} symbols in {elapsed:.2f} seconds.")
+
 
 if __name__ == "__main__":
     main()

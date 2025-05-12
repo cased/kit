@@ -1,13 +1,14 @@
 """FastAPI application exposing core kit capabilities."""
+
 from __future__ import annotations
 
 from typing import Dict
 
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import Body, FastAPI, HTTPException
 from pydantic import BaseModel
 
-from ..repository import Repository
 from ..llm_context import ContextAssembler
+from ..repository import Repository
 
 app = FastAPI(title="kit API", version="0.1.0")
 

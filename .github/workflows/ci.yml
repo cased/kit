@@ -31,6 +31,10 @@ jobs:
           source .venv/bin/activate
           # Run mypy type checking
           mypy src/kit
+          # Run ruff linter
+          ruff check .
+          # Run ruff formatter check (non-modifying)
+          ruff format --check .
       - name: Run Tests
         run: |
           # Activate the virtual environment

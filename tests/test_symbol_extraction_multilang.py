@@ -1,6 +1,3 @@
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
@@ -12,6 +9,7 @@ SAMPLES = {
     ".java": "class Bar { void foo() {} }\n",
     ".rs": "fn foo() {}\nstruct Bar;\n",
 }
+
 
 @pytest.mark.parametrize("ext,code", list(SAMPLES.items()))
 def test_symbol_extraction(ext: str, code: str):

@@ -1,17 +1,17 @@
 """Failing tests specifying desired incremental behaviour for DocstringIndexer."""
 
-import os
-import shutil
 import hashlib
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from kit import Repository, DocstringIndexer
+from kit import DocstringIndexer, Repository
 from kit.vector_searcher import VectorDBBackend
 
 FIXTURE_REPO = Path(__file__).parent / "fixtures" / "realistic_repo"
+
 
 class DummyBackend(VectorDBBackend):
     """Minimal in-memory backend with delete support for tests."""
@@ -43,6 +43,7 @@ class DummyBackend(VectorDBBackend):
                 self.embeddings.pop(idx)
                 self.metadatas.pop(idx)
 
+
 @pytest.fixture(scope="function")
 def realistic_repo(tmp_path):
     # Copy fixture repo to tmp so we can mutate files safely
@@ -62,7 +63,9 @@ def test_incremental_indexing(realistic_repo):
     summarizer.summarize_function.side_effect = lambda p, s: f"F-{s}"
     summarizer.summarize_class.side_effect = lambda p, s: f"C-{s}"
 
-    embed_fn = lambda t: [float(len(t))]
+    def embed_fn(t):
+        return [float(len(t))]
+
     backend = DummyBackend()
     indexer = DocstringIndexer(realistic_repo, summarizer, embed_fn, backend=backend)
 

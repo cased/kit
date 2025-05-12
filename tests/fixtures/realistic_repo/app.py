@@ -7,7 +7,7 @@ from utils import greet
 
 def main() -> None:
     """Run an expanded demo workflow showcasing more features."""
-    print("Kit Realistic Repo Demo\n" + "="*30)
+    print("Kit Realistic Repo Demo\n" + "=" * 30)
 
     auth_service = AuthService()
 
@@ -76,12 +76,12 @@ def main() -> None:
     # 5. Demonstrate deactivation with Bob
     print("\n--- Operations with Bob ---")
     bob_token = auth_service.login(username="bob", password="password")
-    if bob_token and bob: 
+    if bob_token and bob:
         print(f"Bob logged in. Token: {bob_token[:8]}...")
         retrieved_bob = auth_service.get_user_from_token(bob_token)
         if retrieved_bob:
             print(f"Deactivating Bob ({retrieved_bob.name})...")
-            retrieved_bob.deactivate() 
+            retrieved_bob.deactivate()
             print(f"Bob's account status: {'active' if retrieved_bob.is_active else 'inactive'}")
 
             print("Attempting to log in deactivated Bob...")
@@ -92,7 +92,7 @@ def main() -> None:
                 print("ERROR: Deactivated Bob was able to log in.")
         else:
             print("Could not retrieve Bob from token for deactivation.")
-        
+
         # Logout Bob if he was logged in
         auth_service.logout(bob_token)
         print("Bob logged out.")

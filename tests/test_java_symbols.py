@@ -1,11 +1,15 @@
-import tempfile, os
+import os
+import tempfile
+
 from kit import Repository
+
 
 def _extract(tmpdir: str, filename: str, content: str):
     path = os.path.join(tmpdir, filename)
     with open(path, "w") as f:
         f.write(content)
     return Repository(tmpdir).extract_symbols(filename)
+
 
 def test_java_symbols():
     code = """

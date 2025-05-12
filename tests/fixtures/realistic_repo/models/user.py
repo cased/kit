@@ -2,7 +2,7 @@
 
 import time
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from ..utils import is_valid_email
 

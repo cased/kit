@@ -1,5 +1,5 @@
 import os
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 try:
     import chromadb
@@ -7,12 +7,12 @@ try:
 except ImportError:
     chromadb = None  # type: ignore[assignment]
 
-from pathlib import Path
 
 class VectorDBBackend:
     """
     Abstract vector DB interface for pluggable backends.
     """
+
     def add(self, embeddings: List[List[float]], metadatas: List[Dict[str, Any]], ids: Optional[List[str]] = None):
         raise NotImplementedError
 
@@ -21,13 +21,14 @@ class VectorDBBackend:
 
     def persist(self):
         pass
-    
-    def delete(self, ids: List[str]):  # noqa: D401 – simple interface, no return
+
+    def delete(self, ids: List[str]):
         """Remove vectors by their IDs. Backends that don't support fine-grained deletes may no-op."""
         raise NotImplementedError
 
     def count(self) -> int:
         raise NotImplementedError
+
 
 class ChromaDBBackend(VectorDBBackend):
     def __init__(self, persist_dir: str, collection_name: Optional[str] = None):
@@ -35,7 +36,7 @@ class ChromaDBBackend(VectorDBBackend):
             raise ImportError("chromadb is not installed. Run 'pip install chromadb'.")
         self.persist_dir = persist_dir
         self.client = chromadb.Client(Settings(persist_directory=persist_dir))
-        
+
         final_collection_name = collection_name
         if final_collection_name is None:
             # Use a collection name scoped to persist_dir to avoid dimension clashes across multiple tests/processes
@@ -50,19 +51,19 @@ class ChromaDBBackend(VectorDBBackend):
         # This behavior of clearing the collection on 'add' might need review.
         # If the goal is to truly overwrite, this is one way. If it's to append
         # or update, this logic would need to change. For now, assuming overwrite.
-        if self.collection.count() > 0: # Check if collection has items before deleting
+        if self.collection.count() > 0:  # Check if collection has items before deleting
             try:
                 # Attempt to delete all existing documents. This is a common pattern for a full refresh.
                 # Chroma's API for deleting all can be tricky; using a non-empty ID match is a workaround.
                 # If a more direct `clear()` or `delete_all()` method becomes available, prefer that.
-                self.collection.delete(where={"source": {"$ne": "impossible_source_value_to_match_all"}}) # type: ignore[dict-item]
+                self.collection.delete(where={"source": {"$ne": "impossible_source_value_to_match_all"}})  # type: ignore[dict-item]
                 # Or, if you know a common metadata key, like 'file_path' from previous version:
                 # self.collection.delete(where={"file_path": {"$ne": "impossible_file_path"}})
-            except Exception as e:
+            except Exception:
                 # Log or handle cases where delete might fail or is not supported as expected.
                 # For instance, if the collection was empty, some backends might error on delete-all attempts.
                 # logger.warning(f"Could not clear collection before adding: {e}")
-                pass # Continue to add, might result in duplicates if not truly cleared.
+                pass  # Continue to add, might result in duplicates if not truly cleared.
 
         final_ids = ids
         if final_ids is None:
@@ -102,6 +103,7 @@ class ChromaDBBackend(VectorDBBackend):
         except Exception:
             # Some Chroma versions require where filter; fall back to no-op
             pass
+
 
 class VectorSearcher:
     def __init__(self, repo, embed_fn, backend: Optional[VectorDBBackend] = None, persist_dir: Optional[str] = None):

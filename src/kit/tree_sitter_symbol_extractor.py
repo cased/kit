@@ -1,9 +1,10 @@
-import os
 import logging
+import os
 import traceback
 from pathlib import Path
-from typing import List, Dict, Optional, Any, ClassVar, cast
-from tree_sitter_language_pack import get_parser, get_language
+from typing import Any, ClassVar, Dict, List, Optional, cast
+
+from tree_sitter_language_pack import get_language, get_parser
 
 # Set up module-level logger
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ LANGUAGES: dict[str, str] = {
 # as a regular, site-packages distribution. We walk up from this file's location
 # until we find a sibling directory called ``queries``.
 
+
 def _locate_queries_root() -> str:
     """Return the absolute path to the bundled *queries* directory.
 
@@ -47,11 +49,13 @@ def _locate_queries_root() -> str:
 # Absolute path to the *queries* directory discovered at import time
 QUERIES_ROOT: str = _locate_queries_root()
 
+
 class TreeSitterSymbolExtractor:
     """
     Multi-language symbol extractor using tree-sitter queries (tags.scm).
     Register new languages by adding to LANGUAGES and providing a tags.scm.
     """
+
     LANGUAGES = set(LANGUAGES.keys())
     _parsers: ClassVar[dict[str, Any]] = {}
     _queries: ClassVar[dict[str, Any]] = {}
@@ -77,7 +81,7 @@ class TreeSitterSymbolExtractor:
 
         lang_name = LANGUAGES[ext]
         logger.debug(f"get_query: lang={lang_name}")
-        query_dir: str = lang_name 
+        query_dir: str = lang_name
         tags_path: str = os.path.join(QUERIES_ROOT, query_dir, "tags.scm")
         logger.debug(f"get_query: tags_path={tags_path} exists={os.path.exists(tags_path)}")
         if not os.path.exists(tags_path):
@@ -85,7 +89,7 @@ class TreeSitterSymbolExtractor:
             return None
         try:
             language = get_language(cast(Any, lang_name))  # type: ignore[arg-type]
-            with open(tags_path, 'r') as f:
+            with open(tags_path, "r") as f:
                 tags_content = f.read()
             query = language.query(tags_content)
             cls._queries[ext] = query
@@ -93,7 +97,7 @@ class TreeSitterSymbolExtractor:
             return query
         except Exception as e:
             logger.error(f"get_query: Query compile error for ext {ext}: {e}")
-            logger.error(traceback.format_exc()) # Log stack trace
+            logger.error(traceback.format_exc())  # Log stack trace
             return None
 
     @staticmethod
@@ -122,10 +126,10 @@ class TreeSitterSymbolExtractor:
 
                 # Determine symbol name: prefer @name, fallback to @type for blocks like terraform/locals
                 node_candidate = None
-                if 'name' in captures:
-                    node_candidate = captures['name']
-                elif 'type' in captures:
-                    node_candidate = captures['type']
+                if "name" in captures:
+                    node_candidate = captures["name"]
+                elif "type" in captures:
+                    node_candidate = captures["type"]
                 else:
                     # Fallback: take the first capture node
                     first_capture_node = next(iter(captures.values()), None)
@@ -142,68 +146,76 @@ class TreeSitterSymbolExtractor:
                     actual_name_node = node_candidate
 
                 # Now extract symbol name as before
-                symbol_name = actual_name_node.text.decode() if hasattr(actual_name_node, 'text') else str(actual_name_node)
+                symbol_name = (
+                    actual_name_node.text.decode() if hasattr(actual_name_node, "text") else str(actual_name_node)
+                )
                 # HCL: Strip quotes from string literals
-                if ext == '.tf' and hasattr(actual_name_node, 'type') and actual_name_node.type == 'string_lit':
+                if ext == ".tf" and hasattr(actual_name_node, "type") and actual_name_node.type == "string_lit":
                     if len(symbol_name) >= 2 and symbol_name.startswith('"') and symbol_name.endswith('"'):
                         symbol_name = symbol_name[1:-1]
 
-                definition_capture = next(((name, node) for name, node in captures.items() if name.startswith("definition.")), None)
+                definition_capture = next(
+                    ((name, node) for name, node in captures.items() if name.startswith("definition.")), None
+                )
                 subtype = None
                 if definition_capture:
                     definition_capture_name, definition_node = definition_capture
-                    symbol_type = definition_capture_name.split('.')[-1]
+                    symbol_type = definition_capture_name.split(".")[-1]
                     # HCL: For resource/data, combine type and name, and set subtype to the specific resource/data type
-                    if ext == '.tf' and symbol_type in ["resource", "data"]:
-                        type_node = captures.get('type')
+                    if ext == ".tf" and symbol_type in ["resource", "data"]:
+                        type_node = captures.get("type")
                         if type_node:
                             if isinstance(type_node, list):
                                 type_node = type_node[0] if type_node else None
-                            if type_node and hasattr(type_node, 'text'):
+                            if type_node and hasattr(type_node, "text"):
                                 type_name = type_node.text.decode()
-                                if hasattr(type_node, 'type') and type_node.type == 'string_lit':
+                                if hasattr(type_node, "type") and type_node.type == "string_lit":
                                     if len(type_name) >= 2 and type_name.startswith('"') and type_name.endswith('"'):
                                         type_name = type_name[1:-1]
                                 symbol_name = f"{type_name}.{symbol_name}"
                                 subtype = type_name
                 else:
                     # Fallback: infer symbol type from first capture label (e.g., 'function', 'class')
-                    fallback_label = next(iter(captures.keys()), 'symbol')
-                    symbol_type = fallback_label.lstrip('definition.').lstrip('@')
+                    fallback_label = next(iter(captures.keys()), "symbol")
+                    symbol_type = fallback_label.lstrip("definition.").lstrip("@")
 
                 # Determine the node for the full symbol body, its span, and its code content.
                 # Default to actual_name_node if no specific body capture is found.
-                node_for_body_span_and_code = actual_name_node 
+                node_for_body_span_and_code = actual_name_node
                 if definition_capture:
-                    _, captured_body_node = definition_capture # This is the node from @definition.foo
+                    _, captured_body_node = definition_capture  # This is the node from @definition.foo
                     temp_body_node = None
                     if isinstance(captured_body_node, list):
                         temp_body_node = captured_body_node[0] if captured_body_node else None
                     else:
                         temp_body_node = captured_body_node
-                    
-                    if temp_body_node: # If a valid body node was found from definition_capture
+
+                    if temp_body_node:  # If a valid body node was found from definition_capture
                         node_for_body_span_and_code = temp_body_node
 
                 # Extract start_line, end_line, and code content from node_for_body_span_and_code
                 symbol_start_line = node_for_body_span_and_code.start_point[0]
                 symbol_end_line = node_for_body_span_and_code.end_point[0]
-                
-                if hasattr(node_for_body_span_and_code, 'text') and isinstance(node_for_body_span_and_code.text, bytes):
-                    symbol_code_content = node_for_body_span_and_code.text.decode('utf-8', errors='ignore')
-                elif hasattr(node_for_body_span_and_code, 'start_byte') and hasattr(node_for_body_span_and_code, 'end_byte'):
+
+                if hasattr(node_for_body_span_and_code, "text") and isinstance(node_for_body_span_and_code.text, bytes):
+                    symbol_code_content = node_for_body_span_and_code.text.decode("utf-8", errors="ignore")
+                elif hasattr(node_for_body_span_and_code, "start_byte") and hasattr(
+                    node_for_body_span_and_code, "end_byte"
+                ):
                     # Fallback for nodes where .text might not be the full desired content or not directly available as decodable bytes
-                    symbol_code_content = source_code[node_for_body_span_and_code.start_byte:node_for_body_span_and_code.end_byte]
+                    symbol_code_content = source_code[
+                        node_for_body_span_and_code.start_byte : node_for_body_span_and_code.end_byte
+                    ]
                 else:
                     # Last resort, if node_for_body_span_and_code is unusual and lacks .text (bytes) or start/end_byte
-                    symbol_code_content = symbol_name # Fallback to just the name string
+                    symbol_code_content = symbol_name  # Fallback to just the name string
 
                 symbol = {
-                    "name": symbol_name, # symbol_name is from actual_name_node, potentially modified by HCL logic
+                    "name": symbol_name,  # symbol_name is from actual_name_node, potentially modified by HCL logic
                     "type": symbol_type,
                     "start_line": symbol_start_line,
                     "end_line": symbol_end_line,
-                    "code": symbol_code_content, 
+                    "code": symbol_code_content,
                 }
                 if subtype:
                     symbol["subtype"] = subtype
@@ -213,7 +225,7 @@ class TreeSitterSymbolExtractor:
         except Exception as e:
             logger.error(f"[EXTRACT] Error parsing or processing file with ext {ext}: {e}")
             logger.error(traceback.format_exc())
-            return [] # Return empty list on error
+            return []  # Return empty list on error
 
         logger.debug(f"[EXTRACT] Finished extraction for ext {ext}. Found {len(symbols)} symbols.")
         return symbols

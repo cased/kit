@@ -8,9 +8,10 @@ LANG_SAMPLES = {
     "tsx": b"const foo = <T extends unknown>() => <div />;\n",
     "go": b"func foo() int { return 42 }\n",
     "rust": b"fn foo() -> i32 { 42 }\n",
-    "hcl": b"variable \"foo\" { default = 42 }\n",
+    "hcl": b'variable "foo" { default = 42 }\n',
     "c": b"int foo() { return 42; }\n",
 }
+
 
 @pytest.mark.parametrize("lang,src", LANG_SAMPLES.items())
 def test_parser_root_node(lang, src):

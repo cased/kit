@@ -1,14 +1,18 @@
 from __future__ import annotations
+
+import ast
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import ast
+
 from .tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
+
 
 class ContextExtractor:
     """
     Extracts context from source code files for chunking, search, and LLM workflows.
     Supports chunking by lines, symbols, and function/class scope.
     """
+
     def __init__(self, repo_path: str) -> None:
         self.repo_path: Path = Path(repo_path)
 
@@ -57,12 +61,12 @@ class ContextExtractor:
             try:
                 tree = ast.parse(code, filename=str(abs_path))
                 best_node = None
-                min_length = float('inf')
+                min_length = float("inf")
 
                 for node in ast.walk(tree):
                     if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
                         start_lineno = node.lineno
-                        end_lineno = getattr(node, 'end_lineno', start_lineno)
+                        end_lineno = getattr(node, "end_lineno", start_lineno)
 
                         if start_lineno is not None and end_lineno is not None and start_lineno <= line <= end_lineno:
                             current_length = end_lineno - start_lineno
@@ -70,30 +74,34 @@ class ContextExtractor:
                                 min_length = current_length
                                 best_node = node
                             # If lengths are equal, prefer functions/methods over classes if one contains the other
-                            elif current_length == min_length and isinstance(node, ast.FunctionDef) and isinstance(best_node, ast.ClassDef):
+                            elif (
+                                current_length == min_length
+                                and isinstance(node, ast.FunctionDef)
+                                and isinstance(best_node, ast.ClassDef)
+                            ):
                                 # This heuristic helps if a class and a method start on the same line (unlikely for typical formatting)
                                 # A more robust check would be full containment, but this is simpler.
-                                best_node = node 
+                                best_node = node
 
                 if best_node:
                     start = best_node.lineno
-                    end = getattr(best_node, 'end_lineno', start)
-                    code_block = "".join(all_lines[start-1:end])
+                    end = getattr(best_node, "end_lineno", start)
+                    code_block = "".join(all_lines[start - 1 : end])
                     return {
                         "type": "function" if isinstance(best_node, ast.FunctionDef) else "class",
                         "name": best_node.name,
-                        "code": code_block
+                        "code": code_block,
                     }
-            except Exception: # If AST parsing fails, fall through to generic line-based chunking
-                pass 
- 
-         # For other languages or Python AST failure: fallback to chunk by lines
+            except Exception:  # If AST parsing fails, fall through to generic line-based chunking
+                pass
+
+        # For other languages or Python AST failure: fallback to chunk by lines
         context_delta = 10
         # `line` is 1-indexed, list `all_lines` is 0-indexed
         target_line_0_indexed = line - 1
 
         if not (0 <= target_line_0_indexed < len(all_lines)):
-            return None # Line number out of bounds
+            return None  # Line number out of bounds
 
         start_chunk_0_indexed = max(0, target_line_0_indexed - context_delta)
         end_chunk_0_indexed = min(len(all_lines), target_line_0_indexed + context_delta + 1)
@@ -102,6 +110,6 @@ class ContextExtractor:
 
         return {
             "type": "code_chunk",
-            "name": f"{Path(file_path).name}:{line}", # Use Path(file_path).name to get filename
-            "code": code_block_chunk
+            "name": f"{Path(file_path).name}:{line}",  # Use Path(file_path).name to get filename
+            "code": code_block_chunk,
         }

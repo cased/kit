@@ -1,5 +1,6 @@
-import pytest
 from pathlib import Path
+
+import pytest
 
 from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
 
@@ -37,4 +38,4 @@ def test_sample_symbol_extraction(filename: str, expected: set[str]):
     names = {s["name"] for s in symbols if "name" in s}
 
     missing = expected - names
-    assert not missing, f"Expected symbols not found in {filename}: {missing}" 
+    assert not missing, f"Expected symbols not found in {filename}: {missing}"

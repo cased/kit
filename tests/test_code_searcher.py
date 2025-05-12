@@ -1,6 +1,8 @@
-import tempfile
 import os
+import tempfile
+
 from kit import CodeSearcher
+
 
 def test_search_text_basic():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -17,6 +19,7 @@ def bar(): pass
         matches_bar = searcher.search_text("bar")
         assert any("bar" in m["line"] for m in matches_bar)
 
+
 def test_search_text_multiple_files():
     with tempfile.TemporaryDirectory() as tmpdir:
         files = ["a.py", "b.py", "c.txt"]
@@ -27,6 +30,7 @@ def test_search_text_multiple_files():
         matches = searcher.search_text("def ", file_pattern="*.py")
         assert len(matches) == 2
         assert all(m["file"].endswith(".py") for m in matches)
+
 
 def test_search_text_regex():
     with tempfile.TemporaryDirectory() as tmpdir:

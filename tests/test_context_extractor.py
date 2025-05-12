@@ -1,6 +1,8 @@
 import tempfile
 from pathlib import Path
+
 from kit import ContextExtractor
+
 
 def test_chunk_file_by_lines():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -11,6 +13,7 @@ def test_chunk_file_by_lines():
         chunks = extractor.chunk_file_by_lines("test.py", max_lines=3)
         assert len(chunks) > 0
         assert all(isinstance(chunk, str) for chunk in chunks)
+
 
 def test_chunk_file_by_symbols():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -25,6 +28,7 @@ def test_chunk_file_by_symbols():
         types = {c["type"] for c in chunks}
         assert "class" in types
         assert "function" in types
+
 
 def test_extract_context_around_line():
     with tempfile.TemporaryDirectory() as tmpdir_str:
@@ -65,7 +69,7 @@ def another_func():
         assert ctx_class["name"] == "MyClass"
         assert "class_var = 10" in ctx_class["code"]
         assert "def __init__" in ctx_class["code"]
-        assert "another_func" not in ctx_class["code"] # Ensure it doesn't grab unrelated parts
+        assert "another_func" not in ctx_class["code"]  # Ensure it doesn't grab unrelated parts
 
         # --- Test 3: Python file, line is top-level (should use fallback) ---
         py_file_toplevel = tmpdir / "py_toplevel.py"
@@ -102,23 +106,23 @@ def another_valid_func():
         assert ctx_syntax_error["type"] == "code_chunk"
         assert ctx_syntax_error["name"] == "py_syntax_error.py:3"
         assert "this_is_a_syntax_error x =" in ctx_syntax_error["code"]
-        assert "def valid_func()" in ctx_syntax_error["code"] # Part of the chunk
-        assert "def another_valid_func()" in ctx_syntax_error["code"] # Part of the chunk
+        assert "def valid_func()" in ctx_syntax_error["code"]  # Part of the chunk
+        assert "def another_valid_func()" in ctx_syntax_error["code"]  # Part of the chunk
 
         # --- Test 5: Non-Python file (e.g., .txt) ---
         txt_file = tmpdir / "test.txt"
-        txt_file_lines = [f"Line {i+1}\n" for i in range(30)]
+        txt_file_lines = [f"Line {i + 1}\n" for i in range(30)]
         txt_file_content = "".join(txt_file_lines)
         with open(txt_file, "w") as f:
             f.write(txt_file_content)
-        
+
         # Target line 15 (0-indexed 14)
         # Expect lines 5 to 25 (0-indexed 4 to 24)
         ctx_txt = extractor.extract_context_around_line("test.txt", 15)
         assert ctx_txt is not None
         assert ctx_txt["type"] == "code_chunk"
         assert ctx_txt["name"] == "test.txt:15"
-        expected_txt_chunk_lines = txt_file_lines[15-1-10 : 15-1+10+1]
+        expected_txt_chunk_lines = txt_file_lines[15 - 1 - 10 : 15 - 1 + 10 + 1]
         assert ctx_txt["code"] == "".join(expected_txt_chunk_lines)
         assert "Line 5" in ctx_txt["code"]
         assert "Line 25" in ctx_txt["code"]
@@ -126,24 +130,24 @@ def another_valid_func():
         assert "Line 26" not in ctx_txt["code"]
 
         # --- Test 6: Line-chunking, near start of file ---
-        ctx_txt_start = extractor.extract_context_around_line("test.txt", 2) # Target line 2
+        ctx_txt_start = extractor.extract_context_around_line("test.txt", 2)  # Target line 2
         assert ctx_txt_start is not None
         assert ctx_txt_start["type"] == "code_chunk"
         assert ctx_txt_start["name"] == "test.txt:2"
         # Expect lines 1 to 12 (0-indexed 0 to 11)
-        expected_txt_start_chunk_lines = txt_file_lines[0 : 2-1+10+1]
+        expected_txt_start_chunk_lines = txt_file_lines[0 : 2 - 1 + 10 + 1]
         assert ctx_txt_start["code"] == "".join(expected_txt_start_chunk_lines)
         assert "Line 1" in ctx_txt_start["code"]
         assert "Line 12" in ctx_txt_start["code"]
         assert "Line 13" not in ctx_txt_start["code"]
 
         # --- Test 7: Line-chunking, near end of file ---
-        ctx_txt_end = extractor.extract_context_around_line("test.txt", 29) # Target line 29 in 30 line file
+        ctx_txt_end = extractor.extract_context_around_line("test.txt", 29)  # Target line 29 in 30 line file
         assert ctx_txt_end is not None
         assert ctx_txt_end["type"] == "code_chunk"
         assert ctx_txt_end["name"] == "test.txt:29"
         # Expect lines 19 to 30 (0-indexed 18 to 29)
-        expected_txt_end_chunk_lines = txt_file_lines[29-1-10 : 30]
+        expected_txt_end_chunk_lines = txt_file_lines[29 - 1 - 10 : 30]
         assert ctx_txt_end["code"] == "".join(expected_txt_end_chunk_lines)
         assert "Line 19" in ctx_txt_end["code"]
         assert "Line 30" in ctx_txt_end["code"]
@@ -166,7 +170,7 @@ def another_valid_func():
         assert ctx_short_txt is not None
         assert ctx_short_txt["type"] == "code_chunk"
         assert ctx_short_txt["name"] == "short_test.txt:2"
-        assert ctx_short_txt["code"] == short_txt_content # Should be the whole file
+        assert ctx_short_txt["code"] == short_txt_content  # Should be the whole file
 
         # --- Test 10: Python file, line in class method ---
         py_file_method = tmpdir / "py_method.py"
@@ -179,7 +183,7 @@ def another_valid_func():
             f.write(py_method_content)
         ctx_method = extractor.extract_context_around_line("py_method.py", 3)
         assert ctx_method is not None
-        assert ctx_method["type"] == "function" # AST considers methods as FunctionDef
+        assert ctx_method["type"] == "function"  # AST considers methods as FunctionDef
         assert ctx_method["name"] == "a_method"
-        assert "print(\"inside method\")" in ctx_method["code"]
-        assert "class AnotherClass:" not in ctx_method["code"] # Should be just the method
+        assert 'print("inside method")' in ctx_method["code"]
+        assert "class AnotherClass:" not in ctx_method["code"]  # Should be just the method
