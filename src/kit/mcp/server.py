@@ -140,8 +140,7 @@ class SemanticSearchParams(BaseModel):
 
 class GetDocumentationParams(BaseModel):
     repo_id: str
-    symbol_name: Optional[str] = None
-    file_path: Optional[str] = None
+    file_path: str
 
 
 class GetCodeSummaryParams(BaseModel):
@@ -274,13 +273,24 @@ class KitServerLogic:
         return analyzer.search(query)
 
     def get_documentation(
-        self, repo_id: str, symbol_name: Optional[str], file_path: Optional[str]
+        self, repo_id: str, file_path: str
     ) -> Any:
+        repo = self.get_repo(repo_id)
         analyzer = self.get_analyzer(repo_id, "docstring_indexer")
-        if file_path:
-            safe = self._check_within_repo(self.get_repo(repo_id), file_path)
-            file_path = str(safe.relative_to(Path(self.get_repo(repo_id).repo_path)))
-        return analyzer.get_documentation(symbol_name=symbol_name, file_path=file_path)
+        
+        safe = self._check_within_repo(repo, file_path)
+        file_path = str(safe.relative_to(Path(repo.repo_path)))
+        
+        # Get file-level documentation
+        try:
+            summary = analyzer.summarizer.summarize_file(file_path)
+            return {
+                "file_path": file_path,
+                "summary": summary,
+                "level": "file"
+            }
+        except Exception as e:
+            raise MCPError(code=INVALID_PARAMS, message=f"Failed to get file documentation: {str(e)}")
 
     def get_code_summary(
         self, repo_id: str, file_path: str, symbol_name: Optional[str] = None
@@ -331,7 +341,7 @@ class KitServerLogic:
 
     def list_prompts(self) -> list[Prompt]:
         return [
-        Prompt(
+            Prompt(
             name="open_repo",
             description="Open a repository and explore its contents",
             arguments=[
@@ -394,7 +404,6 @@ class KitServerLogic:
             description="Extract docstrings or documentation from code",
             arguments=[
                 PromptArgument(name="repo_id", description="ID of the repository", required=True),
-                PromptArgument(name="symbol_name", description="Symbol to get documentation for", required=False),
                 PromptArgument(name="file_path", description="File to extract documentation from", required=False),
             ],
         ),
@@ -458,7 +467,7 @@ class KitServerLogic:
                 case "get_documentation":
                     gd_args = GetDocumentationParams(**arguments)
                     docs = self.get_documentation(
-                        gd_args.repo_id, gd_args.symbol_name, gd_args.file_path
+                        gd_args.repo_id, gd_args.file_path
                     )
                     return GetPromptResult(description="Documentation", messages=[PromptMessage(role="user", content=TextContent(type="text", text=json.dumps(docs, indent=2)))])
                 case "get_code_summary":
@@ -609,7 +618,7 @@ async def serve() -> None:
             elif name == "get_documentation":
                 gd_args = GetDocumentationParams(**arguments)
                 docs = logic.get_documentation(
-                    gd_args.repo_id, gd_args.symbol_name, gd_args.file_path
+                    gd_args.repo_id, gd_args.file_path
                 )
                 return [TextContent(type="text", text=json.dumps(docs, indent=2))]
             elif name == "get_code_summary":
