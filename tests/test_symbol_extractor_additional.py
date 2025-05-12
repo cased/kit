@@ -11,6 +11,7 @@ from kit import Repository, TreeSitterSymbolExtractor
 
 # ------------------ Helpers ------------------
 
+
 def _write_tmp_and_extract(tmpdir: str, filename: str, content: str):
     """Utility that writes *content* to *filename* inside *tmpdir* and extracts symbols."""
     path = os.path.join(tmpdir, filename)
@@ -21,6 +22,7 @@ def _write_tmp_and_extract(tmpdir: str, filename: str, content: str):
 
 
 # ------------------ Language Smoke-Tests ------------------
+
 
 @pytest.mark.parametrize(
     "fname,source,expected_names",
@@ -70,46 +72,47 @@ def test_symbol_extraction_smoke(fname, source, expected_names):
 
 # ------------------ Error-Handling Tests ------------------
 
+
 def test_missing_tags_scm(monkeypatch):
     """Simulate missing *tags.scm* for Ruby and ensure extractor fails gracefully."""
-    
+
     TreeSitterSymbolExtractor._queries.pop(".rb", None)
-    
+
     # Mock the joinpath method to raise FileNotFoundError for ruby/tags.scm
     original_joinpath = Path.joinpath
-    
+
     def _mock_joinpath(self, *args):
         path = original_joinpath(self, *args)
         if args and "ruby" in str(args[0]) and isinstance(path, Path) and path.name == "tags.scm":
             # Return a path that doesn't exist
             return Path("/non/existent/path")
         return path
-    
+
     monkeypatch.setattr(Path, "joinpath", _mock_joinpath)
-    
+
     symbols = TreeSitterSymbolExtractor.extract_symbols(".rb", "class Foo; end")
     assert symbols == [], "Expected empty symbol list when tags.scm is missing"
 
 
 def test_corrupt_tags_scm(monkeypatch):
     """Simulate corrupt *tags.scm* content for Rust and ensure extractor fails gracefully."""
-    
+
     TreeSitterSymbolExtractor._queries.pop(".rs", None)
-    
+
     # Mock the read_text method to return invalid query content
     original_read_text = Path.read_text
-    
+
     def _mock_read_text(self, *args, **kwargs):
         if "rust" in str(self) and self.name == "tags.scm":
             return "this is not valid tree-sitter query"
         return original_read_text(self, *args, **kwargs)
-    
+
     monkeypatch.setattr(Path, "read_text", _mock_read_text)
-    
+
     symbols = TreeSitterSymbolExtractor.extract_symbols(".rs", "fn foo() {}")
     assert symbols == [], "Expected empty symbol list when tags.scm is corrupt"
 
 
 def test_unsupported_extension():
     symbols = TreeSitterSymbolExtractor.extract_symbols(".xyz", "whatever")
-    assert symbols == [], "Expected empty symbol list for unsupported extension" 
+    assert symbols == [], "Expected empty symbol list for unsupported extension"

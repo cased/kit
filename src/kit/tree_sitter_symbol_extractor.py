@@ -4,6 +4,7 @@ import traceback
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Optional, cast
 import importlib.resources
+
 try:
     # Python 3.9+
     from importlib.resources import files
@@ -30,6 +31,7 @@ LANGUAGES: dict[str, str] = {
     ".rb": "ruby",
     ".java": "java",
 }
+
 
 class TreeSitterSymbolExtractor:
     """
@@ -67,7 +69,7 @@ class TreeSitterSymbolExtractor:
             language = get_language(cast(Any, lang_name))  # type: ignore[arg-type]
             package_files = files("kit.queries").joinpath(lang_name)
             tags_path = package_files.joinpath("tags.scm")
-            
+
             tags_content = tags_path.read_text(encoding="utf-8")
             query = language.query(tags_content)
             cls._queries[ext] = query
