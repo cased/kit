@@ -1,8 +1,10 @@
 from unittest.mock import patch
 from kit.summaries import LLMError
 import pytest
+import json
+from mcp.types import TextContent
 
-from kit.mcp.server import KitServerLogic, MCPError, INVALID_PARAMS
+from kit.mcp.server import KitServerLogic, MCPError, INVALID_PARAMS, GetFileTreeParams
 
 import uuid
 
@@ -297,3 +299,43 @@ def test_extract_symbols_path_traversal(logic):
     repo_id = logic.open_repository(".")
     with pytest.raises(MCPError):
         logic.extract_symbols(repo_id, "../../secrets.txt")
+
+
+def test_mcp_tool_output_get_file_tree(logic: KitServerLogic):
+    """
+    Tests that the MCP-like processing for the 'get_file_tree' tool
+    correctly formats its output as a JSON string within TextContent.
+    This simulates the behavior of the relevant part of the call_tool handler.
+    """
+    repo_id = logic.open_repository(".")
+    assert repo_id is not None
+
+    tool_arguments = {"repo_id": repo_id}
+    parsed_args = GetFileTreeParams(**tool_arguments)
+    
+    raw_tree_data = logic.get_file_tree(parsed_args.repo_id)
+    assert isinstance(raw_tree_data, list), "logic.get_file_tree should return a list"
+    assert len(raw_tree_data) > 0, "File tree should not be empty for the current directory"
+
+    mcp_formatted_result_list = [TextContent(type="text", text=json.dumps(raw_tree_data, indent=2))]
+
+    assert isinstance(mcp_formatted_result_list, list)
+    assert len(mcp_formatted_result_list) == 1
+    
+    result_content_object = mcp_formatted_result_list[0]
+    assert isinstance(result_content_object, TextContent)
+    assert result_content_object.type == "text"
+    
+    try:
+        parsed_json_payload = json.loads(result_content_object.text) 
+    except json.JSONDecodeError:
+        pytest.fail(f"The result TextContent.text is not valid JSON. Content: {result_content_object.text[:200]}...")
+
+    assert isinstance(parsed_json_payload, list), "Parsed JSON payload should be a list"
+    assert parsed_json_payload == raw_tree_data, "Parsed JSON data does not match raw tree data"
+    
+    first_item_in_json_tree = parsed_json_payload[0]
+    assert isinstance(first_item_in_json_tree, dict)
+    assert "path" in first_item_in_json_tree
+    assert "name" in first_item_in_json_tree
+    assert "is_dir" in first_item_in_json_tree

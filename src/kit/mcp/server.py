@@ -448,9 +448,8 @@ class KitServerLogic:
                     return GetPromptResult(description="Symbol usages", messages=[PromptMessage(role="user", content=TextContent(type="text", text=json.dumps(usages, indent=2)))])
                 case "get_file_tree":
                     gft_args = GetFileTreeParams(**arguments)
-                    # Return URI reference instead of full JSON (avoid large payloads)
-                    self.get_file_tree(gft_args.repo_id)
-                    return GetPromptResult(description="File tree", messages=[PromptMessage(role="user", content=TextContent(type="text", text=f"/repos/{gft_args.repo_id}/tree"))])
+                    tree = self.get_file_tree(gft_args.repo_id)
+                    return GetPromptResult(description="File tree", messages=[PromptMessage(role="user", content=TextContent(type="text", text=json.dumps(tree, indent=2)))])
                 case "semantic_search":
                     ss_args = SemanticSearchParams(**arguments)
                     results = self.semantic_search(ss_args.repo_id, ss_args.query)
@@ -599,9 +598,8 @@ async def serve() -> None:
                 return [TextContent(type="text", text=json.dumps(usages, indent=2))]
             elif name == "get_file_tree":
                 gft_args = GetFileTreeParams(**arguments)
-                # Return URI reference instead of full JSON (avoid large payloads)
-                logic.get_file_tree(gft_args.repo_id)
-                return [TextContent(type="text", text=f"/repos/{gft_args.repo_id}/tree")]
+                tree = logic.get_file_tree(gft_args.repo_id)
+                return [TextContent(type="text", text=json.dumps(tree, indent=2))]
             elif name == "semantic_search":
                 ss_args = SemanticSearchParams(**arguments)
                 results = logic.semantic_search(ss_args.repo_id, ss_args.query)
