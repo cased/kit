@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """Tests for Ruby and C symbol extraction."""
+
 import os
 import tempfile
+
 from kit import Repository
 
 

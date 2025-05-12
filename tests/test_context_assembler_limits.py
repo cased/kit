@@ -1,5 +1,3 @@
-import pytest
-from pathlib import Path
 from kit import Repository
 
 
@@ -49,4 +47,4 @@ def test_include_small_file(tmp_path):
     assembler.add_file("small.py", max_lines=100)
 
     ctx = assembler.format_context()
-    assert "small.py" in ctx 
+    assert "small.py" in ctx

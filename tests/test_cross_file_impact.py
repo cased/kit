@@ -1,7 +1,8 @@
-from kit import Repository
-import tempfile
 import os
 import shutil
+import tempfile
+
+from kit import Repository
 
 TEST_FILES = {
     "a.py": """
@@ -16,8 +17,9 @@ from a import foo
 
 def baz():
     foo()
-"""
+""",
 }
+
 
 def setup_test_repo():
     tmpdir = tempfile.mkdtemp()
@@ -25,6 +27,7 @@ def setup_test_repo():
         with open(os.path.join(tmpdir, fname), "w") as f:
             f.write(content)
     return tmpdir
+
 
 def test_find_symbol_usages():
     repo_dir = setup_test_repo()

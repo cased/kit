@@ -4,8 +4,10 @@ CLI: Index a repo and print the file tree and symbols as JSON
 Usage:
     python scripts/index.py /path/to/repo
 """
-import sys
+
 import json
+import sys
+
 from kit import Repository
 
 if __name__ == "__main__":

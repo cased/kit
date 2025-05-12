@@ -8,7 +8,7 @@ fed straight into a chat completion.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 if TYPE_CHECKING:
     from .repository import Repository
@@ -39,11 +39,15 @@ class ContextAssembler:
             return
         self._sections.append("## Diff\n```diff\n" + diff.strip() + "\n```")
 
-    def add_file(self, file_path: str, *, highlight_changes: bool = False,
-                 max_lines: int | None = None,
-                 max_bytes: int | None = None,
-                 skip_if_name_in: Optional[Sequence[str]] = None,
-                 ) -> None:
+    def add_file(
+        self,
+        file_path: str,
+        *,
+        highlight_changes: bool = False,
+        max_lines: int | None = None,
+        max_bytes: int | None = None,
+        skip_if_name_in: Optional[Sequence[str]] = None,
+    ) -> None:
         """Embed full file content.
 
         If *highlight_changes* is true we still just inline raw content –

@@ -1,25 +1,29 @@
 from __future__ import annotations
+
+import os
+import subprocess
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
-from .repo_mapper import RepoMapper
+
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
-from .vector_searcher import VectorSearcher
 from .llm_context import ContextAssembler
-import os
-import tempfile
-import subprocess
-from pathlib import Path
+from .repo_mapper import RepoMapper
+from .vector_searcher import VectorSearcher
 
 # Use TYPE_CHECKING for Summarizer to avoid circular imports
 if TYPE_CHECKING:
-    from .summaries import Summarizer, OpenAIConfig, AnthropicConfig, GoogleConfig
     from .dependency_analyzer.dependency_analyzer import DependencyAnalyzer
+    from .summaries import AnthropicConfig, GoogleConfig, OpenAIConfig, Summarizer
+
 
 class Repository:
     """
     Main interface for codebase operations: file tree, symbol extraction, search, and context.
     Provides a unified API for downstream tools and workflows.
     """
+
     def __init__(self, path_or_url: str, github_token: Optional[str] = None, cache_dir: Optional[str] = None) -> None:
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):  # Remote repo
             self.local_path = self._clone_github_repo(path_or_url, github_token, cache_dir)
@@ -34,8 +38,8 @@ class Repository:
     def __str__(self) -> str:
         file_count = len(self.get_file_tree())
         # The self.repo_path is already a string, set in __init__
-        path_info = self.repo_path 
-        
+        path_info = self.repo_path
+
         # Check if it's a git repo and try to get ref.
         # This assumes local_path is a Path object and points to a git repo.
         ref_info = ""
@@ -46,32 +50,36 @@ class Repository:
                 # Get current branch name
                 branch_cmd = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
                 # Use self.repo_path (string) for cwd as subprocess expects string path
-                branch_result = subprocess.run(branch_cmd, cwd=self.repo_path, capture_output=True, text=True, check=False)
+                branch_result = subprocess.run(
+                    branch_cmd, cwd=self.repo_path, capture_output=True, text=True, check=False
+                )
                 if branch_result.returncode == 0 and branch_result.stdout.strip() != "HEAD":
                     ref_info = f", branch: {branch_result.stdout.strip()}"
                 else:
                     # If not on a branch (detached HEAD), get commit SHA
                     sha_cmd = ["git", "rev-parse", "--short", "HEAD"]
-                    sha_result = subprocess.run(sha_cmd, cwd=self.repo_path, capture_output=True, text=True, check=False)
+                    sha_result = subprocess.run(
+                        sha_cmd, cwd=self.repo_path, capture_output=True, text=True, check=False
+                    )
                     if sha_result.returncode == 0:
                         ref_info = f", commit: {sha_result.stdout.strip()}"
             except Exception:
-                pass # Silently ignore errors in getting git info for __str__
+                pass  # Silently ignore errors in getting git info for __str__
 
         return f"<Repository path='{path_info}'{ref_info}, files: {file_count}>"
 
     def _clone_github_repo(self, url: str, token: Optional[str], cache_dir: Optional[str]) -> Path:
         from urllib.parse import urlparse
-        
+
         repo_name = urlparse(url).path.strip("/").replace("/", "-")
         cache_root = Path(cache_dir or tempfile.gettempdir()) / "kit-repo-cache"
         cache_root.mkdir(parents=True, exist_ok=True)
-        
+
         repo_path = cache_root / repo_name
         if repo_path.exists() and (repo_path / ".git").exists():
             # Optionally: git pull to update
             return repo_path
-        
+
         # Use GIT_ASKPASS so the token never appears in argv / process list
         env = os.environ.copy()
         clone_cmd = ["git", "clone", "--depth=1", url, str(repo_path)]
@@ -79,7 +87,7 @@ class Repository:
         if token:
             # Create a temporary ask-pass helper that echoes the token once
             askpass_script = tempfile.NamedTemporaryFile("w", delete=False)
-            askpass_script.write("#!/bin/sh\necho \"%s\"\n" % token)
+            askpass_script.write('#!/bin/sh\necho "%s"\n' % token)
             askpass_script.flush()
             os.chmod(askpass_script.name, 0o700)
             env["GIT_ASKPASS"] = askpass_script.name
@@ -98,7 +106,7 @@ class Repository:
     def get_file_tree(self) -> List[Dict[str, Any]]:
         """
         Returns the file tree of the repository.
-        
+
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the file tree.
         """
@@ -109,11 +117,11 @@ class Repository:
         Extracts symbols from the repository.
         If file_path is provided, extracts symbols only from that specific file (on-demand).
         If file_path is None, scans the entire repository (if necessary) and returns all symbols found.
-        
+
         Args:
             file_path (Optional[str], optional): The path to the file to extract symbols from,
                                                relative to the repository root. Defaults to None (all files).
-        
+
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the extracted symbols.
         """
@@ -133,11 +141,11 @@ class Repository:
     def search_text(self, query: str, file_pattern: str = "*") -> List[Dict[str, Any]]:
         """
         Searches for text in the repository.
-        
+
         Args:
             query (str): The text to search for.
             file_pattern (str, optional): The file pattern to search in. Defaults to "*".
-        
+
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the search results.
         """
@@ -146,11 +154,11 @@ class Repository:
     def chunk_file_by_lines(self, file_path: str, max_lines: int = 50) -> List[str]:
         """
         Chunks a file into lines.
-        
+
         Args:
             file_path (str): The path to the file to chunk.
             max_lines (int, optional): The maximum number of lines to chunk. Defaults to 50.
-        
+
         Returns:
             List[str]: A list of strings representing the chunked lines.
         """
@@ -159,10 +167,10 @@ class Repository:
     def chunk_file_by_symbols(self, file_path: str) -> List[Dict[str, Any]]:
         """
         Chunks a file into symbols.
-        
+
         Args:
             file_path (str): The path to the file to chunk.
-        
+
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the chunked symbols.
         """
@@ -171,11 +179,11 @@ class Repository:
     def extract_context_around_line(self, file_path: str, line: int) -> Optional[Dict[str, Any]]:
         """
         Extracts context around a line in a file.
-        
+
         Args:
             file_path (str): The path to the file to extract context from.
             line (int): The line number to extract context around.
-        
+
         Returns:
             Optional[Dict[str, Any]]: A dictionary representing the extracted context, or None if not found.
         """
@@ -184,13 +192,13 @@ class Repository:
     def get_file_content(self, file_path: str) -> str:
         """
         Reads and returns the content of a file within the repository.
-        
+
         Args:
             file_path (str): The path to the file, relative to the repository root.
-        
+
         Returns:
             str: The content of the file.
-        
+
         Raises:
             FileNotFoundError: If the file does not exist within the repository.
         """
@@ -198,7 +206,7 @@ class Repository:
         if not full_path.is_file():
             raise FileNotFoundError(f"File not found in repository: {file_path}")
         try:
-            with open(full_path, 'r', encoding='utf-8') as f:
+            with open(full_path, "r", encoding="utf-8") as f:
                 return f.read()
         except Exception as e:
             # Catch potential decoding errors or other file reading issues
@@ -207,14 +215,14 @@ class Repository:
     def index(self) -> Dict[str, Any]:
         """
         Builds and returns a full index of the repo, including file tree and symbols.
-        
+
         Returns:
             Dict[str, Any]: A dictionary representing the index.
         """
         tree = self.get_file_tree()
         return {
             "file_tree": tree,  # legacy key
-            "files": tree,      # preferred
+            "files": tree,  # preferred
             "symbols": self.mapper.get_repo_map()["symbols"],
         }
 
@@ -229,64 +237,65 @@ class Repository:
         vs = self.get_vector_searcher(embed_fn=embed_fn)
         return vs.search(query, top_k=top_k)
 
-    def get_summarizer(self, config: Optional[Union['OpenAIConfig', 'AnthropicConfig', 'GoogleConfig']] = None) -> 'Summarizer': 
+    def get_summarizer(
+        self, config: Optional[Union["OpenAIConfig", "AnthropicConfig", "GoogleConfig"]] = None
+    ) -> "Summarizer":
         """
         Factory method to get a Summarizer instance configured for this repository.
-        
+
         Requires LLM dependencies (e.g., openai, anthropic, google-generativeai) to be installed.
         Example: `pip install kit[openai,anthropic,google]` or the specific one needed.
-        
+
         Args:
-            config: Optional configuration object (e.g., OpenAIConfig, AnthropicConfig, GoogleConfig). 
+            config: Optional configuration object (e.g., OpenAIConfig, AnthropicConfig, GoogleConfig).
                     If None, defaults to OpenAIConfig using environment variables.
-        
+
         Returns:
             A Summarizer instance ready to use.
-        
+
         Raises:
             ImportError: If required LLM libraries are not installed.
             ValueError: If configuration (like API key) is missing.
         """
         # Lazy import Summarizer and its config here to avoid mandatory dependency
         try:
-            from .summaries import Summarizer, OpenAIConfig, AnthropicConfig, GoogleConfig
+            from .summaries import AnthropicConfig, GoogleConfig, OpenAIConfig, Summarizer
         except ImportError as e:
-             raise ImportError(
-                 "Summarizer dependencies not found. Did you install kit with LLM extras (e.g., kit[openai])?"
-             ) from e
+            raise ImportError(
+                "Summarizer dependencies not found. Did you install kit with LLM extras (e.g., kit[openai])?"
+            ) from e
 
         # Determine config: use provided or default (which checks env vars)
         # If no config is provided, it defaults to OpenAIConfig. Users must explicitly pass
         # AnthropicConfig or GoogleConfig if they want to use those providers.
         llm_config = config if config is not None else OpenAIConfig()
-        
+
         # Check if the provided or default config is one of the supported types
         if not isinstance(llm_config, (OpenAIConfig, AnthropicConfig, GoogleConfig)):
-             raise NotImplementedError(
-                 f"Unsupported configuration type: {type(llm_config)}. Supported types are OpenAIConfig, AnthropicConfig, GoogleConfig."
-             )
+            raise NotImplementedError(
+                f"Unsupported configuration type: {type(llm_config)}. Supported types are OpenAIConfig, AnthropicConfig, GoogleConfig."
+            )
         else:
             # Return the initialized Summarizer
             return Summarizer(repo=self, config=llm_config)
 
-
-    def get_context_assembler(self) -> 'ContextAssembler':
+    def get_context_assembler(self) -> "ContextAssembler":
         """Return a ContextAssembler bound to this repository."""
         return ContextAssembler(self)
-        
-    def get_dependency_analyzer(self, language: str = 'python') -> 'DependencyAnalyzer':
+
+    def get_dependency_analyzer(self, language: str = "python") -> "DependencyAnalyzer":
         """
         Factory method to get a DependencyAnalyzer instance configured for this repository.
-        
+
         The DependencyAnalyzer helps visualize and analyze dependencies between modules
         or resources in your codebase, identifying relationships, cycles, and more.
-        
+
         Args:
             language: The language to analyze. Currently supported: 'python', 'terraform'
-            
+
         Returns:
             A DependencyAnalyzer instance bound to this repository for the specified language.
-            
+
         Example:
             >>> # Get Python dependency analyzer (default)
             >>> analyzer = repo.get_dependency_analyzer()
@@ -295,11 +304,12 @@ class Repository:
             >>> graph = analyzer.build_dependency_graph()
             >>> analyzer.export_dependency_graph(output_format="dot", output_path="dependencies.dot")
             >>> cycles = analyzer.find_cycles()
-            
+
         Raises:
             ValueError: If the specified language is not supported
         """
         from .dependency_analyzer.dependency_analyzer import DependencyAnalyzer
+
         return DependencyAnalyzer.get_for_language(self, language)
 
     def find_symbol_usages(self, symbol_name: str, symbol_type: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -316,23 +326,27 @@ class Repository:
         for file, symbols in repo_map["symbols"].items():
             for sym in symbols:
                 if sym["name"] == symbol_name and (symbol_type is None or sym["type"] == symbol_type):
-                    usages.append({
-                        "file": file,
-                        "type": sym["type"],
-                        "name": sym["name"],
-                        "line": sym.get("line"),
-                        "context": sym.get("context")
-                    })
+                    usages.append(
+                        {
+                            "file": file,
+                            "type": sym["type"],
+                            "name": sym["name"],
+                            "line": sym.get("line"),
+                            "context": sym.get("context"),
+                        }
+                    )
         # Optionally: search for references (calls/imports) using search_text or static analysis
         # Here, we do a simple text search for the symbol name in all files
         text_hits = self.searcher.search_text(symbol_name)
         for hit in text_hits:
-            usages.append({
-                "file": hit.get("file"),
-                "line": hit.get("line"),
-                # Always use 'line' or 'line_content' as context for search hits
-                "context": hit.get("line_content") or hit.get("line") or ""
-            })
+            usages.append(
+                {
+                    "file": hit.get("file"),
+                    "line": hit.get("line"),
+                    # Always use 'line' or 'line_content' as context for search hits
+                    "context": hit.get("line_content") or hit.get("line") or "",
+                }
+            )
         return usages
 
     def write_index(self, file_path: str) -> None:
@@ -342,6 +356,7 @@ class Repository:
             file_path (str): The path to the output file.
         """
         import json
+
         with open(file_path, "w") as f:
             json.dump(self.index(), f, indent=2)
 
@@ -353,7 +368,10 @@ class Repository:
             symbols (Optional[list]): List of symbol dicts. If None, extracts all symbols in the repo.
         """
         import json
-        syms = symbols if symbols is not None else [s for file_syms in self.index()["symbols"].values() for s in file_syms]
+
+        syms = (
+            symbols if symbols is not None else [s for file_syms in self.index()["symbols"].values() for s in file_syms]
+        )
         with open(file_path, "w") as f:
             json.dump(syms, f, indent=2)
 
@@ -364,6 +382,7 @@ class Repository:
             file_path (str): The path to the output file.
         """
         import json
+
         with open(file_path, "w") as f:
             json.dump(self.get_file_tree(), f, indent=2)
 
@@ -376,6 +395,7 @@ class Repository:
             symbol_type (Optional[str]): Optionally restrict to a symbol type.
         """
         import json
+
         usages = self.find_symbol_usages(symbol_name, symbol_type)
         with open(file_path, "w") as f:
             json.dump(usages, f, indent=2)

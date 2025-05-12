@@ -71,12 +71,29 @@ if [ "${TWINE_USERNAME}" != "__token__" ]; then
 fi
 
 # 6. Check if build and twine are installed
-if ! command -v python &> /dev/null || ! python -m build --version &> /dev/null || ! python -m twine --version &> /dev/null; then
-    echo "Error: Python, 'build' or 'twine' command not found or not working."
-    echo "Please ensure Python is installed and you have the necessary packages:"
-    echo "  python -m pip install --upgrade pip build twine"
+# Use separate checks for build and twine to provide more specific feedback
+echo "Checking for required build tools..."
+if ! command -v python &> /dev/null; then
+    echo "Error: Python command not found."
+    echo "Please ensure Python is installed and in your PATH."
     exit 1
 fi
+
+# Check build package
+if ! pip show build &> /dev/null; then
+    echo "Error: 'build' package is not installed."
+    echo "Please install it with: pip install build"
+    exit 1
+fi
+
+# Check twine package 
+if ! pip show twine &> /dev/null; then
+    echo "Error: 'twine' package is not installed."
+    echo "Please install it with: pip install twine" 
+    exit 1
+fi
+
+echo "All required packages are installed."
 
 echo ""
 echo "Release pre-flight checks passed for version ${VERSION}."
@@ -91,12 +108,33 @@ echo ""
 echo "Building package..."
 # Clean previous builds
 rm -rf dist/
+
+# Check if we're in a virtual environment and temporarily deactivate it for build/twine
+if [[ -n "$VIRTUAL_ENV" ]]; then
+    echo "Temporarily deactivating virtual environment for build processes..."
+    # Save the current VIRTUAL_ENV path
+    SAVED_VIRTUAL_ENV="$VIRTUAL_ENV"
+    # Deactivate the virtual environment
+    PATH=$(echo "$PATH" | sed -e "s|$VIRTUAL_ENV/bin:||g")
+    unset VIRTUAL_ENV
+    # Set PYTHONPATH to ensure the package can still be found
+    export PYTHONPATH="$(pwd)"
+fi
+
+# Run build with system Python
 python -m build
 
 # --- Publish to PyPI ---
 echo ""
 echo "Publishing package to PyPI..."
 python -m twine upload dist/*
+
+# Restore virtual environment if it was active
+if [[ -n "$SAVED_VIRTUAL_ENV" ]]; then
+    echo "Restoring virtual environment..."
+    export VIRTUAL_ENV="$SAVED_VIRTUAL_ENV"
+    export PATH="$VIRTUAL_ENV/bin:$PATH"
+fi
 
 # --- Tagging and Pushing Git Tag ---
 echo ""

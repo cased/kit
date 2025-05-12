@@ -3,9 +3,11 @@
 import datetime
 import re
 
+
 def greet(name: str) -> str:
     """Return a friendly greeting."""
     return f"Hello, {name}!"
+
 
 def format_timestamp(ts: float, format_string: str = "%Y-%m-%d %H:%M:%S") -> str:
     """Formats a Unix timestamp into a human-readable string.
@@ -19,6 +21,7 @@ def format_timestamp(ts: float, format_string: str = "%Y-%m-%d %H:%M:%S") -> str
     """
     dt_object = datetime.datetime.fromtimestamp(ts)
     return dt_object.strftime(format_string)
+
 
 def is_valid_email(email: str) -> bool:
     """Checks if the provided string is a valid email address (basic check).

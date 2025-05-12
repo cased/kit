@@ -1,6 +1,8 @@
-import pytest
-from kit.summaries import Summarizer, LLMError
 from pathlib import Path
+
+import pytest
+
+from kit.summaries import LLMError, Summarizer
 
 
 class FakeRepo:
@@ -22,18 +24,20 @@ class FakeRepo:
 
 # --- Helper fake OpenAI client --------------------------------------------
 
+
 class _FakeCompletion:
     def __init__(self, content: str):
         # Mimic OpenAI response object shape we access in Summarizer
         self.choices = [type("_Choice", (), {"message": type("_Msg", (), {"content": content})()})]
         self.usage = None
 
+
 class _FakeChatCompletions:
     def __init__(self, content: str, raise_exc: bool = False):
         self._content = content
         self._raise = raise_exc
 
-    def create(self, *args, **kwargs):  # noqa: D401
+    def create(self, *args, **kwargs):
         if self._raise:
             raise RuntimeError("API down")
         return _FakeCompletion(self._content)

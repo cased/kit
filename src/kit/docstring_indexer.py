@@ -9,20 +9,21 @@ This module has two public classes:
 * SummarySearcher  – embeds a query and retrieves the most similar summaries
   from a DocstringIndexer backend.
 """
+
 from __future__ import annotations
 
-import os
-import logging
-import json
 import hashlib
-from typing import Callable, List, Dict, Any, Optional
+import json
+import logging
+import os
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
+
 from tqdm import tqdm
 
-from pathlib import Path
-
-from .vector_searcher import VectorDBBackend, ChromaDBBackend
 from .repository import Repository
 from .summaries import Summarizer
+from .vector_searcher import ChromaDBBackend, VectorDBBackend
 
 EmbedFn = Callable[[str], List[float]]  # str -> embedding vector
 
@@ -33,12 +34,13 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+
 def _process_symbol_task(
     path_str: str,
     symbol_info: Dict[str, Any],
     summarizer_instance: Summarizer,
     embed_fn_instance: Callable[[str], List[float]],
-    current_cache: Dict[str, Dict[str, str]] # Pass for reading cache state
+    current_cache: Dict[str, Dict[str, str]],  # Pass for reading cache state
 ) -> Dict[str, Any]:
     """Processes a single symbol: summarize, embed, handle caching and errors."""
     symbol_name = symbol_info.get("name")
@@ -52,7 +54,7 @@ def _process_symbol_task(
         logger.debug(f"Symbol in {path_str} missing name or type, node_path: {display_name}. Skipping.")
         return {"status": "skipped_no_name_type", "doc_id": doc_id_prefix}
 
-    doc_id = f"{path_str}::{display_name}" # Re-assign with definite display_name
+    doc_id = f"{path_str}::{display_name}"  # Re-assign with definite display_name
     symbol_code = symbol_info.get("code", "")
 
     if not symbol_code:
@@ -65,7 +67,7 @@ def _process_symbol_task(
             logger.debug(f"Symbol {doc_id} unchanged (hash: {symbol_hash}), skipping.")
             return {"status": "cached", "doc_id": doc_id}
 
-        summary_text = None # Initialize summary_text
+        summary_text = None  # Initialize summary_text
         if symbol_type.upper() == "FUNCTION" or symbol_type.upper() == "METHOD":
             summary_text = summarizer_instance.summarize_function(path_str, display_name)
         elif symbol_type.upper() == "CLASS":
@@ -76,7 +78,9 @@ def _process_symbol_task(
 
         # Check if summarizer returned a valid string
         if not isinstance(summary_text, str):
-            logger.warning(f"Summarizer did not return a valid string for symbol {display_name} in {path_str} (type: {symbol_type}). Received: {type(summary_text)}. Skipping.")
+            logger.warning(
+                f"Summarizer did not return a valid string for symbol {display_name} in {path_str} (type: {symbol_type}). Received: {type(summary_text)}. Skipping."
+            )
             return {"status": "skipped_invalid_summary_type", "doc_id": doc_id}
 
         if not summary_text.strip():
@@ -89,7 +93,7 @@ def _process_symbol_task(
             "symbol_name": display_name,
             "symbol_type": symbol_type,
             "summary": summary_text,
-            "level": "symbol"
+            "level": "symbol",
         }
         return {
             "status": "processed",
@@ -97,14 +101,14 @@ def _process_symbol_task(
             "embedding": emb,
             "metadata": meta,
             "hash": symbol_hash,
-            "summary_for_embedding": summary_text
+            "summary_for_embedding": summary_text,
         }
     except ValueError as ve:
         logger.warning(f"Skipping symbol {display_name} in {path_str} due to ValueError: {ve}")
         return {"status": "error", "doc_id": doc_id, "error_type": "ValueError", "message": str(ve)}
     except Exception as exc:
         # Log less info from worker to keep main logs cleaner, but still indicate error
-        logger.error(f"Failed to process symbol {display_name} in {path_str}: {type(exc).__name__} - {exc}") 
+        logger.error(f"Failed to process symbol {display_name} in {path_str}: {type(exc).__name__} - {exc}")
         return {"status": "error", "doc_id": doc_id, "error_type": str(type(exc).__name__), "message": str(exc)}
 
 
@@ -135,7 +139,7 @@ class DocstringIndexer:
         self,
         repo: Repository,
         summarizer: Summarizer,
-        embed_fn: Optional[Callable[[str], List[float]]] = None, 
+        embed_fn: Optional[Callable[[str], List[float]]] = None,
         *,
         backend: Optional[VectorDBBackend] = None,
         persist_dir: Optional[str] = None,
@@ -147,10 +151,10 @@ class DocstringIndexer:
             self.embed_fn = embed_fn
         else:
             try:
-                from sentence_transformers import SentenceTransformer 
-                
-                _st_model = SentenceTransformer("all-MiniLM-L6-v2") 
-                
+                from sentence_transformers import SentenceTransformer
+
+                _st_model = SentenceTransformer("all-MiniLM-L6-v2")
+
                 def default_embed_fn(text_to_embed: str) -> List[float]:
                     embedding_vector = _st_model.encode(text_to_embed)
                     return embedding_vector.tolist()
@@ -177,22 +181,21 @@ class DocstringIndexer:
             self.persist_dir = persist_dir
         else:
             # Check if repo.repo_path is available and valid, otherwise default to a generic location or raise error
-            if hasattr(self.repo, 'repo_path') and self.repo.repo_path:
-                 self.persist_dir = os.path.join(self.repo.repo_path, ".kit_cache", "docstring_db")
+            if hasattr(self.repo, "repo_path") and self.repo.repo_path:
+                self.persist_dir = os.path.join(self.repo.repo_path, ".kit_cache", "docstring_db")
             else:
                 # Fallback if repo_path is not available (should ideally not happen with a valid Repo object)
-                self.persist_dir = os.path.join(os.getcwd(), ".kit_cache", "docstring_db_generic") 
+                self.persist_dir = os.path.join(os.getcwd(), ".kit_cache", "docstring_db_generic")
                 # logger.warning(f"Repository path not found. Defaulting persist_dir to {self.persist_dir}")
 
         # Ensure the persist_dir exists before ChromaDBBackend tries to use it
         if not os.path.exists(self.persist_dir):
             os.makedirs(self.persist_dir, exist_ok=True)
-            
+
         # Updated backend instantiation: explicitly pass path and a clearer collection_name
         str_persist_dir = str(self.persist_dir)
         self.backend: VectorDBBackend = backend or ChromaDBBackend(
-            persist_dir=str_persist_dir,
-            collection_name="kit_docstring_index"
+            persist_dir=str_persist_dir, collection_name="kit_docstring_index"
         )
 
     def build(self, force: bool = False, level: str = "symbol", file_extensions: Optional[List[str]] = None) -> None:
@@ -229,10 +232,7 @@ class DocstringIndexer:
         all_files = [f["path"] for f in self.repo.get_file_tree() if not f.get("is_dir", False)]
 
         if file_extensions:
-            files_to_process = [
-                fp for fp in all_files
-                if any(fp.endswith(ext) for ext in file_extensions)
-            ]
+            files_to_process = [fp for fp in all_files if any(fp.endswith(ext) for ext in file_extensions)]
         else:
             files_to_process = all_files
 
@@ -245,17 +245,17 @@ class DocstringIndexer:
         ids: List[str] = []
         seen_ids: set[str] = set()
 
-        from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+        from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 
         try:
             max_workers = int(os.environ.get("KIT_INDEXER_MAX_WORKERS", os.cpu_count() or 4))
-        except TypeError: # os.cpu_count() can return None
-            max_workers = 4 
+        except TypeError:  # os.cpu_count() can return None
+            max_workers = 4
         logger.info(f"Using up to {max_workers} workers for symbol processing.")
 
         for path in tqdm(files_to_process, desc=f"Indexing ({level} level)"):
             if level == "file":
-                abs_file_path = Path(self.repo.repo_path) / path # Create absolute path
+                abs_file_path = Path(self.repo.repo_path) / path  # Create absolute path
                 try:
                     summary = self.summarizer.summarize_file(path)
                     if not summary.strip():
@@ -297,14 +297,16 @@ class DocstringIndexer:
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures: List[Future] = []
                     for s_info in symbols_in_file:
-                        futures.append(executor.submit(
-                            _process_symbol_task,
-                            path_str=path,
-                            symbol_info=s_info,
-                            summarizer_instance=self.summarizer,
-                            embed_fn_instance=self.embed_fn,
-                            current_cache=cache # Pass read-only view of cache
-                        ))
+                        futures.append(
+                            executor.submit(
+                                _process_symbol_task,
+                                path_str=path,
+                                symbol_info=s_info,
+                                summarizer_instance=self.summarizer,
+                                embed_fn_instance=self.embed_fn,
+                                current_cache=cache,  # Pass read-only view of cache
+                            )
+                        )
 
                     for future in as_completed(futures):
                         try:
@@ -321,22 +323,35 @@ class DocstringIndexer:
                             elif status == "cached":
                                 file_seen_ids.add(doc_id_from_result)
                             elif status == "error":
-                                logger.debug(f"Symbol processing for {doc_id_from_result} resulted in status '{status}': {result.get('message')}")
-                            elif status in ["skipped_no_name_type", "skipped_no_code", "skipped_unsupported_type", "skipped_empty_summary", "skipped_invalid_summary_type"]:
+                                logger.debug(
+                                    f"Symbol processing for {doc_id_from_result} resulted in status '{status}': {result.get('message')}"
+                                )
+                            elif status in [
+                                "skipped_no_name_type",
+                                "skipped_no_code",
+                                "skipped_unsupported_type",
+                                "skipped_empty_summary",
+                                "skipped_invalid_summary_type",
+                            ]:
                                 logger.debug(f"Symbol {doc_id_from_result} was skipped: {status}")
                             else:
-                                logger.warning(f"Unknown status '{status}' from _process_symbol_task for {doc_id_from_result}")
+                                logger.warning(
+                                    f"Unknown status '{status}' from _process_symbol_task for {doc_id_from_result}"
+                                )
                         except Exception as exc_in_future:
-                            logger.error(f"Exception retrieving result from future for a symbol in {path}: {exc_in_future}", exc_info=True)
-                
+                            logger.error(
+                                f"Exception retrieving result from future for a symbol in {path}: {exc_in_future}",
+                                exc_info=True,
+                            )
+
                 # After processing all symbols for the current file, extend the main lists
-                if file_embeddings: # Only extend if there's something to add
+                if file_embeddings:  # Only extend if there's something to add
                     embeddings.extend(file_embeddings)
                     metadatas.extend(file_metadatas)
                     ids.extend(file_ids)
-                    cache.update(file_cache_updates) # Update the main cache
-                    seen_ids.update(file_seen_ids)    # Update main seen_ids
-                elif file_seen_ids: # Still update seen_ids if items were cached
+                    cache.update(file_cache_updates)  # Update the main cache
+                    seen_ids.update(file_seen_ids)  # Update main seen_ids
+                elif file_seen_ids:  # Still update seen_ids if items were cached
                     seen_ids.update(file_seen_ids)
 
             else:
@@ -354,7 +369,7 @@ class DocstringIndexer:
 
         if embeddings:
             logger.info(f"Adding {len(embeddings)} embeddings to the index.")
-            self.backend.add(embeddings=embeddings, metadatas=metadatas, ids=ids) # Chroma needs 'ids'
+            self.backend.add(embeddings=embeddings, metadatas=metadatas, ids=ids)  # Chroma needs 'ids'
             self.backend.persist()
             logger.info("Index build complete and persisted.")
         else:
@@ -364,7 +379,7 @@ class DocstringIndexer:
         with open(meta_path, "w", encoding="utf-8") as fp:
             json.dump(cache, fp)
 
-    def get_searcher(self) -> 'SummarySearcher':
+    def get_searcher(self) -> "SummarySearcher":
         """
         Returns a SummarySearcher instance configured with this indexer.
 

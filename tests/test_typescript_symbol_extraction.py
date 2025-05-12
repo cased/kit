@@ -1,14 +1,16 @@
-import os
-import pytest
 from pathlib import Path
+
+import pytest
+
 from kit import Repository
+
 
 def test_typescript_symbol_extraction(tmp_path: Path):
     # Minimal TypeScript code with a function and a class
-    ts_code = '''
+    ts_code = """
 function foo() {}
 class Bar {}
-'''
+"""
     ts_file = tmp_path / "example.ts"
     ts_file.write_text(ts_code)
     repository = Repository(str(tmp_path))

@@ -1,11 +1,14 @@
 from __future__ import annotations
-import os
-import time
+
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 import pathspec
+
 from .tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
+
 
 class RepoMapper:
     """
@@ -13,6 +16,7 @@ class RepoMapper:
     Implements incremental scanning and robust symbol extraction.
     Supports multi-language via tree-sitter queries.
     """
+
     def __init__(self, repo_path: str) -> None:
         self.repo_path: Path = Path(repo_path)
         self._symbol_map: Dict[str, Dict[str, Any]] = {}  # file -> {mtime, symbols}
@@ -20,16 +24,16 @@ class RepoMapper:
         self._gitignore_spec = self._load_gitignore()
 
     def _load_gitignore(self):
-        gitignore_path = self.repo_path / '.gitignore'
+        gitignore_path = self.repo_path / ".gitignore"
         if gitignore_path.exists():
             with open(gitignore_path) as f:
-                return pathspec.PathSpec.from_lines('gitwildmatch', f)
+                return pathspec.PathSpec.from_lines("gitwildmatch", f)
         return None
 
     def _should_ignore(self, file: Path) -> bool:
         rel_path = str(file.relative_to(self.repo_path))
         # Always ignore .git and its contents
-        if '.git' in file.parts:
+        if ".git" in file.parts:
             return True
         # Ignore files matching .gitignore
         if self._gitignore_spec and self._gitignore_spec.match_file(rel_path):
@@ -47,12 +51,14 @@ class RepoMapper:
         for path in self.repo_path.rglob("*"):
             if self._should_ignore(path):
                 continue
-            tree.append({
-                "path": str(path.relative_to(self.repo_path)),
-                "is_dir": path.is_dir(),
-                "name": path.name,
-                "size": path.stat().st_size if path.is_file() else 0
-            })
+            tree.append(
+                {
+                    "path": str(path.relative_to(self.repo_path)),
+                    "is_dir": path.is_dir(),
+                    "name": path.name,
+                    "size": path.stat().st_size if path.is_file() else 0,
+                }
+            )
         self._file_tree = tree
         return tree
 
@@ -141,9 +147,6 @@ class RepoMapper:
         """
         self.scan_repo()
         self._file_tree = None
-        return {
-            "file_tree": self.get_file_tree(),
-            "symbols": {k: v["symbols"] for k, v in self._symbol_map.items()}
-        }
+        return {"file_tree": self.get_file_tree(), "symbols": {k: v["symbols"] for k, v in self._symbol_map.items()}}
 
     # --- Helper methods ---

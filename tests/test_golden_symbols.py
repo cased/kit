@@ -1,8 +1,8 @@
 import os
 import tempfile
-import pytest
-import asyncio
+
 from kit import Repository
+
 
 # Helper to run extraction
 def run_extraction(tmpdir, filename, content):
@@ -16,18 +16,11 @@ def run_extraction(tmpdir, filename, content):
 # --- Basic Tests ---
 def test_typescript_symbol_extraction():
     with tempfile.TemporaryDirectory() as tmpdir:
-        ts_path = os.path.join(tmpdir, "golden_typescript.ts")
+        os.path.join(tmpdir, "golden_typescript.ts")
         # Read content from the actual golden file
         golden_content = open(os.path.join(os.path.dirname(__file__), "golden_typescript.ts")).read()
         symbols = run_extraction(tmpdir, "golden_typescript.ts", golden_content)
         names_types = {(s["name"], s["type"]) for s in symbols}
-
-        expected = {
-            ("MyClass", "class"),
-            ("MyInterface", "interface"),
-            ("MyEnum", "enum"),
-            ("helper", "function")
-        }
 
         assert ("MyClass", "class") in names_types
         assert ("MyInterface", "interface") in names_types
@@ -37,7 +30,7 @@ def test_typescript_symbol_extraction():
 
 def test_python_symbol_extraction():
     with tempfile.TemporaryDirectory() as tmpdir:
-        py_path = os.path.join(tmpdir, "golden_python.py")
+        os.path.join(tmpdir, "golden_python.py")
         # Read content from the actual golden file
         golden_content = open(os.path.join(os.path.dirname(__file__), "golden_python.py")).read()
         symbols = run_extraction(tmpdir, "golden_python.py", golden_content)
@@ -49,7 +42,7 @@ def test_python_symbol_extraction():
         expected = {
             ("top_level_function", "function"),
             ("MyClass", "class"),
-            ("__init__", "method"), 
+            ("__init__", "method"),
             ("method_one", "method"),
             ("async_function", "function"),
         }
@@ -74,20 +67,20 @@ def test_python_complex_symbol_extraction():
         # Expected symbols based on current Python query
         # NOTE: Current query doesn't capture decorators well, nested functions, lambdas, or generators explicitly
         expected = {
-            ("decorator", "function"),          # Decorator function itself
-            ("decorated_function", "function"),# The decorated function
+            ("decorator", "function"),  # Decorator function itself
+            ("decorated_function", "function"),  # The decorated function
             ("OuterClass", "class"),
             ("outer_method", "method"),
-            ("InnerClass", "class"),          # Nested class
-            ("__init__", "method"),           # Inner class method
-            ("inner_method", "method"),        # Inner class method
-            ("static_inner", "method"),       # Inner class static method
-            ("nested_function_in_method", "method"), # Method containing nested func
+            ("InnerClass", "class"),  # Nested class
+            ("__init__", "method"),  # Inner class method
+            ("inner_method", "method"),  # Inner class method
+            ("static_inner", "method"),  # Inner class static method
+            ("nested_function_in_method", "method"),  # Method containing nested func
             # ("deeply_nested", "function"),   # NOT CAPTURED - function defined inside method
-            ("generator_function", "function"),# Generator (captured as function)
-            ("async_generator", "function"),   # Async Generator (captured as function)
-            # lambda_func is not captured by name
-            ("another_top_level", "function")
+            ("generator_function", "function"),  # Generator (captured as function)
+            ("async_generator", "function"),  # Async Generator (captured as function)
+            ("lambda_func", "function"),  # Now captured by the improved extraction
+            ("another_top_level", "function"),
         }
 
         # Assert individual expected symbols exist
@@ -109,22 +102,22 @@ def test_typescript_complex_symbol_extraction():
         expected = {
             ("UserProfile", "interface"),
             ("Status", "enum"),
-            ("Utilities", "namespace"),       # Namespace itself
-            ("log", "function"),             # Function inside namespace
-            ("StringHelper", "class"),        # Class inside namespace
-            ("capitalize", "method"),       # Static method inside namespace class
-            ("identity", "function"),         # Generic function
-            ("GenericRepo", "class"),         # Generic class
-            ("add", "method"),              # Method in generic class
-            ("getAll", "method"),           # Method in generic class
-            ("constructor", "method"),     # Constructor is captured by method query
+            ("Utilities", "namespace"),  # Namespace itself
+            ("log", "function"),  # Function inside namespace
+            ("StringHelper", "class"),  # Class inside namespace
+            ("capitalize", "method"),  # Static method inside namespace class
+            ("identity", "function"),  # Generic function
+            ("GenericRepo", "class"),  # Generic class
+            ("add", "method"),  # Method in generic class
+            ("getAll", "method"),  # Method in generic class
+            ("constructor", "method"),  # Constructor is captured by method query
             # ("addNumbers", "function"),    # NOT CAPTURED - Arrow function assigned to const
             ("DecoratedClass", "class"),
             ("greet", "method"),
-            ("calculateArea", "function"),    # Exported function
-            ("fetchData", "function"),         # Async function
+            ("calculateArea", "function"),  # Exported function
+            ("fetchData", "function"),  # Async function
             ("SimpleLogger", "class"),
-            ("log", "method")               # Method in SimpleLogger (duplicate name, diff class)
+            ("log", "method"),  # Method in SimpleLogger (duplicate name, diff class)
         }
 
         # Assert individual expected symbols exist
@@ -144,15 +137,15 @@ def test_hcl_symbol_extraction():
 
         # Expected symbols based on HCL query and updated extractor logic
         expected = {
-            ("aws", "provider"),               # provider "aws"
-            ("aws_instance.web_server", "resource"), # resource "aws_instance" "web_server"
-            ("aws_s3_bucket.data_bucket", "resource"),# resource "aws_s3_bucket" "data_bucket"
-            ("aws_ami.ubuntu", "data"),         # data "aws_ami" "ubuntu"
-            ("server_port", "variable"),         # variable "server_port"
-            ("instance_ip_addr", "output"),      # output "instance_ip_addr"
-            ("vpc", "module"),                 # module "vpc"
-            ("locals", "locals"),               # locals block
-            ("terraform", "terraform")        # terraform block
+            ("aws", "provider"),  # provider "aws"
+            ("aws_instance.web_server", "resource"),  # resource "aws_instance" "web_server"
+            ("aws_s3_bucket.data_bucket", "resource"),  # resource "aws_s3_bucket" "data_bucket"
+            ("aws_ami.ubuntu", "data"),  # data "aws_ami" "ubuntu"
+            ("server_port", "variable"),  # variable "server_port"
+            ("instance_ip_addr", "output"),  # output "instance_ip_addr"
+            ("vpc", "module"),  # module "vpc"
+            ("locals", "locals"),  # locals block
+            ("terraform", "terraform"),  # terraform block
         }
 
         # Assert individual expected symbols exist
@@ -172,12 +165,12 @@ def test_go_symbol_extraction():
 
         # Expected symbols based on Go query
         expected = {
-            ("User", "struct"),         # type User struct {...}
-            ("Greeter", "interface"),   # type Greeter interface {...}
-            ("Greet", "method"),        # func (u User) Greet() string {...}
-            ("Add", "function"),        # func Add(a, b int) int {...}
-            ("HelperFunction", "function"), # func HelperFunction() {...}
-            ("main", "function"),       # func main() {...}
+            ("User", "struct"),  # type User struct {...}
+            ("Greeter", "interface"),  # type Greeter interface {...}
+            ("Greet", "method"),  # func (u User) Greet() string {...}
+            ("Add", "function"),  # func Add(a, b int) int {...}
+            ("HelperFunction", "function"),  # func HelperFunction() {...}
+            ("main", "function"),  # func main() {...}
         }
 
         # Assert individual expected symbols exist

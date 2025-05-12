@@ -1,11 +1,11 @@
 import os
 import tempfile
-import pytest
+
 from kit import Repository
-from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
+
 
 def test_hcl_symbol_extraction():
-    hcl_content = '''
+    hcl_content = """
 provider "aws" {
   region = "us-west-2"
 }
@@ -43,7 +43,7 @@ module "vpc" {
   name   = "example-vpc"
   cidr   = "10.0.0.0/16"
 }
-'''
+"""
     with tempfile.TemporaryDirectory() as tmpdir:
         hcl_path = os.path.join(tmpdir, "main.tf")
         with open(hcl_path, "w") as f:
@@ -55,13 +55,13 @@ module "vpc" {
 
         # Expected symbols based on HCL query and updated extractor logic
         expected = {
-            "aws",                      # provider "aws"
-            "aws_instance.web",         # resource "aws_instance" "web"
-            "aws_s3_bucket.bucket",     # resource "aws_s3_bucket" "bucket"
-            "instance_count",           # variable "instance_count"
-            "instance_id",             # output "instance_id"
-            "vpc",                     # module "vpc"
-            "locals",                  # locals block
+            "aws",  # provider "aws"
+            "aws_instance.web",  # resource "aws_instance" "web"
+            "aws_s3_bucket.bucket",  # resource "aws_s3_bucket" "bucket"
+            "instance_count",  # variable "instance_count"
+            "instance_id",  # output "instance_id"
+            "vpc",  # module "vpc"
+            "locals",  # locals block
             # Note: no terraform block in this fixture
         }
 
@@ -78,8 +78,9 @@ module "vpc" {
         assert "provider" in types
         assert "locals" in types
 
+
 def test_hcl_symbol_edge_cases():
-    hcl_content = '''
+    hcl_content = """
 resource "aws_security_group" "sg" {
   name        = "allow_tls"
   description = "Allow TLS inbound traffic"
@@ -98,7 +99,7 @@ terraform {
     }
   }
 }
-'''
+"""
     with tempfile.TemporaryDirectory() as tmpdir:
         hcl_path = os.path.join(tmpdir, "main.tf")
         with open(hcl_path, "w") as f:
@@ -107,7 +108,7 @@ terraform {
         symbols = repository.extract_symbols("main.tf")
         types = {s["type"] for s in symbols}
         subtypes = {s["subtype"] for s in symbols if "subtype" in s}
-        names = {s["name"] for s in symbols if "name" in s}
+        {s["name"] for s in symbols if "name" in s}
         # Should include the unnamed terraform block
         assert "terraform" in types or "block" in types
         # Should include specific resource subtypes (unquoted)

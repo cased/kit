@@ -53,7 +53,7 @@ class AuthService:
         if user and user.is_active and password == "password":
             token = str(uuid.uuid4())
             self._active_tokens[token] = user.id
-            user.record_login() # Update last_login_at on the User model
+            user.record_login()  # Update last_login_at on the User model
             return token
         return None
 

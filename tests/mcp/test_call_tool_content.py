@@ -1,12 +1,10 @@
-import uuid
 import pytest
-
-from mcp.types import CallToolResult, TextContent, EmbeddedResource
+from mcp.types import CallToolResult, EmbeddedResource, TextContent
 
 # The server module provides a fallback alias called `ResourceContent`.  Depending on
 # the MCP SDK version, this *may* be the same object as `EmbeddedResource`, or a
 # stub when running under an older spec version.  Importing it must never fail.
-from kit.mcp.server import ResourceContent, KitServerLogic, GetFileContentParams, GetFileTreeParams
+from kit.mcp.server import GetFileContentParams, GetFileTreeParams, KitServerLogic, ResourceContent
 
 
 def _dummy_repo(tmp_path):
@@ -44,9 +42,7 @@ def test_get_file_content_returns_textcontent(logic):
     # helper doesn't raise.
     server_logic.get_file_content(args.repo_id, args.file_path)
 
-    result = [
-        TextContent(type="text", text=f"/repos/{args.repo_id}/files/{args.file_path}")
-    ]
+    result = [TextContent(type="text", text=f"/repos/{args.repo_id}/files/{args.file_path}")]
 
     # Attempt to build a CallToolResult – this is what the MCP framework will do
     # internally.  If the content list contains the wrong type, Pydantic validation
@@ -64,4 +60,4 @@ def test_get_file_tree_returns_textcontent(logic):
 
     result = [TextContent(type="text", text=f"/repos/{args.repo_id}/tree")]
     ctr = CallToolResult(content=result)
-    assert isinstance(ctr.content[0], TextContent) 
+    assert isinstance(ctr.content[0], TextContent)

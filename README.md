@@ -71,16 +71,11 @@ print(repo.extract_symbols('src/main.py'))
 
 *   **And much more...** `kit` also offers capabilities for semantic search on raw code, building custom context for LLMs, and more.
 
-### Model Context Protocol (MCP)
+## MCP Server
 
-MCP enables AI tools to understand and interact with your codebase through a local server. It provides capabilities like:
+The `kit` tool includes an MCP (Model Context Protocol) server that allows AI agents and other development tools to interact with a codebase programmatically.
 
-- Code summaries and documentation generation
-- Symbol extraction and usage tracking
-- Code search and navigation
-- File tree exploration
-
-Add a stanza like this to your MCP-compatabile tool:
+MCP support is currently in alpha. Add a stanza like this to your MCP tool:
 
 ```jsonc
 {
@@ -109,5 +104,8 @@ MIT License
 
 ## Contributing
 
-Please see our [Roadmap](https://kit.cased.com/development/roadmap) for project directions.
+- **Local Development**: Check out our [Running Tests](https://kit.cased.com/development/running-tests) guide to get started with local development.
+- **Project Direction**: See our [Roadmap](https://kit.cased.com/development/roadmap) for future plans and focus areas.
+
+To contribute, fork the repository, make your changes, and submit a pull request.
 

@@ -3,6 +3,8 @@ title: Using kit with MCP
 description: Learn how to use kit with the Model Context Protocol (MCP) for AI-powered code understanding
 ---
 
+Note: MCP support is currently in alpha.
+
 The Model Context Protocol (MCP) provides a unified API for codebase operations, making it easy to integrate kit's capabilities with AI tools and IDEs. This guide will help you set up and use kit with MCP.
 
 Kit provides a MCP server implementation that exposes its code intelligence capabilities through a standardized protocol. When using kit as an MCP server, you gain access to:
@@ -12,6 +14,25 @@ Kit provides a MCP server implementation that exposes its code intelligence capa
 - **Code Summarization**: Create natural language summaries of code
 - **File Navigation**: Explore file trees and repository structure
 
+This document guides you through setting up and using `kit` with MCP-compatible tools like Cursor or Claude Desktop.
+
+## What is MCP?
+
+MCP (Model Context Protocol) is a specification that allows AI agents and development tools to interact with your codebase programmatically via a local server. `kit` implements an MCP server to expose its code intelligence features.
+
+## Available MCP Tools in `kit`
+
+Currently, `kit` exposes the following functionalities via MCP tools:
+
+*   `open_repository`: Opens a local or remote Git repository.
+*   `get_file_tree`: Retrieves the file and directory structure of the open repository.
+*   `get_file_content`: Reads the content of a specific file.
+*   `search_code`: Performs text-based search across repository files.
+*   `extract_symbols`: Extracts functions, classes, and other symbols from a file.
+*   `find_symbol_usages`: Finds where a specific symbol is used across the repository.
+*   `get_code_summary`: Provides AI-generated summaries for files, functions, or classes.
+
+More MCP features are coming soon.
 
 ## Setup
 
