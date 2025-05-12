@@ -42,9 +42,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "kit.queries" = ["*/*.scm"]
-"kit.queries.typescript" = ["*.scm"] # Be explicit for subdirectories if needed, or use the above
-# Or, more broadly if queries are directly under 'kit' package:
-# "kit" = ["queries/*/*.scm"] 
+"kit" = ["queries/*/*/*.scm"]
 
 [build-system]
 requires = ["setuptools>=61.0"]

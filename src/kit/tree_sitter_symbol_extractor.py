@@ -3,6 +3,13 @@ import os
 import traceback
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Optional, cast
+import importlib.resources
+try:
+    # Python 3.9+
+    from importlib.resources import files
+except ImportError:
+    # Fallback for Python 3.8 or below
+    from importlib_resources import files
 
 from tree_sitter_language_pack import get_language, get_parser
 
@@ -23,32 +30,6 @@ LANGUAGES: dict[str, str] = {
     ".rb": "ruby",
     ".java": "java",
 }
-
-# Resolve the absolute path to the nearest "queries" directory (repo-root) so that
-# the extractor works regardless of whether kit is installed in editable mode or
-# as a regular, site-packages distribution. We walk up from this file's location
-# until we find a sibling directory called ``queries``.
-
-
-def _locate_queries_root() -> str:
-    """Return the absolute path to the bundled *queries* directory.
-
-    We ascend parent directories until we discover a sibling folder named
-    "queries". If nothing is found (e.g. in a broken install), we fall back to
-    a relative path so that the extractor fails gracefully rather than crashing.
-    """
-    current_path = Path(__file__).resolve()
-    # Walk up the directory tree looking for a sibling "queries" directory
-    for parent in current_path.parents:
-        candidate = parent / "queries"
-        if candidate.is_dir():
-            return str(candidate)
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), "../../queries"))
-
-
-# Absolute path to the *queries* directory discovered at import time
-QUERIES_ROOT: str = _locate_queries_root()
-
 
 class TreeSitterSymbolExtractor:
     """
@@ -81,20 +62,20 @@ class TreeSitterSymbolExtractor:
 
         lang_name = LANGUAGES[ext]
         logger.debug(f"get_query: lang={lang_name}")
-        query_dir: str = lang_name
-        tags_path: str = os.path.join(QUERIES_ROOT, query_dir, "tags.scm")
-        logger.debug(f"get_query: tags_path={tags_path} exists={os.path.exists(tags_path)}")
-        if not os.path.exists(tags_path):
-            logger.warning(f"get_query: tags.scm not found at {tags_path}")
-            return None
+        resource_package = f"kit.queries.{lang_name}"
         try:
             language = get_language(cast(Any, lang_name))  # type: ignore[arg-type]
-            with open(tags_path, "r") as f:
-                tags_content = f.read()
+            package_files = files("kit.queries").joinpath(lang_name)
+            tags_path = package_files.joinpath("tags.scm")
+            
+            tags_content = tags_path.read_text(encoding="utf-8")
             query = language.query(tags_content)
             cls._queries[ext] = query
             logger.debug(f"get_query: Query loaded successfully for ext {ext}")
             return query
+        except (FileNotFoundError, ModuleNotFoundError) as e:
+            logger.warning(f"get_query: tags.scm not found for {lang_name} in package {resource_package}: {e}")
+            return None
         except Exception as e:
             logger.error(f"get_query: Query compile error for ext {ext}: {e}")
             logger.error(traceback.format_exc())  # Log stack trace
