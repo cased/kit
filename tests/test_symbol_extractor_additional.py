@@ -1,13 +1,10 @@
 import os
 import tempfile
-import importlib.resources
-from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
 
 from kit import Repository, TreeSitterSymbolExtractor
-
 
 # ------------------ Helpers ------------------
 
