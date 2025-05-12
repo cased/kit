@@ -3,14 +3,13 @@ import os
 import traceback
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Optional, cast
-import importlib.resources
 
 try:
     # Python 3.9+
-    from importlib.resources import files
+    from importlib.resources import files  # type: ignore[no-redef]
 except ImportError:
     # Fallback for Python 3.8 or below
-    from importlib_resources import files
+    from importlib_resources import files  # type: ignore[no-redef]
 
 from tree_sitter_language_pack import get_language, get_parser
 
