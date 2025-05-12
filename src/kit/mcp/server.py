@@ -267,6 +267,7 @@ class KitServerLogic:
     def get_documentation(self, repo_id: str, symbol_name: Optional[str], file_path: Optional[str]) -> Any:
         analyzer = self.get_analyzer(repo_id, "docstring_indexer")
         
+        repo = self.get_repo(repo_id)
         safe = self._check_within_repo(repo, file_path)
         file_path = str(safe.relative_to(Path(repo.repo_path)))
         
@@ -357,6 +358,12 @@ class KitServerLogic:
                 inputSchema=GetCodeSummaryParams.model_json_schema(),
                 annotations=ro_ann,
             ),
+            Tool(
+                name="get_documentation",
+                description="Get documentation for a given file",
+                inputSchema=GetDocumentationParams.model_json_schema(),
+                annotations=ro_ann,
+            ),
         ]
         logger.info(f"KitServerLogic.list_tools is returning: {[tool.name for tool in tools_to_return]}")
         return tools_to_return
@@ -434,6 +441,13 @@ class KitServerLogic:
                     ),
                 ],
             ),
+            Prompt(
+                name="get_documentation",
+                description="Get documentation for a given file",
+                arguments=[
+                    PromptArgument(name="repo_id", description="ID of the repository", required=True),
+                    PromptArgument(name="file_path", description="Path to the file", required=True),
+            
         ]
 
     def get_prompt(self, name: str, arguments: dict | None) -> GetPromptResult:
@@ -524,6 +538,13 @@ class KitServerLogic:
                                 role="user", content=TextContent(type="text", text=json.dumps(summary, indent=2))
                             )
                         ],
+                    )
+                case "get_documentation":
+                    gd_args = GetDocumentationParams(**arguments)
+                    docs = self.get_documentation(gd_args.repo_id, gd_args.file_path)
+                    return GetPromptResult(
+                        description="Documentation",
+                        messages=[PromptMessage(role="user", content=TextContent(type="text", text=json.dumps(docs, indent=2)))],
                     )
                 case _:
                     raise MCPError(code=INVALID_PARAMS, message=f"Unknown prompt: {name}")
@@ -663,6 +684,10 @@ async def serve() -> None:
                 gcs_args = GetCodeSummaryParams(**arguments)
                 summary = logic.get_code_summary(gcs_args.repo_id, gcs_args.file_path, gcs_args.symbol_name)
                 return [TextContent(type="text", text=json.dumps(summary, indent=2))]
+            elif name == "get_documentation":
+                gd_args = GetDocumentationParams(**arguments)
+                docs = logic.get_documentation(gd_args.repo_id, gd_args.file_path)
+                return [TextContent(type="text", text=json.dumps(docs, indent=2))]
             else:
                 raise MCPError(code=INVALID_PARAMS, message=f"Unknown tool: {name}")
         except ValidationError as e:
