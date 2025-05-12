@@ -15,8 +15,7 @@ class SearchOptions:
     case_sensitive: bool = True
     context_lines_before: int = 0
     context_lines_after: int = 0
-    use_gitignore: bool = True  # New option for gitignore
-    # Future options: whole_word: bool = False, exclude_patterns: List[str] = field(default_factory=list)
+    use_gitignore: bool = True
 
 
 class CodeSearcher:

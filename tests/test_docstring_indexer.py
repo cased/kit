@@ -14,7 +14,7 @@ class DummyBackend(VectorDBBackend):
     def __init__(self):
         self.embeddings = []
         self.metadatas = []
-        self.ids = []  # Add storage for IDs
+        self.ids = []
 
     # --- VectorDBBackend interface -------------------------------------
     def add(self, embeddings, metadatas, ids=None):  # Add ids parameter

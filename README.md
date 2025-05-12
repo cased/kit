@@ -104,5 +104,8 @@ MIT License
 
 ## Contributing
 
-Please see our [Roadmap](https://kit.cased.com/development/roadmap) for project directions.
+- **Local Development**: Check out our [Running Tests](https://kit.cased.com/development/running-tests) guide to get started with local development.
+- **Project Direction**: See our [Roadmap](https://kit.cased.com/development/roadmap) for future plans and focus areas.
+
+To contribute, fork the repository, make your changes, and submit a pull request.
 
