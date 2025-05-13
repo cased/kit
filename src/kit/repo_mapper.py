@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Dict, List, Optional
 
 import pathspec
@@ -40,6 +40,19 @@ class RepoMapper:
             return True
         return False
 
+    def _subpaths_for_path(self, rel_path: str) -> List[str]:
+        """
+        Return every cumulative sub-path in a relative path.
+
+        >>> self._subpaths_for_path("foo/bar/baz")
+        ['foo', 'foo/bar', 'foo/bar/baz']
+        """
+        pure_rel_path = PurePath(rel_path)
+        sub_paths: List[str] = []
+        for i in range(1, len(pure_rel_path.parts) + 1):
+            sub_paths.append(str(PurePath(*pure_rel_path.parts[:i])))
+        return sub_paths
+
     def get_file_tree(self) -> List[Dict[str, Any]]:
         """
         Returns a list of dicts representing all files in the repo.
@@ -48,15 +61,29 @@ class RepoMapper:
         if self._file_tree is not None:
             return self._file_tree
         tree = []
+        tracked_tree_paths = set()
         for path in self.repo_path.rglob("*"):
-            if self._should_ignore(path):
+            if path.is_dir() or self._should_ignore(path):
                 continue
+            file_path = str(path.relative_to(self.repo_path))
+            parent_path = str(path.parent.relative_to(self.repo_path))
+            for subpath in self._subpaths_for_path(parent_path):
+                if subpath not in tracked_tree_paths:
+                    tracked_tree_paths.add(subpath)
+                    tree.append(
+                        {
+                            "path": subpath,
+                            "is_dir": True,
+                            "name": PurePath(subpath).name,
+                            "size": 0,
+                        }
+                    )
             tree.append(
                 {
-                    "path": str(path.relative_to(self.repo_path)),
-                    "is_dir": path.is_dir(),
+                    "path": file_path,
+                    "is_dir": False,
                     "name": path.name,
-                    "size": path.stat().st_size if path.is_file() else 0,
+                    "size": path.stat().st_size,
                 }
             )
         self._file_tree = tree
