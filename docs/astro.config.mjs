@@ -20,6 +20,7 @@ export default defineConfig({
         // Path to your custom CSS file, relative to the project root
         "./src/styles/theme.css",
       ],
+      markdown: { headingLinks: false },
       sidebar: [
         {
           label: " Introduction",
