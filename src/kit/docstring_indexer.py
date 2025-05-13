@@ -308,7 +308,8 @@ class DocstringIndexer:
 
                     for symbol in symbols:
                         # Create a unique ID for the symbol embedding
-                        symbol_id = f"{file_path}::{symbol['name']}"
+                        display_name = symbol.get("node_path", symbol["name"])
+                        symbol_id = f"{file_path}::{display_name}"
                         symbol_type = symbol.get("type", "UNKNOWN").upper()
 
                         # Check cache
@@ -320,9 +321,9 @@ class DocstringIndexer:
                         # Generate summary
                         summary = ""
                         if symbol_type == "FUNCTION" or symbol_type == "METHOD":
-                            summary = self.summarizer.summarize_function(file_path, symbol["name"])
+                            summary = self.summarizer.summarize_function(file_path, display_name)
                         elif symbol_type == "CLASS":
-                            summary = self.summarizer.summarize_class(file_path, symbol["name"])
+                            summary = self.summarizer.summarize_class(file_path, display_name)
                         else:
                             # Optionally handle other symbol types or skip
                             # logger.debug(f"Skipping summary for symbol type {symbol_type}: {symbol_id}")
@@ -343,9 +344,9 @@ class DocstringIndexer:
                         metadatas.append(
                             {
                                 "file_path": file_path,
-                                "symbol_name": symbol["name"],
+                                "symbol_name": display_name,
                                 "symbol_type": symbol_type,
-                                "summary": summary,  # Include summary in metadata for retrieval
+                                "summary": summary,
                                 "level": "symbol",
                             }
                         )
