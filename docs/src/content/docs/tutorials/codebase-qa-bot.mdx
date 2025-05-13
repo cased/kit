@@ -36,7 +36,7 @@ This approach is powerful because it combines semantic understanding (from summa
     REPO_PATH = "/path/to/your/local/git/repo" #! MODIFY
     # For DocstringIndexer, persist_dir is where the DB is stored.
     # Let's use a directory for ChromaDB as it might create multiple files.
-    INDEX_PERSIST_DIR = "./my_code_qa_index_db/" 
+    # INDEX_PERSIST_DIR = "./my_code_qa_index_db/" # Old way, now configure on backend
 
     # Use a specific summarizer model for indexing, can be different from Q&A LLM
     INDEXER_LLM_CONFIG = OpenAIConfig(model="gpt-4o")
@@ -51,8 +51,10 @@ This approach is powerful because it combines semantic understanding (from summa
     repo = Repository(REPO_PATH)
 
     # For DocstringIndexer - requires repo and a summarizer instance
+    # It will use default storage paths: .kit_cache/vector_db/ and .kit_cache/docstring_cache/ within the repo
+    # To customize paths, configure and pass ChromaDBBackend and/or FilesystemCacheBackend instances.
     summarizer_for_indexing = Summarizer(repo=repo, config=INDEXER_LLM_CONFIG) 
-    indexer = DocstringIndexer(repo, summarizer_for_indexing, persist_dir=INDEX_PERSIST_DIR)
+    indexer = DocstringIndexer(repo, summarizer_for_indexing) # Removed persist_dir
 
     # For SummarySearcher - get it from the indexer
     searcher = indexer.get_searcher()
@@ -76,14 +78,16 @@ This approach is powerful because it combines semantic understanding (from summa
     import os
 
     # Check based on persist_dir for the indexer
-    if not os.path.exists(INDEX_PERSIST_DIR) or not any(os.scandir(INDEX_PERSIST_DIR)):
-        print(f"Index not found or empty at {INDEX_PERSIST_DIR}. Building...")
+    # To check for an existing index, you would now check the default paths or the paths 
+    # you configured on your explicit backend instances. For defaults:
+    default_vector_db_path = os.path.join(repo.repo_path, ".kit_cache", "vector_db")
+    if not os.path.exists(default_vector_db_path) or not any(os.scandir(default_vector_db_path)):
+        print(f"Index not found or empty at {default_vector_db_path} (and related cache). Building...")
         # Build a symbol-level index for more granular results
-        # force=True will rebuild if the directory exists but is perhaps from an old run
         indexer.build(level="symbol", file_extensions=[".py", ".js", ".md"], force=True)
         print("Symbol-level index built successfully.")
     else:
-        print(f"Found existing index at {INDEX_PERSIST_DIR}.")
+        print(f"Found existing index components (e.g., at {default_vector_db_path}).")
     ```
 
 3.  **Define the Question-Answering Function**
@@ -185,7 +189,7 @@ This approach is powerful because it combines semantic understanding (from summa
 
     ```text title="Example Output (will vary based on your repo & LLM)"
     Components initialized.
-    Found existing index at ./my_code_qa_index_db/.
+    Found existing index components (e.g., at /path/to/your/local/git/repo/.kit_cache/vector_db).
 
     Searching for files/symbols relevant to: 'How does the authentication middleware handle expired JWTs?'
     Found 3 relevant document summaries.

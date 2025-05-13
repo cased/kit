@@ -1,5 +1,6 @@
 """Unit tests for DocstringIndexer and SummarySearcher."""
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,27 +12,63 @@ from kit.vector_searcher import VectorDBBackend
 class DummyBackend(VectorDBBackend):
     """In-memory VectorDB backend for testing purposes."""
 
-    def __init__(self):
-        self.embeddings = []
-        self.metadatas = []
-        self.ids = []
+    def __init__(self, persist_dir=None, collection_name=None):
+        self.embeddings: list = []
+        self.metadatas: list = []
+        self.ids: list = []
 
     # --- VectorDBBackend interface -------------------------------------
-    def add(self, embeddings, metadatas, ids=None):  # Add ids parameter
+    def add(self, embeddings, metadatas, ids):
         self.embeddings.extend(embeddings)
         self.metadatas.extend(metadatas)
-        if ids:
-            self.ids.extend(ids)
-        else:  # Maintain old behavior if ids not provided by test
-            self.ids.extend([str(i) for i in range(len(metadatas))])
+        self.ids.extend(ids)
 
-    def query(self, embedding, top_k):
+    def upsert(self, embeddings, metadatas, ids):
+        # Simple upsert: remove old if id exists, then add
+        id_to_idx = {old_id: i for i, old_id in enumerate(self.ids)}
+        new_embeddings, new_metadatas, new_ids = [], [], []
+        for i, current_id in enumerate(ids):
+            if current_id in id_to_idx:
+                # Mark for removal (or update in place if we store indices)
+                # For simplicity here, we'll just filter out and re-add
+                pass  # Will be replaced by new entry
+            new_embeddings.append(embeddings[i])
+            new_metadatas.append(metadatas[i])
+            new_ids.append(current_id)
+
+        # Filter out old entries that are being updated
+        self.embeddings = [
+            emb for i, emb in enumerate(self.embeddings) if self.ids[i] not in id_to_idx or self.ids[i] not in new_ids
+        ]
+        self.metadatas = [
+            meta for i, meta in enumerate(self.metadatas) if self.ids[i] not in id_to_idx or self.ids[i] not in new_ids
+        ]
+        self.ids = [
+            id_val for i, id_val in enumerate(self.ids) if self.ids[i] not in id_to_idx or self.ids[i] not in new_ids
+        ]
+
+        self.embeddings.extend(new_embeddings)
+        self.metadatas.extend(new_metadatas)
+        self.ids.extend(new_ids)
+
+    def query(self, embedding, top_k=5):
         """Return first *top_k* stored metadatas (distance ignored)."""
         return self.metadatas[:top_k]
+
+    def search(self, embedding, top_k=5):
+        # Alias query for compatibility with SummarySearcher
+        return self.query(embedding, top_k)
 
     def persist(self):
         # No-op for the in-memory backend
         pass
+
+    def delete(self, ids):
+        indices_to_delete = {i for i, doc_id in enumerate(self.ids) if doc_id in ids}
+        self.embeddings = [emb for i, emb in enumerate(self.embeddings) if i not in indices_to_delete]
+        self.metadatas = [meta for i, meta in enumerate(self.metadatas) if i not in indices_to_delete]
+        self.ids = [id_val for i, id_val in enumerate(self.ids) if i not in indices_to_delete]
+        return len(indices_to_delete) > 0
 
     def count(self):  # Add count method
         return len(self.metadatas)
@@ -65,6 +102,10 @@ def my_function():
 
 def test_index_and_search(dummy_repo):
     # --- Arrange --------------------------------------------------------
+    # Determine cache path within the temp directory
+    _ = Path(dummy_repo.repo_path)
+    # Default cache and vector DB paths will be within repo_path/.kit_cache/
+
     summarizer = MagicMock()
     summarizer.summarize_file.side_effect = lambda p: f"Summary of {p}"
     # Mock summarize_function as it's called by DocstringIndexer for symbol-level indexing
@@ -78,22 +119,40 @@ def test_index_and_search(dummy_repo):
         return [float(len(text))]  # very simple embedding
 
     backend = DummyBackend()
+    # Default FilesystemCacheBackend will be used internally by DocstringIndexer
+    # Its persist_dir will be repo_path/.kit_cache/docstring_cache/
+    # The default ChromaDBBackend (mocked by DummyBackend here for test) will use
+    # repo_path/.kit_cache/vector_db/
 
-    indexer = DocstringIndexer(dummy_repo, summarizer, embed_fn, backend=backend)
+    indexer = DocstringIndexer(
+        dummy_repo,
+        summarizer,
+        embed_fn,
+        backend=backend,
+        # No explicit cache_backend, so default FilesystemCacheBackend is used
+    )
 
     # --- Act ------------------------------------------------------------
+    # Build with default level='symbol'
     indexer.build()
 
     # --- Assert build() -------------------------------------------------
-    # The repo contains exactly one file -> one embedding & metadata
+    # Default level is 'symbol'. 'hello.py' has one function symbol 'hello'.
     assert len(backend.embeddings) == 1
     assert len(backend.metadatas) == 1
 
     meta = backend.metadatas[0]
-    assert meta["file_path"].endswith("hello.py")  # Changed "file" to "file_path"
-    assert meta["summary"].startswith("Summary of")
+    assert meta["file_path"].endswith("hello.py")
+    # Symbol level meta:
+    assert meta["level"] == "symbol"
+    assert meta["symbol_name"] == "hello"
+    assert meta["symbol_type"] == "FUNCTION"
+    assert meta["summary"].startswith("Summary of function hello")  # Check symbol summary
 
-    summarizer.summarize_function.assert_called_once()  # For symbol-level on 'hello' function
+    # Summarize_function should be called for the 'hello' symbol
+    summarizer.summarize_function.assert_called_once_with("hello.py", "hello")
+    # Summarize_file should NOT be called when level='symbol'
+    summarizer.summarize_file.assert_not_called()
 
     # --- Act & Assert search() -----------------------------------------
     searcher = SummarySearcher(indexer)
@@ -107,7 +166,8 @@ def test_index_and_search(dummy_repo):
 
 def test_index_and_search_symbol_level(repo_with_symbols):
     dummy_repo, file_path = repo_with_symbols
-    relative_file_path = str(file_path.relative_to(dummy_repo.repo_path))  # Corrected to repo_path
+    relative_file_path = str(file_path.relative_to(dummy_repo.repo_path))
+    # Default cache and vector DB paths will be within dummy_repo.repo_path/.kit_cache/
 
     # --- Arrange --------------------------------------------------------
     mock_summarizer = MagicMock(spec=Summarizer)
@@ -142,7 +202,14 @@ def test_index_and_search_symbol_level(repo_with_symbols):
         return [float(len(text))]  # very simple embedding
 
     backend = DummyBackend()
-    indexer = DocstringIndexer(dummy_repo, mock_summarizer, embed_fn, backend=backend)
+    # Default FilesystemCacheBackend will be used.
+
+    indexer = DocstringIndexer(
+        dummy_repo,
+        mock_summarizer,
+        embed_fn,
+        backend=backend,
+    )
 
     # --- Act ------------------------------------------------------------
     indexer.build(level="symbol", file_extensions=[".py"], force=True)
@@ -200,3 +267,9 @@ def test_index_and_search_symbol_level(repo_with_symbols):
             assert hit["file_path"] == relative_file_path
             assert hit["summary"] == "Summary of MyClass"
     assert found_myclass, "MyClass symbol not found in search results"
+
+    # Test default file extension handling (no specific file_extensions passed to build)
+    # This assumes .py is a default handled by the repository/symbol extractor
+    indexer_default_ext = DocstringIndexer(dummy_repo, mock_summarizer, embed_fn, backend=DummyBackend())
+    indexer_default_ext.build(level="symbol", force=True)  # uses repo_with_symbols dummy repo
+    assert len(indexer_default_ext.backend.embeddings) >= 2  # type: ignore
