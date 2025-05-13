@@ -39,11 +39,11 @@ embed_model = SentenceTransformer("all-MiniLM-L6-v2")
 embed_fn = lambda txt: embed_model.encode(txt).tolist()
 
 indexer = DocstringIndexer(repo, summarizer, embed_fn)
-indexer.build()          # writes to repo_path/.kit_cache/docstring_db by default (vector DB and cache metadata)
+indexer.build()          # writes to repo_path/.kit_cache/vector_db/ and repo_path/.kit_cache/docstring_cache/ by default
 ```
 
 The first run will take time depending on repo size and LLM latency.
-Summaries and file change metadata are cached (by default in a `meta.json` file within the `persist_dir`), 
+Summaries and file change metadata are cached (by default in `repo_path/.kit_cache/docstring_cache/meta.json`), 
 so subsequent runs are cheap if code hasn't changed.
 
 ## 4. Query the index

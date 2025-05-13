@@ -26,7 +26,8 @@ from .repository import Repository
 from .summaries import Summarizer
 from .vector_searcher import ChromaDBBackend, VectorDBBackend
 
-EmbedFn = Callable[[str], List[float]]  # str -> embedding vector
+# Type alias for the embedding function signature
+EmbedFn = Optional[Callable[[str], List[float]]]
 
 __all__ = [
     "DocstringIndexer",
@@ -34,6 +35,23 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_COLLECTION_NAME = "kit_docstring_index"
+DEFAULT_CACHE_DIR_NAME = ".kit_cache"
+DEFAULT_VECTOR_DB_DIR_NAME = "vector_db" # Subdir for ChromaDB within the base persist dir
+DEFAULT_CACHE_FILE_DIR_NAME = "docstring_cache" # Subdir for cache metadata within the base persist dir
+
+# --- Helper to determine default base persistence directory ---
+def _get_default_base_persist_dir(repo: Repository) -> str:
+    """Determines the default root directory for storing backend data."""
+    if hasattr(repo, "repo_path") and repo.repo_path:
+        base_dir = os.path.join(repo.repo_path, DEFAULT_CACHE_DIR_NAME)
+    else:
+        # Fallback if repo path isn't available (e.g., non-local repo without cache_dir?)
+        base_dir = os.path.join(os.getcwd(), f"{DEFAULT_CACHE_DIR_NAME}_generic")
+    os.makedirs(base_dir, exist_ok=True)
+    logger.debug(f"Determined default base persist directory: {base_dir}")
+    return base_dir
 
 
 def _process_symbol_task(
@@ -114,138 +132,118 @@ def _process_symbol_task(
 
 
 class DocstringIndexer:
-    """Builds a vector index of LLM-generated docstrings (summaries).
+    """Build an index of summaries (`docstrings`) for code.
 
-    A thin wrapper around an existing VectorDB backend.  On ``build()``, it:
-    1. walks the repository file tree,
-    2. calls :py:meth:`Summarizer.summarize_file` to obtain a concise summary,
-    3. embeds that summary via *embed_fn*, and
-    4. stores the embedding + metadata in *backend*.
+    Uses a :class:`Summarizer` to generate summaries via LLM, then embeds
+    these summaries using an `embed_fn`, and stores them in a vector DB
+    accessed via a :class:`VectorDBBackend`. Uses a :class:`CacheBackend`
+    to track file changes and avoid redundant processing.
 
-    Parameters
-    ----------
-    repo
-        Active :py:class:`kit.repository.Repository`.
-    summarizer
-        Configured :py:class:`kit.summaries.Summarizer`.
-    embed_fn
-        Callable that converts text → embedding vector (list[float]).
-    backend
-        Optional vector-DB backend, defaults to :class:`ChromaDBBackend`.
-    persist_dir
-        Where on disk to store backend data (if backend honors persistence).
-    cache_backend
-        Optional cache backend for storing and loading cache data.
+    Args:
+        repo: Repository object to index.
+        summarizer: Summarizer instance for generating text summaries.
+        embed_fn:
+            Function `str -> List[float]` to embed summaries. Defaults to a
+            sentence-transformer model.
+        backend:
+            Optional vector-DB backend, defaults to :class:`ChromaDBBackend`.
+        cache_backend:
+            Optional cache backend for storing and loading cache data.
+            Defaults to :class:`FilesystemCacheBackend`.
     """
 
     def __init__(
         self,
         repo: Repository,
         summarizer: Summarizer,
-        embed_fn: Optional[Callable[[str], List[float]]] = None,
+        embed_fn: EmbedFn = None,
         *,
         backend: Optional[VectorDBBackend] = None,
-        persist_dir: Optional[str] = None,
+        # persist_dir: Optional[str] = None, # REMOVED
         cache_backend: Optional[CacheBackend] = None,
     ) -> None:
         self.repo = repo
         self.summarizer = summarizer
 
+        # Embedding function
+        self.embed_fn: Callable[[str], List[float]]
         if embed_fn:
             self.embed_fn = embed_fn
         else:
+            # Default embedding function using sentence-transformers
             try:
                 from sentence_transformers import SentenceTransformer
 
-                _st_model = SentenceTransformer("all-MiniLM-L6-v2")
+                # Cache the model instance
+                if not hasattr(DocstringIndexer, "_default_embed_model"):
+                    logger.info("Initializing default SentenceTransformer model (all-MiniLM-L6-v2)")
+                    DocstringIndexer._default_embed_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-                def default_embed_fn(text_to_embed: str) -> List[float]:
-                    embedding_vector = _st_model.encode(text_to_embed)
-                    return embedding_vector.tolist()
+                model = DocstringIndexer._default_embed_model
 
-                self.embed_fn = default_embed_fn
-                # Example logging:
-                # logger.info("No embed_fn provided. Using default SentenceTransformer ('all-MiniLM-L6-v2').")
+                def default_embed(text: str) -> List[float]:
+                    embedding = model.encode(text)
+                    return embedding.tolist()
+
+                self.embed_fn = default_embed
+
             except ImportError:
-                raise ImportError(
-                    "The 'sentence-transformers' library is required to use the default embedding function. "
-                    "Please install it (e.g., 'pip install kit[default-embeddings]' or 'pip install sentence-transformers') "
-                    "or provide a custom 'embed_fn' to DocstringIndexer."
+                logger.error(
+                    "SentenceTransformer embedding model requires `sentence-transformers` package. "
+                    "Please install it (`pip install sentence-transformers`) or provide a custom `embed_fn`."
                 )
-            except Exception as e:
-                raise RuntimeError(
-                    f"Failed to initialize the default SentenceTransformer embedding function: {e}. "
-                    "Please check your internet connection, ensure the model name is correct, "
-                    "or provide a custom 'embed_fn'."
-                )
+                raise
 
-        # Updated persist_dir logic:
-        # Default to a .kit_cache directory within the repository path if persist_dir is not given.
-        if persist_dir:
-            self.persist_dir = persist_dir
-        else:
-            # Check if repo.repo_path is available and valid, otherwise default to a generic location or raise error
-            if hasattr(self.repo, "repo_path") and self.repo.repo_path:
-                self.persist_dir = os.path.join(self.repo.repo_path, ".kit_cache", "docstring_db")
-            else:
-                # Fallback if repo_path is not available (should ideally not happen with a valid Repo object)
-                self.persist_dir = os.path.join(os.getcwd(), ".kit_cache", "docstring_db_generic")
-                # logger.warning(f"Repository path not found. Defaulting persist_dir to {self.persist_dir}")
-
-        # Ensure the persist_dir exists before ChromaDBBackend tries to use it
-        # Note: FilesystemCacheBackend also ensures this directory exists if used.
-        if self.persist_dir and not os.path.exists(self.persist_dir):
-            os.makedirs(self.persist_dir, exist_ok=True)
-            logger.debug(f"Created persist directory: {self.persist_dir}")
+        # Determine base directory for default backend persistence
+        # We only calculate this if we actually need it for a default backend.
+        self._default_base_persist_dir = None
 
         # Initialize the Vector DB Backend
-        # Use persist_dir if provided, otherwise let the backend use its default (if any)
-        str_persist_dir = str(self.persist_dir) if self.persist_dir else None
-        self.backend: VectorDBBackend = backend or ChromaDBBackend(
-            persist_dir=str_persist_dir, collection_name="kit_docstring_index"
-        )
+        if backend:
+            self.backend = backend
+            logger.info(f"Using provided VectorDBBackend: {type(backend).__name__}")
+        else:
+            # Default to ChromaDBBackend
+            if self._default_base_persist_dir is None:
+                self._default_base_persist_dir = _get_default_base_persist_dir(self.repo)
+            vector_db_persist_path = os.path.join(self._default_base_persist_dir, DEFAULT_VECTOR_DB_DIR_NAME)
+            self.backend = ChromaDBBackend(
+                persist_dir=vector_db_persist_path, collection_name=DEFAULT_COLLECTION_NAME
+            )
+            logger.info(
+                f"Using default ChromaDBBackend. Persist path: {getattr(self.backend, 'persist_dir', 'N/A')}"
+            )
 
         # Initialize the Cache Backend
         if cache_backend:
             self.cache_backend = cache_backend
             logger.info(f"Using provided CacheBackend: {type(cache_backend).__name__}")
         else:
-            # Default to FilesystemCacheBackend if none provided
-            if not self.persist_dir:
-                # We need a persist_dir for the default filesystem cache
-                # Re-calculate the default if it wasn't explicitly set earlier
-                if hasattr(self.repo, "repo_path") and self.repo.repo_path:
-                    self.persist_dir = os.path.join(self.repo.repo_path, ".kit_cache", "docstring_db")
-                else:
-                    self.persist_dir = os.path.join(os.getcwd(), ".kit_cache", "docstring_db_generic")
-                logger.info(
-                    f"persist_dir not explicitly set, defaulting to {self.persist_dir} for FilesystemCacheBackend."
-                )
-                # Ensure this default dir exists as well
-                os.makedirs(self.persist_dir, exist_ok=True)
-
-            self.cache_backend = FilesystemCacheBackend(persist_dir=self.persist_dir)
+            # Default to FilesystemCacheBackend
+            if self._default_base_persist_dir is None:
+                self._default_base_persist_dir = _get_default_base_persist_dir(self.repo)
+            cache_persist_path = os.path.join(self._default_base_persist_dir, DEFAULT_CACHE_FILE_DIR_NAME)
+            self.cache_backend = FilesystemCacheBackend(persist_dir=cache_persist_path)
             logger.info(
-                f"Using default FilesystemCacheBackend. Cache file: {getattr(self.cache_backend, 'cache_file_path', 'N/A')}"
+                f"Using default FilesystemCacheBackend. Cache file dir: {getattr(self.cache_backend, 'persist_dir', 'N/A')}"
             )
 
     def build(self, force: bool = False, level: str = "symbol", file_extensions: Optional[List[str]] = None) -> None:
         """(Re)build the docstring index.
 
-        If *force* is ``False`` and the backend already contains data we do
-        nothing.
+        Uses the configured `cache_backend` to track file changes and avoid
+        re-summarizing and re-embedding unchanged code, unless `force=True`.
 
-        Parameters
-        ----------
-        force
-            If ``True``, rebuild even if data exists.
-        level
-            Granularity of indexing: "file" or "symbol".
-        file_extensions
-            Optional list of file extensions to include (e.g., [".py", ".js"]).
-            If None, all files are considered (respecting .gitignore).
+        Args:
+            force:
+                If True, ignore cache and rebuild entire index.
+            level:
+                Indexing level: `"symbol"` (default) or `"file"`.
+            file_extensions:
+                Optional list of file extensions to include (e.g., [".py", ".js"]).
+                If None, all files are considered (respecting .gitignore).
         """
-        # Load cache using the backend
+        # Load cache using the cache backend
         logger.debug("Loading cache using cache backend...")
         try:
             cache: CacheData = self.cache_backend.load()
@@ -283,151 +281,144 @@ class DocstringIndexer:
 
         all_files = [f["path"] for f in self.repo.get_file_tree() if not f.get("is_dir", False)]
 
+        # Filter by extension if specified
         if file_extensions:
-            files_to_process = [fp for fp in all_files if any(fp.endswith(ext) for ext in file_extensions)]
+            filtered_files = []
+            for f_path in all_files:
+                if any(f_path.endswith(ext) for ext in file_extensions):
+                    filtered_files.append(f_path)
+            files_to_process = filtered_files
+            logger.info(f"Processing {len(files_to_process)} files with extensions: {file_extensions}")
         else:
             files_to_process = all_files
+            logger.info(f"Processing all {len(files_to_process)} files in repository.")
 
-        if not files_to_process:
-            logger.warning("No files found to index after extension filtering.")
-            return
+        # --- Symbol Level Indexing ---
+        if level == "symbol":
+            logger.info("Building index at 'symbol' level.")
+            embeddings: List[List[float]] = []
+            metadatas: List[Dict[str, Any]] = []
+            ids: List[str] = []
 
-        embeddings: List[List[float]] = []
-        metadatas: List[Dict[str, Any]] = []
-        ids: List[str] = []
-        seen_ids: set[str] = set()
-
-        from concurrent.futures import Future, ThreadPoolExecutor, as_completed
-
-        try:
-            max_workers = int(os.environ.get("KIT_INDEXER_MAX_WORKERS", os.cpu_count() or 4))
-        except TypeError:  # os.cpu_count() can return None
-            max_workers = 4
-        logger.info(f"Using up to {max_workers} workers for symbol processing.")
-
-        for path in tqdm(files_to_process, desc=f"Indexing ({level} level)"):
-            if level == "file":
-                abs_file_path = Path(self.repo.repo_path) / path  # Create absolute path
+            for file_path in tqdm(files_to_process, desc="Indexing symbols"):
                 try:
-                    summary = self.summarizer.summarize_file(path)
-                    if not summary.strip():
-                        logger.warning(f"Empty summary for file {path}, skipping.")
+                    # Use extract_symbols which handles language detection and parsing
+                    symbols = self.repo.extract_symbols(file_path)
+                    if not symbols:
                         continue
-                    doc_id = path
-                    file_hash = hashlib.sha1(abs_file_path.read_bytes()).hexdigest()
-                    if cache.get(doc_id, {}).get("hash") == file_hash:
-                        seen_ids.add(doc_id)
-                        continue
-                    meta = {"file_path": path, "summary": summary, "level": "file"}
-                    emb = self.embed_fn(summary)
-                    embeddings.append(emb)
-                    metadatas.append(meta)
-                    ids.append(doc_id)
-                    cache[doc_id] = {"hash": file_hash}
-                    seen_ids.add(doc_id)
-                except Exception as exc:
-                    logger.error(f"Failed to summarize file {path}: {exc}", exc_info=True)
-                    continue
-            elif level == "symbol":
-                try:
-                    symbols_in_file = self.repo.extract_symbols(path)
-                except Exception as exc:
-                    logger.error(f"Failed to extract symbols from {path}: {exc}", exc_info=True)
-                    continue
 
-                if not symbols_in_file:
-                    logger.debug(f"No symbols found in {path}, skipping.")
-                    continue
+                    current_content = self.repo.get_file_content(file_path)
+                    current_hash = hashlib.sha256(current_content.encode()).hexdigest()
 
-                # Lists to store results for the current file
-                file_embeddings: List[List[float]] = []
-                file_metadatas: List[Dict[str, Any]] = []
-                file_ids: List[str] = []
-                file_cache_updates: Dict[str, Dict[str, str]] = {}
-                file_seen_ids: set[str] = set()
+                    for symbol in symbols:
+                        # Create a unique ID for the symbol embedding
+                        symbol_id = f"{file_path}::{symbol['name']}"
+                        symbol_type = symbol.get("type", "UNKNOWN").upper()
 
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures: List[Future] = []
-                    for s_info in symbols_in_file:
-                        futures.append(
-                            executor.submit(
-                                _process_symbol_task,
-                                path_str=path,
-                                symbol_info=s_info,
-                                summarizer_instance=self.summarizer,
-                                embed_fn_instance=self.embed_fn,
-                                current_cache=cache,  # Pass read-only view of cache
-                            )
+                        # Check cache
+                        cached_info = cache.get(symbol_id)
+                        if not force and cached_info and cached_info.get("hash") == current_hash:
+                            # logger.debug(f"Cache hit for symbol: {symbol_id}")
+                            continue  # Skip if content hash matches
+
+                        # Generate summary
+                        summary = ""
+                        if symbol_type == "FUNCTION" or symbol_type == "METHOD":
+                            summary = self.summarizer.summarize_function(file_path, symbol["name"])
+                        elif symbol_type == "CLASS":
+                            summary = self.summarizer.summarize_class(file_path, symbol["name"])
+                        else:
+                            # Optionally handle other symbol types or skip
+                            # logger.debug(f"Skipping summary for symbol type {symbol_type}: {symbol_id}")
+                            continue
+
+                        if not summary:
+                            logger.warning(f"Failed to get summary for symbol: {symbol_id}")
+                            continue
+
+                        # Embed summary
+                        embedding = self.embed_fn(summary)
+                        if embedding is None:
+                            logger.warning(f"Failed to get embedding for symbol summary: {symbol_id}")
+                            continue
+
+                        embeddings.append(embedding)
+                        ids.append(symbol_id)
+                        metadatas.append(
+                            {
+                                "file_path": file_path,
+                                "symbol_name": symbol["name"],
+                                "symbol_type": symbol_type,
+                                "summary": summary, # Include summary in metadata for retrieval
+                                "level": "symbol",
+                            }
                         )
+                        # Update cache with new hash
+                        cache[symbol_id] = {"hash": current_hash}
 
-                    for future in as_completed(futures):
-                        try:
-                            result = future.result()
-                            status = result.get("status")
-                            doc_id_from_result = result.get("doc_id", "unknown_doc_id_in_future")
+                except Exception as e:
+                    logger.error(f"Error processing symbols in file {file_path}: {e}", exc_info=True)
 
-                            if status == "processed":
-                                file_embeddings.append(result["embedding"])
-                                file_metadatas.append(result["metadata"])
-                                file_ids.append(doc_id_from_result)
-                                file_cache_updates[doc_id_from_result] = {"hash": result["hash"]}
-                                file_seen_ids.add(doc_id_from_result)
-                            elif status == "cached":
-                                file_seen_ids.add(doc_id_from_result)
-                            elif status == "error":
-                                logger.debug(
-                                    f"Symbol processing for {doc_id_from_result} resulted in status '{status}': {result.get('message')}"
-                                )
-                            elif status in [
-                                "skipped_no_name_type",
-                                "skipped_no_code",
-                                "skipped_unsupported_type",
-                                "skipped_empty_summary",
-                                "skipped_invalid_summary_type",
-                            ]:
-                                logger.debug(f"Symbol {doc_id_from_result} was skipped: {status}")
-                            else:
-                                logger.warning(
-                                    f"Unknown status '{status}' from _process_symbol_task for {doc_id_from_result}"
-                                )
-                        except Exception as exc_in_future:
-                            logger.error(
-                                f"Exception retrieving result from future for a symbol in {path}: {exc_in_future}",
-                                exc_info=True,
-                            )
+        # --- File Level Indexing ---
+        elif level == "file":
+            logger.info("Building index at 'file' level.")
+            embeddings = []
+            metadatas = []
+            ids = []
 
-                # After processing all symbols for the current file, extend the main lists
-                if file_embeddings:  # Only extend if there's something to add
-                    embeddings.extend(file_embeddings)
-                    metadatas.extend(file_metadatas)
-                    ids.extend(file_ids)
-                    cache.update(file_cache_updates)  # Update the main cache
-                    seen_ids.update(file_seen_ids)  # Update main seen_ids
-                elif file_seen_ids:  # Still update seen_ids if items were cached
-                    seen_ids.update(file_seen_ids)
+            for file_path in tqdm(files_to_process, desc="Indexing files"):
+                try:
+                    file_id = file_path # Use file path as ID for file-level
+                    current_content = self.repo.get_file_content(file_path)
+                    current_hash = hashlib.sha256(current_content.encode()).hexdigest()
 
-            else:
-                raise ValueError(f"Invalid indexing level: {level}. Choose 'file' or 'symbol'.")
+                    # Check cache
+                    cached_info = cache.get(file_id)
+                    if not force and cached_info and cached_info.get("hash") == current_hash:
+                        # logger.debug(f"Cache hit for file: {file_id}")
+                        continue
 
-        # remove orphans
-        orphan_ids = set(cache.keys()) - seen_ids
-        if orphan_ids:
+                    # Generate summary for the whole file
+                    summary = self.summarizer.summarize_file(file_path)
+                    if not summary:
+                        logger.warning(f"Failed to get summary for file: {file_path}")
+                        continue
+
+                    # Embed summary
+                    embedding = self.embed_fn(summary)
+                    if embedding is None:
+                        logger.warning(f"Failed to get embedding for file summary: {file_path}")
+                        continue
+
+                    embeddings.append(embedding)
+                    ids.append(file_id)
+                    metadatas.append(
+                        {
+                            "file_path": file_path,
+                            "summary": summary,
+                            "level": "file",
+                        }
+                    )
+                    # Update cache
+                    cache[file_id] = {"hash": current_hash}
+
+                except Exception as e:
+                    logger.error(f"Error processing file {file_path}: {e}", exc_info=True)
+
+        else:
+            raise ValueError(f"Invalid indexing level specified: '{level}'. Must be 'symbol' or 'file'.")
+
+        # Upsert embeddings to vector DB if any were generated
+        if embeddings and ids and metadatas:
+            logger.info(f"Upserting {len(ids)} new/updated embeddings to vector DB...")
             try:
-                self.backend.delete(ids=list(orphan_ids))
-            except Exception:
-                pass
-            for oid in orphan_ids:
-                cache.pop(oid, None)
-
-        if embeddings:
-            logger.info(f"Adding {len(embeddings)} embeddings to the index.")
-            self.backend.add(embeddings=embeddings, metadatas=metadatas, ids=ids)  # Chroma needs 'ids'
-            self.backend.persist()
-            logger.info("Index build complete and persisted.")
+                self.backend.upsert(embeddings, metadatas, ids)
+            except Exception as e:
+                logger.error(f"Failed to upsert embeddings to vector DB: {e}", exc_info=True)
         else:
             logger.warning("No embeddings were generated during indexing.")
 
-        # Persist cache using the backend
+        # Persist cache using the cache backend
         logger.debug("Saving cache using cache backend...")
         try:
             self.cache_backend.save(cache)
@@ -437,27 +428,40 @@ class DocstringIndexer:
 
     def get_searcher(self) -> "SummarySearcher":
         """
-        Returns a SummarySearcher instance configured with this indexer.
-
-        This provides a convenient way to get a query interface after the
-        indexer has been built or loaded.
+        Get a :class:`SummarySearcher` instance configured for this index.
 
         Returns:
-            SummarySearcher: An instance of SummarySearcher ready to query this indexer.
+            A SummarySearcher instance.
         """
-        return SummarySearcher(indexer=self)
+        return SummarySearcher(self)
 
 
 class SummarySearcher:
-    """Simple wrapper that queries a :class:`DocstringIndexer` backend."""
+    """Search an index built by :class:`DocstringIndexer`."""
 
-    def __init__(self, indexer: DocstringIndexer):
+    def __init__(self, indexer: "DocstringIndexer"):
         self.indexer = indexer
-        self.embed_fn = indexer.embed_fn
 
-    def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """Return up to *top_k* hits with their metadata and distance score."""
-        if top_k <= 0:
+    def search(self, query: str, top_k: int = 10) -> List[Dict[str, Any]]:
+        """Embed the query and search the vector DB.
+
+        Args:
+            query:
+                The search query.
+            top_k:
+                Number of results to return.
+
+        Returns:
+            List of search results, each with keys like `id`, `score`, `summary`,
+            `file_path`, etc.
+        """
+        embedding = self.indexer.embed_fn(query) # type: ignore
+        if embedding is None:
             return []
-        emb = self.embed_fn(query)
-        return self.indexer.backend.query(emb, top_k)
+        results = self.indexer.backend.search(embedding, top_k=top_k)
+        logger.debug(f"Retrieved {len(results)} results for query '{query[:50]}...'")
+        # Hydrate results with summaries stored in metadata
+        for res in results:
+            if "summary" not in res and "metadata" in res and res["metadata"]:
+                res["summary"] = res["metadata"].get("summary", "")
+        return results

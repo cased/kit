@@ -13,27 +13,63 @@ from kit.vector_searcher import VectorDBBackend
 class DummyBackend(VectorDBBackend):
     """In-memory VectorDB backend for testing purposes."""
 
-    def __init__(self):
-        self.embeddings = []
-        self.metadatas = []
-        self.ids = []
+    def __init__(self, persist_dir=None, collection_name=None):
+        self.embeddings: list = []
+        self.metadatas: list = []
+        self.ids: list = []
 
     # --- VectorDBBackend interface -------------------------------------
-    def add(self, embeddings, metadatas, ids=None):  # Add ids parameter
+    def add(self, embeddings, metadatas, ids):
         self.embeddings.extend(embeddings)
         self.metadatas.extend(metadatas)
-        if ids:
-            self.ids.extend(ids)
-        else:  # Maintain old behavior if ids not provided by test
-            self.ids.extend([str(i) for i in range(len(metadatas))])
+        self.ids.extend(ids)
 
-    def query(self, embedding, top_k):
+    def upsert(self, embeddings, metadatas, ids):
+        # Simple upsert: remove old if id exists, then add
+        id_to_idx = {old_id: i for i, old_id in enumerate(self.ids)}
+        new_embeddings, new_metadatas, new_ids = [], [], []
+        for i, current_id in enumerate(ids):
+            if current_id in id_to_idx:
+                # Mark for removal (or update in place if we store indices)
+                # For simplicity here, we'll just filter out and re-add
+                pass # Will be replaced by new entry
+            new_embeddings.append(embeddings[i])
+            new_metadatas.append(metadatas[i])
+            new_ids.append(current_id)
+        
+        # Filter out old entries that are being updated
+        self.embeddings = [
+            emb for i, emb in enumerate(self.embeddings) if self.ids[i] not in id_to_idx or self.ids[i] not in new_ids
+        ]
+        self.metadatas = [
+            meta for i, meta in enumerate(self.metadatas) if self.ids[i] not in id_to_idx or self.ids[i] not in new_ids
+        ]
+        self.ids = [
+            id_val for i, id_val in enumerate(self.ids) if self.ids[i] not in id_to_idx or self.ids[i] not in new_ids
+        ]
+        
+        self.embeddings.extend(new_embeddings)
+        self.metadatas.extend(new_metadatas)
+        self.ids.extend(new_ids)
+
+    def query(self, embedding, top_k=5):
         """Return first *top_k* stored metadatas (distance ignored)."""
         return self.metadatas[:top_k]
+
+    def search(self, embedding, top_k=5):
+        # Alias query for compatibility with SummarySearcher
+        return self.query(embedding, top_k)
 
     def persist(self):
         # No-op for the in-memory backend
         pass
+
+    def delete(self, ids):
+        indices_to_delete = {i for i, doc_id in enumerate(self.ids) if doc_id in ids}
+        self.embeddings = [emb for i, emb in enumerate(self.embeddings) if i not in indices_to_delete]
+        self.metadatas = [meta for i, meta in enumerate(self.metadatas) if i not in indices_to_delete]
+        self.ids = [id_val for i, id_val in enumerate(self.ids) if i not in indices_to_delete]
+        return len(indices_to_delete) > 0
 
     def count(self):  # Add count method
         return len(self.metadatas)
@@ -69,7 +105,7 @@ def test_index_and_search(dummy_repo):
     # --- Arrange --------------------------------------------------------
     # Determine cache path within the temp directory
     repo_path = Path(dummy_repo.repo_path)
-    cache_dir = repo_path / ".test_cache_basic"
+    # Default cache and vector DB paths will be within repo_path/.kit_cache/
 
     summarizer = MagicMock()
     summarizer.summarize_file.side_effect = lambda p: f"Summary of {p}"
@@ -84,16 +120,17 @@ def test_index_and_search(dummy_repo):
         return [float(len(text))]  # very simple embedding
 
     backend = DummyBackend()
+    # Default FilesystemCacheBackend will be used internally by DocstringIndexer
+    # Its persist_dir will be repo_path/.kit_cache/docstring_cache/
+    # The default ChromaDBBackend (mocked by DummyBackend here for test) will use
+    # repo_path/.kit_cache/vector_db/
 
-    # Explicitly create and pass the FilesystemCacheBackend
-    cache_backend = FilesystemCacheBackend(persist_dir=str(cache_dir))
     indexer = DocstringIndexer(
         dummy_repo,
         summarizer,
         embed_fn,
         backend=backend,
-        cache_backend=cache_backend,
-        persist_dir=str(cache_dir / "vector_db"),  # Keep vector db separate but within test cache dir
+        # No explicit cache_backend, so default FilesystemCacheBackend is used
     )
 
     # --- Act ------------------------------------------------------------
@@ -131,9 +168,7 @@ def test_index_and_search(dummy_repo):
 def test_index_and_search_symbol_level(repo_with_symbols):
     dummy_repo, file_path = repo_with_symbols
     relative_file_path = str(file_path.relative_to(dummy_repo.repo_path))
-    # Determine cache path within the temp directory
-    repo_path = Path(dummy_repo.repo_path)
-    cache_dir = repo_path / ".test_cache_symbols"
+    # Default cache and vector DB paths will be within dummy_repo.repo_path/.kit_cache/
 
     # --- Arrange --------------------------------------------------------
     mock_summarizer = MagicMock(spec=Summarizer)
@@ -168,15 +203,13 @@ def test_index_and_search_symbol_level(repo_with_symbols):
         return [float(len(text))]  # very simple embedding
 
     backend = DummyBackend()
-    # Explicitly create and pass the FilesystemCacheBackend
-    cache_backend = FilesystemCacheBackend(persist_dir=str(cache_dir))
+    # Default FilesystemCacheBackend will be used.
+
     indexer = DocstringIndexer(
         dummy_repo,
         mock_summarizer,
         embed_fn,
         backend=backend,
-        cache_backend=cache_backend,
-        persist_dir=str(cache_dir / "vector_db"),
     )
 
     # --- Act ------------------------------------------------------------
@@ -235,3 +268,9 @@ def test_index_and_search_symbol_level(repo_with_symbols):
             assert hit["file_path"] == relative_file_path
             assert hit["summary"] == "Summary of MyClass"
     assert found_myclass, "MyClass symbol not found in search results"
+
+    # Test default file extension handling (no specific file_extensions passed to build)
+    # This assumes .py is a default handled by the repository/symbol extractor
+    indexer_default_ext = DocstringIndexer(dummy_repo, mock_summarizer, embed_fn, backend=DummyBackend())
+    indexer_default_ext.build(level="symbol", force=True) # uses repo_with_symbols dummy repo
+    assert len(indexer_default_ext.backend.embeddings) >= 2 # type: ignore

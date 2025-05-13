@@ -17,11 +17,13 @@ from kit.vector_searcher import VectorDBBackend # Optional
 from kit.cache_backend import CacheBackend # Optional
 
 # Example basic initialization (uses default file cache and vector backend)
+# - Default vector DB (ChromaDB) data path: repo_path/.kit_cache/vector_db/
+# - Default cache metadata (FilesystemCacheBackend) path: repo_path/.kit_cache/docstring_cache/meta.json
 repo = Repository("/path/to/your/repo")
 summarizer = Summarizer() # Assumes OPENAI_API_KEY is set or local model configured
 indexer = DocstringIndexer(repo=repo, summarizer=summarizer) 
 
-# Example with custom embedding function, explicit file cache, and custom vector backend
+# Example with custom embedding function and explicitly configured backends:
 # def my_custom_embed_fn(text: str) -> List[float]:
 #     # ... your embedding logic ...
 #     return [0.1, 0.2, ...]
@@ -29,16 +31,17 @@ indexer = DocstringIndexer(repo=repo, summarizer=summarizer)
 # from kit.vector_searcher import ChromaDBBackend
 # from kit.cache_backends.filesystem import FilesystemCacheBackend
 #
-# custom_vector_backend = ChromaDBBackend(collection_name="my_custom_index", persist_dir="./my_chroma_db")
-# custom_cache_backend = FilesystemCacheBackend(persist_dir="./my_kit_cache")
+# # Configure vector DB storage path
+# custom_vector_backend = ChromaDBBackend(collection_name="my_custom_index", persist_dir="./my_chroma_db_data")
+# # Configure cache metadata storage path
+# custom_cache_backend = FilesystemCacheBackend(persist_dir="./my_build_cache_data") 
 #
 # indexer_custom = DocstringIndexer(
 #     repo=repo,
 #     summarizer=summarizer,
 #     embed_fn=my_custom_embed_fn,
-#     backend=custom_vector_backend,
-#     cache_backend=custom_cache_backend,
-#     persist_dir="./my_shared_persist_dir" # Can be used if backends don't configure their own
+#     backend=custom_vector_backend, # Uses ./my_chroma_db_data
+#     cache_backend=custom_cache_backend # Uses ./my_build_cache_data/meta.json
 # )
 
 # Example using Redis cache backend (requires redis library: pip install redis)
@@ -48,11 +51,11 @@ indexer = DocstringIndexer(repo=repo, summarizer=summarizer)
 # redis_client = redis.Redis.from_url("redis://localhost:6379/0")
 # redis_cache = RedisCacheBackend(redis_client=redis_client, cache_key="my_project_doc_cache")
 #
+# # Vector DB will use default path: repo_path/.kit_cache/vector_db/
 # indexer_redis = DocstringIndexer(
 #     repo=repo,
 #     summarizer=summarizer,
 #     cache_backend=redis_cache 
-#     # Uses default vector backend (ChromaDB) and default embedding
 # )
 ```
 
@@ -68,17 +71,14 @@ indexer = DocstringIndexer(repo=repo, summarizer=summarizer)
     The `sentence-transformers` package must be installed for the default to work (`pip install sentence-transformers`).
 *   **`backend`** (`Optional[VectorDBBackend]`, default: `ChromaDBBackend`):
     The vector database backend to use for storing and querying embeddings.
-    If `None`, a `ChromaDBBackend` instance will be created using the `persist_dir`.
-    The default collection name is `kit_docstring_index`.
-*   **`persist_dir`** (`Optional[str]`, default: `repo.repo_path / ".kit_cache" / "docstring_db"` or `cwd / ".kit_cache" / "docstring_db_generic"`):
-    The *default* directory for persistent storage *if specific backends don't configure their own paths*. 
-    - If the default `ChromaDBBackend` is used for vectors, it will store its data here unless configured otherwise.
-    - If the default `FilesystemCacheBackend` is used for caching, it will store its `meta.json` here unless configured otherwise.
-    If `None`, a default path is constructed within a `.kit_cache` directory, usually inside the repository path.
+    - If `None`, a default `ChromaDBBackend` instance is created. It stores its data in `repo_path/.kit_cache/vector_db/` (or a similar path if `repo_path` is unavailable).
+    - If you provide a pre-configured `VectorDBBackend` instance, its own persistence settings will be used.
+    The default collection name used by `ChromaDBBackend` is `kit_docstring_index`.
 *   **`cache_backend`** (`Optional[CacheBackend]`, default: `FilesystemCacheBackend`):
-    The backend used to store cache metadata (e.g., file hashes to track changes).
-    - If `None`, a `FilesystemCacheBackend` instance is created, storing `meta.json` in the `persist_dir`.
-    - Allows using alternative backends like `RedisCacheBackend` for shared caching. See `kit.cache_backends`.
+    The backend used to store cache metadata (e.g., file hashes to track changes) to speed up rebuilds.
+    - If `None`, a default `FilesystemCacheBackend` instance is created. It stores its `meta.json` file in `repo_path/.kit_cache/docstring_cache/` (or a similar path if `repo_path` is unavailable).
+    - Allows using alternative backends like `RedisCacheBackend` for shared caching. See `kit.cache_backends` for available backends.
+    If you provide a pre-configured `CacheBackend` instance, its own persistence settings will be used.
 
 ## Methods
 

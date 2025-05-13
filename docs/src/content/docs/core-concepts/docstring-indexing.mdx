@@ -51,11 +51,18 @@ summarizer = Summarizer(repo, config=llm_summarizer_config)
 # storing data in repo_path/.kit_cache/docstring_db/
 indexer = DocstringIndexer(repo, summarizer)
 
-# Example using Redis cache:
+# Example using Redis cache (Vector DB uses default path):
 # from kit.cache_backends.redis import RedisCacheBackend
 # import redis
 # redis_cache = RedisCacheBackend(redis_url="redis://localhost:6379/0")
 # indexer = DocstringIndexer(repo, summarizer, cache_backend=redis_cache)
+
+# Example configuring both storage locations explicitly:
+# from kit.vector_searcher import ChromaDBBackend
+# from kit.cache_backends.filesystem import FilesystemCacheBackend
+# vector_db = ChromaDBBackend(persist_dir="./my_vector_data")
+# cache = FilesystemCacheBackend(persist_dir="./my_cache_data")
+# indexer = DocstringIndexer(repo, summarizer, backend=vector_db, cache_backend=cache)
 
 # 4. Build the index
 # This will process the repository, generate summaries, create embeddings, and store cache metadata.
@@ -265,10 +272,10 @@ for hit in searcher.search("retry back-off", top_k=5):
 
 `DocstringIndexer` uses two backend systems:
 
-1.  **Vector DB Backend**: Stores the actual embeddings and their metadata (like the summary text and source location). It defaults to using [`Chroma`](https://docs.trychroma.com/) and stores data in a subdirectory within the `persist_dir` (default: `.kit_cache/docstring_db/` inside your repo).
-2.  **Cache Backend**: Stores metadata (like file hashes) to track changes and avoid re-processing unchanged files/symbols. It defaults to using `FilesystemCacheBackend`, storing a `meta.json` file in the `persist_dir`. You can configure alternative backends like `RedisCacheBackend` via the `cache_backend` parameter in the constructor.
+1.  **Vector DB Backend**: Stores the actual embeddings and their metadata (like the summary text and source location). Defaults to using [`Chroma`](https://docs.trychroma.com/), storing data in `repo_path/.kit_cache/vector_db/`.
+2.  **Cache Backend**: Stores metadata (like file hashes) to track changes and avoid re-processing unchanged files/symbols. Defaults to `FilesystemCacheBackend`, storing a `meta.json` file in `repo_path/.kit_cache/docstring_cache/`.
 
-These backends can be configured independently using the `backend` and `cache_backend` parameters of the `DocstringIndexer` constructor.
+These backends can be configured independently by passing pre-configured instances to the `backend` and `cache_backend` parameters of the `DocstringIndexer` constructor. This allows you to specify different storage locations or use alternative backends like `RedisCacheBackend`.
 
 ## Use Cases
 
