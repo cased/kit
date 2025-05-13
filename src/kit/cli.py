@@ -11,7 +11,7 @@ def serve(host: str = "0.0.0.0", port: int = 8000, reload: bool = True):
     try:
         import uvicorn
 
-        from kit.api import app as fastapi_app  # Import the FastAPI app instance
+        from kit.api import app as fastapi_app
     except ImportError:
         typer.secho(
             "Error: FastAPI or Uvicorn not installed. Please run `pip install kit[api]`",
