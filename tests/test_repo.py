@@ -30,23 +30,56 @@ def baz(): pass
 
 
 @pytest.mark.parametrize(
-    "structure",
+    ("structure", "expected_treepaths"),
     [
-        ["a.py", "b.py", "c.txt"],
-        ["dir1/x.py", "dir2/y.py"],
+        (
+            {
+                "a.py": "pass",
+                "b.py": "pass",
+                "c.txt": "test",
+            },
+            [
+                "a.py",
+                "b.py",
+                "c.txt",
+            ],
+        ),
+        (
+            {
+                "dir1/x.py": "pass",
+                "dir2/y.py": "pass",
+            },
+            [
+                "dir1",
+                "dir1/x.py",
+                "dir2",
+                "dir2/y.py",
+            ],
+        ),
+        (
+            {
+                "dir1/dir2/z.py": "pass",
+            },
+            [
+                "dir1",
+                "dir1/dir2",
+                "dir1/dir2/z.py",
+            ],
+        ),
     ],
 )
-def test_repo_file_tree_various(structure):
+def test_repo_file_tree_various(structure, expected_treepaths):
     with tempfile.TemporaryDirectory() as tmpdir:
-        for relpath in structure:
+        for relpath, contents in structure.items():
             path = os.path.join(tmpdir, relpath)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w") as f:
-                f.write("pass\n")
+                f.write(contents)
+
         repository = Repository(tmpdir)
         tree = repository.get_file_tree()
-        for relpath in structure:
-            assert any(item["path"].endswith(relpath) for item in tree)
+        actual_treepaths = [x["path"] for x in tree]
+        assert sorted(actual_treepaths) == sorted(expected_treepaths)
 
 
 def test_repo_get_file_content():
