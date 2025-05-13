@@ -15,7 +15,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from tqdm import tqdm
@@ -38,8 +37,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_COLLECTION_NAME = "kit_docstring_index"
 DEFAULT_CACHE_DIR_NAME = ".kit_cache"
-DEFAULT_VECTOR_DB_DIR_NAME = "vector_db" # Subdir for ChromaDB within the base persist dir
-DEFAULT_CACHE_FILE_DIR_NAME = "docstring_cache" # Subdir for cache metadata within the base persist dir
+DEFAULT_VECTOR_DB_DIR_NAME = "vector_db"  # Subdir for ChromaDB within the base persist dir
+DEFAULT_CACHE_FILE_DIR_NAME = "docstring_cache"  # Subdir for cache metadata within the base persist dir
+
 
 # --- Helper to determine default base persistence directory ---
 def _get_default_base_persist_dir(repo: Repository) -> str:
@@ -207,12 +207,8 @@ class DocstringIndexer:
             if self._default_base_persist_dir is None:
                 self._default_base_persist_dir = _get_default_base_persist_dir(self.repo)
             vector_db_persist_path = os.path.join(self._default_base_persist_dir, DEFAULT_VECTOR_DB_DIR_NAME)
-            self.backend = ChromaDBBackend(
-                persist_dir=vector_db_persist_path, collection_name=DEFAULT_COLLECTION_NAME
-            )
-            logger.info(
-                f"Using default ChromaDBBackend. Persist path: {getattr(self.backend, 'persist_dir', 'N/A')}"
-            )
+            self.backend = ChromaDBBackend(persist_dir=vector_db_persist_path, collection_name=DEFAULT_COLLECTION_NAME)
+            logger.info(f"Using default ChromaDBBackend. Persist path: {getattr(self.backend, 'persist_dir', 'N/A')}")
 
         # Initialize the Cache Backend
         if cache_backend:
@@ -349,7 +345,7 @@ class DocstringIndexer:
                                 "file_path": file_path,
                                 "symbol_name": symbol["name"],
                                 "symbol_type": symbol_type,
-                                "summary": summary, # Include summary in metadata for retrieval
+                                "summary": summary,  # Include summary in metadata for retrieval
                                 "level": "symbol",
                             }
                         )
@@ -368,7 +364,7 @@ class DocstringIndexer:
 
             for file_path in tqdm(files_to_process, desc="Indexing files"):
                 try:
-                    file_id = file_path # Use file path as ID for file-level
+                    file_id = file_path  # Use file path as ID for file-level
                     current_content = self.repo.get_file_content(file_path)
                     current_hash = hashlib.sha256(current_content.encode()).hexdigest()
 
@@ -455,7 +451,7 @@ class SummarySearcher:
             List of search results, each with keys like `id`, `score`, `summary`,
             `file_path`, etc.
         """
-        embedding = self.indexer.embed_fn(query) # type: ignore
+        embedding = self.indexer.embed_fn(query)  # type: ignore
         if embedding is None:
             return []
         results = self.indexer.backend.search(embedding, top_k=top_k)

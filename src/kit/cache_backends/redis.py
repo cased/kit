@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Any, Optional
 
-import redis # Import directly as it's now a required dependency
+import redis  # Import directly as it's now a required dependency
 
 from ..cache_backend import CacheBackend, CacheData
 
@@ -31,7 +31,7 @@ class RedisCacheBackend(CacheBackend):
 
     def __init__(
         self,
-        redis_client: Optional[redis.Redis] = None, 
+        redis_client: Optional[redis.Redis] = None,
         redis_url: Optional[str] = None,
         cache_key: Optional[str] = None,
         **redis_connection_kwargs: Any,

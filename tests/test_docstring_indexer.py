@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from kit import DocstringIndexer, Repository, Summarizer, SummarySearcher
-from kit.cache_backends.filesystem import FilesystemCacheBackend
 from kit.vector_searcher import VectorDBBackend
 
 
@@ -32,11 +31,11 @@ class DummyBackend(VectorDBBackend):
             if current_id in id_to_idx:
                 # Mark for removal (or update in place if we store indices)
                 # For simplicity here, we'll just filter out and re-add
-                pass # Will be replaced by new entry
+                pass  # Will be replaced by new entry
             new_embeddings.append(embeddings[i])
             new_metadatas.append(metadatas[i])
             new_ids.append(current_id)
-        
+
         # Filter out old entries that are being updated
         self.embeddings = [
             emb for i, emb in enumerate(self.embeddings) if self.ids[i] not in id_to_idx or self.ids[i] not in new_ids
@@ -47,7 +46,7 @@ class DummyBackend(VectorDBBackend):
         self.ids = [
             id_val for i, id_val in enumerate(self.ids) if self.ids[i] not in id_to_idx or self.ids[i] not in new_ids
         ]
-        
+
         self.embeddings.extend(new_embeddings)
         self.metadatas.extend(new_metadatas)
         self.ids.extend(new_ids)
@@ -104,7 +103,7 @@ def my_function():
 def test_index_and_search(dummy_repo):
     # --- Arrange --------------------------------------------------------
     # Determine cache path within the temp directory
-    repo_path = Path(dummy_repo.repo_path)
+    _ = Path(dummy_repo.repo_path)
     # Default cache and vector DB paths will be within repo_path/.kit_cache/
 
     summarizer = MagicMock()
@@ -272,5 +271,5 @@ def test_index_and_search_symbol_level(repo_with_symbols):
     # Test default file extension handling (no specific file_extensions passed to build)
     # This assumes .py is a default handled by the repository/symbol extractor
     indexer_default_ext = DocstringIndexer(dummy_repo, mock_summarizer, embed_fn, backend=DummyBackend())
-    indexer_default_ext.build(level="symbol", force=True) # uses repo_with_symbols dummy repo
-    assert len(indexer_default_ext.backend.embeddings) >= 2 # type: ignore
+    indexer_default_ext.build(level="symbol", force=True)  # uses repo_with_symbols dummy repo
+    assert len(indexer_default_ext.backend.embeddings) >= 2  # type: ignore
