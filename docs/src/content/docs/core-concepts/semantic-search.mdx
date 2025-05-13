@@ -3,7 +3,11 @@ title: Semantic Searching
 ---
 import { Aside } from '@astrojs/starlight/components';
 
-> **⚠ Experimental:** Vector / semantic search is an early feature.  APIs, CLI commands, and index formats may change in future releases without notice.
+<Aside type="caution" title="Experimental">
+  Vector / semantic search is an early feature.  APIs, CLI commands, and index formats may change in future releases without notice.
+</Aside>
+
+<br />
 
 kit supports semantic code search using vector embeddings and ChromaDB.
 
@@ -55,7 +59,7 @@ for hit in results:
 
 `vs.build_index(chunk_by="symbols")` (default) extracts functions/classes/variables via the existing AST parser.  This is usually what you want.
 
-* `chunk_by="lines"` splits code into ~50-line blocks – useful for languages where symbol extraction isn’t supported yet.
+* `chunk_by="lines"` splits code into ~50-line blocks – useful for languages where symbol extraction isn't supported yet.
 * You can re-index at any time; the previous collection is cleared automatically.
 
 ### Persisting & Re-using an Index
