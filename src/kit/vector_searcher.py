@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional
 try:
     import chromadb
     from chromadb import PersistentClient
-    from chromadb.config import Settings
 except ImportError:
     chromadb = None  # type: ignore[assignment]
 
