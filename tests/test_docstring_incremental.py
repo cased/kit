@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from kit import DocstringIndexer, Repository
+from kit.cache_backend import FilesystemCacheBackend
 from kit.vector_searcher import VectorDBBackend
 
 FIXTURE_REPO = Path(__file__).parent / "fixtures" / "realistic_repo"
@@ -58,6 +59,8 @@ def _hash_file(path: Path) -> str:
 
 def test_incremental_indexing(realistic_repo):
     """Initial build -> modify one file -> rebuild should only upsert that file's symbols."""
+    repo_path = Path(realistic_repo.repo_path)
+    cache_dir = repo_path / ".test_cache"
 
     summarizer = MagicMock()
     summarizer.summarize_function.side_effect = lambda p, s: f"F-{s}"
@@ -67,7 +70,15 @@ def test_incremental_indexing(realistic_repo):
         return [float(len(t))]
 
     backend = DummyBackend()
-    indexer = DocstringIndexer(realistic_repo, summarizer, embed_fn, backend=backend)
+    cache_backend = FilesystemCacheBackend(persist_dir=str(cache_dir))
+    indexer = DocstringIndexer(
+        realistic_repo,
+        summarizer,
+        embed_fn,
+        backend=backend,
+        cache_backend=cache_backend,
+        persist_dir=str(cache_dir / "vector_db")
+    )
 
     # 1. initial build
     indexer.build(level="symbol", force=True)

@@ -1,10 +1,12 @@
 """Unit tests for DocstringIndexer and SummarySearcher."""
 
 from unittest.mock import MagicMock
+from pathlib import Path
 
 import pytest
 
 from kit import DocstringIndexer, Repository, Summarizer, SummarySearcher
+from kit.cache_backend import FilesystemCacheBackend
 from kit.vector_searcher import VectorDBBackend
 
 
@@ -65,6 +67,10 @@ def my_function():
 
 def test_index_and_search(dummy_repo):
     # --- Arrange --------------------------------------------------------
+    # Determine cache path within the temp directory
+    repo_path = Path(dummy_repo.repo_path)
+    cache_dir = repo_path / ".test_cache_basic"
+
     summarizer = MagicMock()
     summarizer.summarize_file.side_effect = lambda p: f"Summary of {p}"
     # Mock summarize_function as it's called by DocstringIndexer for symbol-level indexing
@@ -79,21 +85,38 @@ def test_index_and_search(dummy_repo):
 
     backend = DummyBackend()
 
-    indexer = DocstringIndexer(dummy_repo, summarizer, embed_fn, backend=backend)
+    # Explicitly create and pass the FilesystemCacheBackend
+    cache_backend = FilesystemCacheBackend(persist_dir=str(cache_dir))
+    indexer = DocstringIndexer(
+        dummy_repo,
+        summarizer,
+        embed_fn,
+        backend=backend,
+        cache_backend=cache_backend,
+        persist_dir=str(cache_dir / "vector_db") # Keep vector db separate but within test cache dir
+    )
 
     # --- Act ------------------------------------------------------------
+    # Build with default level='symbol'
     indexer.build()
 
     # --- Assert build() -------------------------------------------------
-    # The repo contains exactly one file -> one embedding & metadata
+    # Default level is 'symbol'. 'hello.py' has one function symbol 'hello'.
     assert len(backend.embeddings) == 1
     assert len(backend.metadatas) == 1
 
     meta = backend.metadatas[0]
-    assert meta["file_path"].endswith("hello.py")  # Changed "file" to "file_path"
-    assert meta["summary"].startswith("Summary of")
+    assert meta["file_path"].endswith("hello.py")
+    # Symbol level meta:
+    assert meta["level"] == "symbol"
+    assert meta["symbol_name"] == "hello"
+    assert meta["symbol_type"] == "FUNCTION"
+    assert meta["summary"].startswith("Summary of function hello") # Check symbol summary
 
-    summarizer.summarize_function.assert_called_once()  # For symbol-level on 'hello' function
+    # Summarize_function should be called for the 'hello' symbol
+    summarizer.summarize_function.assert_called_once_with("hello.py", "hello")
+    # Summarize_file should NOT be called when level='symbol'
+    summarizer.summarize_file.assert_not_called()
 
     # --- Act & Assert search() -----------------------------------------
     searcher = SummarySearcher(indexer)
@@ -107,7 +130,10 @@ def test_index_and_search(dummy_repo):
 
 def test_index_and_search_symbol_level(repo_with_symbols):
     dummy_repo, file_path = repo_with_symbols
-    relative_file_path = str(file_path.relative_to(dummy_repo.repo_path))  # Corrected to repo_path
+    relative_file_path = str(file_path.relative_to(dummy_repo.repo_path))
+    # Determine cache path within the temp directory
+    repo_path = Path(dummy_repo.repo_path)
+    cache_dir = repo_path / ".test_cache_symbols"
 
     # --- Arrange --------------------------------------------------------
     mock_summarizer = MagicMock(spec=Summarizer)
@@ -142,7 +168,16 @@ def test_index_and_search_symbol_level(repo_with_symbols):
         return [float(len(text))]  # very simple embedding
 
     backend = DummyBackend()
-    indexer = DocstringIndexer(dummy_repo, mock_summarizer, embed_fn, backend=backend)
+    # Explicitly create and pass the FilesystemCacheBackend
+    cache_backend = FilesystemCacheBackend(persist_dir=str(cache_dir))
+    indexer = DocstringIndexer(
+        dummy_repo,
+        mock_summarizer,
+        embed_fn,
+        backend=backend,
+        cache_backend=cache_backend,
+        persist_dir=str(cache_dir / "vector_db")
+    )
 
     # --- Act ------------------------------------------------------------
     indexer.build(level="symbol", file_extensions=[".py"], force=True)

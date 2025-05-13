@@ -23,6 +23,7 @@ from tqdm import tqdm
 
 from .repository import Repository
 from .summaries import Summarizer
+from .cache_backend import CacheBackend, FilesystemCacheBackend, CacheData
 from .vector_searcher import ChromaDBBackend, VectorDBBackend
 
 EmbedFn = Callable[[str], List[float]]  # str -> embedding vector
@@ -133,6 +134,8 @@ class DocstringIndexer:
         Optional vector-DB backend, defaults to :class:`ChromaDBBackend`.
     persist_dir
         Where on disk to store backend data (if backend honors persistence).
+    cache_backend
+        Optional cache backend for storing and loading cache data.
     """
 
     def __init__(
@@ -143,6 +146,7 @@ class DocstringIndexer:
         *,
         backend: Optional[VectorDBBackend] = None,
         persist_dir: Optional[str] = None,
+        cache_backend: Optional[CacheBackend] = None,
     ) -> None:
         self.repo = repo
         self.summarizer = summarizer
@@ -189,14 +193,37 @@ class DocstringIndexer:
                 # logger.warning(f"Repository path not found. Defaulting persist_dir to {self.persist_dir}")
 
         # Ensure the persist_dir exists before ChromaDBBackend tries to use it
-        if not os.path.exists(self.persist_dir):
+        # Note: FilesystemCacheBackend also ensures this directory exists if used.
+        if self.persist_dir and not os.path.exists(self.persist_dir):
             os.makedirs(self.persist_dir, exist_ok=True)
+            logger.debug(f"Created persist directory: {self.persist_dir}")
 
-        # Updated backend instantiation: explicitly pass path and a clearer collection_name
-        str_persist_dir = str(self.persist_dir)
+        # Initialize the Vector DB Backend
+        # Use persist_dir if provided, otherwise let the backend use its default (if any)
+        str_persist_dir = str(self.persist_dir) if self.persist_dir else None
         self.backend: VectorDBBackend = backend or ChromaDBBackend(
             persist_dir=str_persist_dir, collection_name="kit_docstring_index"
         )
+
+        # Initialize the Cache Backend
+        if cache_backend:
+            self.cache_backend = cache_backend
+            logger.info(f"Using provided CacheBackend: {type(cache_backend).__name__}")
+        else:
+            # Default to FilesystemCacheBackend if none provided
+            if not self.persist_dir:
+                 # We need a persist_dir for the default filesystem cache
+                 # Re-calculate the default if it wasn't explicitly set earlier
+                 if hasattr(self.repo, "repo_path") and self.repo.repo_path:
+                    self.persist_dir = os.path.join(self.repo.repo_path, ".kit_cache", "docstring_db")
+                 else:
+                    self.persist_dir = os.path.join(os.getcwd(), ".kit_cache", "docstring_db_generic")
+                 logger.info(f"persist_dir not explicitly set, defaulting to {self.persist_dir} for FilesystemCacheBackend.")
+                 # Ensure this default dir exists as well
+                 os.makedirs(self.persist_dir, exist_ok=True)
+
+            self.cache_backend = FilesystemCacheBackend(persist_dir=self.persist_dir)
+            logger.info(f"Using default FilesystemCacheBackend. Cache file: {getattr(self.cache_backend, 'cache_file_path', 'N/A')}")
 
     def build(self, force: bool = False, level: str = "symbol", file_extensions: Optional[List[str]] = None) -> None:
         """(Re)build the docstring index.
@@ -214,19 +241,31 @@ class DocstringIndexer:
             Optional list of file extensions to include (e.g., [".py", ".js"]).
             If None, all files are considered (respecting .gitignore).
         """
-        meta_path = os.path.join(self.persist_dir, "meta.json")
-        os.makedirs(self.persist_dir, exist_ok=True)
-        if os.path.exists(meta_path):
-            with open(meta_path, "r", encoding="utf-8") as fp:
-                cache: Dict[str, Dict[str, str]] = json.load(fp)
-        else:
+        # Load cache using the backend
+        logger.debug("Loading cache using cache backend...")
+        try:
+            cache: CacheData = self.cache_backend.load()
+            logger.info(f"Loaded {len(cache)} items from cache.")
+        except Exception as e:
+            logger.error(f"Failed to load cache using {type(self.cache_backend).__name__}: {e}. Starting with empty cache.", exc_info=True)
             cache = {}
 
-        if force and cache:
-            try:
-                self.backend.delete(ids=list(cache.keys()))
-            except Exception:
-                pass
+        if force:
+            logger.info("'force=True' specified, clearing existing cache and backend entries.")
+            if cache:
+                try:
+                    ids_to_delete = list(cache.keys())
+                    if ids_to_delete:
+                         logger.debug(f"Attempting to delete {len(ids_to_delete)} entries from vector DB due to force rebuild.")
+                         self.backend.delete(ids=ids_to_delete)
+                    else:
+                         logger.debug("Cache was loaded but empty, no entries to delete from vector DB for force rebuild.")
+                except NotImplementedError:
+                    logger.warning("Vector DB backend does not support delete operation. Forced rebuild might leave old entries.")
+                except Exception as e:
+                    logger.error(f"Failed to delete entries from vector DB during force rebuild: {e}", exc_info=True)
+                    # Continue with rebuild, but log the error
+            # Clear the cache dictionary regardless of successful deletion
             cache = {}
 
         all_files = [f["path"] for f in self.repo.get_file_tree() if not f.get("is_dir", False)]
@@ -375,9 +414,13 @@ class DocstringIndexer:
         else:
             logger.warning("No embeddings were generated during indexing.")
 
-        # persist cache
-        with open(meta_path, "w", encoding="utf-8") as fp:
-            json.dump(cache, fp)
+        # Persist cache using the backend
+        logger.debug("Saving cache using cache backend...")
+        try:
+            self.cache_backend.save(cache)
+            logger.info(f"Saved {len(cache)} items to cache.")
+        except Exception as e:
+            logger.error(f"Failed to save cache using {type(self.cache_backend).__name__}: {e}", exc_info=True)
 
     def get_searcher(self) -> "SummarySearcher":
         """
