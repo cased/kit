@@ -15,7 +15,9 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 
 from tqdm import tqdm
 
@@ -54,63 +56,56 @@ def _get_default_base_persist_dir(repo: Repository) -> str:
     return base_dir
 
 
+# --- Helper function for parallel symbol processing ---
 def _process_symbol_task(
-    path_str: str,
+    file_path_str: str,
     symbol_info: Dict[str, Any],
     summarizer_instance: Summarizer,
     embed_fn_instance: Callable[[str], List[float]],
-    current_cache: Dict[str, Dict[str, str]],  # Pass for reading cache state
+    # Pass only the relevant cache entry for this symbol to avoid race conditions if cache were shared mutable
+    # Or, better, pass the hash and let the main thread update cache if needed.
+    # For simplicity and assuming cache is primarily read here / updated later:
+    cached_symbol_info: Optional[Dict[str,str]], 
+    force_rebuild: bool,
+    current_file_hash: str # Pass the file hash to associate with the symbol
 ) -> Dict[str, Any]:
     """Processes a single symbol: summarize, embed, handle caching and errors."""
     symbol_name = symbol_info.get("name")
     symbol_type = symbol_info.get("type")
-
     display_name = symbol_info.get("node_path", symbol_name)
-    # Ensure doc_id is formed even if symbol_name or display_name is None initially for error reporting
-    doc_id_prefix = f"{path_str}::{display_name if display_name else 'unknown_symbol'}"
+
+    doc_id = f"{file_path_str}::{display_name}"
 
     if not symbol_name or not symbol_type:
-        logger.debug(f"Symbol in {path_str} missing name or type, node_path: {display_name}. Skipping.")
-        return {"status": "skipped_no_name_type", "doc_id": doc_id_prefix}
+        logger.debug(f"Symbol in {file_path_str} missing name or type (node_path: {display_name}). Skipping.")
+        return {"status": "skipped_no_name_type", "doc_id": doc_id}
 
-    doc_id = f"{path_str}::{display_name}"  # Re-assign with definite display_name
-    symbol_code = symbol_info.get("code", "")
+    # Using current_file_hash now instead of re-calculating from symbol_code
+    # This assumes if file changes, all its symbols are reprocessed based on file hash first.
+    # The DocstringIndexer.build method will handle the file-level hash check before calling this.
+    if not force_rebuild and cached_symbol_info and cached_symbol_info.get("hash") == current_file_hash:
+        logger.debug(f"Symbol {doc_id} unchanged (file hash: {current_file_hash}), skipping.")
+        return {"status": "cached", "doc_id": doc_id, "hash": current_file_hash}
 
-    if not symbol_code:
-        logger.warning(f"Could not retrieve code for symbol {display_name} in {path_str}, skipping.")
-        return {"status": "skipped_no_code", "doc_id": doc_id}
+    summary_text = ""
+    if symbol_type.upper() == "FUNCTION" or symbol_type.upper() == "METHOD":
+        summary_text = summarizer_instance.summarize_function(file_path_str, display_name)
+    elif symbol_type.upper() == "CLASS":
+        summary_text = summarizer_instance.summarize_class(file_path_str, display_name)
+    else:
+        logger.debug(f"Symbol {doc_id} has unsupported type '{symbol_type}'. Skipping summarization.")
+        return {"status": "skipped_unsupported_type", "doc_id": doc_id, "symbol_type": symbol_type}
+
+    if not isinstance(summary_text, str) or not summary_text.strip():
+        logger.warning(f"Empty or invalid summary for symbol {display_name} in {file_path_str}. Skipping.")
+        return {"status": "skipped_empty_summary", "doc_id": doc_id}
 
     try:
-        symbol_hash = hashlib.sha1(symbol_code.encode("utf-8", "ignore")).hexdigest()
-        if current_cache.get(doc_id, {}).get("hash") == symbol_hash:
-            logger.debug(f"Symbol {doc_id} unchanged (hash: {symbol_hash}), skipping.")
-            return {"status": "cached", "doc_id": doc_id}
-
-        summary_text = None  # Initialize summary_text
-        if symbol_type.upper() == "FUNCTION" or symbol_type.upper() == "METHOD":
-            summary_text = summarizer_instance.summarize_function(path_str, display_name)
-        elif symbol_type.upper() == "CLASS":
-            summary_text = summarizer_instance.summarize_class(path_str, display_name)
-        else:
-            logger.debug(f"Symbol {doc_id} has unsupported type '{symbol_type}'. Skipping summarization.")
-            return {"status": "skipped_unsupported_type", "doc_id": doc_id, "symbol_type": symbol_type}
-
-        # Check if summarizer returned a valid string
-        if not isinstance(summary_text, str):
-            logger.warning(
-                f"Summarizer did not return a valid string for symbol {display_name} in {path_str} (type: {symbol_type}). Received: {type(summary_text)}. Skipping."
-            )
-            return {"status": "skipped_invalid_summary_type", "doc_id": doc_id}
-
-        if not summary_text.strip():
-            logger.warning(f"Empty summary for symbol {display_name} in {path_str} (type: {symbol_type}), skipping.")
-            return {"status": "skipped_empty_summary", "doc_id": doc_id}
-
         emb = embed_fn_instance(summary_text)
         meta = {
-            "file_path": path_str,
+            "file_path": file_path_str,
             "symbol_name": display_name,
-            "symbol_type": symbol_type,
+            "symbol_type": symbol_type.upper(),
             "summary": summary_text,
             "level": "symbol",
         }
@@ -119,15 +114,10 @@ def _process_symbol_task(
             "doc_id": doc_id,
             "embedding": emb,
             "metadata": meta,
-            "hash": symbol_hash,
-            "summary_for_embedding": summary_text,
+            "hash": current_file_hash, # Store the file hash this symbol processing was based on
         }
-    except ValueError as ve:
-        logger.warning(f"Skipping symbol {display_name} in {path_str} due to ValueError: {ve}")
-        return {"status": "error", "doc_id": doc_id, "error_type": "ValueError", "message": str(ve)}
     except Exception as exc:
-        # Log less info from worker to keep main logs cleaner, but still indicate error
-        logger.error(f"Failed to process symbol {display_name} in {path_str}: {type(exc).__name__} - {exc}")
+        logger.error(f"Failed to process symbol {display_name} in {file_path_str}: {type(exc).__name__} - {exc}", exc_info=False) # Keep log cleaner
         return {"status": "error", "doc_id": doc_id, "error_type": str(type(exc).__name__), "message": str(exc)}
 
 
@@ -159,63 +149,48 @@ class DocstringIndexer:
         embed_fn: EmbedFn = None,
         *,
         backend: Optional[VectorDBBackend] = None,
-        # persist_dir: Optional[str] = None, # REMOVED
         cache_backend: Optional[CacheBackend] = None,
     ) -> None:
         self.repo = repo
         self.summarizer = summarizer
-
-        # Embedding function
         self.embed_fn: Callable[[str], List[float]]
         if embed_fn:
             self.embed_fn = embed_fn
         else:
-            # Default embedding function using sentence-transformers
             try:
                 from sentence_transformers import SentenceTransformer
-
-                # Cache the model instance
                 if not hasattr(DocstringIndexer, "_default_embed_model"):
                     logger.info("Initializing default SentenceTransformer model (all-MiniLM-L6-v2)")
                     DocstringIndexer._default_embed_model = SentenceTransformer("all-MiniLM-L6-v2")
-
                 model = DocstringIndexer._default_embed_model
-
                 def default_embed(text: str) -> List[float]:
                     embedding = model.encode(text)
                     return embedding.tolist()
-
                 self.embed_fn = default_embed
-
             except ImportError:
                 logger.error(
                     "SentenceTransformer embedding model requires `sentence-transformers` package. "
                     "Please install it (`pip install sentence-transformers`) or provide a custom `embed_fn`."
                 )
                 raise
-
-        # Determine base directory for default backend persistence
-        # We only calculate this if we actually need it for a default backend.
         self._default_base_persist_dir = None
-
-        # Initialize the Vector DB Backend
         if backend:
             self.backend = backend
             logger.info(f"Using provided VectorDBBackend: {type(backend).__name__}")
         else:
-            # Default to ChromaDBBackend
             if self._default_base_persist_dir is None:
                 self._default_base_persist_dir = _get_default_base_persist_dir(self.repo)
             vector_db_persist_path = os.path.join(self._default_base_persist_dir, DEFAULT_VECTOR_DB_DIR_NAME)
-            self.backend = ChromaDBBackend(persist_dir=vector_db_persist_path, collection_name=DEFAULT_COLLECTION_NAME)
-            logger.info(f"Using default ChromaDBBackend. Persist path: {getattr(self.backend, 'persist_dir', 'N/A')}")
-
-        # Initialize the Cache Backend
+            self.backend = ChromaDBBackend(
+                persist_dir=vector_db_persist_path, collection_name=DEFAULT_COLLECTION_NAME
+            )
+            logger.info(
+                f"Using default ChromaDBBackend. Persist path: {getattr(self.backend, 'persist_dir', 'N/A')}"
+            )
         if cache_backend:
             self.cache_backend = cache_backend
             logger.info(f"Using provided CacheBackend: {type(cache_backend).__name__}")
         else:
-            # Default to FilesystemCacheBackend
             if self._default_base_persist_dir is None:
                 self._default_base_persist_dir = _get_default_base_persist_dir(self.repo)
             cache_persist_path = os.path.join(self._default_base_persist_dir, DEFAULT_CACHE_FILE_DIR_NAME)
@@ -271,8 +246,6 @@ class DocstringIndexer:
                     )
                 except Exception as e:
                     logger.error(f"Failed to delete entries from vector DB during force rebuild: {e}", exc_info=True)
-                    # Continue with rebuild, but log the error
-            # Clear the cache dictionary regardless of successful deletion
             cache = {}
 
         all_files = [f["path"] for f in self.repo.get_file_tree() if not f.get("is_dir", False)]
@@ -289,123 +262,130 @@ class DocstringIndexer:
             files_to_process = all_files
             logger.info(f"Processing all {len(files_to_process)} files in repository.")
 
-        # --- Symbol Level Indexing ---
+        # --- Common lists for results ---
+        embeddings: List[List[float]] = []
+        metadatas: List[Dict[str, Any]] = []
+        ids: List[str] = []
+        # For cache management: track IDs processed in this run to remove orphans later
+        processed_ids_in_run: set[str] = set() 
+
+        # --- Symbol Level Indexing (with ThreadPoolExecutor) ---
         if level == "symbol":
             logger.info("Building index at 'symbol' level.")
-            embeddings: List[List[float]] = []
-            metadatas: List[Dict[str, Any]] = []
-            ids: List[str] = []
+            try:
+                max_workers = int(os.environ.get("KIT_INDEXER_MAX_WORKERS", os.cpu_count() or 4))
+            except TypeError:
+                max_workers = 4
+            logger.info(f"Using up to {max_workers} workers for symbol processing.")
 
-            for file_path in tqdm(files_to_process, desc="Indexing symbols"):
-                try:
-                    # Use extract_symbols which handles language detection and parsing
-                    symbols = self.repo.extract_symbols(file_path)
-                    if not symbols:
-                        continue
-
-                    current_content = self.repo.get_file_content(file_path)
-                    current_hash = hashlib.sha256(current_content.encode()).hexdigest()
-
-                    for symbol in symbols:
-                        # Create a unique ID for the symbol embedding
-                        display_name = symbol.get("node_path", symbol["name"])
-                        symbol_id = f"{file_path}::{display_name}"
-                        symbol_type = symbol.get("type", "UNKNOWN").upper()
-
-                        # Check cache
-                        cached_info = cache.get(symbol_id)
-                        if not force and cached_info and cached_info.get("hash") == current_hash:
-                            # logger.debug(f"Cache hit for symbol: {symbol_id}")
-                            continue  # Skip if content hash matches
-
-                        # Generate summary
-                        summary = ""
-                        if symbol_type == "FUNCTION" or symbol_type == "METHOD":
-                            summary = self.summarizer.summarize_function(file_path, display_name)
-                        elif symbol_type == "CLASS":
-                            summary = self.summarizer.summarize_class(file_path, display_name)
-                        else:
-                            # Optionally handle other symbol types or skip
-                            # logger.debug(f"Skipping summary for symbol type {symbol_type}: {symbol_id}")
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                for file_path_str in tqdm(files_to_process, desc="Queueing symbol tasks"):
+                    try:
+                        current_content = self.repo.get_file_content(file_path_str)
+                        current_file_hash = hashlib.sha256(current_content.encode()).hexdigest()
+                        symbols = self.repo.extract_symbols(file_path_str)
+                        if not symbols:
                             continue
 
-                        if not summary:
-                            logger.warning(f"Failed to get summary for symbol: {symbol_id}")
-                            continue
+                        futures: List[Future] = []
+                        for symbol_info in symbols:
+                            symbol_id = f"{file_path_str}::{symbol_info.get('node_path', symbol_info.get('name'))}"
+                            # Pass the specific cache entry for this symbol to the task
+                            cached_symbol_info_for_task = cache.get(symbol_id)
+                            futures.append(
+                                executor.submit(
+                                    _process_symbol_task,
+                                    file_path_str=file_path_str,
+                                    symbol_info=symbol_info,
+                                    summarizer_instance=self.summarizer,
+                                    embed_fn_instance=self.embed_fn,
+                                    cached_symbol_info=cached_symbol_info_for_task,
+                                    force_rebuild=force,
+                                    current_file_hash=current_file_hash
+                                )
+                            )
+                        
+                        for future in as_completed(futures):
+                            try:
+                                result = future.result()
+                                doc_id = result.get("doc_id")
+                                if not doc_id: continue # Should not happen if task is well-behaved
 
-                        # Embed summary
-                        embedding = self.embed_fn(summary)
-                        if embedding is None:
-                            logger.warning(f"Failed to get embedding for symbol summary: {symbol_id}")
-                            continue
+                                processed_ids_in_run.add(doc_id)
+                                
+                                if result.get("status") == "processed":
+                                    embeddings.append(result["embedding"])
+                                    metadatas.append(result["metadata"])
+                                    ids.append(doc_id)
+                                    cache[doc_id] = {"hash": result["hash"]}
+                                elif result.get("status") == "cached":
+                                    # If it was cached, it means it's already in the vector DB correctly.
+                                    # No need to re-add to embeddings/metadatas/ids lists for upsert.
+                                    # Ensure cache entry reflects current file hash if it was a match
+                                    cache[doc_id] = {"hash": result["hash"]}
+                                elif result.get("status", "").startswith("skipped") or result.get("status") == "error":
+                                    logger.debug(f"Symbol {doc_id} processing status: {result.get('status')} - {result.get('message', '')}")
+                                    # If skipped/error, ensure it's not considered for orphan removal if it was in cache
+                                    if doc_id in cache: # If it was an error but existed, keep its old hash
+                                        pass # Keep old cache entry if it existed, it might be valid next time
+                                    elif result.get("hash"): # if it was an error but hash was computed, store it
+                                         cache[doc_id] = {"hash": result["hash"]}
+                            except Exception as e:
+                                logger.error(f"Error processing future result for a symbol in {file_path_str}: {e}", exc_info=True)
+                    except Exception as e:
+                        logger.error(f"Error processing file {file_path_str} for symbol extraction: {e}", exc_info=True)
 
-                        embeddings.append(embedding)
-                        ids.append(symbol_id)
-                        metadatas.append(
-                            {
-                                "file_path": file_path,
-                                "symbol_name": display_name,
-                                "symbol_type": symbol_type,
-                                "summary": summary,
-                                "level": "symbol",
-                            }
-                        )
-                        # Update cache with new hash
-                        cache[symbol_id] = {"hash": current_hash}
-
-                except Exception as e:
-                    logger.error(f"Error processing symbols in file {file_path}: {e}", exc_info=True)
-
-        # --- File Level Indexing ---
+        # --- File Level Indexing (remains sequential as it was) ---
         elif level == "file":
             logger.info("Building index at 'file' level.")
-            embeddings = []
-            metadatas = []
-            ids = []
-
             for file_path in tqdm(files_to_process, desc="Indexing files"):
                 try:
-                    file_id = file_path  # Use file path as ID for file-level
+                    file_id = file_path
                     current_content = self.repo.get_file_content(file_path)
                     current_hash = hashlib.sha256(current_content.encode()).hexdigest()
+                    
+                    processed_ids_in_run.add(file_id)
 
-                    # Check cache
                     cached_info = cache.get(file_id)
                     if not force and cached_info and cached_info.get("hash") == current_hash:
-                        # logger.debug(f"Cache hit for file: {file_id}")
                         continue
 
-                    # Generate summary for the whole file
                     summary = self.summarizer.summarize_file(file_path)
                     if not summary:
                         logger.warning(f"Failed to get summary for file: {file_path}")
+                        cache[file_id] = {"hash": current_hash} # Cache that we tried
                         continue
 
-                    # Embed summary
                     embedding = self.embed_fn(summary)
                     if embedding is None:
                         logger.warning(f"Failed to get embedding for file summary: {file_path}")
+                        cache[file_id] = {"hash": current_hash} # Cache that we tried
                         continue
 
                     embeddings.append(embedding)
                     ids.append(file_id)
-                    metadatas.append(
-                        {
-                            "file_path": file_path,
-                            "summary": summary,
-                            "level": "file",
-                        }
-                    )
-                    # Update cache
+                    metadatas.append({"file_path": file_path, "summary": summary, "level": "file"})
                     cache[file_id] = {"hash": current_hash}
-
                 except Exception as e:
                     logger.error(f"Error processing file {file_path}: {e}", exc_info=True)
-
         else:
             raise ValueError(f"Invalid indexing level specified: '{level}'. Must be 'symbol' or 'file'.")
 
-        # Upsert embeddings to vector DB if any were generated
+        # Remove orphans from cache and vector DB
+        # Orphans are items in the cache that were not processed or seen as cached in this run.
+        # This handles deletions from the repo.
+        orphan_ids_in_cache = set(cache.keys()) - processed_ids_in_run
+        if orphan_ids_in_cache:
+            logger.info(f"Removing {len(orphan_ids_in_cache)} orphan entries from vector DB and cache.")
+            try:
+                self.backend.delete(ids=list(orphan_ids_in_cache))
+            except NotImplementedError:
+                logger.warning("Vector DB backend does not support delete; orphans may remain in vector DB.")
+            except Exception as e:
+                logger.error(f"Failed to delete orphan entries from vector DB: {e}", exc_info=True)
+            for orphan_id in orphan_ids_in_cache:
+                cache.pop(orphan_id, None)
+
         if embeddings and ids and metadatas:
             logger.info(f"Upserting {len(ids)} new/updated embeddings to vector DB...")
             try:
@@ -413,9 +393,8 @@ class DocstringIndexer:
             except Exception as e:
                 logger.error(f"Failed to upsert embeddings to vector DB: {e}", exc_info=True)
         else:
-            logger.warning("No embeddings were generated during indexing.")
+            logger.info("No new/updated embeddings to upsert to vector DB for this run.") # Changed from warning
 
-        # Persist cache using the cache backend
         logger.debug("Saving cache using cache backend...")
         try:
             self.cache_backend.save(cache)
@@ -452,7 +431,7 @@ class SummarySearcher:
             List of search results, each with keys like `id`, `score`, `summary`,
             `file_path`, etc.
         """
-        embedding = self.indexer.embed_fn(query)  # type: ignore
+        embedding = self.indexer.embed_fn(query) # type: ignore
         if embedding is None:
             return []
         results = self.indexer.backend.search(embedding, top_k=top_k)
