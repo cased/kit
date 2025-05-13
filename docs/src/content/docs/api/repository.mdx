@@ -100,7 +100,7 @@ repository.extract_symbols(file_path: Optional[str] = None) -> List[Dict[str, An
 
 **Returns:**
 
-*   `List[Dict[str, Any]]`: A list of dictionaries, each representing a symbol with keys like `name`, `type`, `file`, `line_start`, `line_end`, `code_snippet`.
+*   `List[Dict[str, Any]]`: A list of dictionaries, each representing a symbol with keys like `name`, `type`, `file`, `line_start`, `line_end`, `code`.
 
 ## `repository.search_text()`
 
@@ -150,7 +150,7 @@ repository.chunk_file_by_symbols(file_path: str) -> List[Dict[str, Any]]
 
 **Returns:**
 
-*   `List[Dict[str, Any]]`: A list of dictionaries, each representing a symbol chunk with keys like `name`, `type`, `code_snippet`.
+*   `List[Dict[str, Any]]`: A list of dictionaries, each representing a symbol chunk with keys like `name`, `type`, `code`.
 
 ## `repository.extract_context_around_line()`
 
@@ -167,7 +167,7 @@ repository.extract_context_around_line(file_path: str, line: int) -> Optional[Di
 
 **Returns:**
 
-*   `Optional[Dict[str, Any]]`: A dictionary representing the symbol context (with keys like `name`, `type`, `code_snippet`), or `None` if no context is found.
+*   `Optional[Dict[str, Any]]`: A dictionary representing the symbol context (with keys like `name`, `type`, `code`), or `None` if no context is found.
 
 ## `repository.index()`
 
