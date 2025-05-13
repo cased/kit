@@ -66,6 +66,18 @@ def baz(): pass
                 "dir1/dir2/z.py",
             ],
         ),
+        (
+            {
+                ".gitignore": "dir1/a.py",
+                "dir1/a.py": "pass",
+                "dir2/b.py": "pass",
+            },
+            [
+                ".gitignore",
+                "dir2",
+                "dir2/b.py",
+            ],
+        ),
     ],
 )
 def test_repo_file_tree_various(structure, expected_treepaths):
