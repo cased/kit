@@ -13,7 +13,6 @@ from .repo_mapper import RepoMapper
 from .repository import Repository
 from .tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
 
-# search helpers
 from .vector_searcher import VectorSearcher
 
 try:
