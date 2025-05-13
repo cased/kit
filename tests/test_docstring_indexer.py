@@ -1,12 +1,12 @@
 """Unit tests for DocstringIndexer and SummarySearcher."""
 
-from unittest.mock import MagicMock
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
 from kit import DocstringIndexer, Repository, Summarizer, SummarySearcher
-from kit.cache_backend import FilesystemCacheBackend
+from kit.cache_backends.filesystem import FilesystemCacheBackend
 from kit.vector_searcher import VectorDBBackend
 
 
@@ -93,7 +93,7 @@ def test_index_and_search(dummy_repo):
         embed_fn,
         backend=backend,
         cache_backend=cache_backend,
-        persist_dir=str(cache_dir / "vector_db") # Keep vector db separate but within test cache dir
+        persist_dir=str(cache_dir / "vector_db"),  # Keep vector db separate but within test cache dir
     )
 
     # --- Act ------------------------------------------------------------
@@ -111,7 +111,7 @@ def test_index_and_search(dummy_repo):
     assert meta["level"] == "symbol"
     assert meta["symbol_name"] == "hello"
     assert meta["symbol_type"] == "FUNCTION"
-    assert meta["summary"].startswith("Summary of function hello") # Check symbol summary
+    assert meta["summary"].startswith("Summary of function hello")  # Check symbol summary
 
     # Summarize_function should be called for the 'hello' symbol
     summarizer.summarize_function.assert_called_once_with("hello.py", "hello")
@@ -176,7 +176,7 @@ def test_index_and_search_symbol_level(repo_with_symbols):
         embed_fn,
         backend=backend,
         cache_backend=cache_backend,
-        persist_dir=str(cache_dir / "vector_db")
+        persist_dir=str(cache_dir / "vector_db"),
     )
 
     # --- Act ------------------------------------------------------------

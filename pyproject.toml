@@ -63,6 +63,8 @@ dev = [
     "build", # build wheels
     "twine",  # publish to PyPI
 ]
+# Add redis as an optional dependency for the cache backend
+redis-cache = ["redis>=5.0.0,<6.0.0"]
 
 [tool.ruff]
 # Set line length to 120 characters

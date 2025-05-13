@@ -13,7 +13,6 @@ This module has two public classes:
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import os
 from pathlib import Path
@@ -21,9 +20,10 @@ from typing import Any, Callable, Dict, List, Optional
 
 from tqdm import tqdm
 
+from .cache_backend import CacheBackend, CacheData
+from .cache_backends.filesystem import FilesystemCacheBackend
 from .repository import Repository
 from .summaries import Summarizer
-from .cache_backend import CacheBackend, FilesystemCacheBackend, CacheData
 from .vector_searcher import ChromaDBBackend, VectorDBBackend
 
 EmbedFn = Callable[[str], List[float]]  # str -> embedding vector
@@ -212,18 +212,22 @@ class DocstringIndexer:
         else:
             # Default to FilesystemCacheBackend if none provided
             if not self.persist_dir:
-                 # We need a persist_dir for the default filesystem cache
-                 # Re-calculate the default if it wasn't explicitly set earlier
-                 if hasattr(self.repo, "repo_path") and self.repo.repo_path:
+                # We need a persist_dir for the default filesystem cache
+                # Re-calculate the default if it wasn't explicitly set earlier
+                if hasattr(self.repo, "repo_path") and self.repo.repo_path:
                     self.persist_dir = os.path.join(self.repo.repo_path, ".kit_cache", "docstring_db")
-                 else:
+                else:
                     self.persist_dir = os.path.join(os.getcwd(), ".kit_cache", "docstring_db_generic")
-                 logger.info(f"persist_dir not explicitly set, defaulting to {self.persist_dir} for FilesystemCacheBackend.")
-                 # Ensure this default dir exists as well
-                 os.makedirs(self.persist_dir, exist_ok=True)
+                logger.info(
+                    f"persist_dir not explicitly set, defaulting to {self.persist_dir} for FilesystemCacheBackend."
+                )
+                # Ensure this default dir exists as well
+                os.makedirs(self.persist_dir, exist_ok=True)
 
             self.cache_backend = FilesystemCacheBackend(persist_dir=self.persist_dir)
-            logger.info(f"Using default FilesystemCacheBackend. Cache file: {getattr(self.cache_backend, 'cache_file_path', 'N/A')}")
+            logger.info(
+                f"Using default FilesystemCacheBackend. Cache file: {getattr(self.cache_backend, 'cache_file_path', 'N/A')}"
+            )
 
     def build(self, force: bool = False, level: str = "symbol", file_extensions: Optional[List[str]] = None) -> None:
         """(Re)build the docstring index.
@@ -247,7 +251,10 @@ class DocstringIndexer:
             cache: CacheData = self.cache_backend.load()
             logger.info(f"Loaded {len(cache)} items from cache.")
         except Exception as e:
-            logger.error(f"Failed to load cache using {type(self.cache_backend).__name__}: {e}. Starting with empty cache.", exc_info=True)
+            logger.error(
+                f"Failed to load cache using {type(self.cache_backend).__name__}: {e}. Starting with empty cache.",
+                exc_info=True,
+            )
             cache = {}
 
         if force:
@@ -256,12 +263,18 @@ class DocstringIndexer:
                 try:
                     ids_to_delete = list(cache.keys())
                     if ids_to_delete:
-                         logger.debug(f"Attempting to delete {len(ids_to_delete)} entries from vector DB due to force rebuild.")
-                         self.backend.delete(ids=ids_to_delete)
+                        logger.debug(
+                            f"Attempting to delete {len(ids_to_delete)} entries from vector DB due to force rebuild."
+                        )
+                        self.backend.delete(ids=ids_to_delete)
                     else:
-                         logger.debug("Cache was loaded but empty, no entries to delete from vector DB for force rebuild.")
+                        logger.debug(
+                            "Cache was loaded but empty, no entries to delete from vector DB for force rebuild."
+                        )
                 except NotImplementedError:
-                    logger.warning("Vector DB backend does not support delete operation. Forced rebuild might leave old entries.")
+                    logger.warning(
+                        "Vector DB backend does not support delete operation. Forced rebuild might leave old entries."
+                    )
                 except Exception as e:
                     logger.error(f"Failed to delete entries from vector DB during force rebuild: {e}", exc_info=True)
                     # Continue with rebuild, but log the error
