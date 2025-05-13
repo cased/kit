@@ -16,7 +16,7 @@ syntax or specific variable names.
 
 ## Why use it?
 
-* **Cleaner embeddings** – Comments like *“Summary of retry logic”* embed better
+* **Cleaner embeddings** – Comments like *"Summary of retry logic"* embed better
   than nested `for`-loops.
 * **Smaller index** – One summary per file (or symbol) is < 1 kB, while the file
   itself might be thousands of tokens.
@@ -26,6 +26,7 @@ syntax or specific variable names.
 ## How it Works
 
 1.  **Configuration**: Instantiate `DocstringIndexer` with a `Repository` object and a `Summarizer` (configured with your desired LLM, e.g., OpenAI, Anthropic, Google). An embedding function (`embed_fn`) can also be provided if you wish to use a custom embedding model; otherwise, `DocstringIndexer` will use a default embedding function (based on `sentence-transformers`, which is included in the standard installation).
+    You can optionally provide a `cache_backend` (defaults to filesystem) and a vector `backend` (defaults to ChromaDB).
 
  
 
@@ -46,10 +47,18 @@ summarizer = Summarizer(repo, config=llm_summarizer_config)
 # 3. Initialize DocstringIndexer
 # By default, DocstringIndexer now uses SentenceTransformer('all-MiniLM-L6-v2')
 # for embeddings, so you don't need to provide an embed_fn for basic usage.
+# It also defaults to using a FilesystemCacheBackend and ChromaDBVectorBackend,
+# storing data in repo_path/.kit_cache/docstring_db/
 indexer = DocstringIndexer(repo, summarizer)
 
+# Example using Redis cache:
+# from kit.cache_backends.redis import RedisCacheBackend
+# import redis
+# redis_cache = RedisCacheBackend(redis_url="redis://localhost:6379/0")
+# indexer = DocstringIndexer(repo, summarizer, cache_backend=redis_cache)
+
 # 4. Build the index
-# This will process the repository, generate summaries, and create embeddings.
+# This will process the repository, generate summaries, create embeddings, and store cache metadata.
 indexer.build()
 
 # After building, you can query the index using a SummarySearcher.
@@ -254,21 +263,15 @@ for hit in searcher.search("retry back-off", top_k=5):
 
 ### Storage details
 
-`DocstringIndexer` delegates persistence to any
-`kit.vector_searcher.VectorDBBackend`.  The default backend is
-[`Chroma`](https://docs.trychroma.com/) and lives in
-`.kit/docstring_db/` inside your repo.
+`DocstringIndexer` uses two backend systems:
+
+1.  **Vector DB Backend**: Stores the actual embeddings and their metadata (like the summary text and source location). It defaults to using [`Chroma`](https://docs.trychroma.com/) and stores data in a subdirectory within the `persist_dir` (default: `.kit_cache/docstring_db/` inside your repo).
+2.  **Cache Backend**: Stores metadata (like file hashes) to track changes and avoid re-processing unchanged files/symbols. It defaults to using `FilesystemCacheBackend`, storing a `meta.json` file in the `persist_dir`. You can configure alternative backends like `RedisCacheBackend` via the `cache_backend` parameter in the constructor.
+
+These backends can be configured independently using the `backend` and `cache_backend` parameters of the `DocstringIndexer` constructor.
 
 ## Use Cases
 
 *   **Semantic Code Search**: Find code by describing what it *does*, not just
-    what keywords it contains. (e.g., “retry back-off logic” instead of trying to
-    guess variable names like `exponential_delay` or `MAX_RETRIES`).
-*   **Onboarding**: Quickly understand what different parts of a codebase are for.
-*   **Automated Documentation**: Use the summaries as a starting point for API docs.
-*   **Codebase Q&A**: As shown in the [Codebase Q&A Bot tutorial](/docs/tutorials/codebase-qa-bot), combine `SummarySearcher` with an LLM to answer questions about your code, using summaries to find relevant context at either the file or symbol level.
-
-
-## API reference
-
-Check docs for [`DocstringIndexer`](/docs/api/docstring-indexer) and [`SummarySearcher`](/docs/api/summary-searcher) for full signatures.
+    what keywords it contains. (e.g., "retry back-off logic" instead of trying to
+    guess variable names like `exponential_delay`

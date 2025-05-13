@@ -4,18 +4,21 @@ import json
 import logging
 from typing import Any, Optional
 
+import redis # Import directly as it's now a required dependency
+
 from ..cache_backend import CacheBackend, CacheData
 
 logger = logging.getLogger(__name__)
 
-try:
-    import redis
-except ImportError:
-    redis = None  # type: ignore
-    logger.info(
-        "The 'redis' library is not installed. RedisCacheBackend will not be available. "
-        "Install with: pip install kit[redis-cache] or pip install redis"
-    )
+# Remove the try...except ImportError block
+# try:
+#     import redis
+# except ImportError:
+#     redis = None  # type: ignore
+#     logger.info(
+#         "The 'redis' library is not installed. RedisCacheBackend will not be available. "
+#         "Install with: pip install kit[redis-cache] or pip install redis"
+#     )
 
 
 class RedisCacheBackend(CacheBackend):
@@ -28,7 +31,7 @@ class RedisCacheBackend(CacheBackend):
 
     def __init__(
         self,
-        redis_client: Optional[redis.Redis] = None,  # type: ignore
+        redis_client: Optional[redis.Redis] = None, 
         redis_url: Optional[str] = None,
         cache_key: Optional[str] = None,
         **redis_connection_kwargs: Any,
@@ -44,14 +47,15 @@ class RedisCacheBackend(CacheBackend):
             **redis_connection_kwargs: Additional arguments for redis.Redis.from_url()
                                        if redis_url is provided and redis_client is None.
         Raises:
-            ImportError: If the 'redis' library is not installed.
+            # Remove ImportError from raises as redis is required
             ValueError: If neither redis_client nor redis_url is provided.
         """
-        if redis is None:
-            raise ImportError(
-                "The 'redis' library is required to use RedisCacheBackend. "
-                "Please install it (e.g., 'pip install kit[redis-cache]' or 'pip install redis')."
-            )
+        # Remove the check for redis is None
+        # if redis is None:
+        #     raise ImportError(
+        #         "The 'redis' library is required to use RedisCacheBackend. "
+        #         "Please install it (e.g., 'pip install kit[redis-cache]' or 'pip install redis')."
+        #     )
 
         if redis_client:
             self.redis_client = redis_client

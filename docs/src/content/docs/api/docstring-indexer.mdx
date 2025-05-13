@@ -3,7 +3,7 @@ title: DocstringIndexer API
 description: API documentation for the DocstringIndexer class.
 ---
 
-The `DocstringIndexer` class is responsible for building a vector index of AI-generated code summaries (docstrings). It processes files in a repository, generates summaries for code symbols (or entire files), embeds these summaries, and stores them in a configurable vector database backend. Once an index is built, it can be queried using the [`SummarySearcher`](/api/summary-searcher) class.
+The `DocstringIndexer` class is responsible for building a vector index of AI-generated code summaries (docstrings). It processes files in a repository, generates summaries for code symbols (or entire files), embeds these summaries, and stores them in a configurable vector database backend. It uses a separate **cache backend** to store metadata (like file hashes) to avoid reprocessing unchanged files. Once an index is built, it can be queried using the [`SummarySearcher`](/api/summary-searcher) class.
 
 ## Constructor
 
@@ -14,26 +14,45 @@ The `DocstringIndexer` class is responsible for building a vector index of AI-ge
 from kit import Repository, Summarizer
 from kit.docstring_indexer import DocstringIndexer, EmbedFn # EmbedFn is Optional[Callable[[str], List[float]]]
 from kit.vector_searcher import VectorDBBackend # Optional
+from kit.cache_backend import CacheBackend # Optional
 
-# Example basic initialization
+# Example basic initialization (uses default file cache and vector backend)
 repo = Repository("/path/to/your/repo")
 summarizer = Summarizer() # Assumes OPENAI_API_KEY is set or local model configured
-indexer = DocstringIndexer(repo=repo, summarizer=summarizer)
+indexer = DocstringIndexer(repo=repo, summarizer=summarizer) 
 
-# Example with custom embedding function and backend
+# Example with custom embedding function, explicit file cache, and custom vector backend
 # def my_custom_embed_fn(text: str) -> List[float]:
 #     # ... your embedding logic ...
 #     return [0.1, 0.2, ...]
 #
 # from kit.vector_searcher import ChromaDBBackend
-# custom_backend = ChromaDBBackend(collection_name="my_custom_index", persist_dir="./my_chroma_db")
+# from kit.cache_backends.filesystem import FilesystemCacheBackend
+#
+# custom_vector_backend = ChromaDBBackend(collection_name="my_custom_index", persist_dir="./my_chroma_db")
+# custom_cache_backend = FilesystemCacheBackend(persist_dir="./my_kit_cache")
 #
 # indexer_custom = DocstringIndexer(
 #     repo=repo,
 #     summarizer=summarizer,
 #     embed_fn=my_custom_embed_fn,
-#     backend=custom_backend,
-#     persist_dir="./my_custom_index_explicit_persist" # Can also be set directly on backend
+#     backend=custom_vector_backend,
+#     cache_backend=custom_cache_backend,
+#     persist_dir="./my_shared_persist_dir" # Can be used if backends don't configure their own
+# )
+
+# Example using Redis cache backend (requires redis library: pip install redis)
+# import redis
+# from kit.cache_backends.redis import RedisCacheBackend
+#
+# redis_client = redis.Redis.from_url("redis://localhost:6379/0")
+# redis_cache = RedisCacheBackend(redis_client=redis_client, cache_key="my_project_doc_cache")
+#
+# indexer_redis = DocstringIndexer(
+#     repo=repo,
+#     summarizer=summarizer,
+#     cache_backend=redis_cache 
+#     # Uses default vector backend (ChromaDB) and default embedding
 # )
 ```
 
@@ -49,12 +68,17 @@ indexer = DocstringIndexer(repo=repo, summarizer=summarizer)
     The `sentence-transformers` package must be installed for the default to work (`pip install sentence-transformers`).
 *   **`backend`** (`Optional[VectorDBBackend]`, default: `ChromaDBBackend`):
     The vector database backend to use for storing and querying embeddings.
-    If `None`, a `ChromaDBBackend` instance will be created.
+    If `None`, a `ChromaDBBackend` instance will be created using the `persist_dir`.
     The default collection name is `kit_docstring_index`.
-*   **`persist_dir`** (`Optional[str]`, default: `'./.kit_index/' + repo_name_slug + '/docstrings'`):
-    The directory where the vector database (e.g., ChromaDB) should persist its data.
-    If `None`, a default path is constructed based on the repository name within a `.kit_index` directory in the current working directory.
-    If a custom `backend` is provided, this parameter might be ignored if the backend itself has persistence configured. It's primarily used for the default `ChromaDBBackend` if no explicit `backend` is given or if the default backend needs a specific persistence path.
+*   **`persist_dir`** (`Optional[str]`, default: `repo.repo_path / ".kit_cache" / "docstring_db"` or `cwd / ".kit_cache" / "docstring_db_generic"`):
+    The *default* directory for persistent storage *if specific backends don't configure their own paths*. 
+    - If the default `ChromaDBBackend` is used for vectors, it will store its data here unless configured otherwise.
+    - If the default `FilesystemCacheBackend` is used for caching, it will store its `meta.json` here unless configured otherwise.
+    If `None`, a default path is constructed within a `.kit_cache` directory, usually inside the repository path.
+*   **`cache_backend`** (`Optional[CacheBackend]`, default: `FilesystemCacheBackend`):
+    The backend used to store cache metadata (e.g., file hashes to track changes).
+    - If `None`, a `FilesystemCacheBackend` instance is created, storing `meta.json` in the `persist_dir`.
+    - Allows using alternative backends like `RedisCacheBackend` for shared caching. See `kit.cache_backends`.
 
 ## Methods
 
