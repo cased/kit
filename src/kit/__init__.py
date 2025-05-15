@@ -3,7 +3,7 @@ A modular toolkit for LLM-powered codebase understanding.
 """
 
 __author__ = "cased"
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
@@ -21,6 +21,9 @@ except ImportError:
     # Users will get an ImportError later if they try to use Summarizer.
     pass
 
+# Helper for LLM tool schemas
+from .tool_schemas import get_tool_schemas
+
 __all__ = [
     "Repository",
     "RepoMapper",
@@ -32,6 +35,7 @@ __all__ = [
     "ContextAssembler",
     "DependencyAnalyzer",
     "TreeSitterSymbolExtractor",
+    "get_tool_schemas",
     # Conditionally add Summarizer related classes if they were imported
     *(["Summarizer", "OpenAIConfig", "LLMError"] if "Summarizer" in globals() else []),
 ]

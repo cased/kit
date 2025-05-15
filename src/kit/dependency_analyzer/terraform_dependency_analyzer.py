@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
@@ -89,47 +88,38 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
         try:
             file_content = self.repo.get_file_content(file_path)
             terraform_dict = hcl2.loads(file_content)
+            correct_abs_path = self.repo.get_abs_path(file_path)
 
             if "resource" in terraform_dict:
                 for resource_block in terraform_dict["resource"]:
                     for resource_type, resources in resource_block.items():
                         for resource_name, _ in resources.items():
                             resource_id = f"{resource_type}.{resource_name}"
-                            # Convert to absolute path if not already absolute
-                            abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
-                            self._resource_map[resource_id] = abs_path
+                            self._resource_map[resource_id] = correct_abs_path
 
             if "variable" in terraform_dict:
                 for var_block in terraform_dict["variable"]:
                     for var_name, _ in var_block.items():
                         var_id = f"var.{var_name}"
-                        # Convert to absolute path if not already absolute
-                        abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
-                        self._variable_map[var_id] = abs_path
+                        self._variable_map[var_id] = correct_abs_path
 
             if "locals" in terraform_dict:
                 for locals_block in terraform_dict["locals"]:
                     for local_name, _ in locals_block.items():
                         local_id = f"local.{local_name}"
-                        # Convert to absolute path if not already absolute
-                        abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
-                        self._local_map[local_id] = abs_path
+                        self._local_map[local_id] = correct_abs_path
 
             if "output" in terraform_dict:
                 for output_block in terraform_dict["output"]:
                     for output_name, _ in output_block.items():
                         output_id = f"output.{output_name}"
-                        # Convert to absolute path if not already absolute
-                        abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
-                        self._output_map[output_id] = abs_path
+                        self._output_map[output_id] = correct_abs_path
 
             if "module" in terraform_dict:
                 for module_block in terraform_dict["module"]:
                     for module_name, _ in module_block.items():
                         module_id = f"module.{module_name}"
-                        # Convert to absolute path if not already absolute
-                        abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
-                        self._module_map[module_id] = abs_path
+                        self._module_map[module_id] = correct_abs_path
 
         except Exception as e:
             logger.warning(f"Error processing {file_path} for resource mapping: {e}")
@@ -158,21 +148,22 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
             terraform_dict: Dictionary of parsed Terraform configuration blocks
             file_path: Path to the file being processed
         """
-        # Ensure we're using absolute path
-        abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
+        # Ensure we're using absolute path relative to the repository
+        correct_abs_path = self.repo.get_abs_path(file_path)
+
         if "resource" in terraform_dict:
             for resource_block in terraform_dict["resource"]:
                 for resource_type, resources in resource_block.items():
                     for resource_name, resource_config in resources.items():
                         resource_id = f"{resource_type}.{resource_name}"
-                        self._add_node(resource_id, "resource", resource_type, resource_name, abs_path)
+                        self._add_node(resource_id, "resource", resource_type, resource_name, correct_abs_path)
                         self._find_dependencies(resource_id, resource_config)
 
         if "module" in terraform_dict:
             for module_block in terraform_dict["module"]:
                 for module_name, module_config in module_block.items():
                     module_id = f"module.{module_name}"
-                    self._add_node(module_id, "module", "module", module_name, abs_path)
+                    self._add_node(module_id, "module", "module", module_name, correct_abs_path)
                     self._find_dependencies(module_id, module_config)
 
         if "data" in terraform_dict:
@@ -180,14 +171,14 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
                 for data_type, data_resources in data_block.items():
                     for data_name, data_config in data_resources.items():
                         data_id = f"data.{data_type}.{data_name}"
-                        self._add_node(data_id, "data", data_type, data_name, abs_path)
+                        self._add_node(data_id, "data", data_type, data_name, correct_abs_path)
                         self._find_dependencies(data_id, data_config)
 
         if "variable" in terraform_dict:
             for variable_block in terraform_dict["variable"]:
                 for var_name, var_config in variable_block.items():
                     var_id = f"var.{var_name}"
-                    self._add_node(var_id, "variable", "variable", var_name, abs_path)
+                    self._add_node(var_id, "variable", "variable", var_name, correct_abs_path)
                     # Variables might have default values with references
                     if "default" in var_config:
                         self._find_dependencies(var_id, var_config["default"])
@@ -196,14 +187,14 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
             for locals_block in terraform_dict["locals"]:
                 for local_name, local_value in locals_block.items():
                     local_id = f"local.{local_name}"
-                    self._add_node(local_id, "local", "local", local_name, abs_path)
+                    self._add_node(local_id, "local", "local", local_name, correct_abs_path)
                     self._find_dependencies(local_id, local_value)
 
         if "output" in terraform_dict:
             for output_block in terraform_dict["output"]:
                 for output_name, output_config in output_block.items():
                     output_id = f"output.{output_name}"
-                    self._add_node(output_id, "output", "output", output_name, abs_path)
+                    self._add_node(output_id, "output", "output", output_name, correct_abs_path)
                     self._find_dependencies(output_id, output_config)
 
     def _add_node(self, node_id: str, node_category: str, node_type: str, node_name: str, file_path: str):
@@ -726,7 +717,17 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
         modules = [node_id for node_id, data in self.dependency_graph.items() if data.get("category") == "module"]
 
         if output_format == "markdown":
-            parts = base_summary.split("## Additional Insights")
+            # Locate the "Additional Insights" header in a whitespace-tolerant way
+            match = re.search(r"##\s+Additional\s+Insights[ \t]*", base_summary, flags=re.IGNORECASE)
+
+            if match:
+                insert_pos = match.start()
+                before = base_summary[:insert_pos]
+                after = base_summary[insert_pos:]
+            else:
+                # Header not found – append insights at the end
+                before = base_summary
+                after = ""
 
             tf_insights = ["## Terraform-Specific Insights\n"]
 
@@ -761,10 +762,19 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
                     tf_insights.append(f"- **{module}** [File: {path_to_display}]\n")
                     tf_insights.append(f"  - Dependencies: {module_deps}\n")
 
-            result = parts[0] + "".join(tf_insights) + "## Additional Insights" + parts[1]
+            result = before + "".join(tf_insights) + after
 
         else:
-            parts = base_summary.split("ADDITIONAL INSIGHTS:")
+            # Locate the "Additional Insights" header in a whitespace-tolerant way
+            match_txt = re.search(r"ADDITIONAL\s+INSIGHTS:\s*", base_summary, flags=re.IGNORECASE)
+
+            if match_txt:
+                insert_pos = match_txt.start()
+                before = base_summary[:insert_pos]
+                after = base_summary[insert_pos:]
+            else:
+                before = base_summary
+                after = ""
 
             tf_insights = ["TERRAFORM-SPECIFIC INSIGHTS:\n"]
             tf_insights.append("------------------------------\n\n")
@@ -800,7 +810,7 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
                     tf_insights.append(f"- {module} [File: {path_to_display}]\n")
                     tf_insights.append(f"  - Dependencies: {module_deps}\n")
 
-            result = parts[0] + "".join(tf_insights) + "ADDITIONAL INSIGHTS:" + parts[1]
+            result = before + "".join(tf_insights) + after
 
         if output_path:
             with open(output_path, "w") as f:

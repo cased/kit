@@ -34,6 +34,7 @@ export default defineConfig({
             "core-concepts/search-approaches",
             "core-concepts/code-summarization",
             "core-concepts/docstring-indexing",
+            "core-concepts/tool-calling-with-kit",
             "core-concepts/semantic-search",
             "core-concepts/configuring-semantic-search",
             "core-concepts/dependency-analysis",
