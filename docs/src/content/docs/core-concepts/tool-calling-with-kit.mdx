@@ -7,7 +7,7 @@ Modern LLM runtimes (OpenAI *function-calling*, Anthropic *tools*, etc.) let you
 
 In practice that means you can drop `kit` into an existing chat agent with **zero orchestration logic** beyond registering the schema.  The rest of this guide shows the small amount of glue code needed and the conversational patterns that emerge.
 
-`kit` can expose its code-intelligence primitives as **callable tools**.  The lowest-friction way is via the built-in MCP server (`python -m kit.mcp`), but any runtime that can execute Python can surface the same JSON-schema to an LLM.  Once the schema is registered the model can decide _when_ to call:
+`kit` exposes its code-intelligence primitives as **callable tools**.  Inside Python you can grab the JSON-Schema list with a single helper (`kit.get_tool_schemas()`) and hand that straight to your LLM runtime.  Once the schema is registered the model can decide _when_ to call:
 
 * `open_repository`
 * `search_code`
@@ -24,19 +24,19 @@ This page shows the minimal JSON you need, the decision patterns the model will 
 
 ```python
 from openai import OpenAI
-import json, asyncio, kit.mcp
+from kit import get_tool_schemas
 
 client = OpenAI()
-server = await kit.mcp.serve()      # or run as a subprocess
 
-functions = json.loads(server.create_initialization_options()["toolSchemaJson"])
+# JSON-Schema for every kit tool
+functions = get_tool_schemas()
 
 messages = [
-    {"role": "system", "content": "You are an AI software engineer. Feel free to call tools when you need context."},
+    {"role": "system", "content": "You are an AI software engineer, some refer to as the 'Scottie Scheffler of Programming'. Feel free to call tools when you need context."},
 ]
 ```
 
-The `toolSchemaJson` blob would contain all current kit tools with JSON-Schema argument shapes.  Pass that list directly as the `tools` parameter to `client.chat.completions.create()`.
+`functions` is a list of JSON-Schema objects. Pass it directly as the `tools`/`functions` parameter to `client.chat.completions.create()`.
 
 ### Anthropic (messages-v2)
 
@@ -44,12 +44,13 @@ The `toolSchemaJson` blob would contain all current kit tools with JSON-Schema a
 from anthropic import Anthropic
 anthropic = Anthropic()
 
-options = server.create_initialization_options()
+# JSON-Schema for every kit tool
+functions = get_tool_schemas()
 
 response = anthropic.messages.create(
-    model="claude-3-7-sonnet-20250219"
+    model="claude-3-7-sonnet-20250219",
     system="You are an AI software engineer…",
-    tools=options["tools"],
+    tools=functions,
     messages=[{"role": "user", "content": "I got a test failure around FooBar.  Help me."}],
 )
 ```
@@ -95,7 +96,7 @@ Tool-calling conversations have **three channels of intent**:
 2. **Developer prompt** – _app-level_ steering: *"If the user asks for code you have not seen, call `get_file_content` first."*  
 3. **User prompt** – the human's actual message.
 
-`kit` does *not* impose a format—you simply include the JSON-schema from `server.create_initialization_options()` in your `tools` / `functions` field and add whatever system/developer guidance you choose.  A common pattern is:
+`kit` does *not* impose a format—you simply include the JSON-schema from `kit.get_tool_schemas()` in your `tools` / `functions` field and add whatever system/developer guidance you choose.  A common pattern is:
 
 ```python
 system = """You are an AI software-engineer.
@@ -125,11 +126,11 @@ Nothing prevents the LLM from chaining calls:
 1. `extract_symbols` on the failing file.
 2. Pick the function, then `get_code_summary` for a concise explanation.
 
-Frameworks like **LangChain**, **LlamaIndex** or **CrewAI** can route these calls automatically when you surface kit's MCP spec as their "tool" object.
+Frameworks like **LangChain**, **LlamaIndex** or **CrewAI** can route these calls automatically when you surface kit's tool schema as their "tool" object.
 
 ```python
 from langchain_community.tools import Tool
-kit_tools = [Tool.from_mcp_schema(t, call_kit_server) for t in options["tools"]]
+kit_tools = [Tool.from_mcp_schema(t, call_kit_server) for t in functions]
 ```
 
 ## 5  Security considerations
@@ -142,7 +143,7 @@ kit_tools = [Tool.from_mcp_schema(t, call_kit_server) for t in options["tools"]]
 
 ## 6  In-process (no extra server)
 
-If your application is **already written in Python** you don't have to spawn the MCP server at all—just keep a `Repository` instance in memory and expose thin wrappers as tools/functions:
+If your application is **already written in Python** you don't have to spawn any servers at all—just keep a `Repository` instance in memory and expose thin wrappers as tools/functions:
 
 ```python
 from typing import TypedDict
@@ -188,6 +189,6 @@ client.chat.completions.create(
 
 Because everything stays in the same process you avoid IPC/JSON overhead and can share caches (e.g. the `RepoMapper` symbol index) across calls.
 
-**Tip:** if you later need multi-language tooling or a separate sandbox you can swap the wrapper for the MCP server without touching your prompt logic—the function schema stays the same.
+**Tip:** if you later need multi-language tooling or a separate sandbox you can still swap in the MCP server without touching your prompt logic—the function schema stays the same.
 
---- 
+---
