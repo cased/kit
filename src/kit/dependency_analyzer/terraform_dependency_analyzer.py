@@ -757,12 +757,7 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
                     tf_insights.append(f"- **{module}** [File: {path_to_display}]\n")
                     tf_insights.append(f"  - Dependencies: {module_deps}\n")
 
-            result = (
-                parts[0]
-                + "".join(tf_insights)
-                + "## Additional Insights\n"
-                + parts[1]
-            )
+            result = parts[0] + "".join(tf_insights) + "## Additional Insights\n" + parts[1]
 
         else:
             # Split on the "Additional Insights" header, tolerating extra whitespace
@@ -805,12 +800,7 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
                     tf_insights.append(f"- {module} [File: {path_to_display}]\n")
                     tf_insights.append(f"  - Dependencies: {module_deps}\n")
 
-            result = (
-                parts[0]
-                + "".join(tf_insights)
-                + "ADDITIONAL INSIGHTS:\n"
-                + parts[1]
-            )
+            result = parts[0] + "".join(tf_insights) + "ADDITIONAL INSIGHTS:\n" + parts[1]
 
         if output_path:
             with open(output_path, "w") as f:
