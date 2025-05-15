@@ -1,0 +1,193 @@
+---
+title: Tool-Calling with `kit`
+subtitle: Practical patterns for letting your LLM drive kit's code-intelligence APIs
+---
+
+Modern LLM runtimes (OpenAI *function-calling*, Anthropic *tools*, etc.) let you hand the model a **menu of functions** in JSON-Schema form.  The model then plans its own calls – no hard-coded if/else trees required.  With `kit` you can  expose its code-intelligence primitives (search, symbol extraction, summaries, etc) and let the LLM decide which one to execute in each turn.  Your app stays declarative: *"Here are the tools, here is the user's question, please help."*
+
+In practice that means you can drop `kit` into an existing chat agent with **zero orchestration logic** beyond registering the schema.  The rest of this guide shows the small amount of glue code needed and the conversational patterns that emerge.
+
+`kit` can expose its code-intelligence primitives as **callable tools**.  The lowest-friction way is via the built-in MCP server (`python -m kit.mcp`), but any runtime that can execute Python can surface the same JSON-schema to an LLM.  Once the schema is registered the model can decide _when_ to call:
+
+* `open_repository`
+* `search_code`
+* `extract_symbols`
+* `find_symbol_usages`
+* `get_file_tree`, `get_file_content`
+* `get_code_summary`
+
+This page shows the minimal JSON you need, the decision patterns the model will follow, and a multi-turn example.
+
+## 1  Register the tools
+
+### OpenAI Chat Completions
+
+```python
+from openai import OpenAI
+import json, asyncio, kit.mcp
+
+client = OpenAI()
+server = await kit.mcp.serve()      # or run as a subprocess
+
+functions = json.loads(server.create_initialization_options()["toolSchemaJson"])
+
+messages = [
+    {"role": "system", "content": "You are an AI software engineer. Feel free to call tools when you need context."},
+]
+```
+
+The `toolSchemaJson` blob would contain all current kit tools with JSON-Schema argument shapes.  Pass that list directly as the `tools` parameter to `client.chat.completions.create()`.
+
+### Anthropic (messages-v2)
+
+```python
+from anthropic import Anthropic
+anthropic = Anthropic()
+
+options = server.create_initialization_options()
+
+response = anthropic.messages.create(
+    model="claude-3-7-sonnet-20250219"
+    system="You are an AI software engineer…",
+    tools=options["tools"],
+    messages=[{"role": "user", "content": "I got a test failure around FooBar.  Help me."}],
+)
+```
+
+## 2  When should the model call which tool?
+
+Below is the heuristic kit's own prompts (and our internal dataset) encourage.  You **don't** need to hard-code this logic—the LLM will pick it up from the tool names / descriptions—but understanding the flow helps you craft better conversation instructions.
+
+| Situation | Suggested tool(s) |
+|-----------|-------------------|
+| No repo open yet | `open_repository` (first turn) |
+| "What files mention X?" | `search_code` (fast regex) |
+| "Show me the function/class definition" | `get_file_content` *or* `extract_symbols` |
+| "Where else is `my_func` used?" | 1) `extract_symbols` (file-level) → 2) `find_symbol_usages` |
+| "Summarize this file/function for the PR description" | `get_code_summary` |
+| IDE-like navigation | `get_file_tree` + `get_file_content` |
+
+A **typical multi-turn session**:
+
+```
+User: I keep getting KeyError("user_id") in prod.
+
+Assistant (tool call): search_code {"repo_id": "42", "query": "KeyError(\"user_id\")"}
+
+Tool result → 3 hits returned (files + line numbers)
+
+Assistant: The error originates in `auth/session.py` line 88.  Shall I show you that code?
+
+User: yes, show me.
+
+Assistant (tool call): get_file_content {"repo_id": "42", "file_path": "auth/session.py"}
+
+Tool result → file text
+
+Assistant: Here is the snippet … (explanatory text)
+```
+
+## 3  Prompt orchestration: system / developer messages
+
+Tool-calling conversations have **three channels of intent**:
+
+1. **System prompt** – your immutable instructions (e.g. *"You are an AI software-engineer agent."*)  
+2. **Developer prompt** – _app-level_ steering: *"If the user asks for code you have not seen, call `get_file_content` first."*  
+3. **User prompt** – the human's actual message.
+
+`kit` does *not* impose a format—you simply include the JSON-schema from `server.create_initialization_options()` in your `tools` / `functions` field and add whatever system/developer guidance you choose.  A common pattern is:
+
+```python
+system = """You are an AI software-engineer.
+Feel free to call tools when they help you answer precisely.
+When showing code, prefer the smallest snippet that answers the question.
+"""
+
+developer = """Available repos are already open in the session.
+Call `search_code` before you attempt to answer questions like
+  *"Where is X defined?"* or *"Show references to Y"*.
+Use `get_code_summary` before writing long explanations of unfamiliar files.
+"""
+
+messages = [
+    {"role": "system", "content": system},
+    {"role": "system", "name": "dev-instructions", "content": developer},
+    {"role": "user", "content": user_query},
+]
+```
+
+Because the developer message is separate from the user's content it can be updated dynamically by your app (e.g. after each tool result) without contaminating the visible chat transcript.
+
+## 4  Streaming multi-tool conversations
+
+Nothing prevents the LLM from chaining calls:
+
+1. `extract_symbols` on the failing file.
+2. Pick the function, then `get_code_summary` for a concise explanation.
+
+Frameworks like **LangChain**, **LlamaIndex** or **CrewAI** can route these calls automatically when you surface kit's MCP spec as their "tool" object.
+
+```python
+from langchain_community.tools import Tool
+kit_tools = [Tool.from_mcp_schema(t, call_kit_server) for t in options["tools"]]
+```
+
+## 5  Security considerations
+
+`get_file_content` streams raw code.  If you expose kit to an external service:
+
+* Restrict `open_repository` to a safe path.
+* Consider stripping secrets from returned text.
+* Disable `get_file_content` for un-trusted queries and rely on `extract_symbols` + `get_code_summary` instead.
+
+## 6  In-process (no extra server)
+
+If your application is **already written in Python** you don't have to spawn the MCP server at all—just keep a `Repository` instance in memory and expose thin wrappers as tools/functions:
+
+```python
+from typing import TypedDict
+from kit import Repository
+
+repo = Repository("/path/to/repo")
+
+class SearchArgs(TypedDict):
+    query: str
+    pattern: str
+
+def search_code(args: SearchArgs):
+    return repo.search_text(args["query"], file_pattern=args.get("pattern", "*.py"))
+```
+
+Then register the wrapper with your tool-calling framework:
+
+```python
+from openai import OpenAI
+client = OpenAI()
+
+functions = [
+    {
+        "name": "search_code",
+        "description": "Regex search across the active repository",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "pattern": {"type": "string", "default": "*.py"},
+            },
+            "required": ["query"],
+        },
+    },
+]
+
+client.chat.completions.create(
+    model="gpt-4o",
+    tools=functions,
+    messages=[...]
+)
+```
+
+Because everything stays in the same process you avoid IPC/JSON overhead and can share caches (e.g. the `RepoMapper` symbol index) across calls.
+
+**Tip:** if you later need multi-language tooling or a separate sandbox you can swap the wrapper for the MCP server without touching your prompt logic—the function schema stays the same.
+
+--- 
