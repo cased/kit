@@ -717,7 +717,12 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
         modules = [node_id for node_id, data in self.dependency_graph.items() if data.get("category") == "module"]
 
         if output_format == "markdown":
-            parts = base_summary.split("## Additional Insights")
+            # Split on the "Additional Insights" header, tolerating extra whitespace
+            parts = re.split(r"##\s+Additional\s+Insights\s*\n?", base_summary, maxsplit=1)
+
+            if len(parts) != 2:
+                # Header not found exactly – fall back to appending at the end
+                parts = [base_summary, ""]
 
             tf_insights = ["## Terraform-Specific Insights\n"]
 
@@ -752,10 +757,19 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
                     tf_insights.append(f"- **{module}** [File: {path_to_display}]\n")
                     tf_insights.append(f"  - Dependencies: {module_deps}\n")
 
-            result = parts[0] + "".join(tf_insights) + "## Additional Insights" + parts[1]
+            result = (
+                parts[0]
+                + "".join(tf_insights)
+                + "## Additional Insights\n"
+                + parts[1]
+            )
 
         else:
-            parts = base_summary.split("ADDITIONAL INSIGHTS:")
+            # Split on the "Additional Insights" header, tolerating extra whitespace
+            parts = re.split(r"ADDITIONAL\s+INSIGHTS:\s*\n?", base_summary, maxsplit=1)
+
+            if len(parts) != 2:
+                parts = [base_summary, ""]
 
             tf_insights = ["TERRAFORM-SPECIFIC INSIGHTS:\n"]
             tf_insights.append("------------------------------\n\n")
@@ -791,7 +805,12 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
                     tf_insights.append(f"- {module} [File: {path_to_display}]\n")
                     tf_insights.append(f"  - Dependencies: {module_deps}\n")
 
-            result = parts[0] + "".join(tf_insights) + "ADDITIONAL INSIGHTS:" + parts[1]
+            result = (
+                parts[0]
+                + "".join(tf_insights)
+                + "ADDITIONAL INSIGHTS:\n"
+                + parts[1]
+            )
 
         if output_path:
             with open(output_path, "w") as f:

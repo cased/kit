@@ -677,3 +677,31 @@ def test_paths_robust_to_cwd_changes():
 
         finally:
             os.chdir(original_cwd)  # Ensure CWD is restored
+
+
+def test_llm_context_header_variations(monkeypatch):
+    """Ensure Terraform insights are injected even if base summary header has extra whitespace."""
+    from kit.dependency_analyzer import dependency_analyzer as base_mod
+
+    original_generate = base_mod.DependencyAnalyzer.generate_llm_context
+
+    def patched_generate(self, max_tokens=4000, output_format="markdown", output_path=None):
+        # Call the original implementation
+        summary = original_generate(self, max_tokens, output_format, None)
+        # Intentionally add a trailing space after the heading to mimic CI variation
+        return summary.replace("## Additional Insights", "## Additional Insights ")
+
+    monkeypatch.setattr(base_mod.DependencyAnalyzer, "generate_llm_context", patched_generate, raising=True)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(Path(tmpdir) / "main.tf", "w") as f:
+            f.write('resource "aws_s3_bucket" "b" { bucket = "b" }')
+
+        repo = Repository(tmpdir)
+        analyzer = repo.get_dependency_analyzer("terraform")
+        analyzer.build_dependency_graph()
+
+        md_output = analyzer.generate_llm_context(output_format="markdown")
+
+        assert "## Terraform-Specific Insights" in md_output
+        assert "[File:" in md_output  # Path lines should be present
