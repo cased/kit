@@ -717,12 +717,17 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
         modules = [node_id for node_id, data in self.dependency_graph.items() if data.get("category") == "module"]
 
         if output_format == "markdown":
-            # Split on the "Additional Insights" header, tolerating extra whitespace
-            parts = re.split(r"##\s+Additional\s+Insights\s*\n?", base_summary, maxsplit=1)
+            # Locate the "Additional Insights" header in a whitespace-tolerant way
+            match = re.search(r"##\s+Additional\s+Insights[ \t]*", base_summary, flags=re.IGNORECASE)
 
-            if len(parts) != 2:
-                # Header not found exactly – fall back to appending at the end
-                parts = [base_summary, ""]
+            if match:
+                insert_pos = match.start()
+                before = base_summary[:insert_pos]
+                after = base_summary[insert_pos:]
+            else:
+                # Header not found – append insights at the end
+                before = base_summary
+                after = ""
 
             tf_insights = ["## Terraform-Specific Insights\n"]
 
@@ -757,14 +762,19 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
                     tf_insights.append(f"- **{module}** [File: {path_to_display}]\n")
                     tf_insights.append(f"  - Dependencies: {module_deps}\n")
 
-            result = parts[0] + "".join(tf_insights) + "## Additional Insights\n" + parts[1]
+            result = before + "".join(tf_insights) + after
 
         else:
-            # Split on the "Additional Insights" header, tolerating extra whitespace
-            parts = re.split(r"ADDITIONAL\s+INSIGHTS:\s*\n?", base_summary, maxsplit=1)
+            # Locate the "Additional Insights" header in a whitespace-tolerant way
+            match_txt = re.search(r"ADDITIONAL\s+INSIGHTS:\s*", base_summary, flags=re.IGNORECASE)
 
-            if len(parts) != 2:
-                parts = [base_summary, ""]
+            if match_txt:
+                insert_pos = match_txt.start()
+                before = base_summary[:insert_pos]
+                after = base_summary[insert_pos:]
+            else:
+                before = base_summary
+                after = ""
 
             tf_insights = ["TERRAFORM-SPECIFIC INSIGHTS:\n"]
             tf_insights.append("------------------------------\n\n")
@@ -800,7 +810,7 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
                     tf_insights.append(f"- {module} [File: {path_to_display}]\n")
                     tf_insights.append(f"  - Dependencies: {module_deps}\n")
 
-            result = parts[0] + "".join(tf_insights) + "ADDITIONAL INSIGHTS:\n" + parts[1]
+            result = before + "".join(tf_insights) + after
 
         if output_path:
             with open(output_path, "w") as f:
