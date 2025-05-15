@@ -21,7 +21,7 @@ class RepoIn(BaseModel):
 _repos: Dict[str, Repository] = {}
 
 
-@app.post("/repos", status_code=201)
+@app.post("/repository", status_code=201)
 def open_repo(body: RepoIn):
     """Create/open a repository and return its ID."""
     repo = Repository(body.path_or_url, github_token=body.github_token)
@@ -30,7 +30,33 @@ def open_repo(body: RepoIn):
     return {"id": repo_id}
 
 
-@app.get("/repos/{repo_id}/search")
+@app.get("/repository/{repo_id}/file-tree")
+def get_file_tree(repo_id: str):
+    """Get the file tree of the repository."""
+    repo = _repos.get(repo_id)
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    return repo.get_file_tree()
+
+
+@app.get("/repository/{repo_id}/files/{file_path:path}")
+def get_file_content(repo_id: str, file_path: str):
+    """Get the content of a specific file in the repository."""
+    repo = _repos.get(repo_id)
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    try:
+        content = repo.get_file_content(file_path)
+        # Return content as plain text
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse(content=content)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+    except IOError as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
+
+@app.get("/repository/{repo_id}/search")
 def search_text(repo_id: str, q: str, pattern: str = "*.py"):
     repo = _repos.get(repo_id)
     if not repo:
@@ -38,11 +64,3 @@ def search_text(repo_id: str, q: str, pattern: str = "*.py"):
     return repo.search_text(q, file_pattern=pattern)
 
 
-@app.post("/repos/{repo_id}/context")
-def build_context(repo_id: str, diff: str = Body(..., embed=True)):
-    repo = _repos.get(repo_id)
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repo not found")
-    assembler: ContextAssembler = repo.get_context_assembler()
-    assembler.add_diff(diff)
-    return {"context": assembler.format_context()}
