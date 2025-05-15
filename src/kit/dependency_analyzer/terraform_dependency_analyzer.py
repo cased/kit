@@ -158,21 +158,22 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
             terraform_dict: Dictionary of parsed Terraform configuration blocks
             file_path: Path to the file being processed
         """
-        # Ensure we're using absolute path
-        abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
+        # Ensure we're using absolute path relative to the repository
+        correct_abs_path = self.repo.get_abs_path(file_path)
+
         if "resource" in terraform_dict:
             for resource_block in terraform_dict["resource"]:
                 for resource_type, resources in resource_block.items():
                     for resource_name, resource_config in resources.items():
                         resource_id = f"{resource_type}.{resource_name}"
-                        self._add_node(resource_id, "resource", resource_type, resource_name, abs_path)
+                        self._add_node(resource_id, "resource", resource_type, resource_name, correct_abs_path)
                         self._find_dependencies(resource_id, resource_config)
 
         if "module" in terraform_dict:
             for module_block in terraform_dict["module"]:
                 for module_name, module_config in module_block.items():
                     module_id = f"module.{module_name}"
-                    self._add_node(module_id, "module", "module", module_name, abs_path)
+                    self._add_node(module_id, "module", "module", module_name, correct_abs_path)
                     self._find_dependencies(module_id, module_config)
 
         if "data" in terraform_dict:
@@ -180,14 +181,14 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
                 for data_type, data_resources in data_block.items():
                     for data_name, data_config in data_resources.items():
                         data_id = f"data.{data_type}.{data_name}"
-                        self._add_node(data_id, "data", data_type, data_name, abs_path)
+                        self._add_node(data_id, "data", data_type, data_name, correct_abs_path)
                         self._find_dependencies(data_id, data_config)
 
         if "variable" in terraform_dict:
             for variable_block in terraform_dict["variable"]:
                 for var_name, var_config in variable_block.items():
                     var_id = f"var.{var_name}"
-                    self._add_node(var_id, "variable", "variable", var_name, abs_path)
+                    self._add_node(var_id, "variable", "variable", var_name, correct_abs_path)
                     # Variables might have default values with references
                     if "default" in var_config:
                         self._find_dependencies(var_id, var_config["default"])
@@ -196,14 +197,14 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
             for locals_block in terraform_dict["locals"]:
                 for local_name, local_value in locals_block.items():
                     local_id = f"local.{local_name}"
-                    self._add_node(local_id, "local", "local", local_name, abs_path)
+                    self._add_node(local_id, "local", "local", local_name, correct_abs_path)
                     self._find_dependencies(local_id, local_value)
 
         if "output" in terraform_dict:
             for output_block in terraform_dict["output"]:
                 for output_name, output_config in output_block.items():
                     output_id = f"output.{output_name}"
-                    self._add_node(output_id, "output", "output", output_name, abs_path)
+                    self._add_node(output_id, "output", "output", output_name, correct_abs_path)
                     self._find_dependencies(output_id, output_config)
 
     def _add_node(self, node_id: str, node_category: str, node_type: str, node_name: str, file_path: str):
