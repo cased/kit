@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
@@ -89,47 +88,38 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
         try:
             file_content = self.repo.get_file_content(file_path)
             terraform_dict = hcl2.loads(file_content)
+            correct_abs_path = self.repo.get_abs_path(file_path)
 
             if "resource" in terraform_dict:
                 for resource_block in terraform_dict["resource"]:
                     for resource_type, resources in resource_block.items():
                         for resource_name, _ in resources.items():
                             resource_id = f"{resource_type}.{resource_name}"
-                            # Convert to absolute path if not already absolute
-                            abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
-                            self._resource_map[resource_id] = abs_path
+                            self._resource_map[resource_id] = correct_abs_path
 
             if "variable" in terraform_dict:
                 for var_block in terraform_dict["variable"]:
                     for var_name, _ in var_block.items():
                         var_id = f"var.{var_name}"
-                        # Convert to absolute path if not already absolute
-                        abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
-                        self._variable_map[var_id] = abs_path
+                        self._variable_map[var_id] = correct_abs_path
 
             if "locals" in terraform_dict:
                 for locals_block in terraform_dict["locals"]:
                     for local_name, _ in locals_block.items():
                         local_id = f"local.{local_name}"
-                        # Convert to absolute path if not already absolute
-                        abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
-                        self._local_map[local_id] = abs_path
+                        self._local_map[local_id] = correct_abs_path
 
             if "output" in terraform_dict:
                 for output_block in terraform_dict["output"]:
                     for output_name, _ in output_block.items():
                         output_id = f"output.{output_name}"
-                        # Convert to absolute path if not already absolute
-                        abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
-                        self._output_map[output_id] = abs_path
+                        self._output_map[output_id] = correct_abs_path
 
             if "module" in terraform_dict:
                 for module_block in terraform_dict["module"]:
                     for module_name, _ in module_block.items():
                         module_id = f"module.{module_name}"
-                        # Convert to absolute path if not already absolute
-                        abs_path = os.path.abspath(file_path) if not os.path.isabs(file_path) else file_path
-                        self._module_map[module_id] = abs_path
+                        self._module_map[module_id] = correct_abs_path
 
         except Exception as e:
             logger.warning(f"Error processing {file_path} for resource mapping: {e}")

@@ -622,3 +622,58 @@ def test_file_paths_are_absolute():
         # Resources from network/resources.tf should be in a different path than those from compute/resources.tf
         assert "infra/network/resources.tf" in md_output
         assert "infra/compute/resources.tf" in md_output
+
+
+def test_paths_robust_to_cwd_changes():
+    """Test that paths are correct even if CWD changes before analysis."""
+    original_cwd = os.getcwd()
+    with tempfile.TemporaryDirectory() as repo_root_str:
+        repo_root = Path(repo_root_str)
+        project_files_dir = repo_root / "project_files"
+        os.makedirs(project_files_dir, exist_ok=True)
+
+        tf_file_relative_path = Path("project_files") / "my.tf"
+        tf_file_abs_path = repo_root / tf_file_relative_path
+
+        with open(tf_file_abs_path, "w") as f:
+            f.write("""
+            resource "aws_s3_bucket" "test_bucket" {
+              bucket = "my-test-bucket-unique-name"
+            }
+            """)
+
+        # Change CWD to the parent of the repo_root to simulate a different CWD
+        os.chdir(repo_root.parent)
+
+        try:
+            repo = Repository(str(repo_root))  # Initialize repo with its actual path
+            analyzer = repo.get_dependency_analyzer("terraform")
+            graph = analyzer.build_dependency_graph()
+
+            assert "aws_s3_bucket.test_bucket" in graph
+            resource_node = graph["aws_s3_bucket.test_bucket"]
+            node_path_str = resource_node.get("path", "")
+            node_path = Path(node_path_str)
+
+            assert node_path.is_absolute(), f"Path in graph is not absolute: {node_path_str}"
+            # Ensure the path stored in the graph is the one within the repo, not CWD-relative
+            assert node_path == tf_file_abs_path.resolve(), (
+                f"Path in graph '{node_path_str}' does not match expected absolute path '{tf_file_abs_path.resolve()}'"
+            )
+
+            md_output = analyzer.generate_llm_context(output_format="markdown")
+
+            # Check for the specific file path string.
+            # The string should be the absolute path within the repo context.
+            expected_path_in_markdown = str(tf_file_abs_path.resolve())
+            assert expected_path_in_markdown in md_output, (
+                f"Expected path '{expected_path_in_markdown}' not found in LLM context:\n{md_output}"
+            )
+
+            # Also check for the relative path string which the original test checked for,
+            # but ensure it's part of the absolute path from the markdown context
+            # This is a weaker check but aligns with the original test's assertion target.
+            assert str(tf_file_relative_path) in md_output
+
+        finally:
+            os.chdir(original_cwd)  # Ensure CWD is restored
