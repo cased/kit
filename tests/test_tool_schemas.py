@@ -16,4 +16,4 @@ def test_get_tool_schemas_basic():
     # Spot-check a few known tool names
     tool_names = {s["name"] for s in schemas}
     for expected in {"open_repository", "search_code", "get_file_tree", "get_file_content"}:
-        assert expected in tool_names, f"{expected} should be part of tool schema list" 
+        assert expected in tool_names, f"{expected} should be part of tool schema list"

@@ -4,9 +4,10 @@ This module lets you grab the same JSON-Schema objects that the MCP server
 would advertise, without having to spin up a server.  Pass the list directly
 as the `tools` / `functions` parameter to OpenAI, Anthropic, etc.
 """
+
 from __future__ import annotations
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Avoid importing heavy MCP dependencies at module-import time to prevent
 # unnecessary ImportError for users who never need the helper.  Everything is
@@ -29,8 +30,9 @@ def get_tool_schemas() -> List[Dict[str, Any]]:
     """
     # Late imports to avoid circular dependencies *and* to keep MCP optional
     try:
-        from kit.mcp.server import KitServerLogic  # type: ignore
         from mcp.types import Tool  # type: ignore
+
+        from kit.mcp.server import KitServerLogic  # type: ignore
     except ImportError as e:  # pragma: no cover – pack not installed
         raise ImportError(
             "`get_tool_schemas()` requires the optional `mcp` package. \n"
@@ -40,4 +42,4 @@ def get_tool_schemas() -> List[Dict[str, Any]]:
     logic = KitServerLogic()
     tools: List[Tool] = logic.list_tools()
     # `model_dump` is a Pydantic method (v2) that returns plain dicts ready for JSON
-    return [tool.model_dump(mode="json") for tool in tools] 
+    return [tool.model_dump(mode="json") for tool in tools]
