@@ -89,9 +89,8 @@ The following features are currently in development and will be added in future 
 
 | Planned Feature | Description | Status |
 |-----------------|-------------|--------|
-| `/semantic-search` | Embedding-based search using vector databases (ChromaDB) to find semantically similar code chunks | Temporarily removed, coming soon |
+| `/semantic-search` | Embedding-based search using vector databases to find semantically similar code chunks | Coming soon |
 | Enhanced symbol analysis | Improved cross-language symbol detection and relationship mapping | Planned |
-| Code modification endpoints | API for applying changes to code with safety checks | Under consideration |
 
 ## 7  Common HTTP Status Codes
 
@@ -101,7 +100,6 @@ The following features are currently in development and will be added in future 
 *   `400 Bad Request`: Invalid parameters in the request (e.g., unsupported language for dependencies, missing API key for summaries).
 *   `404 Not Found`: Requested resource (repository, file, symbol) could not be found.
 *   `500 Internal Server Error`: An unexpected error occurred on the server.
-*   `501 Not Implemented`: A core component for the requested capability is missing from the server installation (e.g., an LLM SDK for `/summary` if it were optional, or `chromadb` for `/semantic-search`). Should be rare for default installs.
 *   `503 Service Unavailable`: An external service required by the handler (e.g., an LLM API) failed or is unavailable.
 
 ---
