@@ -1,0 +1,112 @@
+---
+title: Kit REST API
+subtitle: HTTP endpoints for code intelligence operations
+---
+
+`kit` ships a lightweight FastAPI server that exposes most of the same
+capabilities as the Python API and the MCP server, but over good old HTTP.
+This page lists every route, its query-parameters and example `curl` invocations.
+
+> Tip The server lives in `kit.api.app`.  Run it directly with:
+>
+> ```bash
+> uvicorn kit.api.app:app --reload
+> ```
+
+---
+## 1  Opening a repository
+
+```http
+POST /repository
+```
+Body (JSON):
+| field       | type   | required | description                      |
+|-------------|--------|----------|----------------------------------|
+| path_or_url | string | yes      | Local path **or** Git URL        |
+| ref         | string | no       | Commit SHA / branch / tag        |
+| github_token| string | no       | OAuth token for private clones   |
+
+Return → `{ "id": "8b1d4f29c7b1" }`
+
+The ID is deterministic: `sha1(<canonical-path>@<ref>)[:12]`.  Re-POSTing the
+same path+ref always returns the same ID – so clients can cache it.
+
+> Note If `path_or_url` is a **GitHub URL**, the server shells out to `git clone`.  Pass `github_token` to authenticate when cloning **private** repositories.
+
+## 2  Navigation
+
+| Method & path                                   | Purpose                    |
+|-------------------------------------------------|----------------------------|
+| `GET /repository/{id}/file-tree`                | JSON list of files/dirs    |
+| `GET /repository/{id}/files/{path}`             | Raw text response          |
+| `DELETE /repository/{id}`                       | Evict from registry/LRU    |
+
+Example:
+```bash
+curl "$KIT_URL/repository/$ID/files/models/user.py"
+```
+
+## 3  Search
+
+```http
+GET /repository/{id}/search?q=<regex>&pattern=*.py
+```
+Returns grep-style hits with file & line numbers.
+
+## 4  Symbols & usages
+
+```http
+GET /repository/{id}/symbols?file_path=...&symbol_type=function
+GET /repository/{id}/usages?symbol_name=foo&symbol_type=function
+```
+`/symbols` without `file_path` scans the whole repo (cached).
+
+## 5  Composite index
+
+```http
+GET /repository/{id}/index
+```
+Response:
+```json
+{
+  "files": [ ... file-tree items ... ],
+  "symbols": { "path/to/file.py": [ {"name": "foo", ...} ] }
+}
+```
+
+## 6  Advanced Capabilities
+
+These endpoints are included in the standard `kit` installation but may have specific runtime requirements:
+
+| Route              | Key Runtime Requirement(s)                                    | Notes                                                                 |
+|--------------------|---------------------------------------------------------------|-----------------------------------------------------------------------|
+| `/summary`         | LLM API key (e.g., `OPENAI_API_KEY` in environment)           | Generates code summaries. Returns `400` if key is missing/invalid, `503` if LLM service fails. |
+| `/semantic-search` | None (uses built-in ChromaDB & naive embedder by default)   | Finds semantically similar code chunks.                               |
+| `/dependencies`    | None for fetching graph data (Python/Terraform)               | Returns dependency graph. `graphviz` needed only for local visualization helpers, not this endpoint. |
+
+## 7  Common HTTP Status Codes
+
+*   `200 OK`: Request succeeded.
+*   `201 Created`: Repository opened successfully.
+*   `204 No Content`: Repository deleted successfully.
+*   `400 Bad Request`: Invalid parameters in the request (e.g., unsupported language for dependencies, missing API key for summaries).
+*   `404 Not Found`: Requested resource (repository, file, symbol) could not be found.
+*   `500 Internal Server Error`: An unexpected error occurred on the server.
+*   `501 Not Implemented`: A core component for the requested capability is missing from the server installation (e.g., an LLM SDK for `/summary` if it were optional, or `chromadb` for `/semantic-search`). Should be rare for default installs.
+*   `503 Service Unavailable`: An external service required by the handler (e.g., an LLM API) failed or is unavailable.
+
+---
+### Example session
+
+```bash
+# 1 Open local repo (deterministic id)
+ID=$(curl -sX POST localhost:8000/repository \
+     -d '{"path_or_url": "/my/project"}' \
+     -H 'Content-Type: application/json' | jq -r .id)
+
+# 2 Find every file that mentions "KeyError"
+curl "localhost:8000/repository/$ID/search?q=KeyError"
+
+# 3 Show snippet
+curl "localhost:8000/repository/$ID/files/auth/session.py" | sed -n '80,95p'
+``` 

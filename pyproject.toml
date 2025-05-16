@@ -55,6 +55,9 @@ addopts = "-ra -q"
 testpaths = [
     "tests"
 ]
+markers = [
+    "asyncio: mark test as asyncio to run with pytest-asyncio",
+]
 
 [tool.mypy]
 ignore_missing_imports = true

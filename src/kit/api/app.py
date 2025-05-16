@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from .registry import registry
+from kit.summaries import LLMError, SymbolNotFoundError
 
 app = FastAPI(title="kit API", version="0.1.0")
 
@@ -127,42 +128,87 @@ def get_full_index(repo_id: str):
 
 @app.get("/repository/{repo_id}/summary")
 def get_summary(repo_id: str, file_path: str, symbol_name: str | None = None):
-    """LLM-powered code summary (requires summaries extra)."""
+    """LLM-powered code summary."""
     try:
         repo = registry.get_repo(repo_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="Repo not found")
 
     try:
-        summary = repo.get_code_summary(file_path, symbol_name=symbol_name)  # type: ignore[attr-defined]
-    except Exception:
-        # Summaries extra not installed
-        raise HTTPException(status_code=501, detail="Summary capability not available on server")
-    return summary
+        summarizer = repo.get_summarizer()  # Get the Summarizer instance
+        summary_text: str | None
+
+        if symbol_name:
+            try:
+                summary_text = summarizer.summarize_function(file_path, symbol_name)
+            except SymbolNotFoundError:
+                try:
+                    summary_text = summarizer.summarize_class(file_path, symbol_name)
+                except SymbolNotFoundError:
+                    # Explicitly raise HTTPException for symbol not found after trying both
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Symbol '{symbol_name}' not found as a function or class in '{file_path}'.",
+                    )
+        else:
+            summary_text = summarizer.summarize_file(file_path)
+
+        if summary_text is None:
+            # This case should ideally be covered by specific errors above,
+            # but as a fallback if a summary somehow results in None without an error.
+            raise HTTPException(status_code=500, detail="Failed to generate summary.")
+
+        return {"summary": summary_text}
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    # ValueError for API key issues from Configs (e.g., OpenAIConfig)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Configuration error: {e}")
+    # LLMError for issues during LLM communication or if LLM returns empty
+    except LLMError as e:
+        raise HTTPException(status_code=503, detail=f"LLM service error: {e}")
+    # ImportError if an SDK is missing (should be rare as they are core deps)
+    except ImportError as e:
+        raise HTTPException(status_code=501, detail=f"Server capability error: Missing LLM SDK: {e}")
+    # Allow other unexpected errors to be handled by FastAPI's default 500 handler
+    # No generic `except Exception:` here to re-raise as 501.
 
 
 @app.get("/repository/{repo_id}/semantic-search")
 def semantic_search(repo_id: str, q: str, top_k: int = 5):
-    """Embedding-based search. Falls back to 501 if vector search backend unavailable."""
+    """Embedding-based search (uses ChromaDB and a naive fallback embedder)."""
     try:
         repo = registry.get_repo(repo_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="Repo not found")
 
-    # Simple deterministic embedding if user hasn't built index yet.
-    def _naive_embed(text: str):
-        return [sum(map(ord, text)) % 1000]
+    # Simple deterministic embedding if user hasn't built index yet or no embed_fn provided.
+    def _naive_embed(text: str) -> list[float]: # Added type hint for clarity
+        # Simple embedding: sum of ASCII values, modulo 1000, as a single-dimension vector.
+        # This ensures it returns List[float] as expected by some VectorDB backends.
+        return [float(sum(map(ord, text)) % 1000)]
 
     try:
+        # The embed_fn=_naive_embed ensures that search_semantic doesn't fail
+        # if a more sophisticated embedding function (e.g., from sentence-transformers)
+        # isn't available or configured for the VectorSearcher.
         results = repo.search_semantic(q, top_k=top_k, embed_fn=_naive_embed)
-    except Exception:
-        raise HTTPException(status_code=501, detail="Semantic search not available on server")
+    except ImportError as e:
+        # This might catch if chromadb itself is missing, though it's a core dep.
+        raise HTTPException(status_code=501, detail=f"Server capability error: Missing vector search dependency: {e}")
+    except ValueError as e:
+        # Catch potential ValueErrors from VectorSearcher or its backend, e.g., bad top_k value.
+        raise HTTPException(status_code=400, detail=f"Search parameter error: {e}")
+    # Allow other unexpected errors (e.g., issues within chromadb operations)
+    # to be handled by FastAPI's default 500 handler.
+
     return results
 
 
 @app.get("/repository/{repo_id}/dependencies")
 def analyze_dependencies(repo_id: str, file_path: str | None = None, depth: int = 1, language: str = "python"):
-    """Dependency analysis (only works if analyzers are installed)."""
+    """Dependency analysis for Python or Terraform projects."""
     try:
         repo = registry.get_repo(repo_id)
     except KeyError:
@@ -170,7 +216,12 @@ def analyze_dependencies(repo_id: str, file_path: str | None = None, depth: int 
 
     try:
         analyzer = repo.get_dependency_analyzer(language)
-        graph = analyzer.analyze(file_path=file_path, depth=depth)
+        graph = analyzer.analyze(file_path=file_path, depth=depth) # depth is currently ignored by the analyzer
         return graph
-    except Exception:
-        raise HTTPException(status_code=501, detail="Dependency analyzer not available for this language")
+    except ValueError as e: # Raised by get_dependency_analyzer for unsupported language
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e: # If file_path is provided but not found by the analyzer
+        raise HTTPException(status_code=404, detail=str(e))
+    # Allow other unexpected errors (e.g. issues during hcl2.loads or ast.parse)
+    # to be handled by FastAPI's default 500 handler.
+    # No generic `except Exception:` here to re-raise as 501.

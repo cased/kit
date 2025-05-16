@@ -230,3 +230,31 @@ class DependencyAnalyzer(ABC):
                 f"Unsupported language for dependency analysis: {language}. "
                 f"Currently supported languages: python, terraform"
             )
+
+    # ------------------------------------------------------------------
+    # Convenience wrapper used by REST API
+    # ------------------------------------------------------------------
+
+    def analyze(self, file_path: Optional[str] = None, depth: int = 1):  # type: ignore[override]
+        """Return the dependency graph, optionally scoped to a single file/module.
+
+        The FastAPI route delegates here instead of calling the language-specific
+        helpers directly.  For now we just build (or reuse) the in-memory
+        dependency graph and filter it if *file_path* is provided.  *depth* is
+        accepted for forward-compatibility but currently ignored.
+        """
+
+        # Ensure the graph is ready
+        if not self._initialized:
+            self.build_dependency_graph()
+
+        if file_path is None:
+            return self.dependency_graph
+
+        # Basic filter: take nodes whose stored "path" matches the requested file
+        scoped = {
+            node: data for node, data in self.dependency_graph.items() if data.get("path") == file_path
+        }
+
+        # If nothing matched we simply return an empty graph rather than erroring.
+        return scoped
