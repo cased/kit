@@ -46,6 +46,7 @@ def get_file_content(repo_id: str, file_path: str):
     try:
         content = repo.get_file_content(file_path)
         from fastapi.responses import PlainTextResponse
+
         return PlainTextResponse(content=content)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
