@@ -22,7 +22,6 @@ class RepoIn(BaseModel):
 def open_repo(body: RepoIn):
     """Register a repository path/URL and return its deterministic ID."""
     repo_id = registry.add(body.path_or_url, body.ref)
-    # Warm cache so first follow-up request is fast
     _ = registry.get_repo(repo_id)
     return {"id": repo_id}
 
@@ -46,9 +45,7 @@ def get_file_content(repo_id: str, file_path: str):
         raise HTTPException(status_code=404, detail="Repo not found")
     try:
         content = repo.get_file_content(file_path)
-        # Return content as plain text
         from fastapi.responses import PlainTextResponse
-
         return PlainTextResponse(content=content)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
@@ -93,7 +90,7 @@ def extract_symbols(repo_id: str, file_path: str | None = None, symbol_type: str
 def find_symbol_usages(
     repo_id: str,
     symbol_name: str,
-    file_path: str | None = None,  # kept for parity with MCP even though unused
+    file_path: str | None = None,
     symbol_type: str | None = None,
 ):
     """Find all usages of a symbol across the repository."""
@@ -103,7 +100,6 @@ def find_symbol_usages(
         raise HTTPException(status_code=404, detail="Repo not found")
 
     usages = repo.find_symbol_usages(symbol_name, symbol_type)
-    # If caller narrowed to a particular file we filter
     if file_path:
         usages = [u for u in usages if u.get("file") == file_path]
     return usages
@@ -128,7 +124,7 @@ def get_summary(repo_id: str, file_path: str, symbol_name: str | None = None):
         raise HTTPException(status_code=404, detail="Repo not found")
 
     try:
-        summarizer = repo.get_summarizer()  # Get the Summarizer instance
+        summarizer = repo.get_summarizer()
         summary_text: str | None
 
         if symbol_name:
@@ -138,7 +134,6 @@ def get_summary(repo_id: str, file_path: str, symbol_name: str | None = None):
                 try:
                     summary_text = summarizer.summarize_class(file_path, symbol_name)
                 except SymbolNotFoundError:
-                    # Explicitly raise HTTPException for symbol not found after trying both
                     raise HTTPException(
                         status_code=404,
                         detail=f"Symbol '{symbol_name}' not found as a function or class in '{file_path}'.",
@@ -147,56 +142,18 @@ def get_summary(repo_id: str, file_path: str, symbol_name: str | None = None):
             summary_text = summarizer.summarize_file(file_path)
 
         if summary_text is None:
-            # This case should ideally be covered by specific errors above,
-            # but as a fallback if a summary somehow results in None without an error.
             raise HTTPException(status_code=500, detail="Failed to generate summary.")
 
         return {"summary": summary_text}
 
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    # ValueError for API key issues from Configs (e.g., OpenAIConfig)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Configuration error: {e}")
-    # LLMError for issues during LLM communication or if LLM returns empty
     except LLMError as e:
         raise HTTPException(status_code=503, detail=f"LLM service error: {e}")
-    # ImportError if an SDK is missing (should be rare as they are core deps)
     except ImportError as e:
         raise HTTPException(status_code=501, detail=f"Server capability error: Missing LLM SDK: {e}")
-    # Allow other unexpected errors to be handled by FastAPI's default 500 handler
-    # No generic `except Exception:` here to re-raise as 501.
-
-
-@app.get("/repository/{repo_id}/semantic-search")
-def semantic_search(repo_id: str, q: str, top_k: int = 5):
-    """Embedding-based search (uses ChromaDB and a naive fallback embedder)."""
-    try:
-        repo = registry.get_repo(repo_id)
-    except KeyError:
-        raise HTTPException(status_code=404, detail="Repo not found")
-
-    # Simple deterministic embedding if user hasn't built index yet or no embed_fn provided.
-    def _naive_embed(text: str) -> list[float]:  # Added type hint for clarity
-        # Simple embedding: sum of ASCII values, modulo 1000, as a single-dimension vector.
-        # This ensures it returns List[float] as expected by some VectorDB backends.
-        return [float(sum(map(ord, text)) % 1000)]
-
-    try:
-        # The embed_fn=_naive_embed ensures that search_semantic doesn't fail
-        # if a more sophisticated embedding function (e.g., from sentence-transformers)
-        # isn't available or configured for the VectorSearcher.
-        results = repo.search_semantic(q, top_k=top_k, embed_fn=_naive_embed)
-    except ImportError as e:
-        # This might catch if chromadb itself is missing, though it's a core dep.
-        raise HTTPException(status_code=501, detail=f"Server capability error: Missing vector search dependency: {e}")
-    except ValueError as e:
-        # Catch potential ValueErrors from VectorSearcher or its backend, e.g., bad top_k value.
-        raise HTTPException(status_code=400, detail=f"Search parameter error: {e}")
-    # Allow other unexpected errors (e.g., issues within chromadb operations)
-    # to be handled by FastAPI's default 500 handler.
-
-    return results
 
 
 @app.get("/repository/{repo_id}/dependencies")
@@ -209,12 +166,9 @@ def analyze_dependencies(repo_id: str, file_path: str | None = None, depth: int 
 
     try:
         analyzer = repo.get_dependency_analyzer(language)
-        graph = analyzer.analyze(file_path=file_path, depth=depth)  # depth is currently ignored by the analyzer
+        graph = analyzer.analyze(file_path=file_path, depth=depth)
         return graph
-    except ValueError as e:  # Raised by get_dependency_analyzer for unsupported language
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except FileNotFoundError as e:  # If file_path is provided but not found by the analyzer
+    except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    # Allow other unexpected errors (e.g. issues during hcl2.loads or ast.parse)
-    # to be handled by FastAPI's default 500 handler.
-    # No generic `except Exception:` here to re-raise as 501.

@@ -81,8 +81,17 @@ These endpoints are included in the standard `kit` installation but may have spe
 | Route              | Key Runtime Requirement(s)                                    | Notes                                                                 |
 |--------------------|---------------------------------------------------------------|-----------------------------------------------------------------------|
 | `/summary`         | LLM API key (e.g., `OPENAI_API_KEY` in environment)           | Generates code summaries. Returns `400` if key is missing/invalid, `503` if LLM service fails. |
-| `/semantic-search` | None (uses built-in ChromaDB & naive embedder by default)   | Finds semantically similar code chunks.                               |
 | `/dependencies`    | None for fetching graph data (Python/Terraform)               | Returns dependency graph. `graphviz` needed only for local visualization helpers, not this endpoint. |
+
+### Upcoming Features
+
+The following features are currently in development and will be added in future releases:
+
+| Planned Feature | Description | Status |
+|-----------------|-------------|--------|
+| `/semantic-search` | Embedding-based search using vector databases (ChromaDB) to find semantically similar code chunks | Temporarily removed, coming soon |
+| Enhanced symbol analysis | Improved cross-language symbol detection and relationship mapping | Planned |
+| Code modification endpoints | API for applying changes to code with safety checks | Under consideration |
 
 ## 7  Common HTTP Status Codes
 
