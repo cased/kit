@@ -1,6 +1,5 @@
 """Integration tests that run the FastAPI server with Uvicorn and hit real HTTP endpoints."""
 
-import json
 import socket
 import threading
 import time
@@ -53,6 +52,7 @@ def realistic_repo_path() -> Path:
 
 # ---------------- Tests -----------------
 
+
 def test_end_to_end_file_tree(live_server: str, realistic_repo_path: Path):
     # 1. Open repo
     resp = requests.post(f"{live_server}/repository", json={"path_or_url": str(realistic_repo_path)})
@@ -77,13 +77,9 @@ def test_get_file_content_live(live_server: str, realistic_repo_path: Path):
 
 
 def test_symbol_and_usage_live(live_server: str, realistic_repo_path: Path):
-    repo_id = requests.post(f"{live_server}/repository", json={"path_or_url": str(realistic_repo_path)}).json()[
-        "id"
-    ]
+    repo_id = requests.post(f"{live_server}/repository", json={"path_or_url": str(realistic_repo_path)}).json()["id"]
 
-    sym_resp = requests.get(
-        f"{live_server}/repository/{repo_id}/symbols", params={"file_path": "services/auth.py"}
-    )
+    sym_resp = requests.get(f"{live_server}/repository/{repo_id}/symbols", params={"file_path": "services/auth.py"})
     assert sym_resp.status_code == 200
     symbols = sym_resp.json()
     assert any(s["name"] == "login" for s in symbols)
@@ -98,14 +94,10 @@ def test_symbol_and_usage_live(live_server: str, realistic_repo_path: Path):
 
 
 def test_search_and_delete_live(live_server: str, realistic_repo_path: Path):
-    repo_id = requests.post(f"{live_server}/repository", json={"path_or_url": str(realistic_repo_path)}).json()[
-        "id"
-    ]
+    repo_id = requests.post(f"{live_server}/repository", json={"path_or_url": str(realistic_repo_path)}).json()["id"]
 
     # search
-    s_resp = requests.get(
-        f"{live_server}/repository/{repo_id}/search", params={"q": "def", "pattern": "*.py"}
-    )
+    s_resp = requests.get(f"{live_server}/repository/{repo_id}/search", params={"q": "def", "pattern": "*.py"})
     assert s_resp.status_code == 200
     assert isinstance(s_resp.json(), list)
 
@@ -121,4 +113,4 @@ def test_search_and_delete_live(live_server: str, realistic_repo_path: Path):
 
     # subsequent request 404s
     r404 = requests.get(f"{live_server}/repository/{repo_id}/file-tree")
-    assert r404.status_code == 404 
+    assert r404.status_code == 404
