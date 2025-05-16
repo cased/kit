@@ -5,8 +5,9 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from .registry import registry
 from kit.summaries import LLMError, SymbolNotFoundError
+
+from .registry import registry
 
 app = FastAPI(title="kit API", version="0.1.0")
 
@@ -74,11 +75,6 @@ def delete_repo(repo_id: str):
     return
 
 
-# ------------------------------------------------------------------
-# Additional endpoints
-# ------------------------------------------------------------------
-
-
 @app.get("/repository/{repo_id}/symbols")
 def extract_symbols(repo_id: str, file_path: str | None = None, symbol_type: str | None = None):
     """Extract symbols from a specific file or whole repo."""
@@ -111,9 +107,6 @@ def find_symbol_usages(
     if file_path:
         usages = [u for u in usages if u.get("file") == file_path]
     return usages
-
-
-# ---------------------- New Capability Routes ----------------------
 
 
 @app.get("/repository/{repo_id}/index")
@@ -184,7 +177,7 @@ def semantic_search(repo_id: str, q: str, top_k: int = 5):
         raise HTTPException(status_code=404, detail="Repo not found")
 
     # Simple deterministic embedding if user hasn't built index yet or no embed_fn provided.
-    def _naive_embed(text: str) -> list[float]: # Added type hint for clarity
+    def _naive_embed(text: str) -> list[float]:  # Added type hint for clarity
         # Simple embedding: sum of ASCII values, modulo 1000, as a single-dimension vector.
         # This ensures it returns List[float] as expected by some VectorDB backends.
         return [float(sum(map(ord, text)) % 1000)]
@@ -216,11 +209,11 @@ def analyze_dependencies(repo_id: str, file_path: str | None = None, depth: int 
 
     try:
         analyzer = repo.get_dependency_analyzer(language)
-        graph = analyzer.analyze(file_path=file_path, depth=depth) # depth is currently ignored by the analyzer
+        graph = analyzer.analyze(file_path=file_path, depth=depth)  # depth is currently ignored by the analyzer
         return graph
-    except ValueError as e: # Raised by get_dependency_analyzer for unsupported language
+    except ValueError as e:  # Raised by get_dependency_analyzer for unsupported language
         raise HTTPException(status_code=400, detail=str(e))
-    except FileNotFoundError as e: # If file_path is provided but not found by the analyzer
+    except FileNotFoundError as e:  # If file_path is provided but not found by the analyzer
         raise HTTPException(status_code=404, detail=str(e))
     # Allow other unexpected errors (e.g. issues during hcl2.loads or ast.parse)
     # to be handled by FastAPI's default 500 handler.

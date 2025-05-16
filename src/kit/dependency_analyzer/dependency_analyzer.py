@@ -252,9 +252,7 @@ class DependencyAnalyzer(ABC):
             return self.dependency_graph
 
         # Basic filter: take nodes whose stored "path" matches the requested file
-        scoped = {
-            node: data for node, data in self.dependency_graph.items() if data.get("path") == file_path
-        }
+        scoped = {node: data for node, data in self.dependency_graph.items() if data.get("path") == file_path}
 
         # If nothing matched we simply return an empty graph rather than erroring.
         return scoped
