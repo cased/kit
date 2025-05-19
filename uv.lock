@@ -172,7 +172,7 @@ wheels = [
 
 [[package]]
 name = "cased-kit"
-version = "0.2.3"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
@@ -221,7 +221,7 @@ requires-dist = [
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest", marker = "extra == 'test-api'" },
     { name = "python-hcl2", specifier = ">=7.2.0" },
-    { name = "redis", specifier = ">=5.0.0,<6.0.0" },
+    { name = "redis", specifier = ">=5.0.0" },
     { name = "ruff" },
     { name = "sentence-transformers", specifier = ">=2.2.0" },
     { name = "tiktoken", specifier = ">=0.4.0" },
