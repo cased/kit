@@ -1,6 +1,6 @@
 [project]
 name = "cased-kit"
-version = "0.3.0"
+version = "0.3.1"
 description = "A modular toolkit for LLM-powered codebase understanding."
 authors = [
     { name = "Cased", email = "ted@cased.com" }
