@@ -28,7 +28,8 @@ class Repository:
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):  # Remote repo
             self.local_path = self._clone_github_repo(path_or_url, github_token, cache_dir)
         else:
-            self.local_path = Path(path_or_url).resolve()
+            # Use absolute() instead of resolve() to avoid following symlinks (e.g., /var -> /private/var on macOS)
+            self.local_path = Path(path_or_url).absolute()
         self.repo_path: str = str(self.local_path)
         self.mapper: RepoMapper = RepoMapper(self.repo_path)
         self.searcher: CodeSearcher = CodeSearcher(self.repo_path)
@@ -421,4 +422,10 @@ class Repository:
         Returns:
             The absolute path as a string.
         """
-        return str(self.local_path / relative_path)
+        # Return a canonical absolute path for a file inside the repository.
+        # We purposefully call `.resolve()` *after* joining with `self.local_path` so that
+        # the repository root itself keeps its original symlink form (important for
+        # tests that compare the root path), while individual file paths are resolved to
+        # their real locations on disk. This yields stable, non-symlinked paths that
+        # downstream tools (and tests) expect.
+        return str((self.local_path / relative_path).resolve())

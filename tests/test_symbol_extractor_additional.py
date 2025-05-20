@@ -33,7 +33,6 @@ def _write_tmp_and_extract(tmpdir: str, filename: str, content: str):
             "sample.tsx",
             """import React from 'react';\nfunction MyComponent() { return <div/>; }\nexport class Helper {}\n""",
             {"MyComponent", "Helper"},
-            marks=pytest.mark.skip(reason="TSX/TypeScript extraction is not working properly"),
         ),
         pytest.param(
             "sample.rs",

@@ -17,7 +17,7 @@ LANGUAGES: dict[str, str] = {
     ".hcl": "hcl",
     ".tf": "hcl",
     ".ts": "typescript",
-    ".tsx": "typescript",
+    ".tsx": "tsx",
     ".c": "c",
     ".rb": "ruby",
     ".java": "java",
@@ -58,8 +58,15 @@ class TreeSitterSymbolExtractor:
         resource_package = f"kit.queries.{lang_name}"
         try:
             language = get_language(cast(Any, lang_name))  # type: ignore[arg-type]
+
+            # Prefer tags under the language's own directory (e.g., tsx/) but
+            # gracefully fall back to TypeScript's tags if none are found.
             package_files = files("kit.queries").joinpath(lang_name)
             tags_path = package_files.joinpath("tags.scm")
+
+            if not tags_path.exists() and lang_name == "tsx":
+                # Fallback to TypeScript query definitions – they work for most TSX constructs.
+                tags_path = files("kit.queries").joinpath("typescript").joinpath("tags.scm")
 
             tags_content = tags_path.read_text(encoding="utf-8")
             query = language.query(tags_content)
