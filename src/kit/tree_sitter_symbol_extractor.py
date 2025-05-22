@@ -64,11 +64,15 @@ class TreeSitterSymbolExtractor:
             package_files = files("kit.queries").joinpath(lang_name)
             tags_path = package_files.joinpath("tags.scm")
 
-            if not tags_path.exists() and lang_name == "tsx":
-                # Fallback to TypeScript query definitions – they work for most TSX constructs.
-                tags_path = files("kit.queries").joinpath("typescript").joinpath("tags.scm")
-
-            tags_content = tags_path.read_text(encoding="utf-8")
+            try:
+                tags_content = tags_path.read_text(encoding="utf-8")
+            except (FileNotFoundError, OSError) as e:
+                if lang_name == "tsx":
+                    # Fallback to TypeScript query definitions – they work for most TSX constructs.
+                    tags_path = files("kit.queries").joinpath("typescript").joinpath("tags.scm")
+                    tags_content = tags_path.read_text(encoding="utf-8")
+                else:
+                    raise e
             query = language.query(tags_content)
             cls._queries[ext] = query
             logger.debug(f"get_query: Query loaded successfully for ext {ext}")
