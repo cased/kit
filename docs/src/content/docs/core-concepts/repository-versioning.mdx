@@ -1,0 +1,402 @@
+---
+title: Repository Versioning and Historical Analysis
+description: Working with specific commits, tags, and branches for historical code analysis
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+One of kit's most powerful features is the ability to analyze repositories at specific points in their history. Whether you're investigating a bug that appeared in a particular release, comparing code evolution over time, or ensuring reproducible analysis results, kit's versioning capabilities provide the foundation for sophisticated historical code analysis.
+
+## Why Analyze Different Versions?
+
+### Release Analysis and Debugging
+
+When investigating issues that appeared in specific releases, analyzing the exact codebase state at that time is crucial:
+
+```python
+from kit import Repository
+
+# Analyze the codebase at a specific release
+repo_v1 = Repository("https://github.com/owner/project", ref="v1.2.0")
+repo_v2 = Repository("https://github.com/owner/project", ref="v1.3.0")
+
+# Compare symbol extraction between versions
+symbols_v1 = repo_v1.extract_symbols("src/core/api.py")
+symbols_v2 = repo_v2.extract_symbols("src/core/api.py")
+
+# Find new or removed functions
+v1_functions = {s["name"] for s in symbols_v1 if s["type"] == "function"}
+v2_functions = {s["name"] for s in symbols_v2 if s["type"] == "function"}
+
+new_functions = v2_functions - v1_functions
+removed_functions = v1_functions - v2_functions
+
+print(f"Functions added in v1.3.0: {new_functions}")
+print(f"Functions removed in v1.3.0: {removed_functions}")
+```
+
+### Reproducible Code Analysis
+
+For documentation generation, CI/CD pipelines, or research purposes, you often need reproducible results:
+
+```python
+# Always analyze the exact same version
+repo = Repository("https://github.com/owner/project", ref="abc123def456")
+
+# This will always return the same results, regardless of when you run it
+file_tree = repo.get_file_tree()
+symbols = repo.extract_symbols()
+
+# Perfect for generating consistent documentation or reports
+```
+
+### Historical Trend Analysis
+
+Understanding how codebases evolve over time reveals important patterns:
+
+```python
+# Analyze multiple releases to track complexity growth
+releases = ["v1.0.0", "v1.1.0", "v1.2.0", "v1.3.0"]
+complexity_data = []
+
+for release in releases:
+    repo = Repository("https://github.com/owner/project", ref=release)
+    symbols = repo.extract_symbols()
+    
+    # Count functions and classes as a simple complexity metric
+    function_count = sum(1 for s in symbols if s["type"] == "function")
+    class_count = sum(1 for s in symbols if s["type"] == "class")
+    
+    complexity_data.append({
+        "release": release,
+        "functions": function_count,
+        "classes": class_count,
+        "total_symbols": len(symbols)
+    })
+
+print("Complexity evolution:")
+for data in complexity_data:
+    print(f"{data['release']}: {data['total_symbols']} symbols "
+          f"({data['functions']} functions, {data['classes']} classes)")
+```
+
+### Pre-Production Analysis
+
+Analyze feature branches or specific commits before they reach production:
+
+```python
+# Analyze a feature branch before merging
+feature_repo = Repository("https://github.com/owner/project", ref="feature/new-api")
+main_repo = Repository("https://github.com/owner/project", ref="main")
+
+# Check for breaking changes
+feature_symbols = feature_repo.extract_symbols("src/api/")
+main_symbols = main_repo.extract_symbols("src/api/")
+
+# Identify changes in public API
+# (implementation would depend on your specific needs)
+```
+
+## Working with Different Reference Types
+
+### Commit SHAs
+
+The most precise way to reference a specific state:
+
+```python
+# Full SHA (40 characters)
+repo = Repository(".", ref="8cf426abe80f6cd3ab02ffc6fb11b00dd60995c8")
+
+# Short SHA (typically 7+ characters)
+repo = Repository(".", ref="8cf426a")
+
+# Access the current commit information
+print(f"Analyzing commit: {repo.current_sha}")
+print(f"Short SHA: {repo.current_sha_short}")
+```
+
+### Tags and Releases
+
+Perfect for analyzing specific releases:
+
+```python
+# Semantic version tags
+repo = Repository("https://github.com/owner/project", ref="v1.2.3")
+
+# Other tag formats
+repo = Repository("https://github.com/owner/project", ref="release-2024-01")
+repo = Repository("https://github.com/owner/project", ref="stable")
+
+# The tag information is preserved
+print(f"Analyzing version: {repo.ref}")
+```
+
+### Branches
+
+Analyze specific development branches:
+
+```python
+# Main development branch
+repo = Repository("https://github.com/owner/project", ref="main")
+
+# Feature branches
+repo = Repository("https://github.com/owner/project", ref="develop")
+repo = Repository("https://github.com/owner/project", ref="feature/user-auth")
+
+# Release branches
+repo = Repository("https://github.com/owner/project", ref="release/v2.0")
+```
+
+## Accessing Git Metadata
+
+Kit provides comprehensive access to git repository metadata:
+
+```python
+repo = Repository("https://github.com/owner/project", ref="v1.2.3")
+
+# Basic git information
+print(f"Current SHA: {repo.current_sha}")
+print(f"Short SHA: {repo.current_sha_short}")
+print(f"Branch: {repo.current_branch}")
+print(f"Remote URL: {repo.remote_url}")
+
+# Check if we're on a specific ref
+print(f"Requested ref: {repo.ref}")
+```
+
+This metadata is especially useful for:
+
+- **Logging and tracking**: Record exactly what version was analyzed
+- **Cache invalidation**: Use SHA as cache keys for computed results
+- **Audit trails**: Maintain records of what code was analyzed when
+- **Validation**: Ensure you're analyzing the expected version
+
+## Practical Examples
+
+### Documentation Generation Workflow
+
+```python
+def generate_api_docs(repo_url: str, version: str):
+    """Generate API documentation for a specific version."""
+    repo = Repository(repo_url, ref=version)
+    
+    # Extract all public API symbols
+    api_symbols = []
+    for symbol in repo.extract_symbols():
+        if symbol["type"] in ["function", "class"] and not symbol["name"].startswith("_"):
+            api_symbols.append(symbol)
+    
+    # Generate documentation
+    docs = {
+        "version": version,
+        "commit": repo.current_sha,
+        "generated_at": datetime.now().isoformat(),
+        "api_reference": api_symbols
+    }
+    
+    return docs
+
+# Generate docs for multiple versions
+for version in ["v1.0.0", "v1.1.0", "v1.2.0"]:
+    docs = generate_api_docs("https://github.com/owner/project", version)
+    with open(f"docs/api-{version}.json", "w") as f:
+        json.dump(docs, f, indent=2)
+```
+
+### Security Audit Across Versions
+
+```python
+def audit_security_patterns(repo_url: str, versions: list):
+    """Audit security patterns across multiple versions."""
+    security_patterns = [
+        r"password\s*=",
+        r"api_key\s*=",
+        r"secret\s*=",
+        r"eval\s*\(",
+        r"exec\s*\("
+    ]
+    
+    results = {}
+    
+    for version in versions:
+        repo = Repository(repo_url, ref=version)
+        version_results = []
+        
+        for pattern in security_patterns:
+            matches = repo.search_text(pattern, file_pattern="*.py")
+            if matches:
+                version_results.extend(matches)
+        
+        results[version] = {
+            "commit": repo.current_sha,
+            "issues_found": len(version_results),
+            "details": version_results
+        }
+    
+    return results
+
+# Audit recent releases
+audit_results = audit_security_patterns(
+    "https://github.com/owner/project",
+    ["v1.0.0", "v1.1.0", "v1.2.0"]
+)
+```
+
+### Migration Impact Analysis
+
+```python
+def analyze_migration_impact(repo_url: str, before_ref: str, after_ref: str):
+    """Analyze the impact of a major change or migration."""
+    
+    before_repo = Repository(repo_url, ref=before_ref)
+    after_repo = Repository(repo_url, ref=after_ref)
+    
+    # Compare file structures
+    before_files = {f["path"] for f in before_repo.get_file_tree() if not f["is_dir"]}
+    after_files = {f["path"] for f in after_repo.get_file_tree() if not f["is_dir"]}
+    
+    # Compare symbols
+    before_symbols = {s["name"] for s in before_repo.extract_symbols()}
+    after_symbols = {s["name"] for s in after_repo.extract_symbols()}
+    
+    return {
+        "files": {
+            "added": after_files - before_files,
+            "removed": before_files - after_files,
+            "total_before": len(before_files),
+            "total_after": len(after_files)
+        },
+        "symbols": {
+            "added": after_symbols - before_symbols,
+            "removed": before_symbols - after_symbols,
+            "total_before": len(before_symbols),
+            "total_after": len(after_symbols)
+        },
+        "metadata": {
+            "before_commit": before_repo.current_sha,
+            "after_commit": after_repo.current_sha
+        }
+    }
+
+# Analyze impact of a major refactoring
+impact = analyze_migration_impact(
+    "https://github.com/owner/project",
+    "v1.x-legacy",
+    "v2.0-rewrite"
+)
+```
+
+## Best Practices
+
+### Choosing the Right Reference Type
+
+- **Use commit SHAs** for maximum precision and immutability
+- **Use tags** for analyzing specific releases or versions
+- **Use branches** for analyzing ongoing development work
+- **Avoid branch names** for long-term storage/caching (they move over time)
+
+### Performance Considerations
+
+```python
+# Cache Repository instances when analyzing multiple aspects of the same version
+repo = Repository("https://github.com/owner/project", ref="v1.2.3")
+
+# Do multiple operations on the same repo instance
+file_tree = repo.get_file_tree()
+symbols = repo.extract_symbols()
+search_results = repo.search_text("TODO")
+
+# Rather than creating separate instances for each operation
+```
+
+### Error Handling
+
+```python
+def safe_repo_analysis(repo_url: str, ref: str):
+    """Safely analyze a repository with proper error handling."""
+    try:
+        repo = Repository(repo_url, ref=ref)
+        
+        # Verify we got the expected ref
+        if repo.current_sha is None:
+            raise ValueError("Repository has no git metadata")
+            
+        return {
+            "success": True,
+            "sha": repo.current_sha,
+            "symbols": repo.extract_symbols()
+        }
+        
+    except ValueError as e:
+        return {
+            "success": False,
+            "error": f"Invalid ref '{ref}': {e}"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Analysis failed: {e}"
+        }
+```
+
+<Aside type="tip">
+**Repository Identity**: When using the REST API, repositories are identified by a deterministic ID that includes both path and ref. This means `repo@main` and `repo@v1.0.0` are treated as separate repositories, enabling precise caching and avoiding confusion between versions.
+</Aside>
+
+<Aside type="note">
+**Git Requirements**: To use ref parameters with local repositories, the directory must be a git repository. For remote repositories, kit will clone the repository at the specified ref automatically.
+</Aside>
+
+## Integration with Other Kit Features
+
+### CLI Usage with Versions
+
+All kit CLI commands support the `--ref` parameter:
+
+```bash
+# Analyze symbols at a specific version
+kit symbols https://github.com/owner/repo --ref v1.2.3
+
+# Compare file trees between versions
+kit file-tree https://github.com/owner/repo --ref v1.0.0 --output v1-files.json
+kit file-tree https://github.com/owner/repo --ref v2.0.0 --output v2-files.json
+
+# Export data for external analysis
+kit export https://github.com/owner/repo symbols v1-symbols.json --ref v1.0.0
+```
+
+### REST API Versioning
+
+The REST API maintains separate repository instances for different refs:
+
+```bash
+# Create repository instances for different versions
+curl -X POST localhost:8000/repository \
+  -d '{"path_or_url": "https://github.com/owner/repo", "ref": "v1.0.0"}'
+# Returns: {"id": "abc123"}
+
+curl -X POST localhost:8000/repository \
+  -d '{"path_or_url": "https://github.com/owner/repo", "ref": "v2.0.0"}'
+# Returns: {"id": "def456"}  // Different ID for different ref
+
+# Access git metadata
+curl localhost:8000/repository/abc123/git-info
+```
+
+### MCP Server Capabilities
+
+The MCP server exposes versioning capabilities to AI agents:
+
+```json
+{
+  "tool": "open_repository",
+  "arguments": {
+    "path_or_url": "https://github.com/owner/repo",
+    "ref": "v1.2.3"
+  }
+}
+```
+
+This enables AI agents to perform sophisticated historical analysis and version comparison tasks automatically.
+
+Repository versioning in kit provides the foundation for building sophisticated code analysis tools that can work across time, enabling everything from bug archaeology to compliance auditing to automated documentation generation. 

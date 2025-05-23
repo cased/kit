@@ -9,16 +9,16 @@ import { Aside } from '@astrojs/starlight/components';
 
 <br />
 
-kit supports semantic code search using vector embeddings and ChromaDB.
+Semantic search allows you to find code based on meaning rather than just keywords. Kit supports semantic code search using vector embeddings and ChromaDB, enabling you to search for code using natural language queries.
 
-### How it works
+## How it works
 
 - Chunks your codebase (by symbols or lines)
 - Embeds each chunk using your chosen model (OpenAI, HuggingFace, etc)
 - Stores embeddings in a local ChromaDB vector database
 - Lets you search for code using natural language or code-like queries
 
-### Example Usage
+## Quick Start
 
 ```python
 from kit import Repository
@@ -26,8 +26,8 @@ from sentence_transformers import SentenceTransformer
 
 # Use any embedding model you like
 model = SentenceTransformer("all-MiniLM-L6-v2")
-def embed_fn(text):
-    return model.encode([text])[0].tolist()
+def embed_fn(texts):
+    return model.encode(texts).tolist()
 
 repo = Repository("/path/to/codebase")
 vs = repo.get_vector_searcher(embed_fn=embed_fn)
@@ -41,26 +41,134 @@ for hit in results:
 # src/kit/config.py AUTH_CONFIG variable AUTH_CONFIG = {...}
 ```
 
+## Configuration
+
+### Required: Embedding Function
+
+You must provide an embedding function (`embed_fn`) when first accessing semantic search features via `repo.get_vector_searcher()` or `repo.search_semantic()`.
+
+This function takes a list of text strings and returns a list of corresponding embedding vectors.
+
+```python
+from kit import Repository
+
+repo = Repository("/path/to/repo")
+
+# Define the embedding function wrapper
+def embed_fn(texts: list[str]) -> list[list[float]]:
+    # Adapt this to your specific embedding library/API
+    return get_embeddings(texts)
+
+# Pass the function when searching
+results = repo.search_semantic("database connection logic", embed_fn=embed_fn)
+
+# Or when getting the searcher explicitly
+vector_searcher = repo.get_vector_searcher(embed_fn=embed_fn)
+```
+
 ### Choosing an Embedding Model
 
-`kit` is model-agnostic: pass any function `str -> List[float]`.
+`kit` is model-agnostic: pass any function `List[str] -> List[List[float]]`.
 
-* **Local (open-source)** – e.g. [`sentence-transformers`](https://www.sbert.net/) models like `all-MiniLM-L6-v2` (see example above). 100 MB-ish download, fast CPU inference.
-* **Cloud API** – e.g. OpenAI `text-embedding-3-small`. Define:
-  ```python
-  import openai
-  def embed_fn(text: str):
-      resp = openai.embeddings.create(model="text-embedding-3-small", input=[text])
-      return resp.data[0].embedding
-  ```
-* **Batching** – `VectorSearcher` will attempt to call your `embed_fn` with a *list* of texts for efficiency.  If your function only supports single strings it still works (falls back internally).
+#### Local (Open-Source) Models
+
+Use [`sentence-transformers`](https://www.sbert.net/) models for fast, local inference:
+
+```python
+from sentence_transformers import SentenceTransformer
+
+# Popular lightweight model (100 MB-ish download)
+model = SentenceTransformer("all-MiniLM-L6-v2")
+def embed_fn(texts: list[str]) -> list[list[float]]:
+    return model.encode(texts).tolist()
+
+# Or try larger, more accurate models
+model = SentenceTransformer("all-mpnet-base-v2")  # ~420MB, better quality
+```
+
+#### Cloud API Models
+
+Use OpenAI or other cloud embedding services:
+
+```python
+import openai
+
+def embed_fn(texts: list[str]) -> list[list[float]]:
+    """OpenAI embedding function with batching support."""
+    response = openai.embeddings.create(
+        model="text-embedding-3-small", 
+        input=texts
+    )
+    return [data.embedding for data in response.data]
+
+# Alternative: single text fallback for simple APIs
+def embed_fn_single(texts: list[str]) -> list[list[float]]:
+    """If your API only supports single strings."""
+    embeddings = []
+    for text in texts:
+        resp = openai.embeddings.create(model="text-embedding-3-small", input=[text])
+        embeddings.append(resp.data[0].embedding)
+    return embeddings
+```
+
+#### Batching Support
+
+`VectorSearcher` will attempt to call your `embed_fn` with a *list* of texts for efficiency. If your function only supports single strings, it still works (falls back internally).
+
+### Backend Configuration
+
+`kit`'s `VectorSearcher` uses a pluggable backend system for storing and querying vector embeddings. Currently, the primary supported and default backend is **ChromaDB**.
+
+#### ChromaDB (Default)
+
+When you initialize `VectorSearcher` without specifying a `backend` argument, `kit` automatically uses an instance of `ChromaDBBackend`.
+
+**Configuration Options:**
+
+*   **`persist_dir` (Optional[str]):** Specifies where the ChromaDB index will be stored on disk.
+    *   If you provide a path: `repo.get_vector_searcher(persist_dir="./my_index")`
+    *   If no `persist_dir` is specified, defaults to `YOUR_REPO_PATH/.kit/vector_db/`
+    *   Persisting the index allows you to reuse it across sessions without re-indexing
+
+```python
+# Example: Initialize with custom persist directory
+vector_searcher = repo.get_vector_searcher(
+    embed_fn=my_embedding_function, 
+    persist_dir="./my_custom_kit_vector_index"
+)
+
+# Building the index (first time or to update)
+vector_searcher.build_index()
+
+# Later, to reuse the persisted index:
+vector_searcher_reloaded = repo.get_vector_searcher(
+    embed_fn=my_embedding_function, 
+    persist_dir="./my_custom_kit_vector_index"
+)
+results = vector_searcher_reloaded.search("my query")
+```
+
+#### Other Backends
+
+While the `VectorDBBackend` interface is designed to support other vector databases, ChromaDB is the primary focus for now. If you need other backends like Faiss, please raise an issue on the kit GitHub repository.
+
+## Usage Patterns
 
 ### Chunking Strategy
 
-`vs.build_index(chunk_by="symbols")` (default) extracts functions/classes/variables via the existing AST parser.  This is usually what you want.
+Control how your code is broken into searchable chunks:
 
-* `chunk_by="lines"` splits code into ~50-line blocks – useful for languages where symbol extraction isn't supported yet.
-* You can re-index at any time; the previous collection is cleared automatically.
+```python
+# Default: chunk by symbols (functions, classes, variables)
+vs.build_index(chunk_by="symbols")
+
+# Alternative: chunk by lines (~50-line blocks)
+vs.build_index(chunk_by="lines")  # Useful for unsupported languages
+```
+
+`chunk_by="symbols"` (default) extracts functions/classes/variables via the existing AST parser. This is usually what you want.
+
+You can re-index at any time; the previous collection is cleared automatically.
 
 ### Persisting & Re-using an Index
 
@@ -74,17 +182,15 @@ searcher = repo.get_vector_searcher(embed_fn, persist_dir=".kit/my_index")
 results = searcher.search("add user authentication")
 ```
 
-### Docstring index
+### Docstring Index
 
-Prefer *meaning-first* search?  Instead of embedding raw code you can build an
-index of LLM-generated summaries:
+Prefer *meaning-first* search? Instead of embedding raw code you can build an index of LLM-generated summaries:
 
 ```text
 DocstringIndexer → SummarySearcher
 ```
 
-See **[Docstring-Based Vector Index](/docs/core-concepts/docstring-indexing)**
-for details.
+See **[Docstring-Based Vector Index](/docs/core-concepts/docstring-indexing)** for details.
 
 ### Feeding Results to an LLM
 
@@ -92,18 +198,96 @@ Combine `VectorSearcher` with `ContextAssembler` to build an LLM prompt containi
 
 ```python
 from kit import ContextAssembler
+
 chunks = repo.search_semantic("jwt auth flow", embed_fn=embed_fn, top_k=10)
 assembler = ContextAssembler(max_chars=12_000)
 context = assembler.from_chunks(chunks)
 llm_response = my_llm.chat(prompt + context)
 ```
 
-### Limitations & Tips
+### Advanced Usage Examples
 
-* Indexing a very large monorepo may take minutes: consider running on CI and committing `.kit/vector_db`.
-* Embeddings are language-agnostic – comments & docs influence similarity too.  Clean code/comments improve search.
-* Exact-keyword search (`repo.search_text()`) can still be faster for quick look-ups; combine both techniques.
+#### Multi-Query Search
+
+```python
+queries = [
+    "database connection setup",
+    "user authentication logic", 
+    "error handling patterns"
+]
+
+all_results = []
+for query in queries:
+    results = repo.search_semantic(query, embed_fn=embed_fn, top_k=5)
+    all_results.extend(results)
+
+# Deduplicate by file path
+unique_files = {r["file"]: r for r in all_results}
+```
+
+#### Filtering Results
+
+```python
+# Search only in specific directories
+results = repo.search_semantic("api endpoints", embed_fn=embed_fn)
+api_results = [r for r in results if "src/api/" in r["file"]]
+
+# Search only for functions
+function_results = [r for r in results if r.get("type") == "function"]
+```
+
+## Best Practices
+
+### Performance Tips
+
+* **Index size**: Indexing a very large monorepo may take minutes. Consider running on CI and committing `.kit/vector_db`.
+* **Chunking**: Use `chunk_by="symbols"` for better semantic boundaries
+* **Model selection**: Balance model size vs. quality based on your needs
+* **Batch embedding**: Use APIs that support batch embedding for better performance
+
+### Search Quality
+
+* **Clean code**: Embeddings are language-agnostic – comments & docs influence similarity too. Clean code/comments improve search.
+* **Query formulation**: Use natural language descriptions of what you're looking for
+* **Combine approaches**: Exact-keyword search (`repo.search_text()`) can still be faster for quick look-ups; combine both techniques.
+
+### Production Considerations
+
+```python
+# Example: Production-ready setup with error handling
+import logging
+
+def safe_semantic_search(repo_path: str, query: str, top_k: int = 5):
+    try:
+        repo = Repository(repo_path)
+        
+        # Check if index exists
+        vector_searcher = repo.get_vector_searcher(embed_fn=embed_fn)
+        
+        # Build index if needed (check if collection is empty)
+        try:
+            test_results = vector_searcher.search("test", top_k=1)
+            if not test_results:
+                logging.info("Building semantic index...")
+                vector_searcher.build_index()
+        except Exception:
+            logging.info("Building semantic index...")
+            vector_searcher.build_index()
+            
+        return repo.search_semantic(query, embed_fn=embed_fn, top_k=top_k)
+        
+    except Exception as e:
+        logging.error(f"Semantic search failed: {e}")
+        # Fallback to text search
+        return repo.search_text(query)
+```
+
+## Limitations & Future Plans
+
+* **CLI support**: The CLI (`kit search` / `kit serve`) currently performs **text** search only. A semantic variant is planned.
+* **Language support**: Works with any language that kit can parse, but quality depends on symbol extraction
+* **Index management**: Future versions may include index cleanup, optimization, and migration tools
 
 <Aside type="note">
-  The CLI (`kit search` / `kit serve`) currently performs **text** search only. A semantic variant is planned.
+  For complex production deployments, consider running embedding models on dedicated infrastructure and using the REST API or MCP server for distributed access.
 </Aside>
