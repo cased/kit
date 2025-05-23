@@ -32,12 +32,15 @@ def serve(host: str = "0.0.0.0", port: int = 8000, reload: bool = True):
 def file_tree(
     path: str = typer.Argument(..., help="Path to the local repository."),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
 ):
     """Get the file tree structure of a repository."""
     from kit import Repository
 
     try:
-        repo = Repository(path)
+        repo = Repository(path, ref=ref)
         tree = repo.get_file_tree()
 
         if output:
@@ -102,12 +105,15 @@ def extract_symbols(
     file_path: Optional[str] = typer.Option(None, "--file", "-f", help="Extract symbols from specific file only."),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
     format: str = typer.Option("table", "--format", help="Output format: table, json, or names"),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
 ):
     """Extract code symbols (functions, classes, etc.) from the repository."""
     from kit import Repository
 
     try:
-        repo = Repository(path)
+        repo = Repository(path, ref=ref)
         symbols = repo.extract_symbols(file_path)
 
         if output:
@@ -323,6 +329,56 @@ def export_data(
                 fg=typer.colors.RED,
             )
             raise typer.Exit(code=1)
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+# Git Operations
+@app.command("git-info")
+def git_info(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
+):
+    """Show git repository metadata (current SHA, branch, remote URL)."""
+    from kit import Repository
+
+    try:
+        repo = Repository(path, ref=ref)
+
+        git_data = {
+            "current_sha": repo.current_sha,
+            "current_sha_short": repo.current_sha_short,
+            "current_branch": repo.current_branch,
+            "remote_url": repo.remote_url,
+        }
+
+        if output:
+            import json
+
+            Path(output).write_text(json.dumps(git_data, indent=2))
+            typer.echo(f"Git info exported to {output}")
+        else:
+            # Human-readable format
+            typer.echo("Git Repository Information:")
+            typer.echo("-" * 30)
+            if git_data["current_sha"]:
+                typer.echo(f"Current SHA:     {git_data['current_sha']}")
+                typer.echo(f"Short SHA:       {git_data['current_sha_short']}")
+            if git_data["current_branch"]:
+                typer.echo(f"Current Branch:  {git_data['current_branch']}")
+            else:
+                typer.echo("Current Branch:  (detached HEAD)")
+            if git_data["remote_url"]:
+                typer.echo(f"Remote URL:      {git_data['remote_url']}")
+
+            # Check if any git info is missing
+            if not any(git_data.values()):
+                typer.echo("Not a git repository or no git metadata available.")
+
     except Exception as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)

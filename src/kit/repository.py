@@ -24,17 +24,100 @@ class Repository:
     Provides a unified API for downstream tools and workflows.
     """
 
-    def __init__(self, path_or_url: str, github_token: Optional[str] = None, cache_dir: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        path_or_url: str,
+        github_token: Optional[str] = None,
+        cache_dir: Optional[str] = None,
+        ref: Optional[str] = None,
+    ) -> None:
+        self.ref = ref  # Store the requested ref
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):  # Remote repo
-            self.local_path = self._clone_github_repo(path_or_url, github_token, cache_dir)
+            self.local_path = self._clone_github_repo(path_or_url, github_token, cache_dir, ref)
         else:
             # Use absolute() instead of resolve() to avoid following symlinks (e.g., /var -> /private/var on macOS)
             self.local_path = Path(path_or_url).absolute()
+            # For local repos, if ref is specified, try to checkout that ref
+            if ref:
+                self._checkout_ref(ref)
         self.repo_path: str = str(self.local_path)
         self.mapper: RepoMapper = RepoMapper(self.repo_path)
         self.searcher: CodeSearcher = CodeSearcher(self.repo_path)
         self.context: ContextExtractor = ContextExtractor(self.repo_path)
         self.vector_searcher: Optional[VectorSearcher] = None
+
+    def _checkout_ref(self, ref: str) -> None:
+        """Checkout a specific ref (SHA, tag, or branch) in a local git repository."""
+        git_dir = self.local_path / ".git"
+        if not (git_dir.exists() and git_dir.is_dir()):
+            raise ValueError(f"Cannot checkout ref '{ref}': not a git repository")
+
+        try:
+            # First, try to fetch the ref in case it's not available locally
+            subprocess.run(
+                ["git", "fetch", "origin", ref],
+                cwd=str(self.local_path),
+                capture_output=True,
+                check=False,  # Don't fail if fetch doesn't work
+            )
+
+            # Checkout the ref
+            _ = subprocess.run(
+                ["git", "checkout", ref], cwd=str(self.local_path), capture_output=True, text=True, check=True
+            )
+        except subprocess.CalledProcessError as e:
+            raise ValueError(f"Failed to checkout ref '{ref}': {e.stderr}")
+
+    @property
+    def current_sha(self) -> Optional[str]:
+        """Get the current commit SHA (full)."""
+        return self._git_command(["git", "rev-parse", "HEAD"])
+
+    @property
+    def current_sha_short(self) -> Optional[str]:
+        """Get the current commit SHA (short)."""
+        return self._git_command(["git", "rev-parse", "--short", "HEAD"])
+
+    @property
+    def current_branch(self) -> Optional[str]:
+        """Get the current branch name, or None if in detached HEAD state."""
+        branch = self._git_command(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+        return branch if branch and branch != "HEAD" else None
+
+    @property
+    def remote_url(self) -> Optional[str]:
+        """Get the remote origin URL."""
+        return self._git_command(["git", "config", "--get", "remote.origin.url"])
+
+    @property
+    def tags(self) -> List[str]:
+        """Get all tags in the repository."""
+        result = self._git_command(["git", "tag", "--list"])
+        return result.split("\n") if result else []
+
+    @property
+    def branches(self) -> List[str]:
+        """Get all local branches."""
+        result = self._git_command(["git", "branch", "--format=%(refname:short)"])
+        return result.split("\n") if result else []
+
+    @property
+    def is_dirty(self) -> bool:
+        """Check if the working directory has uncommitted changes."""
+        result = self._git_command(["git", "status", "--porcelain"])
+        return bool(result and result.strip())
+
+    def _git_command(self, cmd: List[str]) -> Optional[str]:
+        """Execute a git command and return the output, or None if it fails."""
+        git_dir = self.local_path / ".git"
+        if not (git_dir.exists() and git_dir.is_dir()):
+            return None
+
+        try:
+            result = subprocess.run(cmd, cwd=self.repo_path, capture_output=True, text=True, check=True)
+            return result.stdout.strip() if result.stdout else None
+        except subprocess.CalledProcessError:
+            return None
 
     def __str__(self) -> str:
         file_count = len(self.get_file_tree())
@@ -69,21 +152,58 @@ class Repository:
 
         return f"<Repository path='{path_info}'{ref_info}, files: {file_count}>"
 
-    def _clone_github_repo(self, url: str, token: Optional[str], cache_dir: Optional[str]) -> Path:
+    def _clone_github_repo(
+        self, url: str, token: Optional[str], cache_dir: Optional[str], ref: Optional[str] = None
+    ) -> Path:
         from urllib.parse import urlparse
 
         repo_name = urlparse(url).path.strip("/").replace("/", "-")
+        # Include ref in cache path if specified to avoid conflicts
+        if ref:
+            repo_name = f"{repo_name}-{ref.replace('/', '-')}"
+
         cache_root = Path(cache_dir or tempfile.gettempdir()) / "kit-repo-cache"
         cache_root.mkdir(parents=True, exist_ok=True)
 
         repo_path = cache_root / repo_name
         if repo_path.exists() and (repo_path / ".git").exists():
-            # Optionally: git pull to update
-            return repo_path
+            # For existing cached repos, checkout the requested ref if different
+            if ref:
+                try:
+                    current_sha = subprocess.run(
+                        ["git", "rev-parse", "HEAD"], cwd=str(repo_path), capture_output=True, text=True, check=True
+                    ).stdout.strip()
+
+                    # Check if we're already on the requested ref
+                    target_sha = subprocess.run(
+                        ["git", "rev-parse", ref], cwd=str(repo_path), capture_output=True, text=True, check=False
+                    )
+
+                    if target_sha.returncode != 0 or current_sha != target_sha.stdout.strip():
+                        # Need to fetch and checkout the ref
+                        subprocess.run(["git", "fetch", "origin"], cwd=str(repo_path), check=True)
+                        subprocess.run(["git", "checkout", ref], cwd=str(repo_path), check=True)
+                except subprocess.CalledProcessError:
+                    # If checkout fails, remove cache and re-clone
+                    import shutil
+
+                    shutil.rmtree(repo_path)
+                else:
+                    return repo_path
+            else:
+                # No specific ref requested, use existing cache
+                return repo_path
 
         # Use GIT_ASKPASS so the token never appears in argv / process list
         env = os.environ.copy()
-        clone_cmd = ["git", "clone", "--depth=1", url, str(repo_path)]
+
+        # Clone with specific ref if provided
+        if ref:
+            # Clone without --depth for specific refs, as shallow clones might not have the ref
+            clone_cmd = ["git", "clone", "--branch", ref, url, str(repo_path)]
+        else:
+            # Default shallow clone for main/default branch
+            clone_cmd = ["git", "clone", "--depth=1", url, str(repo_path)]
 
         if token:
             # Create a temporary ask-pass helper that echoes the token once
@@ -96,6 +216,19 @@ class Repository:
 
         try:
             subprocess.run(clone_cmd, env=env, check=True)
+        except subprocess.CalledProcessError as e:
+            # If branch clone fails, try cloning without branch and then checkout
+            if ref:
+                try:
+                    # Clone without specific branch
+                    fallback_cmd = ["git", "clone", url, str(repo_path)]
+                    subprocess.run(fallback_cmd, env=env, check=True)
+                    # Then checkout the specific ref
+                    subprocess.run(["git", "checkout", ref], cwd=str(repo_path), check=True)
+                except subprocess.CalledProcessError:
+                    raise ValueError(f"Failed to clone repository at ref '{ref}': {e}")
+            else:
+                raise
         finally:
             if token:
                 try:
