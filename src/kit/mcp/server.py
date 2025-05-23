@@ -102,6 +102,7 @@ class MCPError(Exception):
 class OpenRepoParams(BaseModel):
     path_or_url: str
     github_token: Optional[str] = None
+    ref: Optional[str] = None
 
 
 class SearchParams(BaseModel):
@@ -149,6 +150,10 @@ class GetCodeSummaryParams(BaseModel):
     symbol_name: Optional[str] = None
 
 
+class GitInfoParams(BaseModel):
+    repo_id: str
+
+
 class KitServerLogic:
     def __init__(self):
         self._repos: Dict[str, Repository] = {}
@@ -160,9 +165,9 @@ class KitServerLogic:
             raise MCPError(code=INVALID_PARAMS, message=f"Repository {repo_id} not found")
         return repo
 
-    def open_repository(self, path_or_url: str, github_token: Optional[str] = None) -> str:
+    def open_repository(self, path_or_url: str, github_token: Optional[str] = None, ref: Optional[str] = None) -> str:
         try:
-            repo = Repository(path_or_url, github_token=github_token)
+            repo = Repository(path_or_url, github_token=github_token, ref=ref)
             repo_id = str(uuid.uuid4())
             self._repos[repo_id] = repo
             self._analyzers[repo_id] = {}
@@ -303,6 +308,16 @@ class KitServerLogic:
         except Exception as e:
             raise MCPError(code=INVALID_PARAMS, message=str(e))
 
+    def get_git_info(self, repo_id: str) -> dict[str, Any]:
+        """Get git metadata for a repository."""
+        repo = self.get_repo(repo_id)
+        return {
+            "current_sha": repo.current_sha,
+            "current_sha_short": repo.current_sha_short,
+            "current_branch": repo.current_branch,
+            "remote_url": repo.remote_url,
+        }
+
     def list_tools(self) -> list[Tool]:
         ro_ann = ToolAnnotations(readOnlyHint=True)
         tools_to_return = [
@@ -346,6 +361,12 @@ class KitServerLogic:
                 name="get_code_summary",
                 description="Get a summary of code for a given file. If symbol_name is provided, also attempts to summarize it as a function and class.",
                 inputSchema=GetCodeSummaryParams.model_json_schema(),
+                annotations=ro_ann,
+            ),
+            Tool(
+                name="get_git_info",
+                description="Get git repository metadata (SHA, branch, remote URL)",
+                inputSchema=GitInfoParams.model_json_schema(),
                 annotations=ro_ann,
             ),
         ]
@@ -435,7 +456,7 @@ class KitServerLogic:
             match name:
                 case "open_repo":
                     open_args = OpenRepoParams(**arguments)
-                    repo_id = self.open_repository(open_args.path_or_url, open_args.github_token)
+                    repo_id = self.open_repository(open_args.path_or_url, open_args.github_token, open_args.ref)
                     repo = self._repos[repo_id]
                     return GetPromptResult(
                         description=f"Repository opened with ID: {repo_id}",
@@ -513,6 +534,18 @@ class KitServerLogic:
                         messages=[
                             PromptMessage(
                                 role="user", content=TextContent(type="text", text=json.dumps(summary, indent=2))
+                            )
+                        ],
+                    )
+                case "get_git_info":
+                    git_args = GitInfoParams(**arguments)
+                    git_info = self.get_git_info(git_args.repo_id)
+                    return GetPromptResult(
+                        description="Git repository metadata",
+                        messages=[
+                            PromptMessage(
+                                role="user",
+                                content=TextContent(type="text", text=json.dumps(git_info, indent=2)),
                             )
                         ],
                     )
@@ -625,7 +658,7 @@ async def serve() -> None:
         try:
             if name == "open_repository":
                 open_args = OpenRepoParams(**arguments)
-                repo_id = logic.open_repository(open_args.path_or_url, open_args.github_token)
+                repo_id = logic.open_repository(open_args.path_or_url, open_args.github_token, open_args.ref)
                 return [TextContent(type="text", text=repo_id)]
             elif name == "search_code":
                 search_args = SearchParams(**arguments)
@@ -654,6 +687,10 @@ async def serve() -> None:
                 gcs_args = GetCodeSummaryParams(**arguments)
                 summary = logic.get_code_summary(gcs_args.repo_id, gcs_args.file_path, gcs_args.symbol_name)
                 return [TextContent(type="text", text=json.dumps(summary, indent=2))]
+            elif name == "get_git_info":
+                git_args = GitInfoParams(**arguments)
+                git_info = logic.get_git_info(git_args.repo_id)
+                return [TextContent(type="text", text=json.dumps(git_info, indent=2))]
             else:
                 raise MCPError(code=INVALID_PARAMS, message=f"Unknown tool: {name}")
         except ValidationError as e:

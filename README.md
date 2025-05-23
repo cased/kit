@@ -41,12 +41,19 @@ repo = Repository("/path/to/your/local/codebase")
 # Load a remote public GitHub repo
 # repo = Repository("https://github.com/owner/repo")
 
+# Load a repository at a specific commit, tag, or branch
+# repo = Repository("https://github.com/owner/repo", ref="v1.2.3")
+
 # Explore the repo
 print(repo.get_file_tree())
 # Output: [{"path": "src/main.py", "is_dir": False, ...}, ...]
 
 print(repo.extract_symbols('src/main.py'))
 # Output: [{"name": "main", "type": "function", "file": "src/main.py", ...}, ...]
+
+# Access git metadata
+print(f"Current SHA: {repo.current_sha}")
+print(f"Branch: {repo.current_branch}")
 ```
 
 ### Command Line Interface

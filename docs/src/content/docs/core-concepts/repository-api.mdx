@@ -29,6 +29,9 @@ my_repo = Repository("/path/to/local/project")
 
 # Or point to a remote GitHub repo
 # github_repo = Repository("https://github.com/owner/repo-name")
+
+# Or analyze a specific version
+# versioned_repo = Repository("https://github.com/owner/repo-name", ref="v1.2.3")
 ```
 
 You can perform various code intelligence tasks:
@@ -36,8 +39,9 @@ You can perform various code intelligence tasks:
 - **Explore Structure:** Get the file tree (`.get_file_tree()`).
 - **Read Content:** Access the raw content of specific files (`.get_file_content()`).
 - **Understand Code:** Extract detailed information about functions, classes, and other symbols (`.extract_symbols()`).
+- **Access Git Metadata:** Get current commit SHA, branch, and remote URL (`.current_sha`, `.current_branch`, `.remote_url`).
+- **Search & Navigate:** Find text patterns (`.search_text()`) or semantically similar code (`.search_semantic()`).
 - **Analyze Dependencies:** Find where symbols are defined and used (`.find_symbol_usages()`).
-- **Search:** Perform literal text searches (`.search_text()`) or powerful semantic searches (`.search_semantic()`).
 - **Prepare for LLMs:** Chunk code intelligently by lines or symbols (`.chunk_file_by_lines()`, `.chunk_file_by_symbols()`) and get code context around specific lines (`.extract_context_around_line()`).
 - **Integrate with AI:** Obtain configured summarizers (`.get_summarizer()`) or vector searchers (`.get_vector_searcher()`) for advanced AI workflows.
 - **Export Data:** Save the file tree, symbol information, or full repository index to structured formats like JSON (`.write_index()`, `.write_symbols()`, etc.).

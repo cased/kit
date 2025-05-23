@@ -24,13 +24,48 @@ MCP (Model Context Protocol) is a specification that allows AI agents and develo
 
 Currently, `kit` exposes the following functionalities via MCP tools:
 
-*   `open_repository`: Opens a local or remote Git repository.
+*   `open_repository`: Opens a local or remote Git repository. Supports `ref` parameter for specific commits, tags, or branches.
 *   `get_file_tree`: Retrieves the file and directory structure of the open repository.
 *   `get_file_content`: Reads the content of a specific file.
 *   `search_code`: Performs text-based search across repository files.
 *   `extract_symbols`: Extracts functions, classes, and other symbols from a file.
 *   `find_symbol_usages`: Finds where a specific symbol is used across the repository.
 *   `get_code_summary`: Provides AI-generated summaries for files, functions, or classes.
+*   `get_git_info`: Retrieves git metadata including current SHA, branch, and remote URL.
+
+### Repository Versioning
+
+The `open_repository` tool now supports analyzing specific versions of repositories:
+
+```json
+{
+  "tool": "open_repository",
+  "arguments": {
+    "path_or_url": "https://github.com/owner/repo",
+    "ref": "v1.2.3"
+  }
+}
+```
+
+The `ref` parameter accepts:
+- **Commit SHAs**: `"abc123def456"`
+- **Tags**: `"v1.2.3"`, `"release-2024"`
+- **Branches**: `"main"`, `"develop"`, `"feature-branch"`
+
+### Git Metadata Access
+
+Use the `get_git_info` tool to access repository metadata:
+
+```json
+{
+  "tool": "get_git_info",
+  "arguments": {
+    "repo_id": "your-repo-id"
+  }
+}
+```
+
+This returns information like current commit SHA, branch name, and remote URL.
 
 More MCP features are coming soon.
 

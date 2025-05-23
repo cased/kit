@@ -120,7 +120,9 @@ class PersistentRepoRegistry:
             if rec is None:
                 raise KeyError(repo_id)
 
-            repo = Repository(rec["path"])
+            # Pass ref parameter to Repository if it exists
+            ref = rec.get("ref") if rec.get("ref") else None
+            repo = Repository(rec["path"], ref=ref)
             self._cache[repo_id] = repo
             self._cache.move_to_end(repo_id, last=False)
             # Evict if over capacity

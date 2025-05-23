@@ -173,3 +173,19 @@ def analyze_dependencies(repo_id: str, file_path: str | None = None, depth: int 
         raise HTTPException(status_code=400, detail=str(e))
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/repository/{repo_id}/git-info")
+def get_git_info(repo_id: str):
+    """Get git metadata for the repository (SHA, branch, remote URL)."""
+    try:
+        repo = registry.get_repo(repo_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Repo not found")
+
+    return {
+        "current_sha": repo.current_sha,
+        "current_sha_short": repo.current_sha_short,
+        "current_branch": repo.current_branch,
+        "remote_url": repo.remote_url,
+    }

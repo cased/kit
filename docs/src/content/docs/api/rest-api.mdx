@@ -83,6 +83,26 @@ These endpoints are included in the standard `kit` installation but may have spe
 | `/summary`         | LLM API key (e.g., `OPENAI_API_KEY` in environment)           | Generates code summaries. Returns `400` if key is missing/invalid, `503` if LLM service fails. |
 | `/dependencies`    | None for fetching graph data (Python/Terraform)               | Returns dependency graph. `graphviz` needed only for local visualization helpers, not this endpoint. |
 
+## 7  Git Metadata
+
+```http
+GET /repository/{id}/git-info
+```
+
+Returns git repository metadata including current SHA, branch, and remote URL.
+
+**Response:**
+```json
+{
+  "current_sha": "8cf426abe80f6cd3ab02ffc6fb11b00dd60995c8",
+  "current_sha_short": "8cf426a",
+  "current_branch": "main",
+  "remote_url": "git@github.com:cased/kit.git"
+}
+```
+
+Fields will be `null` if the repository is not a git repository or the information is not available.
+
 ### Upcoming Features
 
 The following features are currently in development and will be added in future releases:
@@ -92,7 +112,7 @@ The following features are currently in development and will be added in future 
 | `/semantic-search` | Embedding-based search using vector databases to find semantically similar code chunks | Coming soon |
 | Enhanced symbol analysis | Improved cross-language symbol detection and relationship mapping | Planned |
 
-## 7  Common HTTP Status Codes
+## 8  Common HTTP Status Codes
 
 *   `200 OK`: Request succeeded.
 *   `201 Created`: Repository opened successfully.
