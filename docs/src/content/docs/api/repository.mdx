@@ -149,3 +149,169 @@ repository.chunk_file_by_lines(file_path: str, max_lines: int = 50) -> List[str]
 *   `List[str]`: A list of strings, where each string is a chunk of the file content.
 
 ## `repository.chunk_file_by_symbols()`
+
+Chunks a file's content based on its top-level symbols (functions, classes).
+
+```python
+repository.chunk_file_by_symbols(file_path: str) -> List[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the file (relative to repo root) to chunk.
+
+**Returns:**
+
+*   `List[Dict[str, Any]]`: A list of dictionaries, each representing a symbol chunk with keys like `name`, `type`, `code`.
+
+## `repository.extract_context_around_line()`
+
+Extracts the surrounding code context (typically the containing function or class) for a specific line number.
+
+```python
+repository.extract_context_around_line(file_path: str, line: int) -> Optional[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the file (relative to repo root).
+*   `line` (int): The (0-based) line number to find context for.
+
+**Returns:**
+
+*   `Optional[Dict[str, Any]]`: A dictionary representing the symbol context (with keys like `name`, `type`, `code`), or `None` if no context is found.
+
+## `repository.index()`
+
+Builds and returns a comprehensive index of the repository, including both the file tree and all extracted symbols.
+
+```python
+repository.index() -> Dict[str, Any]
+```
+
+**Returns:**
+
+*   `Dict[str, Any]`: A dictionary containing the full index, typically with keys like `file_tree` and `symbols`.
+
+## `repository.get_vector_searcher()`
+
+Initializes and returns the `VectorSearcher` instance for performing semantic search.
+
+```python
+repository.get_vector_searcher(embed_fn=None, backend=None, persist_dir=None) -> VectorSearcher
+```
+
+**Parameters:**
+
+*   `embed_fn` (Callable): **Required on first call.** A function that takes a list of strings and returns a list of embedding vectors.
+*   `backend` (Optional[Any]): Specifies the vector database backend. If `None`, `kit` defaults to using `ChromaDBBackend`.
+*   `persist_dir` (Optional[str]): Path to a directory to persist the vector index. If `None`, the `VectorSearcher` will default to `YOUR_REPO_PATH/.kit/vector_db/` for ChromaDB. Setting to `None` implies using this default persistence path for ChromaDB.
+
+**Returns:**
+
+*   `VectorSearcher`: An instance of the vector searcher configured for this repository.
+
+(See [Configuring Semantic Search](/core-concepts/configuring-semantic-search) for more details.)
+
+## `repository.search_semantic()`
+
+Performs a semantic search query over the indexed codebase.
+
+```python
+repository.search_semantic(query: str, top_k: int = 5, embed_fn=None) -> List[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `query` (str): The natural language query to search for.
+*   `top_k` (int): The maximum number of results to return. Defaults to `5`.
+*   `embed_fn` (Callable): Required if the vector searcher hasn't been initialized yet.
+
+**Returns:**
+
+*   `List[Dict[str, Any]]`: A list of dictionaries representing the search results, typically including matched code snippets and relevance scores.
+
+## `repository.find_symbol_usages()`
+
+Finds definitions and references of a specific symbol across the repository.
+
+```python
+repository.find_symbol_usages(symbol_name: str, symbol_type: Optional[str] = None) -> List[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `symbol_name` (str): The name of the symbol to find usages for.
+*   `symbol_type` (Optional[str]): Optionally restrict the search to a specific symbol type (e.g., 'function', 'class'). Defaults to `None` (search all types).
+
+**Returns:**
+
+*   `List[Dict[str, Any]]`: A list of dictionaries representing symbol usages, including file, line number, and context/snippet.
+
+## `repository.write_index()`
+
+Writes the full repository index (file tree and symbols) to a JSON file.
+
+```python
+repository.write_index(file_path: str) -> None
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the output JSON file.
+
+## `repository.write_symbols()`
+
+Writes extracted symbols to a JSON file.
+
+```python
+repository.write_symbols(file_path: str, symbols: Optional[list] = None) -> None
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the output JSON file.
+*   `symbols` (Optional[list]): An optional list of symbol dictionaries to write. If `None`, writes all symbols extracted from the repository. Defaults to `None`.
+
+## `repository.write_file_tree()`
+
+Writes the repository file tree to a JSON file.
+
+```python
+repository.write_file_tree(file_path: str) -> None
+```
+
+**Parameters:**
+
+*   `file_path` (str): The path to the output JSON file.
+
+## `repository.write_symbol_usages()`
+
+Writes the found usages of a specific symbol to a JSON file.
+
+```python
+repository.write_symbol_usages(symbol_name: str, file_path: str, symbol_type: Optional[str] = None) -> None
+```
+
+**Parameters:**
+
+*   `symbol_name` (str): The name of the symbol whose usages were found.
+*   `file_path` (str): The path to the output JSON file.
+*   `symbol_type` (Optional[str]): The symbol type filter used when finding usages. Defaults to `None`.
+
+## `repository.get_context_assembler()`
+
+Convenience helper that returns a fresh `ContextAssembler` bound to this repository.
+Use it instead of importing the class directly:
+
+```python
+assembler = repository.get_context_assembler()
+assembler.add_diff(my_diff)
+context_blob = assembler.format_context()
+```
+
+**Returns:**
+
+* `ContextAssembler`: Ready-to-use assembler instance.
+
+## `repository.get_summarizer()`

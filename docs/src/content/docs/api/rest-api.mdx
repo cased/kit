@@ -29,9 +29,33 @@ Body (JSON):
 Return → `{ "id": "8b1d4f29c7b1" }`
 
 The ID is deterministic: `sha1(<canonical-path>@<ref>)[:12]`.  Re-POSTing the
-same path+ref always returns the same ID – so clients can cache it.
+same path+ref combination always returns the same ID – so clients can cache it.
 
-> Note If `path_or_url` is a **GitHub URL**, the server shells out to `git clone`.  Pass `github_token` to authenticate when cloning **private** repositories.
+**Examples:**
+
+```bash
+# Open repository at current state
+curl -X POST localhost:8000/repository \
+  -d '{"path_or_url": "/my/project"}' \
+  -H 'Content-Type: application/json'
+
+# Open repository at specific tag
+curl -X POST localhost:8000/repository \
+  -d '{"path_or_url": "https://github.com/owner/repo", "ref": "v1.2.3"}' \
+  -H 'Content-Type: application/json'
+
+# Open repository at specific commit
+curl -X POST localhost:8000/repository \
+  -d '{"path_or_url": "https://github.com/owner/repo", "ref": "abc123def456"}' \
+  -H 'Content-Type: application/json'
+
+# Open private repository with authentication
+curl -X POST localhost:8000/repository \
+  -d '{"path_or_url": "https://github.com/owner/private-repo", "github_token": "ghp_xxxx"}' \
+  -H 'Content-Type: application/json'
+```
+
+> Note If `path_or_url` is a **GitHub URL**, the server shells out to `git clone`.  Pass `github_token` to authenticate when cloning **private** repositories. The `ref` parameter allows you to analyze specific versions - useful for historical analysis, release comparisons, or ensuring reproducible results.
 
 ## 2  Navigation
 
@@ -131,9 +155,17 @@ ID=$(curl -sX POST localhost:8000/repository \
      -d '{"path_or_url": "/my/project"}' \
      -H 'Content-Type: application/json' | jq -r .id)
 
-# 2 Find every file that mentions "KeyError"
+# 1b Open remote repo at specific version
+VERSION_ID=$(curl -sX POST localhost:8000/repository \
+     -d '{"path_or_url": "https://github.com/owner/repo", "ref": "v1.2.3"}' \
+     -H 'Content-Type: application/json' | jq -r .id)
+
+# 2 Check git metadata
+curl "localhost:8000/repository/$ID/git-info"
+
+# 3 Find every file that mentions "KeyError"
 curl "localhost:8000/repository/$ID/search?q=KeyError"
 
-# 3 Show snippet
+# 4 Show snippet
 curl "localhost:8000/repository/$ID/files/auth/session.py" | sed -n '80,95p'
 ``` 
