@@ -33,6 +33,7 @@ dependencies = [
 Homepage = "https://github.com/cased/kit"
 
 [project.scripts]
+kit = "kit.cli:app"
 kit-mcp = "kit.mcp:main"
 
 [tool.setuptools]
