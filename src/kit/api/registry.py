@@ -52,10 +52,9 @@ def _canonical(value: str, ref: str | None = None) -> str:
     return f"{base}@{ref or 'WORKTREE'}"
 
 
-def path_to_id(path_or_url: str) -> str:
-    """Deterministically hash *path_or_url* to a short ID string."""
-    canon = _canonical(path_or_url)
-    return hashlib.sha1(canon.encode()).hexdigest()[:12]
+def path_to_id(canonical_path: str) -> str:
+    """Deterministically hash *canonical_path* to a short ID string."""
+    return hashlib.sha1(canonical_path.encode()).hexdigest()[:12]
 
 
 # ---------------------------------------------------------------------------

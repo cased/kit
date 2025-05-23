@@ -33,9 +33,9 @@ Currently, `kit` exposes the following functionalities via MCP tools:
 *   `get_code_summary`: Provides AI-generated summaries for files, functions, or classes.
 *   `get_git_info`: Retrieves git metadata including current SHA, branch, and remote URL.
 
-### Repository Versioning
+### Opening Repositories with Specific Versions
 
-The `open_repository` tool now supports analyzing specific versions of repositories:
+The `open_repository` tool supports analyzing specific versions of repositories using the optional `ref` parameter:
 
 ```json
 {
@@ -52,7 +52,7 @@ The `ref` parameter accepts:
 - **Tags**: `"v1.2.3"`, `"release-2024"`
 - **Branches**: `"main"`, `"develop"`, `"feature-branch"`
 
-### Git Metadata Access
+### Accessing Git Metadata
 
 Use the `get_git_info` tool to access repository metadata:
 
@@ -65,7 +65,7 @@ Use the `get_git_info` tool to access repository metadata:
 }
 ```
 
-This returns information like current commit SHA, branch name, and remote URL.
+This returns information like current commit SHA, branch name, and remote URL - useful for understanding what version of code you're analyzing.
 
 More MCP features are coming soon.
 
