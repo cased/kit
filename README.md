@@ -30,6 +30,8 @@ uv pip install -e .
 
 ## Basic Usage
 
+### Python API
+
 ```python
 from kit import Repository
 
@@ -46,6 +48,29 @@ print(repo.get_file_tree())
 print(repo.extract_symbols('src/main.py'))
 # Output: [{"name": "main", "type": "function", "file": "src/main.py", ...}, ...]
 ```
+
+### Command Line Interface
+
+`kit` also provides a comprehensive CLI for repository analysis and code exploration:
+
+```bash
+# Get repository file structure
+kit file-tree /path/to/repo
+
+# Extract symbols (functions, classes, etc.)
+kit symbols /path/to/repo --format table
+
+# Search for code patterns
+kit search /path/to/repo "def main" --pattern "*.py"
+
+# Find symbol usages
+kit usages /path/to/repo "MyClass"
+
+# Export data for external tools
+kit export /path/to/repo symbols symbols.json
+```
+
+The CLI supports all major repository operations with Unix-friendly output for scripting and automation. See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehensive usage examples.
 
 ## Key Features & Capabilities
 
