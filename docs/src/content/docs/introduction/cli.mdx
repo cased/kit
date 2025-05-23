@@ -43,6 +43,71 @@ kit search /path/to/your/repo "TODO" --pattern "*.py"
 kit export /path/to/your/repo symbols analysis.json
 ```
 
+## Getting Help
+
+The CLI includes comprehensive built-in help to discover all available commands, arguments, and options:
+
+### Main Help
+
+```bash
+# See all available commands
+kit --help
+```
+
+This shows you all the available commands like `symbols`, `search`, `file-tree`, etc.
+
+### Command-Specific Help
+
+```bash
+# Get detailed help for any specific command
+kit symbols --help
+kit search --help
+kit export --help
+```
+
+Each command's help shows:
+- **Required arguments** (like repository path)
+- **Optional parameters** (like `--file`, `--output`, `--format`)
+- **Available options** (like output formats or filters)
+- **Short descriptions** of what each option does
+
+### Example Help Output
+
+```bash
+$ kit symbols --help
+
+Usage: kit symbols [OPTIONS] PATH
+
+Extract code symbols (functions, classes, etc.) from the repository.
+
+╭─ Arguments ──────────────────────────────────────────╮
+│ *  path    TEXT  Path to the local repository.      │
+╰──────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────╮
+│ --file    -f  TEXT  Extract from specific file only │
+│ --output  -o  TEXT  Output to JSON file             │
+│ --format      TEXT  Output format: table, json, names │
+│ --help            Show this message and exit        │
+╰──────────────────────────────────────────────────────╯
+```
+
+### Shell Completion
+
+For even faster discovery, install shell completion:
+
+```bash
+kit --install-completion
+```
+
+After restarting your shell, you can use tab completion to:
+- See all available commands: `kit <TAB>`
+- See command options: `kit symbols --<TAB>`
+- Complete file paths: `kit symbols /path/to/repo --file src/<TAB>`
+
+<Aside type="tip">
+Always use `--help` when you're unsure about a command's arguments or options. Every command has detailed help built-in, so you never need to guess the syntax!
+</Aside>
+
 ## Command Reference
 
 ### File Operations
