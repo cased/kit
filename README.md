@@ -90,6 +90,7 @@ The CLI supports all major repository operations with Unix-friendly output for s
 *   **Pinpoint Information:**
     *   Run regular expression searches across your codebase using `repo.search_text()`.
     *   Track specific symbols (like a function or class) with `repo.find_symbol_usages()`.
+    *   Perform semantic code search using vector embeddings to find code based on meaning rather than just keywords.
 
 *   **Prepare Code for LLMs & Analysis:**
     *   Break down large files into manageable pieces for LLM context windows using `repo.chunk_file_by_lines()` or `repo.chunk_file_by_symbols()`.
@@ -103,7 +104,16 @@ The CLI supports all major repository operations with Unix-friendly output for s
     *   Map import relationships between modules using `repo.get_dependency_analyzer()` to understand your codebase structure.
     *   Generate dependency reports and LLM-friendly context with `analyzer.generate_dependency_report()` and `analyzer.generate_llm_context()`.
 
-*   **And much more...** `kit` also offers capabilities for semantic search on raw code, building custom context for LLMs, and more.
+*   **Repository Versioning & Historical Analysis:**
+    *   Analyze repositories at specific commits, tags, or branches using the `ref` parameter.
+    *   Compare code evolution over time, work with diffs, ensure reproducible analysis results
+    *   Access git metadata including current SHA, branch, and remote URL with `repo.current_sha`, `repo.current_branch`, etc.
+
+*   **Multiple Access Methods:**
+    *   **Python API**: Direct integration for building applications and scripts.
+    *   **Command Line Interface**: 11+ commands for shell scripting, CI/CD, and automation workflows.
+    *   **REST API**: HTTP endpoints for web applications and microservices.
+    *   **MCP Server**: Model Context Protocol integration for AI agents and development tools.
 
 ## MCP Server
 
