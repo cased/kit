@@ -5,13 +5,14 @@ description: Working with specific commits, tags, and branches for historical co
 
 import { Aside } from "@astrojs/starlight/components";
 
-One of kit's most powerful features is the ability to analyze repositories at specific points in their history. Whether you're investigating a bug that appeared in a particular release, comparing code evolution over time, or ensuring reproducible analysis results, kit's versioning capabilities provide the foundation for sophisticated historical code analysis.
+One of kit's most powerful features is the ability to analyze repositories at specific points in their history. 
+Whether you're debugging an issue that appeared in a particular release, comparing code evolution over time, or ensuring reproducible analysis results, kit's versioning capabilities provide the foundation for sophisticated historical code analysis.
 
 ## Why Analyze Different Versions?
 
 ### Release Analysis and Debugging
 
-When investigating issues that appeared in specific releases, analyzing the exact codebase state at that time is crucial:
+When reviewing issues that appeared in specific releases, analyzing the exact codebase state at that time is crucial:
 
 ```python
 from kit import Repository
@@ -94,7 +95,7 @@ feature_symbols = feature_repo.extract_symbols("src/api/")
 main_symbols = main_repo.extract_symbols("src/api/")
 
 # Identify changes in public API
-# (implementation would depend on your specific needs)
+# (left up to you!)
 ```
 
 ## Working with Different Reference Types
@@ -117,7 +118,7 @@ print(f"Short SHA: {repo.current_sha_short}")
 
 ### Tags and Releases
 
-Perfect for analyzing specific releases:
+Useful for analyzing specific releases:
 
 ```python
 # Semantic version tags
@@ -149,7 +150,7 @@ repo = Repository("https://github.com/owner/project", ref="release/v2.0")
 
 ## Accessing Git Metadata
 
-Kit provides comprehensive access to git repository metadata:
+Kit provides access to basic git repository metadata:
 
 ```python
 repo = Repository("https://github.com/owner/project", ref="v1.2.3")
