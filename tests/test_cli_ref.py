@@ -122,7 +122,7 @@ class TestCLIRefParameter:
     def test_help_shows_ref_parameter(self, runner):
         """Test that help output shows ref parameter for relevant commands."""
         pytest.skip("Skipping due to Typer 0.15.3 issue with help command")
-        
+
         commands_with_ref = ["git-info", "file-tree", "symbols"]
 
         for command in commands_with_ref:
