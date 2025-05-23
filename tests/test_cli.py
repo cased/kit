@@ -49,7 +49,7 @@ class TestFileTreeCommand:
         mock_tree = [{"path": "file1.py", "is_dir": False, "size": 100}]
         mock_repo.get_file_tree.return_value = mock_tree
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -57,8 +57,8 @@ class TestFileTreeCommand:
 
             assert result.exit_code == 0
             assert f"File tree written to {output_file}" in result.stdout
-            
-            with open(output_file, 'r') as f:
+
+            with open(output_file, "r") as f:
                 saved_data = json.load(f)
             assert saved_data == mock_tree
         finally:
@@ -115,18 +115,12 @@ class TestSymbolsCommand:
         return [
             {
                 "name": "test_function",
-                "type": "function", 
+                "type": "function",
                 "file": "/mock/repo/test.py",
                 "start_line": 10,
-                "end_line": 20
+                "end_line": 20,
             },
-            {
-                "name": "TestClass",
-                "type": "class",
-                "file": "/mock/repo/lib.py", 
-                "start_line": 5,
-                "end_line": 15
-            }
+            {"name": "TestClass", "type": "class", "file": "/mock/repo/lib.py", "start_line": 5, "end_line": 15},
         ]
 
     def test_symbols_table_format(self, runner, mock_repo, mock_symbols):
@@ -189,16 +183,8 @@ class TestSearchCommand:
     def mock_search_results(self):
         """Mock search results."""
         return [
-            {
-                "file": "/mock/repo/test.py",
-                "line_number": 5,
-                "line": "def test_function():"
-            },
-            {
-                "file": "/mock/repo/lib.py", 
-                "line_number": 10,
-                "line": "    test_function()"
-            }
+            {"file": "/mock/repo/test.py", "line_number": 5, "line": "def test_function():"},
+            {"file": "/mock/repo/lib.py", "line_number": 10, "line": "    test_function()"},
         ]
 
     def test_search_success(self, runner, mock_repo, mock_search_results):
@@ -238,16 +224,8 @@ class TestUsagesCommand:
     def mock_usages(self):
         """Mock usage results."""
         return [
-            {
-                "file": "/mock/repo/test.py",
-                "line_number": 5,
-                "context": "def test_function():"
-            },
-            {
-                "file": "/mock/repo/lib.py",
-                "line": 10,
-                "line_content": "    test_function()"
-            }
+            {"file": "/mock/repo/test.py", "line_number": 5, "context": "def test_function():"},
+            {"file": "/mock/repo/lib.py", "line": 10, "line_content": "    test_function()"},
         ]
 
     def test_usages_success(self, runner, mock_repo, mock_usages):
@@ -292,7 +270,7 @@ class TestContextCommand:
             "type": "function",
             "start_line": 5,
             "end_line": 10,
-            "code": "def test_function():\n    return 'hello'"
+            "code": "def test_function():\n    return 'hello'",
         }
 
     def test_context_success(self, runner, mock_repo, mock_context):
@@ -346,7 +324,7 @@ class TestChunkingCommands:
         """Test chunk-symbols command success."""
         mock_chunks = [
             {"name": "func1", "type": "function", "code": "def func1(): pass"},
-            {"name": "Class1", "type": "class", "code": "class Class1: pass"}
+            {"name": "Class1", "type": "class", "code": "class Class1: pass"},
         ]
         mock_repo.chunk_file_by_symbols.return_value = mock_chunks
 
@@ -363,7 +341,7 @@ class TestExportCommand:
 
     def test_export_symbols(self, runner, mock_repo):
         """Test export symbols command."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -377,7 +355,7 @@ class TestExportCommand:
 
     def test_export_index(self, runner, mock_repo):
         """Test export index command."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -391,7 +369,7 @@ class TestExportCommand:
 
     def test_export_file_tree(self, runner, mock_repo):
         """Test export file-tree command."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -405,7 +383,7 @@ class TestExportCommand:
 
     def test_export_symbol_usages(self, runner, mock_repo):
         """Test export symbol-usages command."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -419,7 +397,7 @@ class TestExportCommand:
 
     def test_export_symbol_usages_missing_symbol(self, runner, mock_repo):
         """Test export symbol-usages command without required --symbol option."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -432,7 +410,7 @@ class TestExportCommand:
 
     def test_export_unknown_type(self, runner, mock_repo):
         """Test export command with unknown data type."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -452,7 +430,7 @@ class TestIndexCommand:
         """Mock index data."""
         return {
             "files": [{"path": "test.py", "is_dir": False}],
-            "symbols": {"test.py": [{"name": "func", "type": "function"}]}
+            "symbols": {"test.py": [{"name": "func", "type": "function"}]},
         }
 
     def test_index_stdout(self, runner, mock_repo, mock_index_data):
@@ -470,7 +448,7 @@ class TestIndexCommand:
         """Test index command with file output."""
         mock_repo.index.return_value = mock_index_data
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -478,8 +456,8 @@ class TestIndexCommand:
 
             assert result.exit_code == 0
             assert f"Repository index written to {output_file}" in result.stdout
-            
-            with open(output_file, 'r') as f:
+
+            with open(output_file, "r") as f:
                 saved_data = json.load(f)
             assert saved_data == mock_index_data
         finally:
@@ -514,4 +492,4 @@ class TestServeCommand:
             call_args = mock_run.call_args
             assert call_args[1]["host"] == "127.0.0.1"
             assert call_args[1]["port"] == 9000
-            assert call_args[1]["reload"] is False 
+            assert call_args[1]["reload"] is False

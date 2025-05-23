@@ -11,14 +11,14 @@ app = typer.Typer(help="A modular toolkit for LLM-powered codebase understanding
 
 @app.command()
 def serve(host: str = "0.0.0.0", port: int = 8000, reload: bool = True):
-    """Run the kit REST API server (requires `kit[api]` dependencies)."""
+    """Run the kit REST API server."""
     try:
         import uvicorn
 
         from kit.api import app as fastapi_app
     except ImportError:
         typer.secho(
-            "Error: FastAPI or Uvicorn not installed. Please run `pip install kit[api]`",
+            "Error: FastAPI or Uvicorn not installed. Please reinstall kit: `pip install cased-kit`",
             fg=typer.colors.RED,
         )
         raise typer.Exit(code=1)
