@@ -145,12 +145,15 @@ def find_symbol_usages(
     symbol_name: str = typer.Argument(..., help="Name of the symbol to find usages for."),
     symbol_type: Optional[str] = typer.Option(None, "--type", "-t", help="Symbol type filter (function, class, etc.)."),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
 ):
     """Find definitions and references of a specific symbol."""
     from kit import Repository
 
     try:
-        repo = Repository(path)
+        repo = Repository(path, ref=ref)
         usages = repo.find_symbol_usages(symbol_name, symbol_type)
 
         if output:
@@ -180,12 +183,15 @@ def search_text(
     query: str = typer.Argument(..., help="Text or regex pattern to search for."),
     pattern: str = typer.Option("*", "--pattern", "-p", help="Glob pattern for files to search."),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
 ):
     """Perform a textual search in a local repository."""
     from kit import Repository
 
     try:
-        repo = Repository(path)
+        repo = Repository(path, ref=ref)
         results = repo.search_text(query, file_pattern=pattern)
 
         if output:
@@ -301,12 +307,15 @@ def export_data(
     symbol_type: Optional[str] = typer.Option(
         None, "--symbol-type", help="Symbol type filter (for symbol-usages export)."
     ),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
 ):
     """Export repository data to JSON files."""
     from kit import Repository
 
     try:
-        repo = Repository(path)
+        repo = Repository(path, ref=ref)
 
         if data_type == "index":
             repo.write_index(output)
