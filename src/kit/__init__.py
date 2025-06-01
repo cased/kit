@@ -2,12 +2,6 @@
 A modular toolkit for LLM-powered codebase understanding.
 """
 
-try:
-    from importlib.metadata import PackageNotFoundError, version
-except ImportError:
-    # Fallback for Python < 3.8
-    from importlib_metadata import PackageNotFoundError, version
-
 __author__ = "cased"
 __version__ = "0.5.2"
 
