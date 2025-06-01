@@ -1,7 +1,5 @@
 """Tests using real GitHub PR data to benchmark line number accuracy."""
 
-import pytest
-from unittest.mock import patch, MagicMock
 from src.kit.pr_review.diff_parser import DiffParser
 from src.kit.pr_review.validator import validate_review_quality
 
@@ -18,7 +16,7 @@ index 123..456 100644
 +++ b/fastapi/dependencies/models.py
 @@ -156,8 +156,10 @@ def get_request_handler(
          return response
-     
+
      try:
 +        # Validate request before processing
 +        if not request:
@@ -37,12 +35,12 @@ index 123..456 100644
 
         diff_files = DiffParser.parse_diff(fastapi_diff)
         context = DiffParser.generate_line_number_context(diff_files)
-        
+
         # Verify accurate parsing
         assert "fastapi/dependencies/models.py:" in context
         assert "Lines 156-165" in context  # First hunk
         assert "Lines 249-255" in context  # Second hunk
-        
+
         # Test realistic review
         realistic_review = """
 ## Priority Issues
@@ -70,7 +68,7 @@ index abc..def 100644
 +                # Add error code for better API responses
 +                code='password_mismatch',
              )
- 
+
 @@ -145,7 +149,9 @@ class AuthenticationForm(forms.Form):
          if username is not None and password:
              self.user_cache = authenticate(self.request, username=username, password=password)
@@ -83,15 +81,15 @@ index abc..def 100644
 
         diff_files = DiffParser.parse_diff(django_diff)
         file_diff = diff_files["django/contrib/auth/forms.py"]
-        
+
         # Test complex hunk calculation
         hunks = file_diff.hunks
         assert len(hunks) == 2
-        
+
         # First hunk: added 2 lines at position 89, original was 6 lines -> 8 lines
         assert hunks[0].new_start == 89
         assert hunks[0].new_count == 8
-        
+
         # Second hunk: added 2 lines at position 149, adjusted for previous additions
         assert hunks[1].new_start == 149
         assert hunks[1].new_count == 9
@@ -107,7 +105,7 @@ index 111..222 100644
    type: string,
    oldProps: Props,
 -  newProps: Props,
-+  newProps: Props, 
++  newProps: Props,
    internalInstanceHandle: Object,
  ): void {
    const domElement: Element = (instance: any);
@@ -130,7 +128,7 @@ index 111..222 100644
 
         diff_files = DiffParser.parse_diff(react_diff)
         context = DiffParser.generate_line_number_context(diff_files)
-        
+
         # Should handle long file paths correctly
         assert "packages/react-dom/src/client/ReactDOMHostConfig.js:" in context
         assert "Lines 567-580" in context  # First hunk expanded
@@ -146,15 +144,15 @@ index aaa..bbb 100644
      """Process incoming API request."""
      if not request.method == 'POST':
          return error_response('Method not allowed', 405)
-+    
++
 +    # Validate content type
 +    if request.content_type != 'application/json':
 +        return error_response('Unsupported content type', 415)
-     
+
      data = request.get_json()
      if not data:
          return error_response('Invalid JSON', 400)
-+    
++
      return success_response(process_data(data))'''
 
         # Simulate old approach (approximate line numbers)
@@ -162,7 +160,7 @@ index aaa..bbb 100644
 ## Issues Found
 
 1. Line 45: Added content type validation is good
-2. Around line 50: JSON validation could be improved  
+2. Around line 50: JSON validation could be improved
 3. Somewhere in the function: Consider adding rate limiting
 """
 
@@ -178,7 +176,7 @@ index aaa..bbb 100644
         # Validate both approaches
         validation_old = validate_review_quality(old_approach_review, test_diff, ["src/api.py"])
         validation_new = validate_review_quality(new_approach_review, test_diff, ["src/api.py"])
-        
+
         # New approach should score better (adjusted expectation)
         assert validation_new.score > validation_old.score + 0.1
         assert validation_new.metrics["github_links"] > validation_old.metrics["github_links"]
@@ -187,10 +185,10 @@ index aaa..bbb 100644
     def test_large_pr_performance(self):
         """Test parsing performance with large diffs."""
         import time
-        
+
         # Generate a large diff programmatically
         large_diff_parts = ["diff --git a/large_file.py b/large_file.py\nindex aaa..bbb 100644\n--- a/large_file.py\n+++ b/large_file.py"]
-        
+
         # Add 10 hunks to simulate a large change (reduced from 50)
         for i in range(10):
             start_line = i * 20 + 10
@@ -201,27 +199,27 @@ index aaa..bbb 100644
             hunk += f"+    new_line_{i}_2\n"
             hunk += "     existing_line_3\n"
             large_diff_parts.append(hunk)
-        
+
         large_diff = "\n".join(large_diff_parts)
-        
+
         # Time the parsing
         start_time = time.time()
         diff_files = DiffParser.parse_diff(large_diff)
         parse_time = time.time() - start_time
-        
+
         # Should parse quickly (under 1 second for reasonable size)
         assert parse_time < 1.0
-        
+
         # Should parse correctly
         assert "large_file.py" in diff_files
         file_diff = diff_files["large_file.py"]
         assert len(file_diff.hunks) == 10
-        
+
         # Generate context quickly
         start_time = time.time()
         context = DiffParser.generate_line_number_context(diff_files)
         context_time = time.time() - start_time
-        
+
         assert context_time < 0.5
         assert "large_file.py:" in context
 
@@ -237,7 +235,7 @@ index 111..222 100644
 +    new_deep_line_1()
 +    new_deep_line_2()
      return result''',
-            
+
             "single_line_file": '''diff --git a/tiny.py b/tiny.py
 index 333..444 100644
 --- a/tiny.py
@@ -246,7 +244,7 @@ index 333..444 100644
 -print("hello")
 +print("hello world")
 +print("goodbye")''',
-            
+
             "binary_then_text": '''diff --git a/mixed.py b/mixed.py
 index 555..666 100644
 --- a/mixed.py
@@ -257,10 +255,10 @@ index 555..666 100644
 +    validate(data)
      save(data)'''
         }
-        
+
         for case_name, diff in edge_cases.items():
             diff_files = DiffParser.parse_diff(diff)
-            
+
             if diff_files:  # Some edge cases might not parse
                 for filename, file_diff in diff_files.items():
                     # Test that line numbers are reasonable
@@ -268,7 +266,7 @@ index 555..666 100644
                         assert hunk.new_start > 0
                         assert hunk.new_count >= 0
                         assert hunk.new_start < 1000000  # Reasonable upper bound
-                    
+
                     # Test context generation doesn't crash
                     context = DiffParser.generate_line_number_context(diff_files)
                     assert len(context) > 0
@@ -284,7 +282,7 @@ index 123..456 100644
      """Authenticate user with username and password."""
      if not username or not password:
          return False
-         
+
 +    # Sanitize inputs to prevent injection attacks
 +    username = escape_sql(username)
      user = get_user_by_username(username)
@@ -293,13 +291,13 @@ index 123..456 100644
 
         diff_files = DiffParser.parse_diff(sample_diff)
         context = DiffParser.generate_line_number_context(diff_files)
-        
+
         # Test that context is AI-friendly
         assert "security/auth.py:" in context
         assert "Lines 25-33" in context
         assert "IMPORTANT" in context
         assert "GitHub links" in context
-        
+
         # Test that an AI could reasonably use this information
         ai_prompt = f"""Analyze this code change:
 
@@ -315,4 +313,4 @@ Please provide specific feedback with line numbers."""
         # Prompt should be clear and actionable
         assert len(ai_prompt) > 200  # Substantial content
         assert "Lines 25-33" in ai_prompt
-        assert "security/auth.py" in ai_prompt 
+        assert "security/auth.py" in ai_prompt

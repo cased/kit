@@ -1,7 +1,7 @@
 """Tests to validate AI-generated line number accuracy."""
 
-import pytest
 import re
+
 from src.kit.pr_review.diff_parser import DiffParser
 from src.kit.pr_review.validator import validate_review_quality
 
@@ -19,7 +19,7 @@ index 123..456 100644
 @@ -25,6 +25,8 @@ def authenticate():
      if not username:
          return False
-     
+
 +    # Validate input
 +    username = username.strip()
      user = get_user(username)
@@ -36,7 +36,7 @@ index 123..456 100644
 Added input validation for username parameter.
 """
 
-        # AI review with INACCURATE line numbers  
+        # AI review with INACCURATE line numbers
         inaccurate_review = """
 ## Issues Found
 
@@ -48,17 +48,17 @@ Some issues found.
 """
 
         # Parse diff to get actual line ranges
-        diff_files = DiffParser.parse_diff(diff_content)
-        
+        DiffParser.parse_diff(diff_content)
+
         # Validate accurate review
         validation_accurate = validate_review_quality(accurate_review, diff_content, ["auth.py"])
-        
+
         # Validate inaccurate review
         validation_inaccurate = validate_review_quality(inaccurate_review, diff_content, ["auth.py"])
-        
+
         # Accurate review should score higher
         assert validation_accurate.score > validation_inaccurate.score
-        
+
         # Inaccurate review should have issues
         assert len(validation_inaccurate.issues) > len(validation_accurate.issues)
 
@@ -84,15 +84,15 @@ index abc..def 100644
 
         diff_files = DiffParser.parse_diff(diff_content)
         file_diff = diff_files["calculator.py"]
-        
+
         # Get valid line ranges
         valid_ranges = file_diff.get_changed_line_ranges()
         assert (10, 16) in valid_ranges  # First hunk: lines 10-16
         assert (52, 55) in valid_ranges  # Second hunk: lines 52-55
-        
+
         def is_line_in_range(line_num, ranges):
             return any(start <= line_num <= end for start, end in ranges)
-        
+
         # Test various line numbers
         assert is_line_in_range(12, valid_ranges)  # In first hunk
         assert is_line_in_range(53, valid_ranges)  # In second hunk
@@ -117,22 +117,22 @@ index abc..def 100644
         # Extract line references using regex patterns
         patterns = [
             r'\.py:(\d+)',  # file.py:123
-            r'line\s+(\d+)',  # line 123  
+            r'line\s+(\d+)',  # line 123
             r'Line\s+(\d+)',  # Line 123 (capitalized)
             r'#L(\d+)',  # #L123
         ]
-        
+
         line_refs = []
         for pattern in patterns:
             matches = re.findall(pattern, review_with_links)
             line_refs.extend([int(m) for m in matches])
-        
+
         # Should find line references: 12, 54, 55, 100, 12 (from #L12)
         assert 12 in line_refs
-        assert 54 in line_refs  
+        assert 54 in line_refs
         assert 55 in line_refs
         assert 100 in line_refs
-        
+
         # Test with diff to see which are valid
         diff_content = '''diff --git a/calculator.py b/calculator.py
 index abc..def 100644
@@ -149,15 +149,15 @@ index abc..def 100644
 +    # new_line_at_54
 +    # new_line_at_55
      return value'''
-        
+
         diff_files = DiffParser.parse_diff(diff_content)
         file_diff = diff_files["calculator.py"]
         ranges = file_diff.get_changed_line_ranges()
-        
+
         # Check which line references are valid
         valid_refs = [ref for ref in line_refs if any(start <= ref <= end for start, end in ranges)]
         invalid_refs = [ref for ref in line_refs if not any(start <= ref <= end for start, end in ranges)]
-        
+
         assert 12 in valid_refs  # Should be in range 10-16
         assert 54 in valid_refs  # Should be in range 52-56
         assert 55 in valid_refs  # Should be in range 52-56
@@ -169,24 +169,24 @@ index abc..def 100644
             "[file.py:123](https://github.com/owner/repo/blob/abc123/file.py#L123)",
             "[src/main.py:45](https://github.com/user/project/blob/def456/src/main.py#L45)",
         ]
-        
+
         invalid_links = [
             "[file.py:123](https://github.com/owner/repo/blob/abc123/file.py#L999)",  # Wrong line
             "[file.py:123](https://github.com/owner/repo/blob/abc123/wrong_file.py#L123)",  # Wrong file
             "[file.py:123](https://github.com/owner/repo/file.py#L123)",  # Missing blob/sha
         ]
-        
+
         # GitHub link pattern
         github_pattern = r'\[([^\]]+)\]\(https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/([^)]+)#L(\d+)\)'
-        
+
         for link in valid_links:
             match = re.search(github_pattern, link)
             assert match is not None
-            
+
             link_text, owner, repo, sha, file_path, line_num = match.groups()
             assert file_path in link_text  # File should match
             assert line_num in link_text  # Line should match
-        
+
         for link in invalid_links:
             # These might match the pattern but would fail validation in context
             match = re.search(github_pattern, link)
@@ -203,7 +203,7 @@ index 111..222 100644
 @@ -15,4 +15,6 @@ def hash_password(password):
      if not password:
          raise ValueError("Password required")
-     
+
 +    # Add salt for security
 +    salt = generate_salt()
      return hashlib.sha256(password.encode()).hexdigest()'''
@@ -230,10 +230,10 @@ This looks okay. Maybe add some security stuff. The code seems fine overall.
 
         validation_high = validate_review_quality(high_quality_review, diff_content, ["security.py"])
         validation_low = validate_review_quality(low_quality_review, diff_content, ["security.py"])
-        
+
         # High quality should score better or equal
         assert validation_high.score >= validation_low.score
-        
+
         # Key difference: high quality has GitHub links and line references
         assert validation_high.metrics["file_references"] > validation_low.metrics["file_references"]
         assert validation_high.metrics["github_links"] > validation_low.metrics["github_links"]
@@ -255,7 +255,7 @@ index aaa..bbb 100644
          self.created_at = datetime.now()
 +        self.email = None
 +        self.is_active = True
-     
+
 diff --git a/views/auth.py b/views/auth.py
 index ccc..ddd 100644
 --- a/views/auth.py
@@ -269,14 +269,14 @@ index ccc..ddd 100644
      return redirect('dashboard')'''
 
         diff_files = DiffParser.parse_diff(multi_file_diff)
-        
+
         # Test context generation for multiple files
         context = DiffParser.generate_line_number_context(diff_files)
-        
+
         # Should contain both files
         assert "models/user.py:" in context
         assert "views/auth.py:" in context
-        
+
         # Should have correct line ranges (adjust expectations)
         assert "Lines 25-31" in context  # user.py: 5 lines -> 7 lines
         assert "Lines 40-" in context  # auth.py: should be in there somewhere
@@ -295,7 +295,7 @@ Good additions to user model and authentication logging.
 """
 
         validation = validate_review_quality(multi_file_review, multi_file_diff, ["models/user.py", "views/auth.py"])
-        
+
         # Should score well for file coverage and specificity
         assert validation.score > 0.7
         assert validation.metrics["file_references"] == 2  # Both files referenced
@@ -317,15 +317,15 @@ index 123..456 100644
 +        # Log empty data case
 +        logger.warning("No data to process")
          return None
-     
+
      return clean_data(data)'''
 
         diff_files = DiffParser.parse_diff(rename_diff)
-        
+
         # Should parse the new filename
         assert "new_name.py" in diff_files
         file_diff = diff_files["new_name.py"]
-        
+
         # Should have correct line range
         ranges = file_diff.get_changed_line_ranges()
         assert (10, 17) in ranges  # 6 lines -> 8 lines
@@ -333,4 +333,4 @@ index 123..456 100644
         # Test context generation
         context = DiffParser.generate_line_number_context(diff_files)
         assert "new_name.py:" in context
-        assert "Lines 10-17" in context 
+        assert "Lines 10-17" in context

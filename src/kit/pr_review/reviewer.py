@@ -13,9 +13,9 @@ from kit import Repository
 from .cache import RepoCache
 from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
+from .diff_parser import DiffParser
 from .file_prioritizer import FilePrioritizer
 from .validator import validate_review_quality
-from .diff_parser import DiffParser
 
 
 class PRReviewer:

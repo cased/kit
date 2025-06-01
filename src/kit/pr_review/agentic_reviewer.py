@@ -10,8 +10,8 @@ import requests
 from .cache import RepoCache
 from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
-from .file_prioritizer import FilePrioritizer
 from .diff_parser import DiffParser
+from .file_prioritizer import FilePrioritizer
 
 
 class AgenticPRReviewer:
