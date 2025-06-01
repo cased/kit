@@ -237,12 +237,20 @@ def test_config_backwards_compatibility():
 
 def test_config_openai_provider():
     """Test OpenAI provider configuration."""
-    with patch.dict(os.environ, {"KIT_GITHUB_TOKEN": "github_token", "KIT_OPENAI_TOKEN": "openai_token"}):
+    with patch.dict(
+        os.environ,
+        {
+            "KIT_GITHUB_TOKEN": "github_token",
+            "KIT_OPENAI_TOKEN": "openai_token",
+            "LLM_PROVIDER": "openai",  # Explicitly set provider to OpenAI
+        },
+    ):
         config = ReviewConfig.from_file("/non/existent/path")
-        config.llm.provider = LLMProvider.OPENAI
-        config.llm.model = "gpt-4o"
 
         assert config.llm.provider == LLMProvider.OPENAI
+        assert config.llm.api_key == "openai_token"
+        # Test that we can change the model
+        config.llm.model = "gpt-4o"
         assert config.llm.model == "gpt-4o"
 
 
