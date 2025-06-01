@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 @dataclass
 class DiffHunk:
     """Represents a single diff hunk with line mappings."""
+
     old_start: int
     old_count: int
     new_start: int
@@ -22,7 +23,7 @@ class DiffHunk:
         new_line = self.new_start
         for i in range(diff_line_offset + 1):
             line = self.lines[i]
-            if not line.startswith('-'):  # Count context and added lines
+            if not line.startswith("-"):  # Count context and added lines
                 new_line += 1
 
         return new_line - 1  # Adjust for 0-based counting
@@ -33,10 +34,10 @@ class DiffHunk:
         current_new_line = self.new_start
 
         for line in self.lines:
-            if line.startswith('+') and content.lower() in line.lower():
+            if line.startswith("+") and content.lower() in line.lower():
                 matches.append(current_new_line)
 
-            if not line.startswith('-'):  # Count context and added lines
+            if not line.startswith("-"):  # Count context and added lines
                 current_new_line += 1
 
         return matches
@@ -45,6 +46,7 @@ class DiffHunk:
 @dataclass
 class FileDiff:
     """Represents diff information for a single file."""
+
     filename: str
     hunks: List[DiffHunk]
 
@@ -98,15 +100,15 @@ class DiffParser:
             if current_file and current_hunks:
                 files[current_file] = FileDiff(current_file, current_hunks)
 
-        for line in diff_content.split('\n'):
+        for line in diff_content.split("\n"):
             # File header
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 # Save previous hunk and file
                 save_current_hunk()
                 save_current_file()
 
                 # Extract filename
-                match = re.search(r'diff --git a/(.+?) b/(.+)', line)
+                match = re.search(r"diff --git a/(.+?) b/(.+)", line)
                 if match:
                     current_file = match.group(2)  # Use the "b/" version (new file)
                 current_hunks = []
@@ -114,7 +116,7 @@ class DiffParser:
                 current_hunk_header = None
 
             # Hunk header: @@ -old_start,old_count +new_start,new_count @@
-            elif line.startswith('@@'):
+            elif line.startswith("@@"):
                 # Save previous hunk if exists
                 save_current_hunk()
 
@@ -122,11 +124,13 @@ class DiffParser:
                 current_hunk_lines = []
 
             # Hunk content
-            elif current_hunk_header is not None and (line.startswith(' ') or line.startswith('+') or line.startswith('-')):
+            elif current_hunk_header is not None and (
+                line.startswith(" ") or line.startswith("+") or line.startswith("-")
+            ):
                 current_hunk_lines.append(line)
 
             # Empty line or other content - might end a hunk
-            elif current_hunk_header is not None and line.strip() == '':
+            elif current_hunk_header is not None and line.strip() == "":
                 # Only add empty line if we're still in hunk content (not between files)
                 current_hunk_lines.append(line)
 
@@ -141,7 +145,7 @@ class DiffParser:
     @staticmethod
     def _parse_hunk_header(header: str) -> Optional[DiffHunk]:
         """Parse a hunk header line like '@@ -10,5 +12,7 @@'."""
-        match = re.search(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', header)
+        match = re.search(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", header)
         if not match:
             return None
 
@@ -150,13 +154,7 @@ class DiffParser:
         new_start = int(match.group(3))
         new_count = int(match.group(4)) if match.group(4) else 1
 
-        return DiffHunk(
-            old_start=old_start,
-            old_count=old_count,
-            new_start=new_start,
-            new_count=new_count,
-            lines=[]
-        )
+        return DiffHunk(old_start=old_start, old_count=old_count, new_start=new_start, new_count=new_count, lines=[])
 
     @staticmethod
     def generate_line_number_context(diff_files: Dict[str, FileDiff]) -> str:
@@ -166,7 +164,7 @@ class DiffParser:
         for filename, file_diff in diff_files.items():
             context += f"\n{filename}:\n"
             for i, hunk in enumerate(file_diff.hunks):
-                context += f"  Hunk {i+1}: Lines {hunk.new_start}-{hunk.new_start + hunk.new_count - 1}\n"
+                context += f"  Hunk {i + 1}: Lines {hunk.new_start}-{hunk.new_start + hunk.new_count - 1}\n"
 
         context += "\n**IMPORTANT**: Use these exact line ranges when referencing code. GitHub links should use format: `[file.py:123](https://github.com/owner/repo/blob/sha/file.py#L123)`\n"
 
