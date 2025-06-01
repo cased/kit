@@ -4,7 +4,7 @@ import asyncio
 import re
 import subprocess
 import tempfile
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -262,9 +262,9 @@ class PRReviewer:
             # Extract text from the response content
             text_content = ""
             for content_block in response.content:
-                if hasattr(content_block, 'text'):
+                if hasattr(content_block, "text"):
                     text_content += content_block.text
-            
+
             return text_content if text_content else "No text content in response"
 
         except Exception as e:

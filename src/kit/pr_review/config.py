@@ -78,11 +78,9 @@ class ReviewConfig:
 
         # Override with environment variables
         github_token = (
-            config_data.get("github", {}).get("token")
-            or os.getenv("KIT_GITHUB_TOKEN")
-            or os.getenv("GITHUB_TOKEN")
+            config_data.get("github", {}).get("token") or os.getenv("KIT_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
         )
-        
+
         if not github_token:
             raise ValueError(
                 "GitHub token required. Set KIT_GITHUB_TOKEN environment variable or "

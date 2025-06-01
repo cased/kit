@@ -116,7 +116,7 @@ class MatrixTester:
             reviewer: Union[PRReviewer, AgenticPRReviewer]  # Explicitly type the reviewer
 
             if mode == "standard":
-                print(f"   📝 Running STANDARD review...")
+                print("   📝 Running STANDARD review...")
                 reviewer = PRReviewer(config)
                 review = reviewer.review_pr(pr_url)
                 cost = reviewer.cost_tracker.breakdown.llm_cost_usd

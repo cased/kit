@@ -3,7 +3,7 @@
 import asyncio
 import json
 import re
-from typing import Any, Dict, List, Optional, Sequence, cast
+from typing import Any, Dict, List, Optional, cast
 
 import requests
 
@@ -620,7 +620,9 @@ class AgenticPRReviewer:
                 # Process all content blocks
                 for content_block in response.content:
                     if content_block.type == "text":
-                        cast(List[Any], assistant_message["content"]).append({"type": "text", "text": content_block.text})
+                        cast(List[Any], assistant_message["content"]).append(
+                            {"type": "text", "text": content_block.text}
+                        )
                         print(f"💭 Agent thinking: {content_block.text[:200]}...")
                         has_text_content = True
 
