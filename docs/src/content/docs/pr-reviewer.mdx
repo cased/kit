@@ -33,6 +33,9 @@ kit review https://github.com/owner/repo/pull/123
 
 # 5. Test without posting (dry run)
 kit review --dry-run https://github.com/owner/repo/pull/123
+
+# 6. Override model for specific review
+kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
 ```
 
 <Aside type="tip">
@@ -48,6 +51,8 @@ Based on real-world testing on production open source PRs:
 | Model | Typical Cost | Quality | Best For |
 |-------|------|---------|----------|
 | **gpt-4.1-nano** | **$0.004** | ⭐⭐⭐ | High-volume, ultra-budget |
+| **gpt-4.1-mini** | **$0.019** | ⭐⭐⭐⭐ | Budget-friendly |
+| **gpt-4.1** | **$0.101** | ⭐⭐⭐⭐ | Good value |
 | **gpt-4o-mini** | **$0.006** | ⭐⭐⭐⭐ | Surprising for the cost |
 | **claude-sonnet-4** | **$0.12** | ⭐⭐⭐⭐⭐ | **Recommended** |
 
@@ -87,6 +92,30 @@ GPT-4o-mini (or even nano!) delivers surprisingly useful reviews *when given the
 - **No Hidden Fees**: Pay only for actual LLM usage
 
 ## 🔧 Configuration
+
+### Model Override via CLI
+
+Override the model for any specific review without modifying your configuration:
+
+```bash
+kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
+kit review --model gpt-4.1 https://github.com/owner/repo/pull/123
+
+# Short flag also works
+kit review -m claude-sonnet-4-20250514 https://github.com/owner/repo/pull/123
+```
+
+**Available Models:**
+- OpenAI: `gpt-4.1-nano`, `gpt-4.1-mini`, `gpt-4.1`, `gpt-4o-mini`, `gpt-4o`
+- Anthropic: `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022`, `claude-opus-4-20250514`, `claude-sonnet-4-20250514`
+
+<Aside type="tip">
+**Model validation**: Kit automatically validates model names and provides helpful suggestions if you mistype. Try `kit review --model gpt4` to see the validation in action!
+</Aside>
+
+<Aside type="tip">
+**Pro tip**: Use different models based on PR complexity. Save `claude-opus-4` for architectural changes and use `gpt-4.1-nano` for documentation/minor fixes.
+</Aside>
 
 ### Setup API Keys
 
@@ -176,6 +205,23 @@ jobs:
     kit review --model gpt-4.1-nano ${{ github.event.pull_request.html_url }}
 ```
 
+**Model-Based on PR Size**:
+```yaml
+- name: Smart Model Selection
+  run: |
+    pip install cased-kit
+    # Use budget model for small PRs, premium for large ones
+    FILES_CHANGED=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files | length')
+    if [ "$FILES_CHANGED" -gt 10 ]; then
+      MODEL="claude-sonnet-4-20250514"
+    else
+      MODEL="gpt-4o-mini"
+    fi
+    kit review --model "$MODEL" ${{ github.event.pull_request.html_url }}
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
 **Conditional Reviews**:
 ```yaml
 # Only review non-draft PRs
@@ -185,6 +231,16 @@ jobs:
 # Only review PRs with specific labels  
 - name: AI Review
   if: contains(github.event.pull_request.labels.*.name, 'needs-review')
+  
+# Use premium model for breaking changes
+- name: Premium Review for Breaking Changes
+  if: contains(github.event.pull_request.labels.*.name, 'breaking-change')
+  run: |
+    pip install cased-kit
+    kit review --model claude-opus-4-20250514 ${{ github.event.pull_request.html_url }}
+  env:
+    KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
 ## 📈 What's Next: Roadmap
@@ -234,6 +290,7 @@ Every review includes objective quality scoring:
 
 ### Cost Optimization
 - Use budget models for routine changes, premium for breaking changes
+- Use the `--model` flag to override models per PR: `kit review --model gpt-4.1-nano <pr-url>`
 - Leverage caching - repeat reviews of same repo are 5-10x faster
 - Set up profiles to avoid redundant context
 

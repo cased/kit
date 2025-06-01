@@ -9,6 +9,26 @@ from typing import Dict, Optional
 import yaml
 
 
+def _is_placeholder_token(token: Optional[str]) -> bool:
+    """Check if a token is a placeholder that should be ignored."""
+    if not token:
+        return True
+
+    # Common placeholder patterns
+    placeholder_patterns = [
+        "your_token_here",
+        "your_api_key_here",
+        "your_key_here",
+        "replace_with_your_token",
+        "sk-your_api_key_here",
+        "ghp_your_token_here",
+        "sk-ant-your_key",
+    ]
+
+    token_lower = token.lower()
+    return any(pattern in token_lower for pattern in placeholder_patterns)
+
+
 class LLMProvider(Enum):
     """Supported LLM providers."""
 
@@ -77,8 +97,12 @@ class ReviewConfig:
                 config_data = yaml.safe_load(f) or {}
 
         # Override with environment variables
+        config_github_token = config_data.get("github", {}).get("token")
+        if _is_placeholder_token(config_github_token):
+            config_github_token = None  # Treat placeholder as missing
+
         github_token = (
-            config_data.get("github", {}).get("token") or os.getenv("KIT_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
+            config_github_token or os.getenv("KIT_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
         )
 
         if not github_token:
@@ -105,11 +129,17 @@ class ReviewConfig:
         if provider == LLMProvider.ANTHROPIC:
             default_model = "claude-sonnet-4-20250514"
             api_key_env = "KIT_ANTHROPIC_TOKEN or ANTHROPIC_API_KEY"
-            api_key = llm_data.get("api_key") or os.getenv("KIT_ANTHROPIC_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
+            config_api_key = llm_data.get("api_key")
+            if _is_placeholder_token(config_api_key):
+                config_api_key = None  # Treat placeholder as missing
+            api_key = config_api_key or os.getenv("KIT_ANTHROPIC_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
         else:  # OpenAI
             default_model = "gpt-4.1-2025-04-14"
             api_key_env = "KIT_OPENAI_TOKEN or OPENAI_API_KEY"
-            api_key = llm_data.get("api_key") or os.getenv("KIT_OPENAI_TOKEN") or os.getenv("OPENAI_API_KEY")
+            config_api_key = llm_data.get("api_key")
+            if _is_placeholder_token(config_api_key):
+                config_api_key = None  # Treat placeholder as missing
+            api_key = config_api_key or os.getenv("KIT_OPENAI_TOKEN") or os.getenv("OPENAI_API_KEY")
 
         if not api_key:
             raise ValueError(

@@ -345,3 +345,218 @@ def test_cost_breakdown_str():
     assert "500 output" in str_repr
     assert "$0.0234" in str_repr
     assert "claude-3-5-sonnet-20241022" in str_repr
+
+
+def test_model_override_config():
+    """Test that model override works in ReviewConfig."""
+    config = ReviewConfig(
+        github=GitHubConfig(token="test"),
+        llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-3-5-sonnet-20241022", api_key="test"),
+    )
+
+    # Original model
+    assert config.llm.model == "claude-3-5-sonnet-20241022"
+
+    # Override model
+    config.llm.model = "gpt-4.1-nano"
+    assert config.llm.model == "gpt-4.1-nano"
+
+    # Test with OpenAI model
+    config.llm.model = "gpt-4o"
+    assert config.llm.model == "gpt-4o"
+
+    # Test with premium Anthropic model
+    config.llm.model = "claude-opus-4-20250514"
+    assert config.llm.model == "claude-opus-4-20250514"
+
+
+def test_cli_model_flag_parsing():
+    """Test CLI --model flag parsing."""
+    from typer.testing import CliRunner
+
+    from kit.cli import app
+
+    runner = CliRunner()
+
+    # Test with --model flag
+    result = runner.invoke(app, [
+        "review",
+        "--model", "gpt-4.1-nano",
+        "--dry-run",
+        "--init-config"  # This will exit early without requiring a PR URL
+    ])
+
+    # Should succeed (init-config doesn't need other args)
+    assert result.exit_code == 0
+    assert "Created default config file" in result.output
+
+    # Test with -m short flag
+    result = runner.invoke(app, [
+        "review",
+        "-m", "claude-opus-4-20250514",
+        "--dry-run",
+        "--init-config"
+    ])
+
+    assert result.exit_code == 0
+    assert "Created default config file" in result.output
+
+
+def test_model_override_in_reviewer():
+    """Test that model override is properly applied in PRReviewer."""
+    config = ReviewConfig(
+        github=GitHubConfig(token="test"),
+        llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-3-5-sonnet-20241022", api_key="test"),
+    )
+
+    # Create reviewer with original model
+    reviewer = PRReviewer(config)
+    assert reviewer.config.llm.model == "claude-3-5-sonnet-20241022"
+
+    # Override model and check it's reflected
+    reviewer.config.llm.model = "gpt-4.1-nano"
+    assert reviewer.config.llm.model == "gpt-4.1-nano"
+
+
+def test_model_flag_examples():
+    """Test that various model names work with the flag."""
+    valid_models = [
+        "gpt-4.1-nano",
+        "gpt-4.1-mini",
+        "gpt-4.1",
+        "gpt-4o",
+        "gpt-4o-mini",
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022",
+        "claude-opus-4-20250514",
+        "claude-sonnet-4-20250514",
+    ]
+
+    config = ReviewConfig(
+        github=GitHubConfig(token="test"),
+        llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="default", api_key="test"),
+    )
+
+    for model in valid_models:
+        # Test that all model names can be set
+        config.llm.model = model
+        assert config.llm.model == model
+
+
+@patch("kit.pr_review.reviewer.requests.Session")
+@patch("kit.pr_review.reviewer.subprocess.run")
+def test_pr_review_with_model_override(mock_subprocess, mock_session_class):
+    """Test PR review with model override."""
+    # Mock subprocess for git operations
+    mock_subprocess.return_value.returncode = 0
+    mock_subprocess.return_value.stdout = ""
+
+    # Mock the requests session
+    mock_session = Mock()
+    mock_session_class.return_value = mock_session
+
+    # Mock PR details response
+    mock_pr_response = Mock()
+    mock_pr_response.json.return_value = {
+        "title": "Test PR with Model Override",
+        "user": {"login": "testuser"},
+        "base": {"ref": "main", "sha": "abc123"},
+        "head": {"ref": "feature-branch", "sha": "def456"},
+    }
+
+    # Mock files response
+    mock_files_response = Mock()
+    mock_files_response.json.return_value = [
+        {"filename": "test.py", "additions": 10, "deletions": 5},
+    ]
+
+    # Configure mock to return different responses for different URLs
+    def mock_get(url):
+        if url.endswith("/pulls/47"):
+            return mock_pr_response
+        elif url.endswith("/pulls/47/files"):
+            return mock_files_response
+        return Mock()
+
+    mock_session.get.side_effect = mock_get
+
+    # Create config with original model
+    config = ReviewConfig(
+        github=GitHubConfig(token="test"),
+        llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-3-5-sonnet-20241022", api_key="test"),
+        post_as_comment=False,  # Dry run mode
+        clone_for_analysis=False,  # Skip cloning to avoid git issues
+    )
+
+    # Override model (simulating CLI --model flag)
+    config.llm.model = "gpt-4.1-nano"
+
+    reviewer = PRReviewer(config)
+
+    # Verify the model was overridden
+    assert reviewer.config.llm.model == "gpt-4.1-nano"
+
+    # Run review (should use the overridden model)
+    comment = reviewer.review_pr("https://github.com/cased/kit/pull/47")
+
+    # Verify comment was generated
+    assert len(comment) > 100
+    assert isinstance(comment, str)
+
+
+def test_model_validation_functions():
+    """Test the model validation utility functions."""
+    from kit.pr_review.cost_tracker import CostTracker
+
+    # Test valid models
+    assert CostTracker.is_valid_model("gpt-4.1-nano")
+    assert CostTracker.is_valid_model("claude-3-5-sonnet-20241022")
+
+    # Test invalid models
+    assert not CostTracker.is_valid_model("gpt4.nope")
+    assert not CostTracker.is_valid_model("invalid-model")
+
+    # Test getting all models
+    all_models = CostTracker.get_all_model_names()
+    assert "gpt-4.1-nano" in all_models
+    assert "gpt-4.1" in all_models
+    assert "claude-3-5-sonnet-20241022" in all_models
+    assert len(all_models) > 5  # Should have multiple models
+
+    # Test getting models by provider
+    available = CostTracker.get_available_models()
+    assert "anthropic" in available
+    assert "openai" in available
+    assert "gpt-4.1-nano" in available["openai"]
+    assert "claude-3-5-sonnet-20241022" in available["anthropic"]
+
+    # Test suggestions for invalid models
+    suggestions = CostTracker.get_model_suggestions("gpt4")
+    assert len(suggestions) > 0
+    assert any("gpt-4" in s for s in suggestions)
+
+    suggestions = CostTracker.get_model_suggestions("claude")
+    assert len(suggestions) > 0
+    assert any("claude" in s for s in suggestions)
+
+
+def test_cli_model_validation():
+    """Test CLI model validation."""
+    from typer.testing import CliRunner
+
+    from kit.cli import app
+
+    runner = CliRunner()
+
+    # Test with invalid model - should fail
+    result = runner.invoke(app, [
+        "review",
+        "--model", "invalid-model-name",
+        "--dry-run",
+        "https://github.com/owner/repo/pull/123"
+    ])
+
+    assert result.exit_code == 1
+    assert "Invalid model: invalid-model-name" in result.output
+    assert "Did you mean one of these?" in result.output
+    assert "All available models:" in result.output

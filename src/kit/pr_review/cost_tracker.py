@@ -144,3 +144,44 @@ class CostTracker:
         except AttributeError:
             # Fallback if usage info not available
             return 0, 0
+
+    @classmethod
+    def get_available_models(cls) -> Dict[str, list[str]]:
+        """Get all available models organized by provider."""
+        available = {}
+        for provider, models in cls.DEFAULT_PRICING.items():
+            available[provider.value] = list(models.keys())
+        return available
+
+    @classmethod
+    def get_all_model_names(cls) -> list[str]:
+        """Get a flat list of all available model names."""
+        all_models = []
+        for provider_models in cls.DEFAULT_PRICING.values():
+            all_models.extend(provider_models.keys())
+        return sorted(all_models)
+
+    @classmethod
+    def is_valid_model(cls, model_name: str) -> bool:
+        """Check if a model name is valid/supported."""
+        return model_name in cls.get_all_model_names()
+
+    @classmethod
+    def get_model_suggestions(cls, invalid_model: str) -> list[str]:
+        """Get model suggestions for an invalid model name."""
+        all_models = cls.get_all_model_names()
+        # Simple similarity matching - starts with same prefix or contains common parts
+        suggestions = []
+
+        # Check for models that start similarly
+        lower_invalid = invalid_model.lower()
+        for model in all_models:
+            lower_model = model.lower()
+            if lower_model.startswith(lower_invalid[:3]) or lower_invalid.startswith(lower_model[:3]):
+                suggestions.append(model)
+
+        # If no good matches, return a few popular ones
+        if not suggestions:
+            suggestions = ["gpt-4.1-nano", "gpt-4o-mini", "claude-3-5-sonnet-20241022"]
+
+        return suggestions[:5]  # Limit to 5 suggestions

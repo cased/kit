@@ -400,7 +400,7 @@ def review_pr(
     config: Optional[str] = typer.Option(
         None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
     ),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="Override LLM model (e.g., gpt-4.1-nano, claude-sonnet-4-20250514)"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Override LLM model (validated against supported models: e.g., gpt-4.1-nano, gpt-4.1, claude-sonnet-4-20250514)"),
     dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Don't post comment, just show what would be posted"),
     init_config: bool = typer.Option(False, "--init-config", help="Create a default configuration file and exit"),
     agentic: bool = typer.Option(
@@ -467,6 +467,24 @@ def review_pr(
         if model:
             review_config.llm.model = model
             typer.echo(f"🎛️  Overriding model to: {model}")
+
+        # Validate model exists
+        from kit.pr_review.cost_tracker import CostTracker
+        if not CostTracker.is_valid_model(review_config.llm.model):
+            suggestions = CostTracker.get_model_suggestions(review_config.llm.model)
+            typer.secho(f"❌ Invalid model: {review_config.llm.model}", fg=typer.colors.RED)
+            typer.echo("\n💡 Did you mean one of these?")
+            for suggestion in suggestions:
+                typer.echo(f"   • {suggestion}")
+            typer.echo("\n📋 All available models:")
+            available = CostTracker.get_available_models()
+            for provider, models in available.items():
+                typer.echo(f"   {provider.upper()}:")
+                for m in models[:5]:  # Show first 5 per provider
+                    typer.echo(f"     • {m}")
+                if len(models) > 5:
+                    typer.echo(f"     ... and {len(models) - 5} more")
+            raise typer.Exit(code=1)
 
         # Override comment posting if dry run
         if dry_run:
