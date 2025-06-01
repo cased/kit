@@ -26,7 +26,9 @@ dependencies = [
     "mcp>=1.8.0,<2.0.0",
     "redis>=5.0.0",
     "requests>=2.25.0",
-    "pyyaml>=6.0"
+    "pyyaml>=6.0",
+    "types-PyYAML>=6.0.12.20250516",  # Type stubs for yaml
+    "types-requests>=2.32.0.20250515",  # Type stubs for requests
 ]
 
 [project.urls]

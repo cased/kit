@@ -259,7 +259,13 @@ class PRReviewer:
                 self.config.llm.provider, self.config.llm.model, input_tokens, output_tokens
             )
 
-            return response.content[0].text
+            # Extract text from the response content
+            text_content = ""
+            for content_block in response.content:
+                if hasattr(content_block, 'text'):
+                    text_content += content_block.text
+            
+            return text_content if text_content else "No text content in response"
 
         except Exception as e:
             return f"Error during enhanced LLM analysis: {e}"
@@ -288,7 +294,8 @@ class PRReviewer:
                 self.config.llm.provider, self.config.llm.model, input_tokens, output_tokens
             )
 
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            return content if content is not None else "No response content"
 
         except Exception as e:
             return f"Error during enhanced LLM analysis: {e}"

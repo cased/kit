@@ -69,8 +69,16 @@ def _process_symbol_task(
 
         summary_text = None  # Initialize summary_text
         if symbol_type.upper() == "FUNCTION" or symbol_type.upper() == "METHOD":
+            # Ensure display_name is not None before passing
+            if display_name is None:
+                logger.warning(f"Display name is None for symbol in {path_str}, skipping.")
+                return {"status": "skipped_no_display_name", "doc_id": doc_id}
             summary_text = summarizer_instance.summarize_function(path_str, display_name)
         elif symbol_type.upper() == "CLASS":
+            # Ensure display_name is not None before passing
+            if display_name is None:
+                logger.warning(f"Display name is None for symbol in {path_str}, skipping.")
+                return {"status": "skipped_no_display_name", "doc_id": doc_id}
             summary_text = summarizer_instance.summarize_class(path_str, display_name)
         else:
             logger.debug(f"Symbol {doc_id} has unsupported type '{symbol_type}'. Skipping summarization.")
