@@ -20,13 +20,18 @@ class DiffHunk:
         if diff_line_offset < 0 or diff_line_offset >= len(self.lines):
             return None
 
-        new_line = self.new_start
-        for i in range(diff_line_offset + 1):
-            line = self.lines[i]
-            if not line.startswith("-"):  # Count context and added lines
-                new_line += 1
+        # If the line at this offset is a deletion, it doesn't exist in the new file
+        target_line = self.lines[diff_line_offset]
+        if target_line.startswith("-"):
+            return None
 
-        return new_line - 1  # Adjust for 0-based counting
+        # Count how many non-deletion lines come before this offset
+        lines_before = 0
+        for i in range(diff_line_offset):
+            if not self.lines[i].startswith("-"):
+                lines_before += 1
+
+        return self.new_start + lines_before
 
     def contains_line_change(self, content: str) -> List[int]:
         """Find line numbers where the given content appears in changes."""
