@@ -122,22 +122,20 @@ index 1111111..2222222 100644
         """Test edge cases that might break parsing."""
         edge_cases = [
             # Single line change
-            '''diff --git a/single.py b/single.py
+            """diff --git a/single.py b/single.py
 index aaa..bbb 100644
 --- a/single.py
 +++ b/single.py
 @@ -42 +42 @@ def func():
 -    old_line
-+    new_line''',
-
++    new_line""",
             # File with no changes (shouldn't happen but let's be safe)
-            '''diff --git a/empty.py b/empty.py
+            """diff --git a/empty.py b/empty.py
 index ccc..ddd 100644
 --- a/empty.py
-+++ b/empty.py''',
-
++++ b/empty.py""",
             # Large line numbers
-            '''diff --git a/large.py b/large.py
+            """diff --git a/large.py b/large.py
 index eee..fff 100644
 --- a/large.py
 +++ b/large.py
@@ -146,7 +144,7 @@ index eee..fff 100644
 +    new_line_1()
      more_existing()
 +    new_line_2()
-     final_line()'''
+     final_line()""",
         ]
 
         for i, diff in enumerate(edge_cases):
@@ -161,11 +159,11 @@ index eee..fff 100644
                         assert hunk.new_start > 0
                         assert hunk.new_count >= 0
 
-    @patch('src.kit.pr_review.reviewer.PRReviewer.get_pr_diff')
+    @patch("src.kit.pr_review.reviewer.PRReviewer.get_pr_diff")
     def test_integration_with_pr_reviewer(self, mock_get_diff):
         """Test that diff parsing integrates correctly with PR reviewer."""
         # Mock a real diff
-        mock_diff = '''diff --git a/src/auth.py b/src/auth.py
+        mock_diff = """diff --git a/src/auth.py b/src/auth.py
 index 123..456 100644
 --- a/src/auth.py
 +++ b/src/auth.py
@@ -177,7 +175,7 @@ index 123..456 100644
 +    username = username.strip()
      user = get_user(username)
      if user and verify_password(password, user.password_hash):
-         return True'''
+         return True"""
 
         mock_get_diff.return_value = mock_diff
 
@@ -202,7 +200,7 @@ index 123..456 100644
     def test_line_number_accuracy_validation(self):
         """Test that our line numbers are actually accurate."""
         # Create a diff where we know exactly what the line numbers should be
-        known_diff = '''diff --git a/test_accuracy.py b/test_accuracy.py
+        known_diff = """diff --git a/test_accuracy.py b/test_accuracy.py
 index abc..def 100644
 --- a/test_accuracy.py
 +++ b/test_accuracy.py
@@ -214,7 +212,7 @@ index abc..def 100644
      if condition:  # Line 13 -> Line 14 due to insertion
          process()  # Line 14 -> Line 15
 +        new_call()  # Line 16: new line added
-     return result  # Line 15 -> Line 17'''
+     return result  # Line 15 -> Line 17"""
 
         diff_files = DiffParser.parse_diff(known_diff)
         file_diff = diff_files["test_accuracy.py"]
@@ -239,7 +237,7 @@ class TestEndToEndAccuracy:
 
     def test_line_number_in_ai_prompt(self):
         """Test that AI prompts contain accurate line number context."""
-        test_diff = '''diff --git a/api.py b/api.py
+        test_diff = """diff --git a/api.py b/api.py
 index 111..222 100644
 --- a/api.py
 +++ b/api.py
@@ -249,13 +247,13 @@ index 111..222 100644
          return error_response()
 +    # Validate input data
 +    validate_input(data)
-     return success_response(data)'''
+     return success_response(data)"""
 
         diff_files = DiffParser.parse_diff(test_diff)
         context = DiffParser.generate_line_number_context(diff_files)
 
         # Test that context is AI-friendly
-        lines = context.split('\n')
+        lines = context.split("\n")
         assert any("api.py:" in line for line in lines)
         assert any("Lines 45-50" in line for line in lines)
         assert any("IMPORTANT" in line for line in lines)
@@ -271,7 +269,9 @@ index 111..222 100644
         import time
 
         # Generate a large diff programmatically
-        large_diff_parts = ["diff --git a/large_file.py b/large_file.py\nindex aaa..bbb 100644\n--- a/large_file.py\n+++ b/large_file.py"]
+        large_diff_parts = [
+            "diff --git a/large_file.py b/large_file.py\nindex aaa..bbb 100644\n--- a/large_file.py\n+++ b/large_file.py"
+        ]
 
         # Add 50 hunks to simulate a large change
         for i in range(50):

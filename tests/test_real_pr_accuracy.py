@@ -10,7 +10,7 @@ class TestRealPRAccuracy:
     def test_fastapi_pr_pattern(self):
         """Test with FastAPI-style PR diff pattern."""
         # Based on actual FastAPI PR structure
-        fastapi_diff = '''diff --git a/fastapi/dependencies/models.py b/fastapi/dependencies/models.py
+        fastapi_diff = """diff --git a/fastapi/dependencies/models.py b/fastapi/dependencies/models.py
 index 123..456 100644
 --- a/fastapi/dependencies/models.py
 +++ b/fastapi/dependencies/models.py
@@ -31,7 +31,7 @@ index 123..456 100644
 +    response_model_by_alias: bool = True,
      response_model_exclude_unset: bool = False,
      response_model_exclude_defaults: bool = False,
-     response_model_exclude_none: bool = False,'''
+     response_model_exclude_none: bool = False,"""
 
         diff_files = DiffParser.parse_diff(fastapi_diff)
         context = DiffParser.generate_line_number_context(diff_files)
@@ -57,7 +57,7 @@ Added request validation and response model aliasing parameter.
 
     def test_django_pr_pattern(self):
         """Test with Django-style PR diff pattern."""
-        django_diff = '''diff --git a/django/contrib/auth/forms.py b/django/contrib/auth/forms.py
+        django_diff = """diff --git a/django/contrib/auth/forms.py b/django/contrib/auth/forms.py
 index abc..def 100644
 --- a/django/contrib/auth/forms.py
 +++ b/django/contrib/auth/forms.py
@@ -77,7 +77,7 @@ index abc..def 100644
 +                self.add_rate_limiting(username)
                  try:
                      user_data = UserModel._default_manager.get_by_natural_key(username)
-                 except UserModel.DoesNotExist:'''
+                 except UserModel.DoesNotExist:"""
 
         diff_files = DiffParser.parse_diff(django_diff)
         file_diff = diff_files["django/contrib/auth/forms.py"]
@@ -96,7 +96,7 @@ index abc..def 100644
 
     def test_react_pr_pattern(self):
         """Test with React/TypeScript PR diff pattern."""
-        react_diff = '''diff --git a/packages/react-dom/src/client/ReactDOMHostConfig.js b/packages/react-dom/src/client/ReactDOMHostConfig.js
+        react_diff = """diff --git a/packages/react-dom/src/client/ReactDOMHostConfig.js b/packages/react-dom/src/client/ReactDOMHostConfig.js
 index 111..222 100644
 --- a/packages/react-dom/src/client/ReactDOMHostConfig.js
 +++ b/packages/react-dom/src/client/ReactDOMHostConfig.js
@@ -124,7 +124,7 @@ index 111..222 100644
 +        break;
        } else {
          element = newActiveElement;
-       }'''
+       }"""
 
         diff_files = DiffParser.parse_diff(react_diff)
         context = DiffParser.generate_line_number_context(diff_files)
@@ -187,7 +187,9 @@ index aaa..bbb 100644
         import time
 
         # Generate a large diff programmatically
-        large_diff_parts = ["diff --git a/large_file.py b/large_file.py\nindex aaa..bbb 100644\n--- a/large_file.py\n+++ b/large_file.py"]
+        large_diff_parts = [
+            "diff --git a/large_file.py b/large_file.py\nindex aaa..bbb 100644\n--- a/large_file.py\n+++ b/large_file.py"
+        ]
 
         # Add 10 hunks to simulate a large change (reduced from 50)
         for i in range(10):
@@ -226,7 +228,7 @@ index aaa..bbb 100644
     def test_edge_case_line_numbers(self):
         """Test edge cases that could break line number calculation."""
         edge_cases = {
-            "very_large_line_numbers": '''diff --git a/huge.py b/huge.py
+            "very_large_line_numbers": """diff --git a/huge.py b/huge.py
 index 111..222 100644
 --- a/huge.py
 +++ b/huge.py
@@ -234,18 +236,16 @@ index 111..222 100644
      very_deep_code()
 +    new_deep_line_1()
 +    new_deep_line_2()
-     return result''',
-
-            "single_line_file": '''diff --git a/tiny.py b/tiny.py
+     return result""",
+            "single_line_file": """diff --git a/tiny.py b/tiny.py
 index 333..444 100644
 --- a/tiny.py
 +++ b/tiny.py
 @@ -1 +1,2 @@
 -print("hello")
 +print("hello world")
-+print("goodbye")''',
-
-            "binary_then_text": '''diff --git a/mixed.py b/mixed.py
++print("goodbye")""",
+            "binary_then_text": """diff --git a/mixed.py b/mixed.py
 index 555..666 100644
 --- a/mixed.py
 +++ b/mixed.py
@@ -253,7 +253,7 @@ index 555..666 100644
      data = load()
      transform(data)
 +    validate(data)
-     save(data)'''
+     save(data)""",
         }
 
         for case_name, diff in edge_cases.items():

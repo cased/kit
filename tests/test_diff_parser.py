@@ -28,7 +28,7 @@ def test_parse_hunk_header():
 
 def test_parse_simple_diff():
     """Test parsing a simple git diff."""
-    diff_content = '''diff --git a/src/test.py b/src/test.py
+    diff_content = """diff --git a/src/test.py b/src/test.py
 index abc123..def456 100644
 --- a/src/test.py
 +++ b/src/test.py
@@ -39,7 +39,7 @@ index abc123..def456 100644
      if True:
          pass
 +    print("another new line")
-     return 0'''
+     return 0"""
 
     diff_files = DiffParser.parse_diff(diff_content)
 
@@ -56,12 +56,12 @@ index abc123..def456 100644
 
     # Check that the hunk lines were captured
     assert len(hunk.lines) > 0
-    assert any(line.startswith('+') for line in hunk.lines)
+    assert any(line.startswith("+") for line in hunk.lines)
 
 
 def test_multiple_files_diff():
     """Test parsing diff with multiple files."""
-    diff_content = '''diff --git a/file1.py b/file1.py
+    diff_content = """diff --git a/file1.py b/file1.py
 index abc123..def456 100644
 --- a/file1.py
 +++ b/file1.py
@@ -78,7 +78,7 @@ index xyz789..uvw012 100644
 @@ -10,2 +10,3 @@ class Test:
      def method(self):
 +        print("method change")
-         return True'''
+         return True"""
 
     diff_files = DiffParser.parse_diff(diff_content)
 
@@ -99,7 +99,7 @@ index xyz789..uvw012 100644
 
 def test_line_number_context_generation():
     """Test generation of line number context for AI."""
-    diff_content = '''diff --git a/test.py b/test.py
+    diff_content = """diff --git a/test.py b/test.py
 index abc123..def456 100644
 --- a/test.py
 +++ b/test.py
@@ -112,7 +112,7 @@ index abc123..def456 100644
 @@ -50,3 +52,4 @@ def other():
      x = 1
 +    y = 2
-     return x'''
+     return x"""
 
     diff_files = DiffParser.parse_diff(diff_content)
     context = DiffParser.generate_line_number_context(diff_files)
@@ -131,12 +131,7 @@ def test_hunk_line_finding():
         old_count=3,
         new_start=10,
         new_count=4,
-        lines=[
-            " existing_line",
-            "+new_function_call()",
-            " another_existing",
-            "+print('debug')"
-        ]
+        lines=[" existing_line", "+new_function_call()", " another_existing", "+print('debug')"],
     )
 
     # Should find line numbers where content appears in additions
@@ -153,7 +148,7 @@ def test_file_diff_changed_ranges():
     """Test getting changed line ranges from file diff."""
     hunks = [
         DiffHunk(old_start=10, old_count=3, new_start=10, new_count=5, lines=[]),
-        DiffHunk(old_start=50, old_count=2, new_start=52, new_count=3, lines=[])
+        DiffHunk(old_start=50, old_count=2, new_start=52, new_count=3, lines=[]),
     ]
 
     file_diff = FileDiff("test.py", hunks)

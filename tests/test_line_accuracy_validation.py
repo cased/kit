@@ -12,7 +12,7 @@ class TestLineNumberValidation:
     def test_validate_accurate_line_numbers(self):
         """Test validation of reviews with accurate line numbers."""
         # Sample diff
-        diff_content = '''diff --git a/auth.py b/auth.py
+        diff_content = """diff --git a/auth.py b/auth.py
 index 123..456 100644
 --- a/auth.py
 +++ b/auth.py
@@ -23,7 +23,7 @@ index 123..456 100644
 +    # Validate input
 +    username = username.strip()
      user = get_user(username)
-     return user is not None'''
+     return user is not None"""
 
         # AI review with ACCURATE line numbers
         accurate_review = """
@@ -116,10 +116,10 @@ index abc..def 100644
 
         # Extract line references using regex patterns
         patterns = [
-            r'\.py:(\d+)',  # file.py:123
-            r'line\s+(\d+)',  # line 123
-            r'Line\s+(\d+)',  # Line 123 (capitalized)
-            r'#L(\d+)',  # #L123
+            r"\.py:(\d+)",  # file.py:123
+            r"line\s+(\d+)",  # line 123
+            r"Line\s+(\d+)",  # Line 123 (capitalized)
+            r"#L(\d+)",  # #L123
         ]
 
         line_refs = []
@@ -134,7 +134,7 @@ index abc..def 100644
         assert 100 in line_refs
 
         # Test with diff to see which are valid
-        diff_content = '''diff --git a/calculator.py b/calculator.py
+        diff_content = """diff --git a/calculator.py b/calculator.py
 index abc..def 100644
 --- a/calculator.py
 +++ b/calculator.py
@@ -148,7 +148,7 @@ index abc..def 100644
          existing_code
 +    # new_line_at_54
 +    # new_line_at_55
-     return value'''
+     return value"""
 
         diff_files = DiffParser.parse_diff(diff_content)
         file_diff = diff_files["calculator.py"]
@@ -177,7 +177,7 @@ index abc..def 100644
         ]
 
         # GitHub link pattern
-        github_pattern = r'\[([^\]]+)\]\(https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/([^)]+)#L(\d+)\)'
+        github_pattern = r"\[([^\]]+)\]\(https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/([^)]+)#L(\d+)\)"
 
         for link in valid_links:
             match = re.search(github_pattern, link)
@@ -196,7 +196,7 @@ index abc..def 100644
 
     def test_review_quality_with_line_accuracy(self):
         """Test overall review quality considering line number accuracy."""
-        diff_content = '''diff --git a/security.py b/security.py
+        diff_content = """diff --git a/security.py b/security.py
 index 111..222 100644
 --- a/security.py
 +++ b/security.py
@@ -206,7 +206,7 @@ index 111..222 100644
 
 +    # Add salt for security
 +    salt = generate_salt()
-     return hashlib.sha256(password.encode()).hexdigest()'''
+     return hashlib.sha256(password.encode()).hexdigest()"""
 
         # High quality review with accurate line numbers
         high_quality_review = """
@@ -245,7 +245,7 @@ class TestRealWorldScenarios:
 
     def test_multi_file_line_accuracy(self):
         """Test line number accuracy across multiple files."""
-        multi_file_diff = '''diff --git a/models/user.py b/models/user.py
+        multi_file_diff = """diff --git a/models/user.py b/models/user.py
 index aaa..bbb 100644
 --- a/models/user.py
 +++ b/models/user.py
@@ -266,7 +266,7 @@ index ccc..ddd 100644
          login(request, user)
 +        # Log successful login
 +        logger.info(f"User {username} logged in")
-     return redirect('dashboard')'''
+     return redirect('dashboard')"""
 
         diff_files = DiffParser.parse_diff(multi_file_diff)
 

@@ -13,14 +13,14 @@ from src.kit.pr_review.reviewer import PRReviewer
 def is_ci_environment():
     """Check if we're running in a CI environment."""
     ci_indicators = [
-        'CI',
-        'CONTINUOUS_INTEGRATION',
-        'GITHUB_ACTIONS',
-        'GITLAB_CI',
-        'TRAVIS',
-        'CIRCLECI',
-        'JENKINS_URL',
-        'BUILDKITE',
+        "CI",
+        "CONTINUOUS_INTEGRATION",
+        "GITHUB_ACTIONS",
+        "GITLAB_CI",
+        "TRAVIS",
+        "CIRCLECI",
+        "JENKINS_URL",
+        "BUILDKITE",
     ]
     return any(os.getenv(indicator) for indicator in ci_indicators)
 
@@ -36,8 +36,8 @@ class TestLLMLineAccuracy:
             pytest.skip("Skipping LLM tests in CI environment (no API keys, expensive)")
 
         # Try to get real API keys from environment
-        anthropic_key = os.getenv('ANTHROPIC_API_KEY')
-        openai_key = os.getenv('OPENAI_API_KEY')
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        openai_key = os.getenv("OPENAI_API_KEY")
 
         if anthropic_key:
             return ReviewConfig(
@@ -63,7 +63,7 @@ class TestLLMLineAccuracy:
     @pytest.fixture
     def sample_diff(self):
         """Sample diff for testing."""
-        return '''diff --git a/auth.py b/auth.py
+        return """diff --git a/auth.py b/auth.py
 index 123..456 100644
 --- a/auth.py
 +++ b/auth.py
@@ -75,7 +75,7 @@ index 123..456 100644
 +    username = username.strip()[:100]
      user = get_user(username)
      if user and verify_password(password, user.password_hash):
-         return True'''
+         return True"""
 
     @pytest.mark.integration
     @pytest.mark.llm
@@ -120,7 +120,9 @@ Focus on the security improvement at line 28-29."""
         # Most line references should be valid
         if line_refs:  # Only test if LLM actually provided line references
             accuracy_ratio = len(valid_refs) / len(line_refs)
-            assert accuracy_ratio >= 0.8, f"Line accuracy too low: {accuracy_ratio}. Valid: {valid_refs}, Invalid: {invalid_refs}"
+            assert accuracy_ratio >= 0.8, (
+                f"Line accuracy too low: {accuracy_ratio}. Valid: {valid_refs}, Invalid: {invalid_refs}"
+            )
 
         # Response should mention the specific lines we highlighted
         assert any(28 <= ref <= 29 for ref in line_refs), f"LLM didn't reference lines 28-29: {line_refs}"
@@ -169,7 +171,9 @@ Use the exact line numbers provided above when referencing code."""
         valid_range = (25, 32)
 
         if refs_without:
-            accuracy_without = len([r for r in refs_without if valid_range[0] <= r <= valid_range[1]]) / len(refs_without)
+            accuracy_without = len([r for r in refs_without if valid_range[0] <= r <= valid_range[1]]) / len(
+                refs_without
+            )
         else:
             accuracy_without = 0
 
@@ -179,7 +183,9 @@ Use the exact line numbers provided above when referencing code."""
             accuracy_with = 0
 
         # With context should be equal or better
-        assert accuracy_with >= accuracy_without, f"Context didn't improve accuracy: {accuracy_with} vs {accuracy_without}"
+        assert accuracy_with >= accuracy_without, (
+            f"Context didn't improve accuracy: {accuracy_with} vs {accuracy_without}"
+        )
 
         # If we have line references with context, accuracy should be high
         if refs_with:
@@ -190,7 +196,7 @@ Use the exact line numbers provided above when referencing code."""
     @pytest.mark.skipif(is_ci_environment(), reason="Skip expensive LLM tests in CI")
     def test_multi_file_llm_accuracy(self, config):
         """Test LLM accuracy with multi-file changes."""
-        multi_diff = '''diff --git a/models/user.py b/models/user.py
+        multi_diff = """diff --git a/models/user.py b/models/user.py
 index aaa..bbb 100644
 --- a/models/user.py
 +++ b/models/user.py
@@ -210,7 +216,7 @@ index ccc..ddd 100644
          login(request, user)
          return redirect('dashboard')
 +    else:
-+        logger.warning(f"Failed login attempt: {username}")'''
++        logger.warning(f"Failed login attempt: {username}")"""
 
         reviewer = PRReviewer(config)
 
@@ -242,11 +248,15 @@ Provide specific feedback for both files using exact line numbers."""
         auth_py_range = (30, 36)  # Lines 30-36 for auth.py
 
         if user_py_refs:
-            user_accuracy = len([r for r in user_py_refs if user_py_range[0] <= r <= user_py_range[1]]) / len(user_py_refs)
+            user_accuracy = len([r for r in user_py_refs if user_py_range[0] <= r <= user_py_range[1]]) / len(
+                user_py_refs
+            )
             assert user_accuracy >= 0.7, f"User.py accuracy too low: {user_accuracy}"
 
         if auth_py_refs:
-            auth_accuracy = len([r for r in auth_py_refs if auth_py_range[0] <= r <= auth_py_range[1]]) / len(auth_py_refs)
+            auth_accuracy = len([r for r in auth_py_refs if auth_py_range[0] <= r <= auth_py_range[1]]) / len(
+                auth_py_refs
+            )
             assert auth_accuracy >= 0.7, f"Auth.py accuracy too low: {auth_accuracy}"
 
     @pytest.mark.integration
@@ -330,11 +340,11 @@ Focus on security and reliability improvements. Use exact line numbers."""
     def _extract_line_numbers(self, text: str) -> list[int]:
         """Extract line numbers from LLM response."""
         patterns = [
-            r':(\d+)\]',  # [file.py:123]
-            r'line\s+(\d+)',  # line 123
-            r'Line\s+(\d+)',  # Line 123
-            r'#L(\d+)',  # #L123
-            r'\.py:(\d+)',  # file.py:123
+            r":(\d+)\]",  # [file.py:123]
+            r"line\s+(\d+)",  # line 123
+            r"Line\s+(\d+)",  # Line 123
+            r"#L(\d+)",  # #L123
+            r"\.py:(\d+)",  # file.py:123
         ]
 
         line_refs = []
@@ -348,9 +358,9 @@ Focus on security and reliability improvements. Use exact line numbers."""
         """Extract line numbers specifically mentioned for a given file."""
         # Look for patterns like "user.py:123" or "in user.py line 123"
         patterns = [
-            rf'{filename}:(\d+)',
-            rf'in {filename}.*?line\s+(\d+)',
-            rf'{filename}.*?#L(\d+)',
+            rf"{filename}:(\d+)",
+            rf"in {filename}.*?line\s+(\d+)",
+            rf"{filename}.*?#L(\d+)",
         ]
 
         line_refs = []
@@ -372,8 +382,8 @@ class TestLLMContextEffectiveness:
             pytest.skip("Skipping LLM tests in CI environment (no API keys, expensive)")
 
         # Try to get real API keys from environment
-        anthropic_key = os.getenv('ANTHROPIC_API_KEY')
-        openai_key = os.getenv('OPENAI_API_KEY')
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        openai_key = os.getenv("OPENAI_API_KEY")
 
         if anthropic_key:
             return ReviewConfig(
@@ -399,7 +409,7 @@ class TestLLMContextEffectiveness:
     @pytest.fixture
     def sample_diff(self):
         """Sample diff for testing."""
-        return '''diff --git a/auth.py b/auth.py
+        return """diff --git a/auth.py b/auth.py
 index 123..456 100644
 --- a/auth.py
 +++ b/auth.py
@@ -411,7 +421,7 @@ index 123..456 100644
 +    username = username.strip()[:100]
      user = get_user(username)
      if user and verify_password(password, user.password_hash):
-         return True'''
+         return True"""
 
     @pytest.mark.integration
     @pytest.mark.llm
@@ -448,17 +458,19 @@ Provide detailed feedback using the exact line numbers shown above."""
         specific_specificity = self._count_specificity_indicators(specific_response)
 
         # Specific prompt should yield more specific responses
-        assert specific_specificity >= vague_specificity, f"Context didn't improve specificity: {specific_specificity} vs {vague_specificity}"
+        assert specific_specificity >= vague_specificity, (
+            f"Context didn't improve specificity: {specific_specificity} vs {vague_specificity}"
+        )
 
     def _count_specificity_indicators(self, text: str) -> int:
         """Count indicators of specific feedback."""
         indicators = [
-            r'line\s+\d+',  # "line 123"
-            r'#L\d+',       # "#L123"
-            r':\d+\]',      # ":123]"
-            r'specific',    # word "specific"
-            r'exactly',     # word "exactly"
-            r'at line',     # "at line"
+            r"line\s+\d+",  # "line 123"
+            r"#L\d+",  # "#L123"
+            r":\d+\]",  # ":123]"
+            r"specific",  # word "specific"
+            r"exactly",  # word "exactly"
+            r"at line",  # "at line"
         ]
 
         count = 0
