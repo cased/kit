@@ -1,6 +1,7 @@
 """kit Command Line Interface."""
 
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -400,7 +401,12 @@ def review_pr(
     config: Optional[str] = typer.Option(
         None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
     ),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="Override LLM model (validated against supported models: e.g., gpt-4.1-nano, gpt-4.1, claude-sonnet-4-20250514)"),
+    model: Optional[str] = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="Override LLM model (validated against supported models: e.g., gpt-4.1-nano, gpt-4.1, claude-sonnet-4-20250514)",
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Don't post comment, just show what would be posted"),
     init_config: bool = typer.Option(False, "--init-config", help="Create a default configuration file and exit"),
     agentic: bool = typer.Option(
@@ -465,11 +471,44 @@ def review_pr(
 
         # Override model if specified
         if model:
+            # Auto-detect provider from model name
+            from kit.pr_review.config import _detect_provider_from_model
+
+            detected_provider = _detect_provider_from_model(model)
+
+            if detected_provider and detected_provider != review_config.llm.provider:
+                # Switch provider and update API key
+                from kit.pr_review.config import LLMProvider
+
+                old_provider = review_config.llm.provider.value
+                review_config.llm.provider = detected_provider
+
+                # Update API key for new provider
+                if detected_provider == LLMProvider.ANTHROPIC:
+                    new_api_key = os.getenv("KIT_ANTHROPIC_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
+                    if not new_api_key:
+                        typer.secho(
+                            f"❌ Model {model} requires Anthropic API key. Set KIT_ANTHROPIC_TOKEN.",
+                            fg=typer.colors.RED,
+                        )
+                        raise typer.Exit(code=1)
+                else:  # OpenAI
+                    new_api_key = os.getenv("KIT_OPENAI_TOKEN") or os.getenv("OPENAI_API_KEY")
+                    if not new_api_key:
+                        typer.secho(
+                            f"❌ Model {model} requires OpenAI API key. Set KIT_OPENAI_TOKEN.", fg=typer.colors.RED
+                        )
+                        raise typer.Exit(code=1)
+
+                review_config.llm.api_key = new_api_key
+                typer.echo(f"🔄 Switched provider: {old_provider} → {detected_provider.value}")
+
             review_config.llm.model = model
             typer.echo(f"🎛️  Overriding model to: {model}")
 
         # Validate model exists
         from kit.pr_review.cost_tracker import CostTracker
+
         if not CostTracker.is_valid_model(review_config.llm.model):
             suggestions = CostTracker.get_model_suggestions(review_config.llm.model)
             typer.secho(f"❌ Invalid model: {review_config.llm.model}", fg=typer.colors.RED)

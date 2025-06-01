@@ -9,6 +9,38 @@ from typing import Dict, Optional
 import yaml
 
 
+class LLMProvider(Enum):
+    """Supported LLM providers."""
+
+    ANTHROPIC = "anthropic"
+    OPENAI = "openai"
+
+
+class ReviewDepth(Enum):
+    """Review analysis depth levels."""
+
+    QUICK = "quick"
+    STANDARD = "standard"
+    THOROUGH = "thorough"
+
+
+def _detect_provider_from_model(model_name: str) -> Optional[LLMProvider]:
+    """Detect LLM provider from model name."""
+    model_lower = model_name.lower()
+
+    # OpenAI model patterns
+    openai_patterns = ["gpt-", "o1-", "text-davinci", "text-curie", "text-babbage", "text-ada"]
+    if any(pattern in model_lower for pattern in openai_patterns):
+        return LLMProvider.OPENAI
+
+    # Anthropic model patterns
+    anthropic_patterns = ["claude-", "haiku", "sonnet", "opus"]
+    if any(pattern in model_lower for pattern in anthropic_patterns):
+        return LLMProvider.ANTHROPIC
+
+    return None
+
+
 def _is_placeholder_token(token: Optional[str]) -> bool:
     """Check if a token is a placeholder that should be ignored."""
     if not token:
@@ -27,21 +59,6 @@ def _is_placeholder_token(token: Optional[str]) -> bool:
 
     token_lower = token.lower()
     return any(pattern in token_lower for pattern in placeholder_patterns)
-
-
-class LLMProvider(Enum):
-    """Supported LLM providers."""
-
-    ANTHROPIC = "anthropic"
-    OPENAI = "openai"
-
-
-class ReviewDepth(Enum):
-    """Review analysis depth levels."""
-
-    QUICK = "quick"
-    STANDARD = "standard"
-    THOROUGH = "thorough"
 
 
 @dataclass
@@ -101,9 +118,7 @@ class ReviewConfig:
         if _is_placeholder_token(config_github_token):
             config_github_token = None  # Treat placeholder as missing
 
-        github_token = (
-            config_github_token or os.getenv("KIT_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
-        )
+        github_token = config_github_token or os.getenv("KIT_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
 
         if not github_token:
             raise ValueError(

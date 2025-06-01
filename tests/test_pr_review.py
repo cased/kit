@@ -379,24 +379,23 @@ def test_cli_model_flag_parsing():
     runner = CliRunner()
 
     # Test with --model flag
-    result = runner.invoke(app, [
-        "review",
-        "--model", "gpt-4.1-nano",
-        "--dry-run",
-        "--init-config"  # This will exit early without requiring a PR URL
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "review",
+            "--model",
+            "gpt-4.1-nano",
+            "--dry-run",
+            "--init-config",  # This will exit early without requiring a PR URL
+        ],
+    )
 
     # Should succeed (init-config doesn't need other args)
     assert result.exit_code == 0
     assert "Created default config file" in result.output
 
     # Test with -m short flag
-    result = runner.invoke(app, [
-        "review",
-        "-m", "claude-opus-4-20250514",
-        "--dry-run",
-        "--init-config"
-    ])
+    result = runner.invoke(app, ["review", "-m", "claude-opus-4-20250514", "--dry-run", "--init-config"])
 
     assert result.exit_code == 0
     assert "Created default config file" in result.output
@@ -549,12 +548,9 @@ def test_cli_model_validation():
     runner = CliRunner()
 
     # Test with invalid model - should fail
-    result = runner.invoke(app, [
-        "review",
-        "--model", "invalid-model-name",
-        "--dry-run",
-        "https://github.com/owner/repo/pull/123"
-    ])
+    result = runner.invoke(
+        app, ["review", "--model", "invalid-model-name", "--dry-run", "https://github.com/owner/repo/pull/123"]
+    )
 
     assert result.exit_code == 1
     assert "Invalid model: invalid-model-name" in result.output
