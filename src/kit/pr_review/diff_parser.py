@@ -169,8 +169,35 @@ class DiffParser:
         for filename, file_diff in diff_files.items():
             context += f"\n{filename}:\n"
             for i, hunk in enumerate(file_diff.hunks):
-                context += f"  Hunk {i + 1}: Lines {hunk.new_start}-{hunk.new_start + hunk.new_count - 1}\n"
+                # Calculate actual changed lines, not just the hunk range
+                added_lines = []
+                current_line = hunk.new_start
 
-        context += "\n**IMPORTANT**: Use these exact line ranges when referencing code. GitHub links should use format: `[file.py:123](https://github.com/owner/repo/blob/sha/file.py#L123)`\n"
+                for line in hunk.lines:
+                    if line.startswith("+"):
+                        added_lines.append(current_line)
+                    elif line.startswith(" "):
+                        # Context line - increment but don't mark as changed
+                        pass
+                    # Deletions don't increment current_line
+
+                    if not line.startswith("-"):
+                        current_line += 1
+
+                # Show both the hunk range and specific changed lines
+                hunk_range = f"{hunk.new_start}-{hunk.new_start + hunk.new_count - 1}"
+                context += f"  Hunk {i + 1}: Lines {hunk_range}"
+
+                if added_lines:
+                    if len(added_lines) == 1:
+                        context += f" (actual change: line {added_lines[0]})"
+                    else:
+                        context += f" (actual changes: lines {', '.join(map(str, added_lines))})"
+                else:
+                    context += " (deletions only)"
+
+                context += "\n"
+
+        context += "\n**IMPORTANT**: When referencing code changes, prefer the ACTUAL CHANGE line numbers over the hunk ranges. GitHub links should use format: `[file.py:123](https://github.com/owner/repo/blob/sha/file.py#L123)`\n"
 
         return context

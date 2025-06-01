@@ -547,12 +547,20 @@ def test_cli_model_validation():
 
     runner = CliRunner()
 
-    # Test with invalid model - should fail
-    result = runner.invoke(
-        app, ["review", "--model", "invalid-model-name", "--dry-run", "https://github.com/owner/repo/pull/123"]
-    )
+    # Mock environment variables to provide valid tokens so we can test model validation
+    with patch.dict(
+        os.environ,
+        {
+            "KIT_GITHUB_TOKEN": "test_github_token",
+            "KIT_ANTHROPIC_TOKEN": "test_anthropic_token",
+        },
+    ):
+        # Test with invalid model - should fail
+        result = runner.invoke(
+            app, ["review", "--model", "invalid-model-name", "--dry-run", "https://github.com/owner/repo/pull/123"]
+        )
 
-    assert result.exit_code == 1
-    assert "Invalid model: invalid-model-name" in result.output
-    assert "Did you mean one of these?" in result.output
-    assert "All available models:" in result.output
+        assert result.exit_code == 1
+        assert "Invalid model: invalid-model-name" in result.output
+        assert "Did you mean one of these?" in result.output
+        assert "All available models:" in result.output
