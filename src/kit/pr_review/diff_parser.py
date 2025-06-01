@@ -199,5 +199,6 @@ class DiffParser:
                 context += "\n"
 
         context += "\n**IMPORTANT**: When referencing code changes, prefer the ACTUAL CHANGE line numbers over the hunk ranges. GitHub links should use format: `[file.py:123](https://github.com/owner/repo/blob/sha/file.py#L123)`\n"
+        context += "\n**REMINDER**: The red '-' lines are deletions and no longer exist. Only reference the green '+' lines (actual additions) when citing line numbers.\n"
 
         return context
