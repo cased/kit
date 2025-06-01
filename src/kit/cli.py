@@ -400,6 +400,7 @@ def review_pr(
     config: Optional[str] = typer.Option(
         None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
     ),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Override LLM model (e.g., gpt-4.1-nano, claude-sonnet-4-20250514)"),
     dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Don't post comment, just show what would be posted"),
     init_config: bool = typer.Option(False, "--init-config", help="Create a default configuration file and exit"),
     agentic: bool = typer.Option(
@@ -416,10 +417,12 @@ def review_pr(
     • Agentic (~$0.36-2.57): kit review --agentic <pr-url>
 
     EXAMPLES:
-    kit review --init-config                                   # Setup
+    kit review --init-config                                      # Setup
     kit review --dry-run https://github.com/owner/repo/pull/123   # Preview
-    kit review https://github.com/owner/repo/pull/123            # Standard
-    kit review --agentic --agentic-turns 8 <pr-url>             # Budget agentic
+    kit review https://github.com/owner/repo/pull/123             # Standard
+    kit review --model gpt-4.1-nano <pr-url>                      # Ultra budget
+    kit review --model claude-opus-4-20250514 <pr-url>            # Premium
+    kit review --agentic --agentic-turns 8 <pr-url>               # Budget agentic
     """
     from kit.pr_review.config import ReviewConfig
     from kit.pr_review.reviewer import PRReviewer
@@ -459,6 +462,11 @@ def review_pr(
     try:
         # Load configuration
         review_config = ReviewConfig.from_file(config)
+
+        # Override model if specified
+        if model:
+            review_config.llm.model = model
+            typer.echo(f"🎛️  Overriding model to: {model}")
 
         # Override comment posting if dry run
         if dry_run:
