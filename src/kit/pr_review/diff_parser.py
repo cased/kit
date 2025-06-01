@@ -79,10 +79,10 @@ class DiffParser:
         Returns:
             Dict mapping filename to FileDiff objects
         """
-        files = {}
+        files: Dict[str, FileDiff] = {}
         current_file = None
-        current_hunks = []
-        current_hunk_lines = []
+        current_hunks: List[DiffHunk] = []
+        current_hunk_lines: List[str] = []
         current_hunk_header = None
 
         def save_current_hunk():
