@@ -11,6 +11,7 @@ from .cache import RepoCache
 from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
 from .file_prioritizer import FilePrioritizer
+from .diff_parser import DiffParser
 
 
 class AgenticPRReviewer:
@@ -847,6 +848,10 @@ class AgenticPRReviewer:
         except Exception as e:
             pr_diff = f"Error retrieving diff: {e}"
 
+        # Parse diff for accurate line number mapping
+        diff_files = DiffParser.parse_diff(pr_diff)
+        line_number_context = DiffParser.generate_line_number_context(diff_files)
+
         pr_status = (
             "WIP"
             if "WIP" in pr_details["title"].upper() or "WORK IN PROGRESS" in pr_details["title"].upper()
@@ -865,6 +870,8 @@ class AgenticPRReviewer:
 **Changed Files:**
 {chr(10).join([f"- {f['filename']} (+{f['additions']} -{f['deletions']})" for f in priority_files])}
 
+{line_number_context}
+
 **Diff:**
 ```diff
 {pr_diff}
@@ -873,7 +880,7 @@ class AgenticPRReviewer:
 **Your task:** Use the available tools to investigate this PR and provide a concise, actionable review. Focus on finding real issues that matter.
 
 **Quality Standards:**
-- Be specific with file:line references using the ACTUAL line numbers from the diff above
+- Be specific with file:line references using the EXACT line numbers from the line number reference above
 - Format as clickable links: `[file.py:123](https://github.com/{owner}/{repo_name}/blob/{pr_details["head"]["sha"]}/file.py#L123)`
 - Professional tone, no drama
 - Focus on actionable feedback

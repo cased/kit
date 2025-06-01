@@ -45,22 +45,21 @@ Based on real-world testing on production open source PRs:
 
 ### Model Options (Large PR Example)
 
-| Model | Cost | Quality | Best For |
+| Model | Typical Cost | Quality | Best For |
 |-------|------|---------|----------|
-| **gpt-4.1-nano** | **$0.0046** | ⭐⭐⭐ | High-volume, ultra-budget |
-| **gpt-4o-mini** | **$0.0067** | ⭐⭐⭐⭐ | Surprising for the cost |
-| **claude-sonnet-4** | **$0.1759** | ⭐⭐⭐⭐⭐ | **Recommended** |
-| **claude-opus-4** | **$0.9086** | ⭐⭐⭐⭐⭐ | Critical infrastructure |
+| **gpt-4.1-nano** | **$0.004** | ⭐⭐⭐ | High-volume, ultra-budget |
+| **gpt-4o-mini** | **$0.006** | ⭐⭐⭐⭐ | Surprising for the cost |
+| **claude-sonnet-4** | **$0.12** | ⭐⭐⭐⭐⭐ | **Recommended** |
 
 **197x price difference** between cheapest and most expensive model.
 
-### Monthly Cost Examples
+### Rough Monthly Cost Examples
 
-| Team Size | Budget Model | Recommended | Premium |
-|-----------|--------------|-------------|---------|
-| **Small** (20 PRs/month) | $0.09 | $3.52 | $18.17 |
-| **Medium** (100 PRs/month) | $0.46 | $17.59 | $90.86 |
-| **Larger** (500 PRs/month) | $2.30 | $87.95 | $454.30 |
+| Team Size | Budget Model | Recommended 
+|-----------|--------------|-------------
+| **Small** (20 PRs/month) | $0.12 | $2.40 
+| **Medium** (100 PRs/month) | $0.60 | $12
+| **Larger** (500 PRs/month) | $3 | $60
 
 <Aside type="tip">
 Don't underestimate the smaller models.
@@ -201,14 +200,6 @@ kit profile create --name "company-standards" --file coding-guidelines.md
 kit review --profile company-standards <pr-url>
 kit feedback <review-id> --helpful --notes "Great catch!"
 ```
-
-### 🎯 Medium Term (Q3-Q4 2025)
-
-#### Advanced Features
-- **Multi-Model Consensus**: Route to different models and combine insights
-- **Context Learning**: Automatically adapt context selection over time  
-- **IDE Integration**: Real-time suggestions in VS Code and other editors
-
 ```bash
 # Future features
 kit review <pr-url> --consensus  # Multiple models
@@ -228,12 +219,6 @@ kit review-cache cleanup
 # Clear all cached repositories
 kit review-cache clear
 ```
-
-### Model Selection
-
-**For Budget Teams**: Use `gpt-4.1-nano` for routine reviews, upgrade to `claude-sonnet-4` for important changes.
-
-**For Production Teams**: Use `claude-sonnet-4` as default with occasional `claude-opus-4` for critical infrastructure changes.
 
 ### Quality Validation
 

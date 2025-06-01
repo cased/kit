@@ -15,6 +15,7 @@ from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
 from .file_prioritizer import FilePrioritizer
 from .validator import validate_review_quality
+from .diff_parser import DiffParser
 
 
 class PRReviewer:
@@ -117,6 +118,10 @@ class PRReviewer:
         except Exception as e:
             pr_diff = f"Error retrieving diff: {e}"
 
+        # Parse diff for accurate line number mapping
+        diff_files = DiffParser.parse_diff(pr_diff)
+        line_number_context = DiffParser.generate_line_number_context(diff_files)
+
         # Prioritize files for analysis (smart prioritization for Kit reviewer)
         priority_files, skipped_count = FilePrioritizer.smart_priority(files, max_files=10)
 
@@ -198,6 +203,8 @@ class PRReviewer:
 - Dependencies: {dependency_context}
 
 {analysis_summary}
+
+{line_number_context}
 
 **Diff:**
 ```diff

@@ -58,8 +58,15 @@ addopts = "-ra -q"
 testpaths = [
     "tests"
 ]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
 markers = [
     "asyncio: mark test as asyncio to run with pytest-asyncio",
+    "integration: marks tests as integration tests (may be slower)",
+    "llm: marks tests that call LLM APIs (expensive, requires API keys)",
+    "expensive: marks tests that are expensive/slow to run",
+    "ci_skip: marks tests that should be skipped in CI environments",
 ]
 
 [tool.mypy]
