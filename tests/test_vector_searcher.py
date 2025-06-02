@@ -1,5 +1,6 @@
-import pytest
 import importlib
+
+import pytest
 
 # Skip this entire test file if chromadb (vector-search extra) isn't available
 chromadb = pytest.importorskip("chromadb", reason="chromadb extra not installed")
