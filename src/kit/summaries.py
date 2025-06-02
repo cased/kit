@@ -94,6 +94,26 @@ class GoogleConfig:
             )
 
 
+@dataclass
+class OllamaConfig:
+    """Configuration for Ollama API access."""
+
+    model: str = "qwen2.5-coder:latest"  # Latest code-specialized model (5.4M pulls)
+    base_url: str = "http://localhost:11434"
+    temperature: float = 0.7
+    max_tokens: int = 1000
+    # Ollama doesn't require API keys, but we include this for compatibility
+    api_key: str = "ollama"
+
+    def __post_init__(self):
+        # Validate the base_url format
+        if not self.base_url.startswith(("http://", "https://")):
+            raise ValueError(f"Invalid Ollama base_url: {self.base_url}. Must start with http:// or https://")
+
+        # Remove trailing slashes for consistency
+        self.base_url = self.base_url.rstrip("/")
+
+
 # todo: make configurable
 MAX_CODE_LENGTH_CHARS = 50000  # Max characters for a single function/class summary
 MAX_FILE_SUMMARIZE_CHARS = 25000  # Max characters for file content in summarize_file
@@ -104,7 +124,7 @@ class Summarizer:
     """Provides methods to summarize code using a configured LLM."""
 
     _tokenizer_cache: Dict[str, Any] = {}  # Cache for tiktoken encoders
-    config: Optional[Union[OpenAIConfig, AnthropicConfig, GoogleConfig]]
+    config: Optional[Union[OpenAIConfig, AnthropicConfig, GoogleConfig, OllamaConfig]]
     repo: "Repository"
     _llm_client: Optional[Any]  # type: ignore
 
@@ -235,7 +255,7 @@ class Summarizer:
     def __init__(
         self,
         repo: "Repository",
-        config: Optional[Union[OpenAIConfig, AnthropicConfig, GoogleConfig]] = None,
+        config: Optional[Union[OpenAIConfig, AnthropicConfig, GoogleConfig, OllamaConfig]] = None,
         llm_client: Optional[Any] = None,
     ):
         """
@@ -243,7 +263,7 @@ class Summarizer:
 
         Args:
             repo: The kit.Repository instance containing the code.
-            config: LLM configuration (OpenAIConfig, AnthropicConfig, or GoogleConfig).
+            config: LLM configuration (OpenAIConfig, AnthropicConfig, GoogleConfig, or OllamaConfig).
                     If None, defaults to OpenAIConfig.
             llm_client: Optional pre-initialized LLM client. If None, client will be
                         lazy-loaded on first use based on the config.
@@ -283,6 +303,28 @@ class Summarizer:
                     self._llm_client = genai.Client(api_key=self.config.api_key)  # Use the new client
                 except ImportError:
                     raise LLMError("Google Gen AI SDK (google-genai) not available. Please install it.")
+            elif isinstance(self.config, OllamaConfig):
+                # Create a simple HTTP client for Ollama
+                try:
+                    import requests
+
+                    class OllamaClient:
+                        def __init__(self, base_url: str, model: str):
+                            self.base_url = base_url
+                            self.model = model
+                            self.session = requests.Session()
+
+                        def generate(self, prompt: str, **kwargs) -> str:
+                            """Generate text using Ollama's API."""
+                            url = f"{self.base_url}/api/generate"
+                            data = {"model": self.model, "prompt": prompt, "stream": False, **kwargs}
+                            response = self.session.post(url, json=data)
+                            response.raise_for_status()
+                            return response.json().get("response", "")
+
+                    OllamaClient(self.config.base_url, self.config.model)
+                except ImportError:
+                    raise LLMError("requests library not available. Please install it for Ollama support.")
             else:
                 # This case implies self.config was set to something unexpected if self._llm_client was None
                 # and self.config was also None initially. Or self.config was passed with an invalid type.
@@ -318,6 +360,28 @@ class Summarizer:
                 # API key is picked up from GOOGLE_API_KEY env var by default if not passed to Client()
                 # However, we have it in self.config.api_key, so we pass it explicitly.
                 client = genai.Client(api_key=self.config.api_key)  # type: ignore # Different client type
+            elif isinstance(self.config, OllamaConfig):
+                # Create a simple HTTP client for Ollama
+                try:
+                    import requests
+
+                    class OllamaClient:
+                        def __init__(self, base_url: str, model: str):
+                            self.base_url = base_url
+                            self.model = model
+                            self.session = requests.Session()
+
+                        def generate(self, prompt: str, **kwargs) -> str:
+                            """Generate text using Ollama's API."""
+                            url = f"{self.base_url}/api/generate"
+                            data = {"model": self.model, "prompt": prompt, "stream": False, **kwargs}
+                            response = self.session.post(url, json=data)
+                            response.raise_for_status()
+                            return response.json().get("response", "")
+
+                    client = OllamaClient(self.config.base_url, self.config.model)
+                except ImportError:
+                    raise LLMError("requests library not available. Please install it for Ollama support.")
             else:
                 # This case should ideally be prevented by the __init__ type check,
                 # but as a safeguard:
@@ -481,6 +545,20 @@ class Summarizer:
                     summary = "Summary generation failed: No text returned by API."
                 else:
                     summary = response.text
+            elif isinstance(self.config, OllamaConfig):
+                # Use Ollama's generate API with combined prompt
+                combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
+                try:
+                    summary = client.generate(
+                        combined_prompt, temperature=self.config.temperature, num_predict=self.config.max_tokens
+                    )
+                    logger.debug(f"Ollama API response for {file_path}: {len(summary)} characters")
+                except Exception as e:
+                    logger.warning(f"Ollama API error for {file_path}: {e}")
+                    summary = f"Summary generation failed: Ollama API error ({e})"
+            else:
+                # This should never happen with our current logic, but as a safeguard
+                raise LLMError(f"Unsupported LLM configuration type: {type(self.config) if self.config else None}")
 
             if not summary or not summary.strip():
                 logger.warning(f"LLM returned an empty or whitespace-only summary for file {file_path}.")
@@ -630,6 +708,17 @@ class Summarizer:
                     summary = "Summary generation failed: No text returned by API."
                 else:
                     summary = response.text
+            elif isinstance(self.config, OllamaConfig):
+                # Use Ollama's generate API with combined prompt
+                combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
+                try:
+                    summary = client.generate(
+                        combined_prompt, temperature=self.config.temperature, num_predict=self.config.max_tokens
+                    )
+                    logger.debug(f"Ollama API response for {function_name} in {file_path}: {len(summary)} characters")
+                except Exception as e:
+                    logger.warning(f"Ollama API error for {function_name} in {file_path}: {e}")
+                    summary = f"Summary generation failed: Ollama API error ({e})"
             else:
                 # This should never happen with our current logic, but as a safeguard
                 raise LLMError(f"Unsupported LLM configuration type: {type(self.config) if self.config else None}")
@@ -780,6 +869,17 @@ class Summarizer:
                     summary = "Summary generation failed: No text returned by API."
                 else:
                     summary = response.text
+            elif isinstance(self.config, OllamaConfig):
+                # Use Ollama's generate API with combined prompt
+                combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
+                try:
+                    summary = client.generate(
+                        combined_prompt, temperature=self.config.temperature, num_predict=self.config.max_tokens
+                    )
+                    logger.debug(f"Ollama API response for {class_name} in {file_path}: {len(summary)} characters")
+                except Exception as e:
+                    logger.warning(f"Ollama API error for {class_name} in {file_path}: {e}")
+                    summary = f"Summary generation failed: Ollama API error ({e})"
             else:
                 # This should never happen with our current logic, but as a safeguard
                 raise LLMError(f"Unsupported LLM configuration type: {type(self.config) if self.config else None}")

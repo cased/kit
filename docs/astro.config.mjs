@@ -59,6 +59,7 @@ export default defineConfig({
             "tutorials/dump_repo_map",
             "tutorials/integrating_supersonic",
             "tutorials/recipes",
+            "tutorials/ollama",
           ],
         },
         {

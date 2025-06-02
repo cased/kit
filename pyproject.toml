@@ -66,6 +66,7 @@ markers = [
     "integration: marks tests as integration tests (may be slower)",
     "llm: marks tests that call LLM APIs (expensive, requires API keys)",
     "expensive: marks tests that are expensive/slow to run",
+    "performance: marks tests that measure performance characteristics",
     "ci_skip: marks tests that should be skipped in CI environments",
 ]
 

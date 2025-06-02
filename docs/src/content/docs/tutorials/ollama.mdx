@@ -1,0 +1,306 @@
+---
+title: "Using Ollama with kit review"
+description: "Complete guide to using kit with Ollama for free local AI code revews."
+---
+
+# 🦙 Using Ollama with Kit
+
+**Kit** has first-class support for **free local AI models** via [Ollama](https://ollama.ai/). No API keys, no costs, no data leaving your machine.
+
+## Why Ollama?
+
+- ✅ **No cost** - unlimited usage
+- ✅ **Complete privacy** - data never leaves your machine  
+- ✅ **No API keys** - just install and run
+- ✅ **No rate limits** - only hardware constraints
+- ✅ **Works offline** - perfect for secure environments
+- ✅ **Latest models** - access to cutting-edge open source AI
+
+## 🚀 Quick Setup (2 minutes)
+
+### 1. Install Ollama
+
+```bash
+# macOS/Linux
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Windows
+# Download from https://ollama.ai/download
+```
+
+### 2. Pull a Model
+
+Choose based on your use case:
+
+```bash
+# Best for code tasks (recommended)
+ollama pull qwen2.5-coder:latest
+
+# Best for reasoning
+ollama pull deepseek-r1:latest
+
+# Best for coding agents
+ollama pull devstral:latest
+
+# Good general purpose
+ollama pull llama3.3:latest
+```
+
+### 3. Start Using with Kit
+
+```python
+from kit import Repository
+from kit.summaries import OllamaConfig
+
+# Configure Ollama
+config = OllamaConfig(model="qwen2.5-coder:latest")
+
+# Use with any repository
+repo = Repository("/path/to/your/project")
+summarizer = repo.get_summarizer(config=config)
+
+# Summarize code at no cost
+summary = summarizer.summarize_file("main.py")
+print(summary)  # Cost: $0.00
+```
+
+## 💡 Complete Examples
+
+### Code Summarization
+
+```python
+from kit import Repository
+from kit.summaries import OllamaConfig
+
+# Setup
+repo = Repository("/path/to/project")
+config = OllamaConfig(
+    model="qwen2.5-coder:latest",
+    temperature=0.1,  # Lower for more focused analysis
+    max_tokens=1000
+)
+summarizer = repo.get_summarizer(config=config)
+
+# Summarize a file
+summary = summarizer.summarize_file("complex_module.py")
+print(f"File Summary: {summary}")
+
+# Summarize a specific function
+func_summary = summarizer.summarize_function("utils.py", "parse_config")
+print(f"Function Summary: {func_summary}")
+
+# Summarize a class
+class_summary = summarizer.summarize_class("models.py", "UserManager")
+print(f"Class Summary: {class_summary}")
+```
+
+### PR Reviews (No Cost)
+
+```bash
+# Setup Ollama for PR reviews
+kit review --init-config
+# Choose "ollama" as provider
+# Choose "qwen2.5-coder:latest" as model
+
+# Review any PR at no cost
+kit review https://github.com/owner/repo/pull/123
+# Cost: $0.00
+```
+
+### Batch Documentation Generation
+
+```python
+from kit import Repository
+from kit.summaries import OllamaConfig
+import os
+
+def generate_docs(project_path, output_file):
+    """Generate documentation for an entire project."""
+    repo = Repository(project_path)
+    config = OllamaConfig(model="qwen2.5-coder:latest")
+    summarizer = repo.get_summarizer(config=config)
+    
+    with open(output_file, 'w') as f:
+        f.write(f"# Documentation for {os.path.basename(project_path)}\n\n")
+        
+        # Get all Python files
+        files = repo.get_file_tree()
+        python_files = [f for f in files if f['path'].endswith('.py') and not f.get('is_dir')]
+        
+        for file_info in python_files:
+            file_path = file_info['path']
+            try:
+                summary = summarizer.summarize_file(file_path)
+                f.write(f"## {file_path}\n\n{summary}\n\n")
+                print(f"✅ Documented {file_path} (Cost: $0.00)")
+            except Exception as e:
+                print(f"⚠️ Skipped {file_path}: {e}")
+
+# Usage
+generate_docs("/path/to/project", "project_docs.md")
+```
+
+### Legacy Codebase Analysis
+
+```python
+def analyze_legacy_code(repo_path):
+    """Analyze and understand legacy code using free AI."""
+    repo = Repository(repo_path)
+    config = OllamaConfig(model="qwen2.5-coder:latest")
+    summarizer = repo.get_summarizer(config=config)
+    
+    # Find all symbols
+    symbols = repo.extract_symbols()
+    
+    # Group by type
+    functions = [s for s in symbols if s.get('type') == 'FUNCTION']
+    classes = [s for s in symbols if s.get('type') == 'CLASS']
+    
+    print(f"Found {len(functions)} functions and {len(classes)} classes")
+    
+    # Analyze complex functions (those with many lines)
+    complex_functions = [f for f in functions if len(f.get('code', '').split('\n')) > 20]
+    
+    for func in complex_functions[:5]:  # Analyze top 5 complex functions
+        file_path = func['file']
+        func_name = func['name']
+        
+        analysis = summarizer.summarize_function(file_path, func_name)
+        print(f"\n📝 {func_name} in {file_path}:")
+        print(f"   {analysis}")
+        print(f"   Cost: $0.00")
+```
+
+## ⚙️ Advanced Configuration
+
+### Custom Configuration
+
+```python
+config = OllamaConfig(
+    model="qwen2.5-coder:32b",        # Use larger model for better results
+    base_url="http://localhost:11434", # Default Ollama endpoint
+    temperature=0.0,                   # Deterministic output
+    max_tokens=2000,                   # Longer responses
+)
+```
+
+### Remote Ollama Server
+
+```python
+config = OllamaConfig(
+    model="qwen2.5-coder:latest",
+    base_url="http://your-server:11434",  # Remote Ollama instance
+    temperature=0.1,
+    max_tokens=1000,
+)
+```
+
+### Multiple Models for Different Tasks
+
+```python
+# Code-focused model for functions
+code_config = OllamaConfig(model="qwen2.5-coder:latest", temperature=0.1)
+
+# Reasoning model for complex analysis
+reasoning_config = OllamaConfig(model="deepseek-r1:latest", temperature=0.2)
+
+# Use different models for different tasks
+code_summarizer = repo.get_summarizer(config=code_config)
+reasoning_summarizer = repo.get_summarizer(config=reasoning_config)
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**"Connection refused" error:**
+```bash
+# Make sure Ollama is running
+ollama serve
+
+# Or check if it's already running
+ps aux | grep ollama
+```
+
+**"Model not found" error:**
+```bash
+# Pull the model first
+ollama pull qwen2.5-coder:latest
+
+# List available models
+ollama list
+```
+
+**Slow responses:**
+- Use smaller models like `qwen2.5-coder:0.5b` for faster responses
+- Reduce `max_tokens` for shorter outputs
+- Ensure sufficient RAM (8GB+ recommended for 7B models)
+
+### Performance Tips
+
+1. **Choose the right model size:**
+   - 0.5B-3B: Fast, good for simple tasks
+   - 7B-14B: Balanced speed and quality
+   - 32B+: Best quality, requires more resources
+
+2. **Optimize settings:**
+   ```python
+   # For speed
+   config = OllamaConfig(
+       model="qwen2.5-coder:0.5b",
+       temperature=0.1,
+       max_tokens=500
+   )
+   
+   # For quality
+   config = OllamaConfig(
+       model="qwen2.5-coder:32b",
+       temperature=0.0,
+       max_tokens=2000
+   )
+   ```
+
+3. **Hardware considerations:**
+   - RAM: 8GB minimum, 16GB+ recommended for larger models
+   - GPU: Optional but significantly speeds up inference
+   - Storage: Models range from 500MB to 400GB
+
+## 💰 Cost Comparison
+
+| Provider | Cost per Review | Setup Time | Privacy | Offline |
+|----------|----------------|------------|---------|---------|
+| **Ollama** | **$0.00** | 2 minutes | ✅ 100% private | ✅ Works offline |
+| OpenAI GPT-4o | ~$0.10 | API key setup | ❌ Sent to OpenAI | ❌ Requires internet |
+| Anthropic Claude | ~$0.08 | API key setup | ❌ Sent to Anthropic | ❌ Requires internet |
+
+## 🎯 Use Cases
+
+### Perfect for Ollama:
+- ✅ **Continuous integration** - No API costs for automated analysis
+- ✅ **Enterprise environments** - Complete data privacy
+- ✅ **Learning and experimentation** - No usage limits
+- ✅ **Offline development** - Works without internet
+- ✅ **Cost-sensitive projects** - Zero ongoing costs
+
+### Consider Cloud Models for:
+- ✅ **Highest quality requirements** - Latest commercial models
+- ✅ **Minimal setup** - No local hardware requirements
+- ✅ **Occasional use** - Pay only when needed
+
+## 🚀 Next Steps
+
+1. **Start Simple**: Begin with `qwen2.5-coder:latest` for code tasks
+2. **Experiment**: Try different models to find what works best for your use case
+3. **Scale Up**: Use larger models for higher quality when needed
+4. **Automate**: Integrate into your CI/CD pipelines for continuous code analysis
+5. **Contribute**: Share your experience and help improve kit's Ollama integration
+
+## 🤝 Community
+
+- **Discord**: [Join the kit Discord](https://discord.gg/XpqU65pY) for help and discussions
+- **GitHub**: [Report issues or contribute](https://github.com/cased/kit)
+- **Ollama Community**: [Ollama Discord](https://discord.gg/ollama) for model-specific help
+
+---
+
+**Ready to get started?** Install Ollama, pull a model, and start analyzing code at no cost! 🎉 

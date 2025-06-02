@@ -15,7 +15,7 @@ from .vector_searcher import VectorSearcher
 # Use TYPE_CHECKING for Summarizer to avoid circular imports
 if TYPE_CHECKING:
     from .dependency_analyzer.dependency_analyzer import DependencyAnalyzer
-    from .summaries import AnthropicConfig, GoogleConfig, OpenAIConfig, Summarizer
+    from .summaries import AnthropicConfig, GoogleConfig, OllamaConfig, OpenAIConfig, Summarizer
 
 
 class Repository:
@@ -383,42 +383,47 @@ class Repository:
         return vs.search(query, top_k=top_k)
 
     def get_summarizer(
-        self, config: Optional[Union["OpenAIConfig", "AnthropicConfig", "GoogleConfig"]] = None
+        self, config: Optional[Union["OpenAIConfig", "AnthropicConfig", "GoogleConfig", "OllamaConfig"]] = None
     ) -> "Summarizer":
         """
         Factory method to get a Summarizer instance configured for this repository.
 
-        Requires LLM dependencies (e.g., openai, anthropic, google-generativeai) to be installed.
-        Example: `pip install kit[openai,anthropic,google]` or the specific one needed.
-
         Args:
-            config: Optional configuration object (e.g., OpenAIConfig, AnthropicConfig, GoogleConfig).
-                    If None, defaults to OpenAIConfig using environment variables.
+            config: Optional LLM configuration. If None, defaults to OpenAIConfig using environment variable.
 
         Returns:
-            A Summarizer instance ready to use.
+            A Summarizer instance bound to this repository.
 
-        Raises:
-            ImportError: If required LLM libraries are not installed.
-            ValueError: If configuration (like API key) is missing.
+        Example:
+            >>> from kit.summaries import OpenAIConfig, AnthropicConfig, GoogleConfig, OllamaConfig
+            >>> repo = Repository("/path/to/codebase")
+            >>> # Use default (OpenAI with OPENAI_API_KEY env var)
+            >>> summarizer = repo.get_summarizer()
+            >>> # Or provide a specific config
+            >>> openai_config = OpenAIConfig(api_key="sk-...", model="gpt-4")
+            >>> summarizer = repo.get_summarizer(config=openai_config)
+            >>> # Use Anthropic
+            >>> anthropic_config = AnthropicConfig(api_key="sk-ant-...", model="claude-3-opus-20240229")
+            >>> summarizer = repo.get_summarizer(config=anthropic_config)
+            >>> # Use Google
+            >>> google_config = GoogleConfig(api_key="...", model="gemini-1.5-pro-latest")
+            >>> summarizer = repo.get_summarizer(config=google_config)
+            >>> # Use Ollama (completely free!)
+            >>> ollama_config = OllamaConfig(model="llama3.2:latest", base_url="http://localhost:11434")
+            >>> summarizer = repo.get_summarizer(config=ollama_config)
         """
-        # Lazy import Summarizer and its config here to avoid mandatory dependency
-        try:
-            from .summaries import AnthropicConfig, GoogleConfig, OpenAIConfig, Summarizer
-        except ImportError as e:
-            raise ImportError(
-                "Summarizer dependencies not found. Did you install kit with LLM extras (e.g., kit[openai])?"
-            ) from e
+        from .summaries import AnthropicConfig, GoogleConfig, OllamaConfig, OpenAIConfig, Summarizer
 
-        # Determine config: use provided or default (which checks env vars)
-        # If no config is provided, it defaults to OpenAIConfig. Users must explicitly pass
-        # AnthropicConfig or GoogleConfig if they want to use those providers.
-        llm_config = config if config is not None else OpenAIConfig()
+        # If no config is provided, default to OpenAIConfig
+        if config is None:
+            llm_config = OpenAIConfig()
+        else:
+            llm_config = config
 
         # Check if the provided or default config is one of the supported types
-        if not isinstance(llm_config, (OpenAIConfig, AnthropicConfig, GoogleConfig)):
+        if not isinstance(llm_config, (OpenAIConfig, AnthropicConfig, GoogleConfig, OllamaConfig)):
             raise NotImplementedError(
-                f"Unsupported configuration type: {type(llm_config)}. Supported types are OpenAIConfig, AnthropicConfig, GoogleConfig."
+                f"Unsupported configuration type: {type(llm_config)}. Supported types are OpenAIConfig, AnthropicConfig, GoogleConfig, OllamaConfig."
             )
         else:
             # Return the initialized Summarizer

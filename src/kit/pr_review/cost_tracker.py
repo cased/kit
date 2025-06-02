@@ -82,6 +82,28 @@ class CostTracker:
                 "output_per_million": 30.00,  # $30.00 per million output tokens
             },
         },
+        LLMProvider.OLLAMA: {
+            # Ollama is completely free - all models cost $0
+            # Latest popular models from ollama.com/library
+            "qwen2.5-coder:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "deepseek-r1:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "codellama:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "llama3.3:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "devstral:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "gemma3:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "qwen3:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "phi4:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            # Legacy popular models
+            "llama3.2:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "llama3.1:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "llama3:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "mistral:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "deepseek-coder:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "qwen2.5:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            "gemma2:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
+            # Default fallback for any Ollama model
+            "_default": {"input_per_million": 0.00, "output_per_million": 0.00},
+        },
     }
 
     def __init__(self, custom_pricing: Optional[Dict] = None):
@@ -105,6 +127,13 @@ class CostTracker:
             output_cost = (output_tokens / 1_000_000) * pricing["output_per_million"]
 
             self.breakdown.llm_cost_usd += input_cost + output_cost
+        elif provider == LLMProvider.OLLAMA:
+            # All Ollama models are free - use default $0.00 pricing
+            if provider in self.pricing and "_default" in self.pricing[provider]:
+                pricing = self.pricing[provider]["_default"]
+                self.breakdown.llm_cost_usd += 0.00  # Always free
+            else:
+                self.breakdown.llm_cost_usd += 0.00  # Fallback - still free
         else:
             # Unknown model - use a reasonable estimate and warn
             print(f"⚠️  Unknown pricing for {provider.value}/{model}, using estimates")

@@ -262,6 +262,8 @@ class PRReviewer:
         # Use LLM to analyze with enhanced context
         if self.config.llm.provider == LLMProvider.ANTHROPIC:
             return await self._analyze_with_anthropic_enhanced(analysis_prompt)
+        elif self.config.llm.provider == LLMProvider.OLLAMA:
+            return await self._analyze_with_ollama_enhanced(analysis_prompt)
         else:
             return await self._analyze_with_openai_enhanced(analysis_prompt)
 
@@ -329,6 +331,54 @@ class PRReviewer:
 
         except Exception as e:
             return f"Error during enhanced LLM analysis: {e}"
+
+    async def _analyze_with_ollama_enhanced(self, enhanced_prompt: str) -> str:
+        """Analyze using Ollama with enhanced kit context."""
+        try:
+            import requests
+        except ImportError:
+            raise RuntimeError("requests package not installed. Run: pip install requests")
+
+        if not self._llm_client:
+            # Create Ollama client
+            class OllamaClient:
+                def __init__(self, base_url: str, model: str):
+                    self.base_url = base_url
+                    self.model = model
+                    self.session = requests.Session()
+
+                def generate(self, prompt: str, **kwargs) -> str:
+                    """Generate text using Ollama's API."""
+                    url = f"{self.base_url}/api/generate"
+                    data = {"model": self.model, "prompt": prompt, "stream": False, **kwargs}
+                    response = self.session.post(url, json=data)
+                    response.raise_for_status()
+                    return response.json().get("response", "")
+
+            self._llm_client = OllamaClient(
+                self.config.llm.api_base_url or "http://localhost:11434", self.config.llm.model
+            )
+
+        try:
+            response = await asyncio.to_thread(
+                self._llm_client.generate,
+                enhanced_prompt,
+                temperature=self.config.llm.temperature,
+                num_predict=self.config.llm.max_tokens,
+            )
+
+            # Ollama is free, so no cost tracking needed, but we can track usage
+            # For consistency, we'll estimate tokens (very rough)
+            estimated_input_tokens = len(enhanced_prompt) // 4
+            estimated_output_tokens = len(response) // 4
+            self.cost_tracker.track_llm_usage(
+                self.config.llm.provider, self.config.llm.model, estimated_input_tokens, estimated_output_tokens
+            )
+
+            return response if response else "No response content from Ollama"
+
+        except Exception as e:
+            return f"Error during enhanced Ollama analysis: {e}"
 
     def review_pr(self, pr_input: str) -> str:
         """Review a PR with intelligent analysis."""

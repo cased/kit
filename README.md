@@ -8,7 +8,7 @@ Use `kit` to build things like code reviewers, code generators, even IDEs, all e
 
 Work with `kit` directly from Python, or with MCP + function calling, REST, or CLI!
 
-`kit` also ships with damn fine PR reviewer for free (just pay for LLM usage), showcasing the power of this library in just a few lines of code.
+`kit` also ships with damn fine PR reviewer that works with **any LLM** (including completely free local models** via Ollama, or paid cloud models like Claude and gpt4.1) showcasing the power of this library in just a few lines of code.
 
 ## Quick Installation
 
@@ -94,17 +94,20 @@ The CLI supports all major repository operations with Unix-friendly output for s
 
 As both of a demonstration of this library, and as a standalone product,
 `kit` includes a MIT-licensed, CLI-based pull request reviewer that
-ranks with the better closed-source paid options—but for a 
-fraction of the cost. Have thousands of PRs
-reviewed *at cost*, say $20 per month for all of them. 
-A typical high-quality `kit review` with a SOTA model costs 
-about 10 cents.
+ranks with the better closed-source paid options—but **completely free** 
+with local Ollama models, or at a fraction of the cost with cloud models.
+
+**🆓 Free option**: Use local Ollama models (qwen2.5-coder, codellama, etc.)
+**💰 Low-cost option**: Use Claude or GPT-4 at cost (~10 cents per review)
 
 ```bash
-# Configure your LLM provider (Claude or GPT-4)
-kit review --init-config
+# Option 1: Free with Ollama (install ollama.ai first)
+ollama pull qwen2.5-coder:latest
+kit review --init-config  # Select ollama provider
+kit review https://github.com/owner/repo/pull/123
 
-# Review a PR
+# Option 2: Cloud models (Claude or GPT-4) 
+kit review --init-config  # Select anthropic or openai provider
 kit review https://github.com/owner/repo/pull/123
 ```
 
@@ -116,6 +119,39 @@ kit review https://github.com/owner/repo/pull/123
 - **Works from wherever**: Trigger reviews with the CLI, or run it via CI
 
 **📖 [Complete PR Reviewer Documentation](src/kit/pr_review/README.md)**
+
+## 🆓 Local AI Models (No Cost)
+
+`kit` has first-class support for **free local AI models** via [Ollama](https://ollama.ai/). No API keys, no costs, no data leaving your machine.
+
+```python
+from kit import Repository
+from kit.summaries import OllamaConfig
+
+# Use any Ollama model for local code intelligence
+repo = Repository("/path/to/your/codebase")
+config = OllamaConfig(model="qwen2.5-coder:latest")  # Latest code-specialized model
+summarizer = repo.get_summarizer(config=config)
+
+# Summarize code locally
+summary = summarizer.summarize_file("main.py")
+print(summary)  # Cost: $0.00
+```
+
+**Why Choose Ollama:**
+- ✅ **No cost** - unlimited usage
+- ✅ **Complete privacy** - data never leaves your machine  
+- ✅ **No API keys** - just install and run
+- ✅ **Works offline** - perfect for secure environments
+
+**Quick Setup:**
+```bash
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama pull qwen2.5-coder:latest  # Best for code
+```
+
+**📚 [Complete Ollama Guide →](https://kit.cased.com/introduction/ollama)**  
+*Latest models, advanced examples, troubleshooting, and more*
 
 ## Key Features & Capabilities
 
@@ -136,6 +172,7 @@ kit review https://github.com/owner/repo/pull/123
 
 *   **Generate Code Summaries:**
     *   Use LLMs to create natural language summaries for files, functions, or classes using the `Summarizer` (e.g., `summarizer.summarize_file()`, `summarizer.summarize_function()`).
+    *   Works with **any LLM**: free local models (Ollama), or cloud models (OpenAI, Anthropic, Google).
     *   Build a searchable semantic index of these AI-generated docstrings with `DocstringIndexer` and query it with `SummarySearcher` to find code based on intent and meaning.
 
 *   **Analyze Code Dependencies:**
@@ -154,11 +191,11 @@ kit review https://github.com/owner/repo/pull/123
     *   **MCP Server**: Model Context Protocol integration for AI agents and development tools.
 
 *   **AI-Powered Code Review:**
-    *   Automated PR review with `kit review` using Claude or GPT-4 for intelligent code analysis.
+    *   Automated PR review with `kit review` using **free local models (Ollama)** or cloud models (Claude, GPT-4).
     *   Repository cloning and comprehensive file analysis for deep code understanding.
     *   Configurable review depth (quick, standard, thorough) and customizable analysis settings.
     *   Seamless GitHub integration with automatic comment posting and PR workflow integration.
-    *   Cost transparency with real-time LLM token usage tracking and pricing information.
+    *   Cost transparency with real-time LLM token usage tracking and pricing information (free for Ollama).
 
 ## MCP Server
 
