@@ -352,7 +352,9 @@ class PRReviewer:
 
                                 analysis, fixes = LineRefFixer.fix_comment(analysis, pr_diff)
                                 if fixes:
-                                    print(f"🔧 Auto-fixed {len(fixes)//(2 if any(f[1]!=f[2] for f in fixes) else 1)} line reference(s)")
+                                    print(
+                                        f"🔧 Auto-fixed {len(fixes) // (2 if any(f[1] != f[2] for f in fixes) else 1)} line reference(s)"
+                                    )
 
                         except Exception as e:
                             print(f"⚠️  Could not validate review quality: {e}")

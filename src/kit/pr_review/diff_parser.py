@@ -197,7 +197,39 @@ class DiffParser:
                     context += " (deletions only)"
 
                 context += "\n"
-                
-        context += "\n**REMINDER**: The red '-' lines are deletions and no longer exist. Only reference the green '+' lines (actual additions) when citing line numbers.\n"
+
+                # Append a snippet for each non-deleted line so the LLM can choose the most relevant line
+                current_line_no = hunk.new_start
+                for raw_line in hunk.lines:
+                    if raw_line.startswith("-"):  # Skip deletions entirely
+                        continue
+
+                    # Trim the diff marker (space or '+') and whitespace-strip just
+                    # for cleanliness. We keep internal spaces intact.
+                    cleaned = raw_line[1:].rstrip("\n")
+
+                    # Skip blank lines to save tokens
+                    if not cleaned.strip():
+                        if not raw_line.startswith("+"):  # context blank lines still count
+                            current_line_no += 1
+                        else:
+                            # Added blank line → still exists in new file; count it
+                            current_line_no += 1
+                        continue
+
+                    # Prefix '+' additions with a ▸ so the model can spot them
+                    prefix = "▸ " if raw_line.startswith("+") else "  "
+
+                    context += f"    {current_line_no:>6} | {prefix}{cleaned}\n"
+
+                    # Increment new-file line counter except for deletions (already skipped)
+                    current_line_no += 1
+
+        context += (
+            "\n**REMINDER**: The red '-' lines are deletions and no longer exist. "
+            "Only reference the green '+' lines (actual additions) when citing line numbers.\n"
+            "Always link to the **exact line that contains the issue**, not merely the start "
+            "of the hunk. Use the snippets above to choose the most relevant line.\n"
+        )
 
         return context

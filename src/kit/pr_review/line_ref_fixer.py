@@ -20,9 +20,9 @@ class LineRefFixer:
             for hunk in fd.hunks:
                 cur = hunk.new_start
                 for raw in hunk.lines:
-                    if raw.startswith("+"):
-                        line_set.add(cur)
+                    # Any line that exists in the *new* file (context or addition) is legal.
                     if not raw.startswith("-"):
+                        line_set.add(cur)
                         cur += 1
             valid[filename] = line_set
         return valid
@@ -58,4 +58,4 @@ class LineRefFixer:
                 return f"{file}:{new_line}"
 
         fixed_comment = cls.REF_PATTERN.sub(_replacer, comment)
-        return fixed_comment, fixes 
+        return fixed_comment, fixes
