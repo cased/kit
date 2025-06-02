@@ -197,6 +197,7 @@ class DiffParser:
                     context += " (deletions only)"
 
                 context += "\n"
+<<<<<<< Updated upstream
 
                 # Append a snippet for each non-deleted line so the LLM can choose the most relevant line
                 current_line_no = hunk.new_start
@@ -231,5 +232,13 @@ class DiffParser:
             "Always link to the **exact line that contains the issue**, not merely the start "
             "of the hunk. Use the snippets above to choose the most relevant line.\n"
         )
+=======
+                
+        context += (
+            "\n**IMPORTANT**: Reference the *exact* lines shown below—not the hunk header.\n"
+            "**REMINDER**: The red '-' lines are deletions and no longer exist. Only reference the green '+' lines (actual additions) when citing line numbers.\n"
+        )
+        context += "**GitHub links**: reference lines with the format `[file.py:123](https://github.com/owner/repo/blob/sha/file.py#L123)`\n"
+>>>>>>> Stashed changes
 
         return context

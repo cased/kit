@@ -120,7 +120,10 @@ index abc123..def456 100644
     assert "test.py:" in context
     assert "Lines 10-16" in context  # First hunk: start=10, count=7
     assert "Lines 52-55" in context  # Second hunk: start=52, count=4
+<<<<<<< Updated upstream
     assert "REMINDER" in context
+=======
+>>>>>>> Stashed changes
     assert "GitHub links" in context
 
 
