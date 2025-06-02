@@ -8,7 +8,7 @@ Use `kit` to build things like code reviewers, code generators, even IDEs, all e
 
 Work with `kit` directly from Python, or with MCP + function calling, REST, or CLI!
 
-`kit` also ships with damn fine PR reviewer that works with **any LLM** (including completely free local models** via Ollama, or paid cloud models like Claude and gpt4.1) showcasing the power of this library in just a few lines of code.
+`kit` also ships with damn fine PR reviewer that works with **any LLM** (including completely free local models via Ollama, or paid cloud models like Claude and gpt4.1) showcasing the power of this library in just a few lines of code.
 
 ## Quick Installation
 

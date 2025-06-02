@@ -397,7 +397,8 @@ def git_info(
 # PR Review Operations
 @app.command("review")
 def review_pr(
-    pr_url: Optional[str] = typer.Argument(None, help="GitHub PR URL (https://github.com/owner/repo/pull/123)"),
+    init_config: bool = typer.Option(False, "--init-config", help="Create a default configuration file and exit"),
+    pr_url: str = typer.Argument("", help="GitHub PR URL (https://github.com/owner/repo/pull/123)"),
     config: Optional[str] = typer.Option(
         None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
     ),
@@ -408,7 +409,6 @@ def review_pr(
         help="Override LLM model (validated against supported models: e.g., gpt-4.1-nano, gpt-4.1, claude-sonnet-4-20250514)",
     ),
     dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Don't post comment, just show what would be posted"),
-    init_config: bool = typer.Option(False, "--init-config", help="Create a default configuration file and exit"),
     agentic: bool = typer.Option(
         False, "--agentic", help="Use multi-turn agentic analysis (more thorough but expensive)"
     ),

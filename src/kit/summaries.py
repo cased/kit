@@ -322,7 +322,9 @@ class Summarizer:
                             response.raise_for_status()
                             return response.json().get("response", "")
 
-                    OllamaClient(self.config.base_url, self.config.model)
+                    client: Any  # Explicitly type as Any to satisfy mypy's mixed assignments
+                    client = OllamaClient(self.config.base_url, self.config.model)
+                    self._llm_client = client
                 except ImportError:
                     raise LLMError("requests library not available. Please install it for Ollama support.")
             else:
@@ -341,6 +343,7 @@ class Summarizer:
             return self._llm_client
 
         try:
+            client: Any  # Ensure consistent type across branches for mypy
             if isinstance(self.config, OpenAIConfig):
                 from openai import OpenAI  # Local import for OpenAI client
 
@@ -379,7 +382,9 @@ class Summarizer:
                             response.raise_for_status()
                             return response.json().get("response", "")
 
+                    client: Any  # Explicitly type as Any to satisfy mypy's mixed assignments
                     client = OllamaClient(self.config.base_url, self.config.model)
+                    self._llm_client = client
                 except ImportError:
                     raise LLMError("requests library not available. Please install it for Ollama support.")
             else:

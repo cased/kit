@@ -412,13 +412,16 @@ class Repository:
             >>> ollama_config = OllamaConfig(model="llama3.2:latest", base_url="http://localhost:11434")
             >>> summarizer = repo.get_summarizer(config=ollama_config)
         """
+        from typing import Union
+
         from .summaries import AnthropicConfig, GoogleConfig, OllamaConfig, OpenAIConfig, Summarizer
 
-        # If no config is provided, default to OpenAIConfig
+        ConfigUnion = Union[OpenAIConfig, AnthropicConfig, GoogleConfig, OllamaConfig]
+
         if config is None:
-            llm_config = OpenAIConfig()
+            llm_config: ConfigUnion = OpenAIConfig()
         else:
-            llm_config = config
+            llm_config: ConfigUnion = config
 
         # Check if the provided or default config is one of the supported types
         if not isinstance(llm_config, (OpenAIConfig, AnthropicConfig, GoogleConfig, OllamaConfig)):

@@ -197,7 +197,7 @@ class ReviewConfig:
         llm_config = LLMConfig(
             provider=provider,
             model=llm_data.get("model", default_model),
-            api_key=api_key,
+            api_key=str(api_key),
             max_tokens=llm_data.get("max_tokens", 4000),
             temperature=llm_data.get("temperature", 0.1),
             api_base_url=llm_data.get("api_base_url"),
