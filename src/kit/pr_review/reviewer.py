@@ -91,7 +91,9 @@ class PRReviewer:
 
         # Return cached diff text if we already fetched it
         if getattr(self, "_cached_diff_key", None) == key and hasattr(self, "_cached_diff_text"):
-            return self._cached_diff_text  # type: ignore[attr-defined]
+            # mypy: we know _cached_diff_text is not None because key matched and attribute exists
+            assert self._cached_diff_text is not None
+            return self._cached_diff_text
 
         url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
         headers = dict(self.github_session.headers)
@@ -440,7 +442,9 @@ class PRReviewer:
         diff_text = self.get_pr_diff(owner, repo, pr_number)
 
         if hasattr(self, "_cached_parsed_diff"):
-            return self._cached_parsed_diff  # type: ignore[attr-defined]
+            # mypy: we know _cached_parsed_diff is not None because key matched and attribute exists
+            assert self._cached_parsed_diff is not None
+            return self._cached_parsed_diff
 
         parsed = DiffParser.parse_diff(diff_text)
         self._cached_parsed_diff = parsed  # type: ignore[attr-defined]

@@ -72,7 +72,8 @@ class AgenticPRReviewer:
         key = (owner, repo, pr_number)
 
         if getattr(self, "_cached_diff_key", None) == key and hasattr(self, "_cached_diff_text"):
-            return self._cached_diff_text  # type: ignore[attr-defined]
+            assert self._cached_diff_text is not None
+            return self._cached_diff_text
 
         url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
         headers = dict(self.github_session.headers)
@@ -91,7 +92,8 @@ class AgenticPRReviewer:
     def get_parsed_diff(self, owner: str, repo: str, pr_number: int) -> Dict[str, FileDiff]:
         diff_text = self.get_pr_diff(owner, repo, pr_number)
         if hasattr(self, "_cached_parsed_diff"):
-            return self._cached_parsed_diff  # type: ignore[attr-defined]
+            assert self._cached_parsed_diff is not None
+            return self._cached_parsed_diff
 
         parsed: Dict[str, FileDiff] = DiffParser.parse_diff(diff_text)
         self._cached_parsed_diff = parsed  # type: ignore[attr-defined]
