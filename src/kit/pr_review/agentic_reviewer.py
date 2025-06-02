@@ -10,7 +10,7 @@ import requests
 from .cache import RepoCache
 from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
-from .diff_parser import DiffParser
+from .diff_parser import DiffParser, FileDiff
 from .file_prioritizer import FilePrioritizer
 
 
@@ -36,6 +36,11 @@ class AgenticPRReviewer:
         # Customizable turn limit - default to 15 for reasonble completion rate
         self.max_turns = getattr(config, "agentic_max_turns", 15)
         self.finalize_threshold = getattr(config, "agentic_finalize_threshold", 10)
+
+        # Diff caching placeholders
+        self._cached_diff_key: Optional[tuple[str, str, int]] = None
+        self._cached_diff_text: Optional[str] = None
+        self._cached_parsed_diff: Optional[Dict[str, FileDiff]] = None
 
     def parse_pr_url(self, pr_input: str) -> tuple[str, str, int]:
         """Parse PR URL to extract owner, repo, and PR number."""
@@ -83,12 +88,12 @@ class AgenticPRReviewer:
 
         return response.text
 
-    def get_parsed_diff(self, owner: str, repo: str, pr_number: int):
+    def get_parsed_diff(self, owner: str, repo: str, pr_number: int) -> Dict[str, FileDiff]:
         diff_text = self.get_pr_diff(owner, repo, pr_number)
         if hasattr(self, "_cached_parsed_diff"):
             return self._cached_parsed_diff  # type: ignore[attr-defined]
 
-        parsed = DiffParser.parse_diff(diff_text)
+        parsed: Dict[str, FileDiff] = DiffParser.parse_diff(diff_text)
         self._cached_parsed_diff = parsed  # type: ignore[attr-defined]
         return parsed
 

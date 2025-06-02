@@ -13,7 +13,7 @@ from kit import Repository
 from .cache import RepoCache
 from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
-from .diff_parser import DiffParser
+from .diff_parser import DiffParser, FileDiff
 from .file_prioritizer import FilePrioritizer
 from .validator import validate_review_quality
 
@@ -34,6 +34,11 @@ class PRReviewer:
         self._llm_client: Optional[Any] = None  # Will be Anthropic or OpenAI client
         self.repo_cache = RepoCache(config)
         self.cost_tracker = CostTracker(config.custom_pricing)
+
+        # Diff caching (initialized to None, filled lazily)
+        self._cached_diff_key: Optional[tuple[str, str, int]] = None
+        self._cached_diff_text: Optional[str] = None
+        self._cached_parsed_diff: Optional[Dict[str, FileDiff]] = None
 
     def parse_pr_url(self, pr_input: str) -> tuple[str, str, int]:
         """Parse PR URL or number to extract owner, repo, and PR number.
@@ -428,7 +433,7 @@ class PRReviewer:
         except Exception:
             return "dev"
 
-    def get_parsed_diff(self, owner: str, repo: str, pr_number: int) -> Dict[str, "DiffParser.FileDiff"]:  # type: ignore[name-defined]
+    def get_parsed_diff(self, owner: str, repo: str, pr_number: int) -> Dict[str, FileDiff]:
         """Return a cached parsed diff so we don't re-parse the same content multiple times."""
 
         # Ensure we have the raw diff cached/fetched
