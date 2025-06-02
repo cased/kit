@@ -1,10 +1,9 @@
-# noqa: E402
-import pytest
 import importlib
-
 import os
 import tempfile
 from pathlib import Path
+
+import pytest
 
 # Import the shared_system_client submodule; skip the file if it's unavailable
 try:
