@@ -295,7 +295,7 @@ index 123..456 100644
         # Test that context is AI-friendly
         assert "security/auth.py:" in context
         assert "Lines 25-33" in context
-        assert "IMPORTANT" in context
+        assert "REMINDER" in context
         assert "GitHub links" in context
 
         # Test that an AI could reasonably use this information

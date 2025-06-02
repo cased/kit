@@ -194,7 +194,7 @@ index 123..456 100644
         # Verify the context contains accurate line information
         assert "src/auth.py:" in context
         assert "Lines 25-32" in context  # Original was 6 lines, now 8 lines
-        assert "IMPORTANT" in context
+        assert "REMINDER" in context
         assert "GitHub links" in context
 
     def test_line_number_accuracy_validation(self):
@@ -256,7 +256,7 @@ index 111..222 100644
         lines = context.split("\n")
         assert any("api.py:" in line for line in lines)
         assert any("Lines 45-50" in line for line in lines)
-        assert any("IMPORTANT" in line for line in lines)
+        assert any("REMINDER" in line for line in lines)
         assert any("GitHub links" in line for line in lines)
 
         # Test that the context would help AI generate accurate links

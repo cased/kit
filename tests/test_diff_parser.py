@@ -120,7 +120,7 @@ index abc123..def456 100644
     assert "test.py:" in context
     assert "Lines 10-16" in context  # First hunk: start=10, count=7
     assert "Lines 52-55" in context  # Second hunk: start=52, count=4
-    assert "IMPORTANT" in context
+    assert "REMINDER" in context
     assert "GitHub links" in context
 
 

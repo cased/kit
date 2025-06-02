@@ -41,6 +41,7 @@ class AgenticPRReviewer:
         self._cached_diff_key: Optional[tuple[str, str, int]] = None
         self._cached_diff_text: Optional[str] = None
         self._cached_parsed_diff: Optional[Dict[str, FileDiff]] = None
+        self._cached_parsed_key: Optional[tuple[str, str, int]] = None
 
     def parse_pr_url(self, pr_input: str) -> tuple[str, str, int]:
         """Parse PR URL to extract owner, repo, and PR number."""
@@ -90,13 +91,15 @@ class AgenticPRReviewer:
         return response.text
 
     def get_parsed_diff(self, owner: str, repo: str, pr_number: int) -> Dict[str, FileDiff]:
-        diff_text = self.get_pr_diff(owner, repo, pr_number)
-        if hasattr(self, "_cached_parsed_diff"):
-            assert self._cached_parsed_diff is not None
+        key = (owner, repo, pr_number)
+
+        if self._cached_parsed_key == key and self._cached_parsed_diff is not None:
             return self._cached_parsed_diff
 
+        diff_text = self.get_pr_diff(owner, repo, pr_number)
         parsed: Dict[str, FileDiff] = DiffParser.parse_diff(diff_text)
-        self._cached_parsed_diff = parsed  # type: ignore[attr-defined]
+        self._cached_parsed_key = key
+        self._cached_parsed_diff = parsed
         return parsed
 
     def get_repo_for_analysis(self, owner: str, repo: str, pr_details: Dict[str, Any]) -> str:
