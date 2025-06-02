@@ -322,7 +322,6 @@ class Summarizer:
                             response.raise_for_status()
                             return response.json().get("response", "")
 
-                    client: Any  # Explicitly type as Any to satisfy mypy's mixed assignments
                     client = OllamaClient(self.config.base_url, self.config.model)
                     self._llm_client = client
                 except ImportError:
@@ -382,7 +381,6 @@ class Summarizer:
                             response.raise_for_status()
                             return response.json().get("response", "")
 
-                    client: Any  # Explicitly type as Any to satisfy mypy's mixed assignments
                     client = OllamaClient(self.config.base_url, self.config.model)
                     self._llm_client = client
                 except ImportError:

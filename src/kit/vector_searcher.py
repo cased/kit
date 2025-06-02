@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 
 try:
     import chromadb
-    from chromadb import PersistentClient
+    from chromadb import PersistentClient  # type: ignore[attr-defined]
 except ImportError:
     chromadb = None  # type: ignore[assignment]
 

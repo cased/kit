@@ -421,7 +421,7 @@ class Repository:
         if config is None:
             llm_config: ConfigUnion = OpenAIConfig()
         else:
-            llm_config: ConfigUnion = config
+            llm_config = config
 
         # Check if the provided or default config is one of the supported types
         if not isinstance(llm_config, (OpenAIConfig, AnthropicConfig, GoogleConfig, OllamaConfig)):
