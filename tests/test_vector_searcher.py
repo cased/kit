@@ -1,9 +1,6 @@
-import importlib
-
+# noqa: E402
 import pytest
-
-# Skip this entire test file if chromadb (vector-search extra) isn't available
-chromadb = pytest.importorskip("chromadb", reason="chromadb extra not installed")
+import importlib
 
 import os
 import tempfile
