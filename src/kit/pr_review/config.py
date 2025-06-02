@@ -14,7 +14,6 @@ class LLMProvider(Enum):
 
     ANTHROPIC = "anthropic"
     OPENAI = "openai"
-    LOCAL = "local"  # For Ollama and other local OpenAI-compatible servers
     OLLAMA = "ollama"  # Dedicated Ollama provider
 
 
@@ -180,14 +179,6 @@ class ReviewConfig:
             api_key_env = "None (Ollama doesn't require API keys)"
             # Ollama doesn't need an API key, but we'll use a placeholder for consistency
             api_key = llm_data.get("api_key", "ollama")
-        elif provider == LLMProvider.LOCAL:
-            # Keep existing LOCAL provider behavior for backwards compatibility
-            default_model = "gpt-3.5-turbo"
-            api_key_env = "Set according to your local server requirements"
-            config_api_key = llm_data.get("api_key")
-            if _is_placeholder_token(config_api_key):
-                config_api_key = None
-            api_key = config_api_key or os.getenv("LOCAL_API_KEY", "local")
         else:  # OpenAI
             default_model = "gpt-4.1-2025-04-14"
             api_key_env = "KIT_OPENAI_TOKEN or OPENAI_API_KEY"
@@ -215,8 +206,6 @@ class ReviewConfig:
         # Set default base URLs for local providers
         if llm_config.provider == LLMProvider.OLLAMA and not llm_config.api_base_url:
             llm_config.api_base_url = "http://localhost:11434"  # Default Ollama API endpoint
-        elif llm_config.provider == LLMProvider.LOCAL and not llm_config.api_base_url:
-            llm_config.api_base_url = "http://localhost:11434/v1"  # Default OpenAI-compatible endpoint
 
         # Review settings
         review_data = config_data.get("review", {})
@@ -295,19 +284,11 @@ class ReviewConfig:
 # Example Ollama configuration (completely free local AI):
 # llm:
 #   provider: ollama
-#   model: "llama3.2:latest"  # Or codellama:latest, mistral:latest, etc.
+#   model: "qwen2.5-coder:latest"  # Or deepseek-r1:latest, gemma3:latest, etc.
 #   api_base_url: "http://localhost:11434"  # Default Ollama endpoint
 #   api_key: "ollama"  # Placeholder (Ollama doesn't use API keys)
 #   max_tokens: 2000
 #   temperature: 0.1
-
-# Example local OpenAI-compatible server:
-# llm:
-#   provider: local
-#   model: "llama3:latest"  # Your local model name
-#   api_base_url: "http://localhost:11434/v1"  # OpenAI-compatible endpoint
-#   api_key: "local"  # Set according to your local server
-#   max_tokens: 2000
 """
 
         with open(config_path, "a") as f:
