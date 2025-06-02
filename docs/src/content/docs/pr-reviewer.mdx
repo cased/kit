@@ -9,7 +9,7 @@ import { Aside } from '@astrojs/starlight/components';
 
 # Kit AI PR Reviewer
 
-Kit includes a **production-ready AI PR reviewer** that provides professional-grade code analysis with full repository context. Choose from 10 models ranging from $0.005 to $0.91 per review with complete cost transparency.
+Kit includes a **production-ready AI PR reviewer** that provides professional-grade code analysis with full repository context. Choose from 15+ models ranging from **$0.00 (free local AI)** to $0.91 per review with complete cost transparency.
 
 <Aside type="tip">
 **Want to build a custom reviewer?** See the [Build an AI PR Reviewer tutorial](/tutorials/ai_pr_reviewer) to create your own using kit's components.
@@ -43,6 +43,35 @@ kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
 **Just want the PR reviewer?** The base `pip install cased-kit` gives you everything needed for PR reviews without heavy ML dependencies like PyTorch. If you need semantic search features later, install with `pip install cased-kit[ml]`.
 </Aside>
 
+## 🆓 Free Local AI with Ollama
+
+**Zero-cost PR reviews** using state-of-the-art local models. 
+Perfect for teams who want professional code analysis at zero cost and without sending code to external APIs.
+
+```bash
+# 1. Install Ollama (one-time setup)
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# 2. Pull a model, take your pick!
+ollama pull qwen2.5-coder:latest
+
+# 3. Configure kit for Ollama
+export KIT_GITHUB_TOKEN="ghp_your_token"  # Still need GitHub API access
+
+# 4. Review with free local AI
+kit review --model qwen2.5-coder:latest https://github.com/owner/repo/pull/123
+```
+
+### Real-World Performance
+Based on testing against the same complex PR:
+- **Speed**: 39-56 seconds (competitive with cloud APIs)
+- **Cost**: $0.00 forever (no API usage fees)
+- **Privacy**: Code never leaves your infrastructure
+
+<Aside type="note">
+**Local AI Trade-offs**: Requires initial setup and 4-8GB disk space per model. But once set up, you get professional-quality reviews with zero ongoing costs and complete privacy.
+</Aside>
+
 ## 💰 Transparent Pricing
 
 Based on real-world testing on production open source PRs:
@@ -51,6 +80,7 @@ Based on real-world testing on production open source PRs:
 
 | Model | Typical Cost | Quality | Best For |
 |-------|------|---------|----------|
+| **qwen2.5-coder:latest** | **$0.00** | ⭐⭐⭐⭐ | **Free local AI |
 | **gpt-4.1-nano** | **$0.0015-0.004** | ⭐⭐⭐ | High-volume, ultra-budget |
 | **gpt-4.1-mini** | **$0.005-0.015** | ⭐⭐⭐⭐ | Budget-friendly, often very good for the price |
 | **gpt-4.1** | **$0.02-0.10** | ⭐⭐⭐⭐ | Good value |
@@ -103,6 +133,7 @@ kit review -m claude-sonnet-4-20250514 https://github.com/owner/repo/pull/123
 ```
 
 **Available Models:**
+- **Ollama (Free Local)**: `qwen2.5-coder:latest`, `deepseek-r1:latest`, `gemma3:latest`, `devstral:latest`, etc
 - OpenAI: `gpt-4.1-nano`, `gpt-4.1-mini`, `gpt-4.1`, `gpt-4o-mini`, `gpt-4o`
 - Anthropic: `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022`, `claude-opus-4-20250514`, `claude-sonnet-4-20250514`
 
@@ -134,6 +165,7 @@ export KIT_OPENAI_TOKEN="sk-your_openai_key"
 
 Edit `~/.kit/review-config.yaml`:
 
+**Cloud API Configuration:**
 ```yaml
 github:
   token: ghp_your_token_here
@@ -143,6 +175,27 @@ llm:
   provider: anthropic  # or "openai"
   model: claude-sonnet-4-20250514
   api_key: sk-ant-your_key_here
+  max_tokens: 4000
+  temperature: 0.1
+
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+```
+
+**Free Local AI Configuration (Ollama):**
+```yaml
+github:
+  token: ghp_your_token_here  # Still need GitHub API access
+  base_url: https://api.github.com
+
+llm:
+  provider: ollama
+  model: qwen2.5-coder:latest  # or deepseek-r1:latest
+  api_base_url: http://localhost:11434
+  api_key: ollama  # Placeholder (Ollama doesn't use API keys)
   max_tokens: 4000
   temperature: 0.1
 
@@ -192,6 +245,21 @@ jobs:
 ```
 
 ### Advanced Workflows
+
+**Free Local AI Setup** (Self-hosted runners with Ollama):
+```yaml
+- name: Free AI Review with Ollama
+  runs-on: self-hosted  # Requires self-hosted runner with Ollama installed
+  steps:
+    - name: AI Code Review
+      run: |
+        pip install cased-kit
+        # Use completely free local AI
+        kit review --model qwen2.5-coder:latest ${{ github.event.pull_request.html_url }}
+      env:
+        KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # No LLM API keys needed - Ollama is free!
+```
 
 **Budget-Conscious Setup** (GPT-4.1-nano):
 ```yaml
@@ -286,12 +354,14 @@ Every review includes objective quality scoring:
 ## 💡 Best Practices
 
 ### Cost Optimization
+- **Use free local AI** for unlimited reviews with Ollama (requires self-hosted setup)
 - Use budget models for routine changes, premium for breaking changes
 - Use the `--model` flag to override models per PR: `kit review --model gpt-4.1-nano <pr-url>`
 - Leverage caching - repeat reviews of same repo are 5-10x faster
 - Set up profiles to avoid redundant context
 
 ### Team Adoption
+- **Start with free local AI** to build confidence without costs
 - Start with dry runs to build confidence
 - Use budget models initially to control costs
 - Create organization-specific guidelines for consistent reviews
@@ -300,7 +370,8 @@ Every review includes objective quality scoring:
 - Add to CI/CD for all PRs or just high-impact branches
 - Use conditional logic to avoid reviewing bot PRs or documentation-only changes
 - Monitor costs and adjust model selection based on team needs
+- **Consider self-hosted runners** with Ollama for zero ongoing LLM costs
 
 ---
 
-The kit AI PR reviewer provides **professional-grade code analysis** at costs accessible to any team size, from $0.46/month for small teams to enterprise-scale deployment. With full repository context and transparent pricing, it's designed to enhance your development workflow without breaking the budget. 
+The kit AI PR reviewer provides **professional-grade code analysis** at costs accessible to any team size, from **$0.00/month with free local AI** to enterprise-scale deployment. With full repository context and transparent pricing, it's designed to enhance your development workflow without breaking the budget. 
