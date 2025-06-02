@@ -226,7 +226,7 @@ class DiffParser:
                     current_line_no += 1
 
         context += (
-            "\n**IMPORTANT**: The red '-' lines are deletions and no longer exist. "
+            "\n**REMINDER**: The red '-' lines are deletions and no longer exist. "
             "Only reference the green '+' lines (actual additions) when citing line numbers.\n"
             "Always link to the **exact line that contains the issue**, not merely the start "
             "of the hunk. Use the snippets above to choose the most relevant line.\n"

@@ -83,8 +83,8 @@ class AgenticPRReviewer:
         response = self.github_session.get(url, headers=headers)
         response.raise_for_status()
 
-        self._cached_diff_key = key  # type: ignore[attr-defined]
-        self._cached_diff_text = response.text  # type: ignore[attr-defined]
+        self._cached_diff_key = key
+        self._cached_diff_text = response.text
         if hasattr(self, "_cached_parsed_diff"):
             delattr(self, "_cached_parsed_diff")
 

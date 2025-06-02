@@ -1,10 +1,21 @@
+import pytest
+import importlib
+
+# Skip this entire test file if chromadb (vector-search extra) isn't available
+chromadb = pytest.importorskip("chromadb", reason="chromadb extra not installed")
+
 import os
 import tempfile
 from pathlib import Path
 
-import chromadb.api.shared_system_client as _ssc
-import pytest
-
+# Import the shared_system_client submodule; skip the file if it's unavailable
+try:
+    _ssc = importlib.import_module("chromadb.api.shared_system_client")
+except ModuleNotFoundError:
+    pytest.skip(
+        "chromadb installed without api.shared_system_client (vector-search extras not installed)",
+        allow_module_level=True,
+    )
 from kit import Repository
 from kit.vector_searcher import VectorSearcher
 

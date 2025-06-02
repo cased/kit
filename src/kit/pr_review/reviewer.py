@@ -104,8 +104,8 @@ class PRReviewer:
         response.raise_for_status()
 
         # Cache the result
-        self._cached_diff_key = key  # type: ignore[attr-defined]
-        self._cached_diff_text = response.text  # type: ignore[attr-defined]
+        self._cached_diff_key = key
+        self._cached_diff_text = response.text
 
         # Invalidate parsed cache (if any) because diff may have changed
         if hasattr(self, "_cached_parsed_diff"):
