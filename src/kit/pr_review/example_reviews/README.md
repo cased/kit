@@ -104,11 +104,11 @@ Claude Sonnet 4 at ~$0.18 (often lower) per large PR offers:
 - **Monthly cost**: $2-10 for most teams
 
 ### For Production Teams
-- **Primary**: Claude Sonnet 4 ($0.18) for comprehensive analysis
-- **Budget**: GPT-4o-mini for routine changes
-- **Monthly cost**: $50-150 for active teams
+- **Primary**: Claude Sonnet 4 ($0.10-0.15) for comprehensive analysis
+- **Budget**: gpt-4.1-mini for routine changes
+- **Monthly cost**: $50-150 for very active teams
 
-### For Enterprise
+### For Larger Teams
 - **Hybrid approach**: Budget models for routine, premium for critical
 - **Policy**: Require premium review for public API changes
 - **Monthly cost**: $200-500 for large engineering organizations

@@ -64,6 +64,11 @@ class AgenticPRReviewer:
 
     def get_pr_diff(self, owner: str, repo: str, pr_number: int) -> str:
         """Get the full diff for the PR."""
+        key = (owner, repo, pr_number)
+
+        if getattr(self, "_cached_diff_key", None) == key and hasattr(self, "_cached_diff_text"):
+            return self._cached_diff_text  # type: ignore[attr-defined]
+
         url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
         headers = dict(self.github_session.headers)
         headers["Accept"] = "application/vnd.github.v3.diff"
@@ -71,7 +76,21 @@ class AgenticPRReviewer:
         response = self.github_session.get(url, headers=headers)
         response.raise_for_status()
 
+        self._cached_diff_key = key  # type: ignore[attr-defined]
+        self._cached_diff_text = response.text  # type: ignore[attr-defined]
+        if hasattr(self, "_cached_parsed_diff"):
+            delattr(self, "_cached_parsed_diff")
+
         return response.text
+
+    def get_parsed_diff(self, owner: str, repo: str, pr_number: int):
+        diff_text = self.get_pr_diff(owner, repo, pr_number)
+        if hasattr(self, "_cached_parsed_diff"):
+            return self._cached_parsed_diff  # type: ignore[attr-defined]
+
+        parsed = DiffParser.parse_diff(diff_text)
+        self._cached_parsed_diff = parsed  # type: ignore[attr-defined]
+        return parsed
 
     def get_repo_for_analysis(self, owner: str, repo: str, pr_details: Dict[str, Any]) -> str:
         """Get repository for analysis, using cache if available."""
@@ -842,14 +861,14 @@ class AgenticPRReviewer:
         repo_name = pr_details["head"]["repo"]["name"]
         pr_number = pr_details["number"]
 
-        # GET THE ACTUAL DIFF WITH CORRECT LINE NUMBERS (same as standard reviewer)
         try:
-            pr_diff = self.get_pr_diff(owner, repo_name, pr_number)
+            pr_diff = self.get_pr_diff(owner, repo_name, pr_number)  # cached
+            diff_files = self.get_parsed_diff(owner, repo_name, pr_number)
         except Exception as e:
             pr_diff = f"Error retrieving diff: {e}"
+            diff_files = {}
 
         # Parse diff for accurate line number mapping
-        diff_files = DiffParser.parse_diff(pr_diff)
         line_number_context = DiffParser.generate_line_number_context(diff_files)
 
         pr_status = (

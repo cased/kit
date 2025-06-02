@@ -82,12 +82,26 @@ class PRReviewer:
 
     def get_pr_diff(self, owner: str, repo: str, pr_number: int) -> str:
         """Get the full diff for the PR."""
+        key = (owner, repo, pr_number)
+
+        # Return cached diff text if we already fetched it
+        if getattr(self, "_cached_diff_key", None) == key and hasattr(self, "_cached_diff_text"):
+            return self._cached_diff_text  # type: ignore[attr-defined]
+
         url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
         headers = dict(self.github_session.headers)
         headers["Accept"] = "application/vnd.github.v3.diff"
 
         response = self.github_session.get(url, headers=headers)
         response.raise_for_status()
+
+        # Cache the result
+        self._cached_diff_key = key  # type: ignore[attr-defined]
+        self._cached_diff_text = response.text  # type: ignore[attr-defined]
+
+        # Invalidate parsed cache (if any) because diff may have changed
+        if hasattr(self, "_cached_parsed_diff"):
+            delattr(self, "_cached_parsed_diff")
 
         return response.text
 
@@ -114,12 +128,13 @@ class PRReviewer:
         owner, repo_name = pr_details["head"]["repo"]["owner"]["login"], pr_details["head"]["repo"]["name"]
         pr_number = pr_details["number"]
         try:
-            pr_diff = self.get_pr_diff(owner, repo_name, pr_number)
+            pr_diff = self.get_pr_diff(owner, repo_name, pr_number)  # cached
+            diff_files = self.get_parsed_diff(owner, repo_name, pr_number)
         except Exception as e:
             pr_diff = f"Error retrieving diff: {e}"
+            diff_files = {}
 
         # Parse diff for accurate line number mapping
-        diff_files = DiffParser.parse_diff(pr_diff)
         line_number_context = DiffParser.generate_line_number_context(diff_files)
 
         # Prioritize files for analysis (smart prioritization for Kit reviewer)
@@ -337,7 +352,7 @@ class PRReviewer:
 
                         # Validate review quality
                         try:
-                            pr_diff = self.get_pr_diff(owner, repo, pr_number)
+                            pr_diff = self.get_pr_diff(owner, repo, pr_number)  # cached
                             changed_files = [f["filename"] for f in files]
                             validation = validate_review_quality(analysis, pr_diff, changed_files)
 
@@ -412,3 +427,16 @@ class PRReviewer:
             return getattr(kit, "__version__", "dev")
         except Exception:
             return "dev"
+
+    def get_parsed_diff(self, owner: str, repo: str, pr_number: int) -> Dict[str, "DiffParser.FileDiff"]:  # type: ignore[name-defined]
+        """Return a cached parsed diff so we don't re-parse the same content multiple times."""
+
+        # Ensure we have the raw diff cached/fetched
+        diff_text = self.get_pr_diff(owner, repo, pr_number)
+
+        if hasattr(self, "_cached_parsed_diff"):
+            return self._cached_parsed_diff  # type: ignore[attr-defined]
+
+        parsed = DiffParser.parse_diff(diff_text)
+        self._cached_parsed_diff = parsed  # type: ignore[attr-defined]
+        return parsed
