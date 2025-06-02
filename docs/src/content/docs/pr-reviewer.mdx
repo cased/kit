@@ -50,21 +50,22 @@ Based on real-world testing on production open source PRs:
 
 | Model | Typical Cost | Quality | Best For |
 |-------|------|---------|----------|
-| **gpt-4.1-nano** | **$0.004** | ⭐⭐⭐ | High-volume, ultra-budget |
-| **gpt-4.1-mini** | **$0.019** | ⭐⭐⭐⭐ | Budget-friendly |
-| **gpt-4.1** | **$0.10** | ⭐⭐⭐⭐ | Good value |
+| **gpt-4.1-nano** | **$0.0015-0.004** | ⭐⭐⭐ | High-volume, ultra-budget |
+| **gpt-4.1-mini** | **$0.005-0.015** | ⭐⭐⭐⭐ | Budget-friendly |
+| **gpt-4.1** | **$0.02-0.10** | ⭐⭐⭐⭐ | Good value |
 | **gpt-4o-mini** | **$0.006** | ⭐⭐⭐⭐ | Surprising for the cost |
-| **claude-sonnet-4** | **$0.14** | ⭐⭐⭐⭐⭐ | **Recommended** |
+| **claude-sonnet-4** | **0.08-$0.14** | ⭐⭐⭐⭐⭐ | **Recommended** |
 
 ### In practice
 
 Even without optimizing your model mix (see below), a team doing 500 
-large PRs a month will likely pay under $50 a month total (yes)
+large PRs a month will generally pay under $50 a month total (yes)
 for reviews with SOTA models; and likely less. 
 
 <Aside type="tip">
 Don't underestimate the smaller models.
-GPT-4o-mini (or even nano!) delivers surprisingly useful reviews *when given the right context*. For simple projects, you can get decent AI code reviews for **less than $1/month**. Yes.
+gpt-4.1-mini (or even nano!) delivers surprisingly useful reviews *when given the right context via kit*. For simple projects, you can get decent AI code reviews for **less than $1/month**.
+Here's an example [against kit itself](https://github.com/cased/kit/pull/56#issuecomment-2928399599). This review cost *half a cent*.
 </Aside>
 
 ## 🎯 Key Features

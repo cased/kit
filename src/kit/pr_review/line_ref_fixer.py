@@ -9,7 +9,9 @@ from .diff_parser import DiffParser
 class LineRefFixer:
     """Utility to validate and auto-fix file:line references in an AI review comment."""
 
-    REF_PATTERN = re.compile(r"([\w./+-]+\.py):(\d+)(?:-(\d+))?")
+    # Match file references like path/to/file.ext:123 or file.ext:10-20
+    # Extension 1–5 alphanum chars to avoid over-matching URLs.
+    REF_PATTERN = re.compile(r"([\w./+-]+\.[a-zA-Z0-9]{1,5}):(\d+)(?:-(\d+))?")
 
     @classmethod
     def _build_valid_line_map(cls, diff_text: str) -> Dict[str, set[int]]:
