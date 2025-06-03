@@ -7,7 +7,24 @@ from typing import Optional
 
 import typer
 
+from . import __version__
+
+def version_callback(value: bool):
+    if value:
+        typer.echo(f"kit version {__version__}")
+        raise typer.Exit()
+
 app = typer.Typer(help="A modular toolkit for LLM-powered codebase understanding.")
+
+@app.callback()
+def main(
+    version: Optional[bool] = typer.Option(
+        None, "--version", callback=version_callback, is_eager=True,
+        help="Show version and exit."
+    )
+):
+    """A modular toolkit for LLM-powered codebase understanding."""
+    pass
 
 
 @app.command()
