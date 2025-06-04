@@ -30,6 +30,7 @@ export default defineConfig({
             "introduction/usage-guide",
             "introduction/cli",
             "pr-reviewer",
+            "CHANGELOG",
           ],
         },
         {

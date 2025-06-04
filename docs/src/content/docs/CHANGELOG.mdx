@@ -1,0 +1,104 @@
+---
+title: "Changelog"
+description: "Track changes and improvements in Kit releases"
+---
+
+# Changelog
+
+All notable changes to Kit will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.6.2]
+
+### 🎉 Major Features
+
+- **Ollama Support**: Complete local LLM inference support with Ollama
+  - Zero-cost PR reviews with local models
+  - Support for popular models like DeepSeek R1, Qwen2.5-coder, CodeLlama
+  - Automatic provider detection from model names (e.g., `deepseek-r1:latest`)
+  - First-class integration with kit's repository intelligence
+
+- **DeepSeek R1 Reasoning Model Support**
+  - **Thinking Token Stripping**: Automatically removes `<think>...</think>` tags from reasoning models
+  - Clean, professional output without internal reasoning clutter
+  - Preserves the analytical capabilities while improving output quality
+  - Works in both summarization and PR review workflows
+
+- **Plain Output Mode**: New `--plain` / `-p` flag for pipe-friendly output
+  - Removes all formatting and status messages
+  - Perfect for piping to Claude Code or other AI tools
+  - Enables powerful multi-stage AI workflows (e.g., `kit review -p | claude`)
+  - Quiet mode suppresses all progress/status output
+
+### ✨ Enhanced Features
+
+- **CLI Improvements**
+  - Added `--version` flag to display current kit version
+  - Model override support: `--model` / `-m` flag for per-review model selection
+  - Better error messages and help text
+
+- **Documentation**
+  - Comprehensive Ollama integration guides
+  - Claude Code workflow examples
+  - Multi-stage AI analysis patterns
+  - Updated CLI reference with new flags
+
+### 🔧 Developer Experience
+
+- **Community**
+  - Added Discord community server for support and discussions
+  - Improved README with better getting started instructions
+
+- **Testing**
+  - Comprehensive test suite for thinking token stripping
+  - Ollama integration tests with mock scenarios
+  - PR reviewer test coverage for new features
+
+### 💰 Cost Optimization
+
+- **Free Local Analysis**: Use Ollama for zero-cost code analysis
+- **Hybrid Workflows**: Combine free local analysis with premium cloud implementation
+- **Provider Switching**: Automatic provider detection and switching
+
+---
+
+## [0.6.1]
+
+### 🔧 Improvements
+
+- Enhanced line number accuracy in PR reviews
+- Improved debug output for troubleshooting
+- Better test coverage for core functionality
+- Performance optimizations for large repositories
+
+### 🐛 Bug Fixes
+
+- Fixed edge cases in symbol extraction
+- Improved error handling for malformed diffs
+- Better validation for GitHub URLs
+
+---
+
+## [0.6.0]
+
+### 🎉 Major Features
+
+- Advanced PR reviews
+- Enhanced line number context and accuracy fore reviews
+- Comprehensive cost tracking and pricing updates for reviews
+- Improved repository intelligence with better symbol analysis
+
+### ✨ Enhanced Features
+
+- Better diff parsing and analysis
+- Enhanced file prioritization algorithms for reviews
+- Improved cost breakdown reporting
+
+---
+
+## Links
+
+- [GitHub Releases](https://github.com/cased/kit/releases)
+- [Issues](https://github.com/cased/kit/issues)
