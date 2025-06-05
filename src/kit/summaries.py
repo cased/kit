@@ -82,7 +82,7 @@ class GoogleConfig:
     """Configuration for Google Generative AI API access."""
 
     api_key: Optional[str] = field(default_factory=lambda: os.environ.get("GOOGLE_API_KEY"))
-    model: str = "gemini-1.5-pro-latest"
+    model: str = "gemini-2.5-flash"  # Updated to latest model
     temperature: Optional[float] = 0.7
     max_output_tokens: Optional[int] = 1000  # Corresponds to Gemini's max_output_tokens
     model_kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)

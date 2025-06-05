@@ -15,7 +15,7 @@ from .tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
 from .vector_searcher import VectorSearcher
 
 try:
-    from .summaries import LLMError, OpenAIConfig, Summarizer
+    from .summaries import AnthropicConfig, GoogleConfig, LLMError, OpenAIConfig, Summarizer
 except ImportError:
     # Allow kit to be imported even if LLM extras aren't installed.
     # Users will get an ImportError later if they try to use Summarizer.
@@ -105,5 +105,9 @@ __all__ = [
     "TreeSitterSymbolExtractor",
     "get_tool_schemas",
     # Conditionally add Summarizer related classes if they were imported
-    *(["Summarizer", "OpenAIConfig", "LLMError"] if "Summarizer" in globals() else []),
+    *(
+        ["Summarizer", "OpenAIConfig", "AnthropicConfig", "GoogleConfig", "LLMError"]
+        if "Summarizer" in globals()
+        else []
+    ),
 ]

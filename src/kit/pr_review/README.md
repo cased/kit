@@ -49,18 +49,25 @@ at 8 cents a review).
 |-------|----------|------|--------------|---------------|-----------------|------------------|------------|
 | **gpt-4.1-nano** | OpenAI | **$0.0046** | 42,002 | 885 | $0.10 | $0.40 | ⚡ Ultra Budget |
 | **gpt-4o-mini** | OpenAI | **$0.0067** | 40,839 | 902 | $0.15 | $0.60 | ⚡ Budget |
+| **gemini-2.5-flash** | Google | **$0.0069** | 42,000 | 1,000 | $0.15 | $0.60 | ⚡ Budget |
+| **gemini-1.5-flash-8b** | Google | **$0.0032** | 42,000 | 1,000 | $0.075 | $0.30 | ⚡ Ultra Budget |
 | **gpt-4.1-mini** | OpenAI | **$0.0191** | 42,026 | 1,460 | $0.40 | $1.60 | ⚡ Budget |
 | **claude-3-5-haiku-20241022** | Anthropic | **$0.0447** | 52,627 | 660 | $0.80 | $4.00 | ⚡ Budget |
 | **gpt-4.1** | OpenAI | **$0.1010** | 42,007 | 2,122 | $2.00 | $8.00 | 🚀 Good Value |
 | **gpt-4o** | OpenAI | **$0.1089** | 40,873 | 672 | $2.50 | $10.00 | 🚀 Good Value |
+| **gemini-1.5-flash** | Google | **$0.0069** | 42,000 | 1,000 | $0.15 | $0.60 | 🚀 Good Value |
+| **gemini-1.5-pro** | Google | **$0.1150** | 42,000 | 1,000 | $2.50 | $10.00 | 🚀 Good Value |
 | **claude-sonnet-4-20250514** | Anthropic | **$0.1759** | 52,667 | 1,195 | $3.00 | $15.00 | 🚀 **Recommended** |
 | **claude-3-5-sonnet-20241022** | Anthropic | **$0.1774** | 52,593 | 1,307 | $3.00 | $15.00 | 🚀 Fast |
+| **gemini-2.5-pro** | Google | **$0.1150** | 42,000 | 1,000 | $2.50 | $15.00 | 🚀 Advanced |
 | **gpt-4-turbo** | OpenAI | **$0.4258** | 40,598 | 659 | $10.00 | $30.00 | 💰 Premium |
 | **claude-opus-4-20250514** | Anthropic | **$0.9086** | 52,597 | 1,595 | $15.00 | $75.00 | 🧠 Most Capable |
 
 **Key Insights:**
-- **197x price difference** between cheapest (GPT-4.1-nano) and most capable (Claude Opus 4)
-- **GPT-4.1-nano** offers incredible value at $0.005 per large PR - cheapest available
+- **284x price difference** between cheapest (Gemini 1.5 Flash 8B) and most capable (Claude Opus 4)
+- **Gemini 1.5 Flash 8B** offers exceptional value at $0.003 per large PR - new ultra-budget champion
+- **Google Gemini models** provide excellent price-performance across all tiers
+- **GPT-4.1-nano** remains ultra-budget option at $0.005 per large PR
 - **Claude Sonnet 4** (default) balances cost and quality - comprehensive repository analysis
 - **OpenAI models** use fewer input tokens (~40k vs ~52k) but deliver comparable analysis depth
 - **GPT-4.1 series** provides excellent mid-range options between ultra-budget and premium
@@ -69,11 +76,11 @@ at 8 cents a review).
 
 **Projected Monthly Costs (Based on Real Data):**
 
-| Team Size | GPT-4.1-nano (Ultra Budget) | Claude Sonnet 4 (Recommended) | Claude Opus 4 (Premium) |
-|-----------|------------------------------|--------------------------------|--------------------------|
-| **Small** (20 PRs/month) | $0.09 | $3.52 | $18.17 |
-| **Medium** (100 PRs/month) | $0.46 | $17.59 | $90.86 |
-| **Enterprise** (500 PRs/month) | $2.30 | $87.95 | $454.30 |
+| Team Size | Gemini 1.5 Flash 8B (Ultra Budget) | GPT-4.1-nano (Ultra Budget) | Claude Sonnet 4 (Recommended) | Claude Opus 4 (Premium) |
+|-----------|--------------------------------------|------------------------------|--------------------------------|--------------------------|
+| **Small** (20 PRs/month) | $0.06 | $0.09 | $3.52 | $18.17 |
+| **Medium** (100 PRs/month) | $0.32 | $0.46 | $17.59 | $90.86 |
+| **Larger** (500 PRs/month) | $1.60 | $2.30 | $87.95 | $454.30 |
 
 *Assumes mix of PR sizes with large PRs (12+ files) representing ~30% of reviews*
 
@@ -703,3 +710,12 @@ Output example:
 | GitHub Token | `KIT_GITHUB_TOKEN` |
 | Anthropic Key | `KIT_ANTHROPIC_TOKEN` |
 | OpenAI Key | `KIT_OPENAI_TOKEN` |
+
+## Supported LLM Providers
+
+Kit review supports multiple LLM providers:
+
+- **Anthropic Claude** - High-quality analysis with `claude-sonnet-4-20250514`
+- **OpenAI GPT** - Reliable performance with `gpt-4.1-2025-04-14`
+- **Google Gemini** - Great models like `gemini-2.5-flash`
+- **Ollama** - Free local models like `qwen2.5-coder:latest`

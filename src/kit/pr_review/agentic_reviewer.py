@@ -733,10 +733,7 @@ class AgenticPRReviewer:
         if not self._llm_client:
             # Support custom OpenAI compatible providers via api_base_url
             if self.config.llm.api_base_url:
-                self._llm_client = openai.OpenAI(
-                    api_key=self.config.llm.api_key,
-                    base_url=self.config.llm.api_base_url
-                )
+                self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key, base_url=self.config.llm.api_base_url)
             else:
                 self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key)
 

@@ -15,6 +15,7 @@ class LLMProvider(Enum):
     ANTHROPIC = "anthropic"
     OPENAI = "openai"
     OLLAMA = "ollama"  # Dedicated Ollama provider
+    GOOGLE = "google"  # Google Gemini models
 
 
 class ReviewDepth(Enum):
@@ -45,13 +46,11 @@ def _detect_provider_from_model(model_name: str) -> Optional[LLMProvider]:
     stripped_model = model_lower
     for prefix in prefixes_to_strip:
         if stripped_model.startswith(prefix):
-            stripped_model = stripped_model[len(prefix):]
+            stripped_model = stripped_model[len(prefix) :]
             break
 
     # OpenAI model patterns
-    openai_patterns = [
-        "gpt-", "o1-", "text-davinci", "text-curie", "text-babbage", "text-ada"
-    ]
+    openai_patterns = ["gpt-", "o1-", "text-davinci", "text-curie", "text-babbage", "text-ada"]
     if any(pattern in stripped_model for pattern in openai_patterns):
         return LLMProvider.OPENAI
 
@@ -59,6 +58,11 @@ def _detect_provider_from_model(model_name: str) -> Optional[LLMProvider]:
     anthropic_patterns = ["claude-", "haiku", "sonnet", "opus"]
     if any(pattern in stripped_model for pattern in anthropic_patterns):
         return LLMProvider.ANTHROPIC
+
+    # Google model patterns
+    google_patterns = ["gemini-", "gemini", "bison", "gecko", "palm"]
+    if any(pattern in stripped_model for pattern in google_patterns):
+        return LLMProvider.GOOGLE
 
     # Ollama model patterns - popular models available in Ollama
     ollama_patterns = [
@@ -197,6 +201,13 @@ class ReviewConfig:
             if _is_placeholder_token(config_api_key):
                 config_api_key = None  # Treat placeholder as missing
             api_key = config_api_key or os.getenv("KIT_ANTHROPIC_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
+        elif provider == LLMProvider.GOOGLE:
+            default_model = "gemini-2.5-flash"  # Updated to latest model
+            api_key_env = "KIT_GOOGLE_API_KEY or GOOGLE_API_KEY"
+            config_api_key = llm_data.get("api_key")
+            if _is_placeholder_token(config_api_key):
+                config_api_key = None  # Treat placeholder as missing
+            api_key = config_api_key or os.getenv("KIT_GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
         elif provider == LLMProvider.OLLAMA:
             default_model = "qwen2.5-coder:latest"  # Latest code-specialized model
             api_key_env = "None (Ollama doesn't require API keys)"
@@ -265,8 +276,8 @@ class ReviewConfig:
         default_config = {
             "github": {"token": "ghp_your_token_here", "base_url": "https://api.github.com"},
             "llm": {
-                "provider": "anthropic",  # or "openai"
-                "model": "claude-sonnet-4-20250514",  # or "gpt-4o"
+                "provider": "anthropic",  # or "openai", "google"
+                "model": "claude-sonnet-4-20250514",  # or "gpt-4o", "gemini-2.5-flash"
                 "api_key": "sk-your_api_key_here",
                 "max_tokens": 4000,
                 "temperature": 0.1,
@@ -316,6 +327,14 @@ class ReviewConfig:
 #   api_base_url: "http://localhost:11434"  # Default Ollama endpoint
 #   api_key: "ollama"  # Placeholder (Ollama doesn't use API keys)
 #   max_tokens: 2000
+#   temperature: 0.1
+
+# Example Google Gemini configuration:
+# llm:
+#   provider: google
+#   model: "gemini-2.5-flash"  # Or "gemini-2.5-pro" for more complex reasoning, "gemini-2.0-flash-lite" for speed
+#   api_key: "AIzaSy..."  # Get from https://aistudio.google.com/apikey
+#   max_tokens: 4000
 #   temperature: 0.1
 
 # Example OpenAI compatible provider configurations:

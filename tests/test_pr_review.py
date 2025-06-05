@@ -35,9 +35,7 @@ def test_pr_url_parsing():
     reviewer = PRReviewer(config)
 
     # Test valid PR URL
-    owner, repo, pr_number = reviewer.parse_pr_url(
-        "https://github.com/cased/kit/pull/47"
-    )
+    owner, repo, pr_number = reviewer.parse_pr_url("https://github.com/cased/kit/pull/47")
     assert owner == "cased"
     assert repo == "kit"
     assert pr_number == 47
@@ -56,9 +54,7 @@ def test_cost_tracker_anthropic():
     tracker = CostTracker()
 
     # Test Claude 3.5 Sonnet pricing
-    tracker.track_llm_usage(
-        LLMProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", 1000, 500
-    )
+    tracker.track_llm_usage(LLMProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", 1000, 500)
 
     expected_cost = (1000 / 1_000_000) * 3.00 + (500 / 1_000_000) * 15.00
     assert abs(tracker.breakdown.llm_cost_usd - expected_cost) < 0.0001
@@ -85,9 +81,7 @@ def test_cost_tracker_unknown_model():
     tracker = CostTracker()
 
     with patch("builtins.print") as mock_print:
-        tracker.track_llm_usage(
-            LLMProvider.ANTHROPIC, "unknown-model", 1000, 500
-        )
+        tracker.track_llm_usage(LLMProvider.ANTHROPIC, "unknown-model", 1000, 500)
 
         # Should print warning
         mock_print.assert_called()
@@ -104,15 +98,11 @@ def test_cost_tracker_multiple_calls():
     tracker = CostTracker()
 
     # First call
-    tracker.track_llm_usage(
-        LLMProvider.ANTHROPIC, "claude-3-5-haiku-20241022", 500, 200
-    )
+    tracker.track_llm_usage(LLMProvider.ANTHROPIC, "claude-3-5-haiku-20241022", 500, 200)
     first_cost = tracker.breakdown.llm_cost_usd
 
     # Second call
-    tracker.track_llm_usage(
-        LLMProvider.ANTHROPIC, "claude-3-5-haiku-20241022", 300, 150
-    )
+    tracker.track_llm_usage(LLMProvider.ANTHROPIC, "claude-3-5-haiku-20241022", 300, 150)
 
     # Should accumulate
     assert tracker.breakdown.llm_input_tokens == 800
@@ -124,9 +114,7 @@ def test_cost_tracker_reset():
     """Test cost tracker reset functionality."""
     tracker = CostTracker()
 
-    tracker.track_llm_usage(
-        LLMProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", 1000, 500
-    )
+    tracker.track_llm_usage(LLMProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", 1000, 500)
     assert tracker.breakdown.llm_cost_usd > 0
 
     tracker.reset()
@@ -139,61 +127,46 @@ def test_model_prefix_detection():
     """Test model prefix detection for popular providers."""
 
     # Test OpenRouter prefixes
-    assert CostTracker._strip_model_prefix(
-        "openrouter/meta-llama/llama-3.1-8b-instruct"
-    ) == "meta-llama/llama-3.1-8b-instruct"
+    assert (
+        CostTracker._strip_model_prefix("openrouter/meta-llama/llama-3.1-8b-instruct")
+        == "meta-llama/llama-3.1-8b-instruct"
+    )
 
-    assert CostTracker._strip_model_prefix(
-        "openrouter/anthropic/claude-3.5-sonnet"
-    ) == "anthropic/claude-3.5-sonnet"
+    assert CostTracker._strip_model_prefix("openrouter/anthropic/claude-3.5-sonnet") == "anthropic/claude-3.5-sonnet"
 
     # Test Together AI prefixes
-    assert CostTracker._strip_model_prefix(
-        "together/meta-llama/Llama-3-8b-chat-hf"
-    ) == "meta-llama/Llama-3-8b-chat-hf"
+    assert CostTracker._strip_model_prefix("together/meta-llama/Llama-3-8b-chat-hf") == "meta-llama/Llama-3-8b-chat-hf"
 
-    assert CostTracker._strip_model_prefix(
-        "together/mistralai/Mixtral-8x7B-Instruct-v0.1"
-    ) == "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    assert (
+        CostTracker._strip_model_prefix("together/mistralai/Mixtral-8x7B-Instruct-v0.1")
+        == "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    )
 
     # Test Groq prefixes
-    assert CostTracker._strip_model_prefix(
-        "groq/llama3-8b-8192"
-    ) == "llama3-8b-8192"
+    assert CostTracker._strip_model_prefix("groq/llama3-8b-8192") == "llama3-8b-8192"
 
-    assert CostTracker._strip_model_prefix(
-        "groq/mixtral-8x7b-32768"
-    ) == "mixtral-8x7b-32768"
+    assert CostTracker._strip_model_prefix("groq/mixtral-8x7b-32768") == "mixtral-8x7b-32768"
 
     # Test Fireworks AI prefixes
-    assert CostTracker._strip_model_prefix(
-        "fireworks/accounts/fireworks/models/llama-v3p1-8b-instruct"
-    ) == "accounts/fireworks/models/llama-v3p1-8b-instruct"
+    assert (
+        CostTracker._strip_model_prefix("fireworks/accounts/fireworks/models/llama-v3p1-8b-instruct")
+        == "accounts/fireworks/models/llama-v3p1-8b-instruct"
+    )
 
     # Test Replicate prefixes
-    assert CostTracker._strip_model_prefix(
-        "replicate/meta/llama-2-70b-chat"
-    ) == "meta/llama-2-70b-chat"
+    assert CostTracker._strip_model_prefix("replicate/meta/llama-2-70b-chat") == "meta/llama-2-70b-chat"
 
     # Test models without prefixes (should return as-is)
-    assert CostTracker._strip_model_prefix(
-        "gpt-4o"
-    ) == "gpt-4o"
+    assert CostTracker._strip_model_prefix("gpt-4o") == "gpt-4o"
 
-    assert CostTracker._strip_model_prefix(
-        "claude-3-5-sonnet-20241022"
-    ) == "claude-3-5-sonnet-20241022"
+    assert CostTracker._strip_model_prefix("claude-3-5-sonnet-20241022") == "claude-3-5-sonnet-20241022"
 
     # Test complex model names with multiple slashes - this one should remain as-is
     # because "provider" is not in the prefixes_to_strip list
-    assert CostTracker._strip_model_prefix(
-        "provider/org/model/version/variant"
-    ) == "provider/org/model/version/variant"
+    assert CostTracker._strip_model_prefix("provider/org/model/version/variant") == "provider/org/model/version/variant"
 
     # Test vertex_ai prefix (which is in the list)
-    assert CostTracker._strip_model_prefix(
-        "vertex_ai/claude-sonnet-4-20250514"
-    ) == "claude-sonnet-4-20250514"
+    assert CostTracker._strip_model_prefix("vertex_ai/claude-sonnet-4-20250514") == "claude-sonnet-4-20250514"
 
 
 def test_cost_tracking_with_prefixed_models():
@@ -202,12 +175,7 @@ def test_cost_tracking_with_prefixed_models():
 
     # Test OpenRouter model that maps to known pricing
     # Should extract base model and use its pricing
-    tracker.track_llm_usage(
-        LLMProvider.OPENAI,
-        "openrouter/gpt-4o",
-        1000,
-        500
-    )
+    tracker.track_llm_usage(LLMProvider.OPENAI, "openrouter/gpt-4o", 1000, 500)
 
     # Should use GPT-4o pricing despite the prefix
     expected_cost = (1000 / 1_000_000) * 2.50 + (500 / 1_000_000) * 10.00
@@ -220,12 +188,7 @@ def test_cost_tracking_with_prefixed_models():
     # Since "together/anthropic/claude-3-5-sonnet-20241022" doesn't match
     # the exact pricing key, it will use fallback pricing
     with patch("builtins.print"):  # Suppress warning output
-        tracker.track_llm_usage(
-            LLMProvider.ANTHROPIC,
-            "together/claude-3-5-sonnet-20241022",
-            800,
-            400
-        )
+        tracker.track_llm_usage(LLMProvider.ANTHROPIC, "together/claude-3-5-sonnet-20241022", 800, 400)
 
     # Should extract claude-3-5-sonnet-20241022 and use its pricing
     expected_cost = (800 / 1_000_000) * 3.00 + (400 / 1_000_000) * 15.00
@@ -238,12 +201,7 @@ def test_cost_tracking_unknown_prefixed_models():
 
     with patch("builtins.print") as mock_print:
         # Test completely unknown prefixed model
-        tracker.track_llm_usage(
-            LLMProvider.OPENAI,
-            "newprovider/unknown/model-v1",
-            1000,
-            500
-        )
+        tracker.track_llm_usage(LLMProvider.OPENAI, "newprovider/unknown/model-v1", 1000, 500)
 
         # Should print warning about unknown pricing
         mock_print.assert_called()
@@ -260,9 +218,7 @@ def test_model_validation_with_prefixes():
 
     # Test that prefixed models are considered valid if base model is valid
     assert CostTracker.is_valid_model("openrouter/gpt-4o")
-    assert CostTracker.is_valid_model(
-        "together/claude-3-5-sonnet-20241022"
-    )
+    assert CostTracker.is_valid_model("together/claude-3-5-sonnet-20241022")
     # Note: llama3-8b-8192 is not in the DEFAULT_PRICING, so this will be False
     # Let's test with a model that actually exists
     assert CostTracker.is_valid_model("groq/gpt-4o")
@@ -322,12 +278,7 @@ def test_pr_reviewer_with_prefixed_models():
     assert reviewer.config.llm.model == "openrouter/gpt-4o-mini"
 
     # Cost tracker should handle the prefixed model correctly
-    reviewer.cost_tracker.track_llm_usage(
-        LLMProvider.OPENAI,
-        "openrouter/gpt-4o-mini",
-        500,
-        250
-    )
+    reviewer.cost_tracker.track_llm_usage(LLMProvider.OPENAI, "openrouter/gpt-4o-mini", 500, 250)
 
     # Should extract base model for pricing
     assert reviewer.cost_tracker.breakdown.llm_cost_usd > 0
@@ -364,29 +315,21 @@ def test_complex_prefixed_model_names():
     complex_models = [
         (
             "fireworks/accounts/fireworks/models/llama-v3p1-8b-instruct",
-            "accounts/fireworks/models/llama-v3p1-8b-instruct"
+            "accounts/fireworks/models/llama-v3p1-8b-instruct",
         ),
         (
             "replicate/meta/llama-2-70b-chat:13c3cdee13ee059ab779f0291d29054dab00a47dad8261375654de5540165fb0",
-            "meta/llama-2-70b-chat:13c3cdee13ee059ab779f0291d29054dab00a47dad8261375654de5540165fb0"
+            "meta/llama-2-70b-chat:13c3cdee13ee059ab779f0291d29054dab00a47dad8261375654de5540165fb0",
         ),
         # This one won't be stripped because "provider" is not in prefixes_to_strip
-        (
-            "provider/org/team/model/version/variant",
-            "provider/org/team/model/version/variant"
-        ),
+        ("provider/org/team/model/version/variant", "provider/org/team/model/version/variant"),
         # This one won't be stripped because "a" is not in prefixes_to_strip
-        (
-            "a/b/c/d/e/f/g",
-            "a/b/c/d/e/f/g"
-        ),
+        ("a/b/c/d/e/f/g", "a/b/c/d/e/f/g"),
     ]
 
     for original_model, expected_result in complex_models:
         base_model = CostTracker._strip_model_prefix(original_model)
-        assert base_model == expected_result, (
-            f"Expected {expected_result}, got {base_model}"
-        )
+        assert base_model == expected_result, f"Expected {expected_result}, got {base_model}"
 
 
 def test_provider_prefix_detection():
@@ -409,9 +352,7 @@ def test_provider_prefix_detection():
         else:
             model_name = f"{provider}/test/model"
         base_name = CostTracker._strip_model_prefix(model_name)
-        assert base_name == "test/model", (
-            f"Failed for {provider}: got {base_name}"
-        )
+        assert base_name == "test/model", f"Failed for {provider}: got {base_name}"
         assert not base_name.startswith(f"{provider}/")
 
     # Test unknown provider (should NOT be stripped since it's not in the list)
@@ -437,12 +378,7 @@ def test_cost_tracking_edge_cases_with_prefixes():
 
     # Test model with provider prefix but unknown base model
     with patch("builtins.print") as mock_print:
-        tracker.track_llm_usage(
-            LLMProvider.ANTHROPIC,
-            "openrouter/unknown/mystery-model-v1",
-            1000,
-            500
-        )
+        tracker.track_llm_usage(LLMProvider.ANTHROPIC, "openrouter/unknown/mystery-model-v1", 1000, 500)
 
         # Should warn about unknown pricing
         mock_print.assert_called()
@@ -455,12 +391,7 @@ def test_cost_tracking_edge_cases_with_prefixes():
     tracker.reset()
 
     # Test model with multiple provider-like prefixes
-    tracker.track_llm_usage(
-        LLMProvider.OPENAI,
-        "together/gpt-4o",
-        800,
-        400
-    )
+    tracker.track_llm_usage(LLMProvider.OPENAI, "together/gpt-4o", 800, 400)
 
     # Should extract gpt-4o and use its pricing
     expected_cost = (800 / 1_000_000) * 2.50 + (400 / 1_000_000) * 10.00
@@ -501,33 +432,22 @@ def test_validator_empty_review():
 
 def test_validator_vague_review():
     """Test validator detects vague reviews."""
-    vague_review = (
-        "This looks good. Maybe consider some improvements. "
-        "Seems fine overall."
-    )
+    vague_review = "This looks good. Maybe consider some improvements. Seems fine overall."
 
     validation = validate_review_quality(vague_review, "diff", ["file.py"])
 
     assert validation.metrics["vague_statements"] > 0
-    assert any(
-        "Review doesn't reference any changed files" in issue
-        for issue in validation.issues
-    )
+    assert any("Review doesn't reference any changed files" in issue for issue in validation.issues)
 
 
 def test_validator_no_file_references():
     """Test validator detects missing file references."""
     review = "This code has some issues that should be fixed."
 
-    validation = validate_review_quality(
-        review, "diff", ["main.py", "test.py"]
-    )
+    validation = validate_review_quality(review, "diff", ["main.py", "test.py"])
 
     assert validation.metrics["file_references"] == 0
-    assert any(
-        "Review doesn't reference any changed files" in issue
-        for issue in validation.issues
-    )
+    assert any("Review doesn't reference any changed files" in issue for issue in validation.issues)
 
 
 def test_validator_change_coverage():
@@ -629,9 +549,7 @@ def test_config_openai_provider():
 def test_config_custom_openai_provider():
     """Test custom OpenAI compatible provider configuration."""
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yaml", delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         config_data = {
             "github": {"token": "github_token"},
             "llm": {
@@ -641,7 +559,7 @@ def test_config_custom_openai_provider():
                 "api_base_url": "https://api.together.xyz/v1",
                 "max_tokens": 4000,
                 "temperature": 0.1,
-            }
+            },
         }
         yaml.dump(config_data, f)
         config_path = f.name
@@ -657,6 +575,7 @@ def test_config_custom_openai_provider():
         assert config.llm.temperature == 0.1
     finally:
         import os
+
         os.unlink(config_path)
 
 

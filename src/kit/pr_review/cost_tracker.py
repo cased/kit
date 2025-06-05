@@ -82,6 +82,54 @@ class CostTracker:
                 "output_per_million": 30.00,  # $30.00 per million output tokens
             },
         },
+        LLMProvider.GOOGLE: {
+            # Gemini pricing from https://ai.google.dev/gemini-api/docs/pricing
+            "gemini-2.5-flash": {
+                "input_per_million": 0.15,  # $0.15 per million input tokens
+                "output_per_million": 0.60,  # $0.60 per million output tokens (non-thinking)
+            },
+            "gemini-2.5-flash-preview": {
+                "input_per_million": 0.15,  # $0.15 per million input tokens
+                "output_per_million": 0.60,  # $0.60 per million output tokens (non-thinking)
+            },
+            "gemini-2.5-pro": {
+                "input_per_million": 2.50,  # $2.50 per million input tokens (>200k tokens)
+                "output_per_million": 15.00,  # $15.00 per million output tokens (>200k tokens)
+            },
+            "gemini-2.5-pro-preview": {
+                "input_per_million": 2.50,  # $2.50 per million input tokens (>200k tokens)
+                "output_per_million": 15.00,  # $15.00 per million output tokens (>200k tokens)
+            },
+            "gemini-2.0-flash": {
+                "input_per_million": 0.15,  # Estimated based on Flash pricing pattern
+                "output_per_million": 0.60,  # Estimated based on Flash pricing pattern
+            },
+            "gemini-2.0-flash-lite": {
+                "input_per_million": 0.075,  # Estimated - lite version should be cheaper
+                "output_per_million": 0.30,  # Estimated - lite version should be cheaper
+            },
+            "gemini-1.5-flash": {
+                "input_per_million": 0.15,  # $0.15 per million input tokens (>128k tokens)
+                "output_per_million": 0.60,  # $0.60 per million output tokens (>128k tokens)
+            },
+            "gemini-1.5-flash-8b": {
+                "input_per_million": 0.075,  # $0.075 per million input tokens (>128k tokens)
+                "output_per_million": 0.30,  # $0.30 per million output tokens (>128k tokens)
+            },
+            "gemini-1.5-pro": {
+                "input_per_million": 2.50,  # $2.50 per million input tokens (>128k tokens)
+                "output_per_million": 10.00,  # $10.00 per million output tokens (>128k tokens)
+            },
+            # Legacy naming patterns
+            "gemini-1.5-pro-latest": {
+                "input_per_million": 2.50,  # Same as gemini-1.5-pro
+                "output_per_million": 10.00,  # Same as gemini-1.5-pro
+            },
+            "gemini-1.5-flash-latest": {
+                "input_per_million": 0.15,  # Same as gemini-1.5-flash
+                "output_per_million": 0.60,  # Same as gemini-1.5-flash
+            },
+        },
         LLMProvider.OLLAMA: {
             # Ollama is completely free - all models cost $0
             # Latest popular models from ollama.com/library
@@ -218,7 +266,7 @@ class CostTracker:
 
         for prefix in prefixes_to_strip:
             if model_name.startswith(prefix):
-                return model_name[len(prefix):]
+                return model_name[len(prefix) :]
 
         return model_name
 
@@ -257,27 +305,18 @@ class CostTracker:
         for model in all_models:
             lower_model = model.lower()
             # Check if models start similarly
-            starts_similar = (
-                lower_model.startswith(stripped_invalid[:4]) or
-                stripped_invalid.startswith(lower_model[:4])
+            starts_similar = lower_model.startswith(stripped_invalid[:4]) or stripped_invalid.startswith(
+                lower_model[:4]
             )
             # Check if any significant parts match
-            parts_match = any(
-                part in lower_model
-                for part in stripped_invalid.split('-')[:2]
-                if len(part) > 2
-            )
+            parts_match = any(part in lower_model for part in stripped_invalid.split("-")[:2] if len(part) > 2)
 
             if starts_similar or parts_match:
                 suggestions.append(model)
 
         # If no good matches, return a few popular ones
         if not suggestions:
-            popular_models = [
-                "gpt-4.1-nano",
-                "gpt-4o-mini",
-                "claude-3-5-sonnet-20241022"
-            ]
+            popular_models = ["gpt-4.1-nano", "gpt-4o-mini", "claude-3-5-sonnet-20241022"]
             suggestions = popular_models
 
         return suggestions[:5]  # Limit to 5 suggestions

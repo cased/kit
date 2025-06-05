@@ -264,6 +264,8 @@ class PRReviewer:
         # Use LLM to analyze with enhanced context
         if self.config.llm.provider == LLMProvider.ANTHROPIC:
             return await self._analyze_with_anthropic_enhanced(analysis_prompt)
+        elif self.config.llm.provider == LLMProvider.GOOGLE:
+            return await self._analyze_with_google_enhanced(analysis_prompt)
         elif self.config.llm.provider == LLMProvider.OLLAMA:
             return await self._analyze_with_ollama_enhanced(analysis_prompt)
         else:
@@ -304,26 +306,61 @@ class PRReviewer:
         except Exception as e:
             return f"Error during enhanced LLM analysis: {e}"
 
+    async def _analyze_with_google_enhanced(self, enhanced_prompt: str) -> str:
+        """Analyze using Google Gemini with enhanced kit context."""
+        try:
+            import google.genai as genai
+        except ImportError:
+            raise RuntimeError("google-genai package not installed. Run: pip install google-genai")
+
+        if not self._llm_client:
+            self._llm_client = genai.Client(api_key=self.config.llm.api_key)
+
+        try:
+            # Use the models.generate_content method for Gemini
+            response = self._llm_client.models.generate_content(
+                model=self.config.llm.model,
+                contents=enhanced_prompt,
+                generation_config={
+                    "temperature": self.config.llm.temperature,
+                    "max_output_tokens": self.config.llm.max_tokens,
+                },
+            )
+
+            # Check for blocked prompt first
+            if (
+                hasattr(response, "prompt_feedback")
+                and response.prompt_feedback
+                and response.prompt_feedback.block_reason
+            ):
+                return f"Error during enhanced LLM analysis: Prompt blocked by API (Reason: {response.prompt_feedback.block_reason})"
+            elif not response.text:
+                return "Error during enhanced LLM analysis: No text returned by API."
+            else:
+                # Track cost - Google usage tracking can be estimated
+                estimated_input_tokens = len(enhanced_prompt) // 4
+                estimated_output_tokens = len(response.text) // 4
+                self.cost_tracker.track_llm_usage(
+                    self.config.llm.provider, self.config.llm.model, estimated_input_tokens, estimated_output_tokens
+                )
+                return response.text
+
+        except Exception as e:
+            return f"Error during enhanced LLM analysis: {e}"
+
     async def _analyze_with_openai_enhanced(self, enhanced_prompt: str) -> str:
         """Analyze using OpenAI GPT with enhanced kit context."""
         try:
             import openai
         except ImportError:
-            raise RuntimeError(
-                "openai package not installed. Run: pip install openai"
-            )
+            raise RuntimeError("openai package not installed. Run: pip install openai")
 
         if not self._llm_client:
             # Support custom OpenAI compatible providers via api_base_url
             if self.config.llm.api_base_url:
-                self._llm_client = openai.OpenAI(
-                    api_key=self.config.llm.api_key,
-                    base_url=self.config.llm.api_base_url
-                )
+                self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key, base_url=self.config.llm.api_base_url)
             else:
-                self._llm_client = openai.OpenAI(
-                    api_key=self.config.llm.api_key
-                )
+                self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key)
 
         try:
             response = self._llm_client.chat.completions.create(
@@ -334,14 +371,9 @@ class PRReviewer:
             )
 
             # Track cost
-            input_tokens, output_tokens = self.cost_tracker.extract_openai_usage(
-                response
-            )
+            input_tokens, output_tokens = self.cost_tracker.extract_openai_usage(response)
             self.cost_tracker.track_llm_usage(
-                self.config.llm.provider,
-                self.config.llm.model,
-                input_tokens,
-                output_tokens
+                self.config.llm.provider, self.config.llm.model, input_tokens, output_tokens
             )
 
             content = response.choices[0].message.content
