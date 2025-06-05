@@ -720,3 +720,14 @@ Kit review supports multiple LLM providers:
 - **OpenAI GPT** - Reliable performance with `gpt-4.1-2025-04-14`
 - **Google Gemini** - Great models like `gemini-2.5-flash`
 - **Ollama** - Free local models like `qwen2.5-coder:latest`
+
+### Cost Tracking
+
+Kit review includes comprehensive cost tracking for all supported LLM providers:
+
+- **Anthropic Claude**: Accurate token counting via API response metadata
+- **OpenAI GPT**: Accurate token counting via API response metadata  
+- **Google Gemini**: Accurate token counting via usage_metadata and count_tokens API
+- **Ollama**: Free (estimated token counts for consistency)
+
+Costs are calculated using real-time pricing and displayed after each review.

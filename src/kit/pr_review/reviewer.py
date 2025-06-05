@@ -328,6 +328,36 @@ class PRReviewer:
                 ),
             )
 
+            # Track cost using accurate token counts from the response
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
+                output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
+
+                self.cost_tracker.track_llm_usage(
+                    self.config.llm.provider, self.config.llm.model, input_tokens, output_tokens
+                )
+            else:
+                # Fallback: Use count_tokens API for input estimation if usage_metadata unavailable
+                try:
+                    token_count_response = self._llm_client.models.count_tokens(
+                        model=self.config.llm.model, contents=enhanced_prompt
+                    )
+                    input_tokens = getattr(token_count_response, "total_tokens", 0)
+                    # Estimate output tokens based on response length (rough fallback)
+                    estimated_output_tokens = len(str(response.text)) // 4 if response.text else 0
+
+                    self.cost_tracker.track_llm_usage(
+                        self.config.llm.provider, self.config.llm.model, input_tokens, estimated_output_tokens
+                    )
+                except Exception:
+                    # If all else fails, estimate tokens based on character count
+                    estimated_input_tokens = len(enhanced_prompt) // 4
+                    estimated_output_tokens = len(str(response.text)) // 4 if response.text else 0
+
+                    self.cost_tracker.track_llm_usage(
+                        self.config.llm.provider, self.config.llm.model, estimated_input_tokens, estimated_output_tokens
+                    )
+
             # Ensure we always return a string
             result_text = response.text
             return result_text if result_text is not None else "No response content from Google Gemini"
