@@ -310,6 +310,7 @@ class PRReviewer:
         """Analyze using Google Gemini with enhanced kit context."""
         try:
             import google.genai as genai
+            from google.genai import types
         except ImportError:
             raise RuntimeError("google-genai package not installed. Run: pip install google-genai")
 
@@ -317,33 +318,17 @@ class PRReviewer:
             self._llm_client = genai.Client(api_key=self.config.llm.api_key)
 
         try:
-            # Use the models.generate_content method for Gemini
+            # Use the correct API format for the new google-genai SDK
             response = self._llm_client.models.generate_content(
                 model=self.config.llm.model,
                 contents=enhanced_prompt,
-                generation_config={
-                    "temperature": self.config.llm.temperature,
-                    "max_output_tokens": self.config.llm.max_tokens,
-                },
+                config=types.GenerateContentConfig(
+                    temperature=self.config.llm.temperature,
+                    max_output_tokens=self.config.llm.max_tokens,
+                ),
             )
 
-            # Check for blocked prompt first
-            if (
-                hasattr(response, "prompt_feedback")
-                and response.prompt_feedback
-                and response.prompt_feedback.block_reason
-            ):
-                return f"Error during enhanced LLM analysis: Prompt blocked by API (Reason: {response.prompt_feedback.block_reason})"
-            elif not response.text:
-                return "Error during enhanced LLM analysis: No text returned by API."
-            else:
-                # Track cost - Google usage tracking can be estimated
-                estimated_input_tokens = len(enhanced_prompt) // 4
-                estimated_output_tokens = len(response.text) // 4
-                self.cost_tracker.track_llm_usage(
-                    self.config.llm.provider, self.config.llm.model, estimated_input_tokens, estimated_output_tokens
-                )
-                return response.text
+            return response.text
 
         except Exception as e:
             return f"Error during enhanced LLM analysis: {e}"

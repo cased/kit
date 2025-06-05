@@ -710,6 +710,7 @@ Output example:
 | GitHub Token | `KIT_GITHUB_TOKEN` |
 | Anthropic Key | `KIT_ANTHROPIC_TOKEN` |
 | OpenAI Key | `KIT_OPENAI_TOKEN` |
+| Google Key | `KIT_GOOGLE_API_KEY` |
 
 ## Supported LLM Providers
 

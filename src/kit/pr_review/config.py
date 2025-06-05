@@ -14,8 +14,8 @@ class LLMProvider(Enum):
 
     ANTHROPIC = "anthropic"
     OPENAI = "openai"
-    OLLAMA = "ollama"  # Dedicated Ollama provider
-    GOOGLE = "google"  # Google Gemini models
+    OLLAMA = "ollama"
+    GOOGLE = "google"
 
 
 class ReviewDepth(Enum):
