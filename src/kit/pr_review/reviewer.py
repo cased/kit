@@ -328,7 +328,9 @@ class PRReviewer:
                 ),
             )
 
-            return response.text
+            # Ensure we always return a string
+            result_text = response.text
+            return result_text if result_text is not None else "No response content from Google Gemini"
 
         except Exception as e:
             return f"Error during enhanced LLM analysis: {e}"
