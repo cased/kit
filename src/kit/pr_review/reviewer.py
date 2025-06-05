@@ -135,7 +135,7 @@ class PRReviewer:
         # Create kit Repository instance
         repo = Repository(repo_path)
 
-        owner, repo_name = pr_details["head"]["repo"]["owner"]["login"], pr_details["head"]["repo"]["name"]
+        owner, repo_name = pr_details["base"]["repo"]["owner"]["login"], pr_details["base"]["repo"]["name"]
         pr_number = pr_details["number"]
         try:
             pr_diff = self.get_pr_diff(owner, repo_name, pr_number)  # cached

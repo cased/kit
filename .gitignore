@@ -63,3 +63,6 @@ test_repo*
 # Test results and matrix testing artifacts
 test-results/
 *.json
+
+# Pycharm
+.idea/
