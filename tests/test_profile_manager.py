@@ -41,7 +41,7 @@ def sample_profile():
         context="Test context content\nWith multiple lines",
         created_at="2024-01-15T10:30:00Z",
         updated_at="2024-01-15T10:30:00Z",
-        tags=["test", "unit"]
+        tags=["test", "unit"],
     )
 
 
@@ -77,7 +77,7 @@ class TestReviewProfile:
             description="Test profile",
             context="Test context",
             created_at="2024-01-15T10:30:00Z",
-            updated_at="2024-01-15T10:30:00Z"
+            updated_at="2024-01-15T10:30:00Z",
         )
 
         assert profile.name == "test"
@@ -93,7 +93,7 @@ class TestReviewProfile:
             context="Test context",
             created_at="2024-01-15T10:30:00Z",
             updated_at="2024-01-15T10:30:00Z",
-            tags=["security", "python"]
+            tags=["security", "python"],
         )
 
         assert profile.tags == ["security", "python"]
@@ -106,7 +106,7 @@ class TestReviewProfile:
             context="Test context",
             created_at="2024-01-15T10:30:00Z",
             updated_at="2024-01-15T10:30:00Z",
-            tags=None
+            tags=None,
         )
 
         assert profile.tags == []
@@ -117,8 +117,7 @@ class TestProfileManager:
 
     def test_init_default_directory(self):
         """Test ProfileManager initialization with default directory."""
-        with patch("os.path.expanduser") as mock_expanduser, \
-             patch("pathlib.Path.mkdir") as mock_mkdir:
+        with patch("os.path.expanduser") as mock_expanduser, patch("pathlib.Path.mkdir") as mock_mkdir:
             mock_expanduser.return_value = "/home/user/.kit/profiles"
 
             manager = ProfileManager()
@@ -139,10 +138,7 @@ class TestProfileManager:
             mock_datetime.now.return_value.isoformat.return_value = "2024-01-15T10:30:00Z"
 
             profile = profile_manager.create_profile(
-                name="test-profile",
-                description="Test description",
-                context="Test context",
-                tags=["test"]
+                name="test-profile", description="Test description", context="Test context", tags=["test"]
             )
 
             assert profile.name == "test-profile"
@@ -166,10 +162,7 @@ class TestProfileManager:
             mock_datetime.now.return_value.isoformat.return_value = "2024-01-15T10:30:00Z"
 
             profile = profile_manager.create_profile_from_file(
-                name="file-profile",
-                description="Profile from file",
-                file_path=str(content_file),
-                tags=["file", "test"]
+                name="file-profile", description="Profile from file", file_path=str(content_file), tags=["file", "test"]
             )
 
             assert profile.name == "file-profile"
@@ -179,11 +172,7 @@ class TestProfileManager:
     def test_create_profile_from_nonexistent_file(self, profile_manager):
         """Test creating a profile from a non-existent file raises error."""
         with pytest.raises(ValueError, match="File not found"):
-            profile_manager.create_profile_from_file(
-                name="test",
-                description="Test",
-                file_path="/nonexistent/file.md"
-            )
+            profile_manager.create_profile_from_file(name="test", description="Test", file_path="/nonexistent/file.md")
 
     def test_create_profile_duplicate_name(self, profile_manager, sample_profile):
         """Test creating a profile with duplicate name raises error."""
@@ -192,11 +181,7 @@ class TestProfileManager:
 
         # Try to create another with same name
         with pytest.raises(ValueError, match="Profile 'test-profile' already exists"):
-            profile_manager.create_profile(
-                name="test-profile",
-                description="Duplicate",
-                context="Duplicate context"
-            )
+            profile_manager.create_profile(name="test-profile", description="Duplicate", context="Duplicate context")
 
     def test_get_profile(self, profile_manager, sample_profile):
         """Test retrieving a profile."""
@@ -222,12 +207,18 @@ class TestProfileManager:
         """Test listing multiple profiles."""
         # Create multiple profiles
         profile1 = ReviewProfile(
-            name="profile1", description="First", context="Context1",
-            created_at="2024-01-15T10:30:00Z", updated_at="2024-01-15T10:30:00Z"
+            name="profile1",
+            description="First",
+            context="Context1",
+            created_at="2024-01-15T10:30:00Z",
+            updated_at="2024-01-15T10:30:00Z",
         )
         profile2 = ReviewProfile(
-            name="profile2", description="Second", context="Context2",
-            created_at="2024-01-15T11:30:00Z", updated_at="2024-01-15T11:30:00Z"
+            name="profile2",
+            description="Second",
+            context="Context2",
+            created_at="2024-01-15T11:30:00Z",
+            updated_at="2024-01-15T11:30:00Z",
         )
 
         profile_manager._save_profile(profile1)
@@ -248,10 +239,7 @@ class TestProfileManager:
             mock_datetime.now.return_value.isoformat.return_value = "2024-01-15T12:00:00Z"
 
             updated = profile_manager.update_profile(
-                name="test-profile",
-                description="Updated description",
-                context="Updated context",
-                tags=["updated"]
+                name="test-profile", description="Updated description", context="Updated context", tags=["updated"]
             )
 
             assert updated.description == "Updated description"
@@ -263,11 +251,7 @@ class TestProfileManager:
     def test_update_profile_not_found(self, profile_manager):
         """Test updating a non-existent profile raises error."""
         with pytest.raises(ValueError, match="Profile 'nonexistent' not found"):
-            profile_manager.update_profile(
-                name="nonexistent",
-                description="Updated",
-                context="Updated"
-            )
+            profile_manager.update_profile(name="nonexistent", description="Updated", context="Updated")
 
     def test_delete_profile(self, profile_manager, sample_profile, temp_profiles_dir):
         """Test deleting a profile."""
@@ -315,8 +299,11 @@ class TestProfileManager:
 
         # Create another profile
         profile2 = ReviewProfile(
-            name="existing", description="Existing", context="Context",
-            created_at="2024-01-15T10:30:00Z", updated_at="2024-01-15T10:30:00Z"
+            name="existing",
+            description="Existing",
+            context="Context",
+            created_at="2024-01-15T10:30:00Z",
+            updated_at="2024-01-15T10:30:00Z",
         )
         profile_manager._save_profile(profile2)
 
@@ -349,10 +336,7 @@ class TestProfileManager:
         with patch("datetime.datetime") as mock_datetime:
             mock_datetime.now.return_value.isoformat.return_value = "2024-01-15T12:00:00Z"
 
-            profile = profile_manager.import_profile(
-                file_path=str(import_file),
-                name="imported-profile"
-            )
+            profile = profile_manager.import_profile(file_path=str(import_file), name="imported-profile")
 
             assert profile.name == "imported-profile"
             assert profile.context == sample_profile_content
@@ -363,10 +347,7 @@ class TestProfileManager:
         import_file = temp_profiles_dir / "import.md"
         import_file.write_text(sample_profile_content)
 
-        profile = profile_manager.import_profile(
-            file_path=str(import_file),
-            name="custom-name"
-        )
+        profile = profile_manager.import_profile(file_path=str(import_file), name="custom-name")
 
         assert profile.name == "custom-name"
 
@@ -426,11 +407,11 @@ class TestProfileManagerCLI:
 
         # Mock stdin for interactive input
         input_text = "Test context line 1\nTest context line 2\n"
-        result = runner.invoke(app, [
-            "review-profile", "create",
-            "--name", "test-profile",
-            "--description", "Test description"
-        ], input=input_text)
+        result = runner.invoke(
+            app,
+            ["review-profile", "create", "--name", "test-profile", "--description", "Test description"],
+            input=input_text,
+        )
 
         assert result.exit_code == 0
         assert "Created profile 'test-profile'" in result.output
@@ -450,13 +431,21 @@ class TestProfileManagerCLI:
         content_file = temp_profiles_dir / "guidelines.md"
         content_file.write_text("Test guidelines content")
 
-        result = runner.invoke(app, [
-            "review-profile", "create",
-            "--name", "file-profile",
-            "--description", "From file",
-            "--file", str(content_file),
-            "--tags", "test,file"
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "review-profile",
+                "create",
+                "--name",
+                "file-profile",
+                "--description",
+                "From file",
+                "--file",
+                str(content_file),
+                "--tags",
+                "test,file",
+            ],
+        )
 
         assert result.exit_code == 0
         assert "Created profile 'file-profile' from file" in result.output
@@ -467,10 +456,7 @@ class TestProfileManagerCLI:
     @patch("kit.pr_review.profile_manager.ProfileManager")
     def test_profile_create_missing_name(self, mock_manager_class, runner):
         """Test profile creation without required name."""
-        result = runner.invoke(app, [
-            "review-profile", "create",
-            "--description", "Test description"
-        ])
+        result = runner.invoke(app, ["review-profile", "create", "--description", "Test description"])
 
         assert result.exit_code == 1
         assert "Profile name is required" in result.output
@@ -503,9 +489,7 @@ class TestProfileManagerCLI:
         mock_manager.list_profiles.return_value = [mock_profile]
 
         # Mock the rich console import that's used in the CLI
-        with patch("rich.console.Console"), \
-             patch("rich.table.Table"):
-
+        with patch("rich.console.Console"), patch("rich.table.Table"):
             result = runner.invoke(app, ["review-profile", "list"])
 
             assert result.exit_code == 0
@@ -594,11 +578,9 @@ class TestProfileManagerCLI:
         mock_profile = MagicMock(name="copied-profile")
         mock_manager.copy_profile.return_value = mock_profile
 
-        result = runner.invoke(app, [
-            "review-profile", "copy",
-            "--name", "source-profile",
-            "--target", "copied-profile"
-        ])
+        result = runner.invoke(
+            app, ["review-profile", "copy", "--name", "source-profile", "--target", "copied-profile"]
+        )
 
         assert result.exit_code == 0
         assert "Copied profile 'source-profile' to 'copied-profile'" in result.output
@@ -611,11 +593,7 @@ class TestProfileManagerCLI:
 
         export_file = temp_profiles_dir / "exported.md"
 
-        result = runner.invoke(app, [
-            "review-profile", "export",
-            "--name", "test-profile",
-            "--file", str(export_file)
-        ])
+        result = runner.invoke(app, ["review-profile", "export", "--name", "test-profile", "--file", str(export_file)])
 
         assert result.exit_code == 0
         assert "Exported profile 'test-profile'" in result.output
@@ -634,11 +612,9 @@ class TestProfileManagerCLI:
         import_file = temp_profiles_dir / "import.md"
         import_file.write_text("Test content")
 
-        result = runner.invoke(app, [
-            "review-profile", "import",
-            "--file", str(import_file),
-            "--name", "imported-profile"
-        ])
+        result = runner.invoke(
+            app, ["review-profile", "import", "--file", str(import_file), "--name", "imported-profile"]
+        )
 
         assert result.exit_code == 0
         assert "Imported profile 'imported-profile'" in result.output
@@ -659,11 +635,7 @@ class TestConfigurationIntegration:
         config_file = temp_profiles_dir / "config.yaml"
         config_data = {
             "github": {"token": "test_token"},
-            "llm": {
-                "provider": "anthropic",
-                "model": "claude-sonnet-4-20250514",
-                "api_key": "test_key"
-            }
+            "llm": {"provider": "anthropic", "model": "claude-sonnet-4-20250514", "api_key": "test_key"},
         }
         config_file.write_text(yaml.dump(config_data))
 
@@ -678,20 +650,14 @@ class TestConfigurationIntegration:
         # Create profile
         profile_manager = ProfileManager(profiles_dir=str(temp_profiles_dir))
         profile = profile_manager.create_profile(
-            name="test-profile",
-            description="Test profile",
-            context="Test context for review"
+            name="test-profile", description="Test profile", context="Test context for review"
         )
 
         # Create config file
         config_file = temp_profiles_dir / "config.yaml"
         config_data = {
             "github": {"token": "test_token"},
-            "llm": {
-                "provider": "anthropic",
-                "model": "claude-sonnet-4-20250514",
-                "api_key": "test_key"
-            }
+            "llm": {"provider": "anthropic", "model": "claude-sonnet-4-20250514", "api_key": "test_key"},
         }
         config_file.write_text(yaml.dump(config_data))
 
@@ -711,11 +677,7 @@ class TestConfigurationIntegration:
         config_file = temp_profiles_dir / "config.yaml"
         config_data = {
             "github": {"token": "test_token"},
-            "llm": {
-                "provider": "anthropic",
-                "model": "claude-sonnet-4-20250514",
-                "api_key": "test_key"
-            }
+            "llm": {"provider": "anthropic", "model": "claude-sonnet-4-20250514", "api_key": "test_key"},
         }
         config_file.write_text(yaml.dump(config_data))
 
@@ -749,12 +711,9 @@ class TestReviewIntegration:
 
         # Mock CostTracker.is_valid_model to return True
         with patch("kit.pr_review.cost_tracker.CostTracker.is_valid_model", return_value=True):
-            result = runner.invoke(app, [
-                "review",
-                "--profile", "company-standards",
-                "--dry-run",
-                "https://github.com/test/repo/pull/123"
-            ])
+            result = runner.invoke(
+                app, ["review", "--profile", "company-standards", "--dry-run", "https://github.com/test/repo/pull/123"]
+            )
 
             assert result.exit_code == 0
             assert "Using profile: company-standards" in result.output
@@ -768,31 +727,28 @@ class TestReviewIntegration:
 
         config = ReviewConfig(
             github=GitHubConfig(token="test"),
-            llm=LLMConfig(
-                provider=LLMProvider.ANTHROPIC,
-                model="claude-sonnet-4-20250514",
-                api_key="test"
-            ),
+            llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-sonnet-4-20250514", api_key="test"),
             profile="test-profile",
             profile_context="**Custom Guidelines:**\n- Use type hints\n- Write tests",
-            quiet=True  # Enable quiet mode to suppress print output
+            quiet=True,  # Enable quiet mode to suppress print output
         )
 
         reviewer = PRReviewer(config)
 
         # Mock all the necessary methods
-        with patch.object(reviewer, 'get_pr_details') as mock_get_pr, \
-             patch.object(reviewer, 'get_pr_files') as mock_get_files, \
-             patch.object(reviewer, 'get_pr_diff') as mock_get_diff, \
-             patch.object(reviewer, 'get_repo_for_analysis') as mock_get_repo, \
-             patch.object(reviewer, 'analyze_pr_with_kit') as mock_analyze_pr, \
-             patch.object(reviewer, 'post_pr_comment'):
-
+        with (
+            patch.object(reviewer, "get_pr_details") as mock_get_pr,
+            patch.object(reviewer, "get_pr_files") as mock_get_files,
+            patch.object(reviewer, "get_pr_diff") as mock_get_diff,
+            patch.object(reviewer, "get_repo_for_analysis") as mock_get_repo,
+            patch.object(reviewer, "analyze_pr_with_kit") as mock_analyze_pr,
+            patch.object(reviewer, "post_pr_comment"),
+        ):
             mock_get_pr.return_value = {
                 "title": "Test PR",
                 "user": {"login": "testuser"},
                 "base": {"ref": "main"},
-                "head": {"ref": "feature-branch"}
+                "head": {"ref": "feature-branch"},
             }
             mock_get_files.return_value = [{"filename": "test.py", "additions": 5, "deletions": 2}]
             mock_get_diff.return_value = "test diff"
@@ -812,30 +768,27 @@ class TestReviewIntegration:
 
         config = ReviewConfig(
             github=GitHubConfig(token="test"),
-            llm=LLMConfig(
-                provider=LLMProvider.ANTHROPIC,
-                model="claude-sonnet-4-20250514",
-                api_key="test"
-            ),
+            llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-sonnet-4-20250514", api_key="test"),
             profile="test-profile",
-            profile_context="**Security Guidelines:**\n- Validate inputs\n- No hardcoded secrets"
+            profile_context="**Security Guidelines:**\n- Validate inputs\n- No hardcoded secrets",
         )
 
         reviewer = AgenticPRReviewer(config)
 
         # Mock all the methods directly to avoid HTTP calls
-        with patch.object(reviewer, 'get_pr_details') as mock_get_pr, \
-             patch.object(reviewer, 'get_pr_files') as mock_get_files, \
-             patch.object(reviewer, 'get_repo_for_analysis') as mock_get_repo, \
-             patch.object(reviewer, 'analyze_pr_agentic') as mock_analyze_pr, \
-             patch.object(reviewer, 'post_pr_comment'), \
-             patch("builtins.print"):  # Suppress print output
-
+        with (
+            patch.object(reviewer, "get_pr_details") as mock_get_pr,
+            patch.object(reviewer, "get_pr_files") as mock_get_files,
+            patch.object(reviewer, "get_repo_for_analysis") as mock_get_repo,
+            patch.object(reviewer, "analyze_pr_agentic") as mock_analyze_pr,
+            patch.object(reviewer, "post_pr_comment"),
+            patch("builtins.print"),
+        ):  # Suppress print output
             mock_get_pr.return_value = {
                 "title": "Test PR",
                 "user": {"login": "testuser"},
                 "base": {"ref": "main"},
-                "head": {"ref": "feature-branch"}
+                "head": {"ref": "feature-branch"},
             }
             mock_get_files.return_value = [{"filename": "test.py", "additions": 5, "deletions": 2}]
             mock_get_repo.return_value = "/tmp/repo"
@@ -859,11 +812,7 @@ class TestErrorHandling:
 
         manager = ProfileManager(profiles_dir=str(profiles_dir))
         # Create a profile to trigger directory creation
-        manager.create_profile(
-            name="test",
-            description="Test",
-            context="Test context"
-        )
+        manager.create_profile(name="test", description="Test", context="Test context")
 
         assert profiles_dir.exists()
         assert (profiles_dir / "test.yaml").exists()
@@ -876,11 +825,7 @@ class TestErrorHandling:
             mock_file.side_effect = PermissionError("Permission denied")
 
             with pytest.raises(PermissionError):
-                manager.create_profile(
-                    name="test",
-                    description="Test",
-                    context="Test context"
-                )
+                manager.create_profile(name="test", description="Test", context="Test context")
 
     def test_cli_profile_validation_error(self, runner):
         """Test CLI handling of profile validation errors."""
@@ -890,11 +835,11 @@ class TestErrorHandling:
             mock_manager.create_profile.side_effect = ValueError("Profile 'test' already exists")
 
             input_text = "Test context\n"
-            result = runner.invoke(app, [
-                "review-profile", "create",
-                "--name", "test",
-                "--description", "Test description"
-            ], input=input_text)
+            result = runner.invoke(
+                app,
+                ["review-profile", "create", "--name", "test", "--description", "Test description"],
+                input=input_text,
+            )
 
             assert result.exit_code == 1
             assert "Profile error" in result.output

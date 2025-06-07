@@ -724,6 +724,7 @@ def review_profile_command(
 
     # Create a profile from text input
     kit review-profile create --name company-standards --description "Company coding standards"
+    # Type your guidelines, press Enter for new lines, then Ctrl+D to finish
 
     # Create a profile from a file
     kit review-profile create --name python-style --file python-guidelines.md --description "Python style guide"
@@ -767,13 +768,16 @@ def review_profile_command(
                 typer.echo(f"✅ Created profile '{name}' from file '{file}'")
             else:
                 # Create from interactive input
-                typer.echo("Enter the custom context (press Ctrl+D when done):")
+                typer.echo(
+                    "Enter the custom context (type your content, press Enter for new lines, then Ctrl+D to finish):"
+                )
                 try:
                     import sys
+
                     context_lines = []
                     for line in sys.stdin:
-                        context_lines.append(line.rstrip('\n'))
-                    context = '\n'.join(context_lines)
+                        context_lines.append(line.rstrip("\n"))
+                    context = "\n".join(context_lines)
                 except KeyboardInterrupt:
                     typer.echo("\n❌ Creation cancelled")
                     raise typer.Exit(code=1)
@@ -795,13 +799,14 @@ def review_profile_command(
 
             if format == "json":
                 import json
+
                 profile_data = [
                     {
                         "name": p.name,
                         "description": p.description,
                         "tags": p.tags,
                         "created_at": p.created_at,
-                        "updated_at": p.updated_at
+                        "updated_at": p.updated_at,
                     }
                     for p in profiles
                 ]
@@ -821,7 +826,7 @@ def review_profile_command(
                 table.add_column("Created", style="dim")
 
                 for profile in profiles:
-                    created_date = profile.created_at.split('T')[0] if 'T' in profile.created_at else profile.created_at
+                    created_date = profile.created_at.split("T")[0] if "T" in profile.created_at else profile.created_at
                     tags_str = ", ".join(profile.tags) if profile.tags else ""
                     table.add_row(profile.name, profile.description, tags_str, created_date)
 
@@ -858,21 +863,24 @@ def review_profile_command(
 
             if file:
                 # Update context from file
-                new_context = Path(file).read_text(encoding='utf-8')
+                new_context = Path(file).read_text(encoding="utf-8")
             else:
                 # Interactive context editing
                 typer.echo(f"Current context for '{name}':")
                 typer.echo("-" * 30)
                 typer.echo(current_profile.context)
                 typer.echo("-" * 30)
-                typer.echo("Enter new context (press Ctrl+D when done, or Ctrl+C to keep current):")
+                typer.echo(
+                    "Enter new context (type content, press Enter for new lines, then Ctrl+D to finish, or Ctrl+C to keep current):"
+                )
 
                 try:
                     import sys
+
                     context_lines = []
                     for line in sys.stdin:
-                        context_lines.append(line.rstrip('\n'))
-                    new_context = '\n'.join(context_lines)
+                        context_lines.append(line.rstrip("\n"))
+                    new_context = "\n".join(context_lines)
                     if not new_context.strip():
                         new_context = current_profile.context
                 except KeyboardInterrupt:

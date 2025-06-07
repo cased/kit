@@ -2,7 +2,7 @@
 
 This roadmap outlines planned features and improvements for kit, prioritized by user feedback and strategic value.
 
-## 📅 Planned Features
+## 🚢 Recent ships
 
 #### Per-User/Per-Organization Custom Context
 Store custom guidelines, coding standards, and preferences that get automatically included in reviews.
@@ -12,6 +12,10 @@ Store custom guidelines, coding standards, and preferences that get automaticall
 kit profile create --name "company-standards" --file coding-guidelines.md
 kit review --profile company-standards <pr-url>
 ```
+
+Now in `0.7.0`.
+
+## 📅 Planned Features
 
 #### Feedback Learning System
 Simple database to store review feedback and adapt over time.
@@ -30,7 +34,7 @@ Post comments directly on specific lines instead of single review comment.
 kit review <pr-url> --mode inline  # Line-by-line comments
 ```
 
-### 🎯 Medium Term (Q3-Q4 2025)
+### 🎯 Medium Term
 
 #### Multi-Model Consensus
 Route different aspects to different models and aggregate insights.

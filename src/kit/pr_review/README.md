@@ -237,7 +237,7 @@ kit review-profile create \
 kit review-profile create \
   --name company-standards \
   --description "Company coding standards"
-# Then paste/type your guidelines and press Ctrl+D
+# Then type your guidelines, press Enter for a new line, then Ctrl+D to finish
 ```
 
 #### Managing Profiles
