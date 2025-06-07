@@ -775,15 +775,21 @@ def review_profile_command(
                     import sys
 
                     context_lines = []
-                    for line in sys.stdin:
-                        context_lines.append(line.rstrip("\n"))
+                    try:
+                        for line in sys.stdin:
+                            context_lines.append(line.rstrip("\n"))
+                    except EOFError:
+                        # Handle explicit EOF gracefully
+                        pass
+
                     context = "\n".join(context_lines)
+
+                    if not context.strip():
+                        typer.secho("❌ Context cannot be empty", fg=typer.colors.RED)
+                        raise typer.Exit(code=1)
+
                 except KeyboardInterrupt:
                     typer.echo("\n❌ Creation cancelled")
-                    raise typer.Exit(code=1)
-
-                if not context.strip():
-                    typer.secho("❌ Context cannot be empty", fg=typer.colors.RED)
                     raise typer.Exit(code=1)
 
                 tag_list = [tag.strip() for tag in tags.split(",")] if tags else []

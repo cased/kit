@@ -56,7 +56,7 @@ class ProfileManager:
         Raises:
             ValueError: If profile already exists
         """
-        if not name.replace("-", "").replace("_", "").isalnum():
+        if not all(c.isalnum() or c in "-_" for c in name):
             raise ValueError("Profile name must contain only letters, numbers, hyphens, and underscores")
 
         profile_path = self.profiles_dir / f"{name}.yaml"
