@@ -1,6 +1,6 @@
 import logging
 import traceback
-from importlib.resources import files  # type: ignore[no-redef]
+from importlib.resources import files
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Optional, cast
 
@@ -142,8 +142,8 @@ class TreeSitterSymbolExtractor:
                         if content is None:
                             try:
                                 package_files = files("kit.queries").joinpath(lang_name)
-                                query_path = package_files.joinpath(query_file)
-                                content = query_path.read_text(encoding="utf-8")
+                                query_traversable = package_files.joinpath(query_file)
+                                content = query_traversable.read_text(encoding="utf-8")
                             except (FileNotFoundError, OSError):
                                 logger.warning(f"Could not find query file {query_file} for language {lang_name}")
                                 continue
@@ -163,15 +163,15 @@ class TreeSitterSymbolExtractor:
 
                 # Try to load tags.scm first (backward compatibility)
                 try:
-                    tags_path = package_files.joinpath("tags.scm")
-                    tags_content = tags_path.read_text(encoding="utf-8")
+                    tags_traversable = package_files.joinpath("tags.scm")
+                    tags_content = tags_traversable.read_text(encoding="utf-8")
                     query_contents.append(tags_content)
                     logger.debug(f"Loaded base tags.scm for {lang_name}")
                 except (FileNotFoundError, OSError) as e:
                     if lang_name == "tsx":
                         # Fallback to TypeScript query definitions
-                        tags_path = files("kit.queries").joinpath("typescript").joinpath("tags.scm")
-                        tags_content = tags_path.read_text(encoding="utf-8")
+                        ts_tags_traversable = files("kit.queries").joinpath("typescript").joinpath("tags.scm")
+                        tags_content = ts_tags_traversable.read_text(encoding="utf-8")
                         query_contents.append(tags_content)
                     else:
                         logger.warning(f"No base tags.scm found for {lang_name}: {e}")
@@ -179,14 +179,17 @@ class TreeSitterSymbolExtractor:
                 # Load any additional .scm files in the directory
                 try:
                     if hasattr(package_files, "iterdir"):
-                        for query_file in package_files.iterdir():
-                            if query_file.name.endswith(".scm") and query_file.name != "tags.scm":
+                        for query_file_traversable in package_files.iterdir():
+                            if (
+                                query_file_traversable.name.endswith(".scm")
+                                and query_file_traversable.name != "tags.scm"
+                            ):
                                 try:
-                                    content = query_file.read_text(encoding="utf-8")
+                                    content = query_file_traversable.read_text(encoding="utf-8")
                                     query_contents.append(content)
-                                    logger.debug(f"Loaded additional query file: {query_file.name}")
+                                    logger.debug(f"Loaded additional query file: {query_file_traversable.name}")
                                 except Exception as e:
-                                    logger.warning(f"Error loading {query_file.name}: {e}")
+                                    logger.warning(f"Error loading {query_file_traversable.name}: {e}")
                 except AttributeError:
                     # package_files doesn't support iterdir, skip additional files
                     pass
@@ -208,8 +211,8 @@ class TreeSitterSymbolExtractor:
                         # Try to load from built-in queries directory
                         try:
                             package_files = files("kit.queries").joinpath(lang_name)
-                            query_path = package_files.joinpath(extension_file)
-                            content = query_path.read_text(encoding="utf-8")
+                            extension_traversable = package_files.joinpath(extension_file)
+                            content = extension_traversable.read_text(encoding="utf-8")
                             query_contents.append(content)
                             logger.debug(f"Loaded extension file: {extension_file}")
                         except (FileNotFoundError, OSError):
@@ -261,7 +264,7 @@ class TreeSitterSymbolExtractor:
     @classmethod
     def list_supported_languages(cls) -> Dict[str, List[str]]:
         """Return a mapping of language names to their supported extensions."""
-        lang_to_extensions = {}
+        lang_to_extensions: Dict[str, List[str]] = {}
         for ext, lang in LANGUAGES.items():
             if lang not in lang_to_extensions:
                 lang_to_extensions[lang] = []
