@@ -15,6 +15,7 @@ from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
 from .diff_parser import DiffParser, FileDiff
 from .file_prioritizer import FilePrioritizer
+from .priority_filter import filter_review_by_priority
 from .validator import validate_review_quality
 
 
@@ -145,7 +146,9 @@ class PRReviewer:
             diff_files = {}
 
         # Parse diff for accurate line number mapping
-        line_number_context = DiffParser.generate_line_number_context(diff_files)
+        line_number_context = DiffParser.generate_line_number_context(
+            diff_files, owner, repo_name, pr_details["head"]["sha"]
+        )
 
         # Prioritize files for analysis (smart prioritization for Kit reviewer)
         priority_files, skipped_count = FilePrioritizer.smart_priority(files, max_files=10)
@@ -238,12 +241,12 @@ class PRReviewer:
 
 **Symbol Analysis:**"""
 
-        for file_path, analysis in file_analysis.items():
+        for file_path, file_data in file_analysis.items():
             analysis_prompt += f"""
-{file_path} ({analysis["changes"]}) - {len(analysis["symbols"])} symbols
-{chr(10).join([f"- {name}: used in {count} places" for name, count in analysis["symbol_usages"].items()]) if analysis["symbol_usages"] else "- No widespread usage"}"""
+{file_path} ({file_data["changes"]}) - {len(file_data["symbols"])} symbols
+{chr(10).join([f"- {name}: used in {count} places" for name, count in file_data["symbol_usages"].items()]) if file_data["symbol_usages"] else "- No widespread usage"}"""
 
-        analysis_prompt += f"""
+        analysis_prompt += """
 
 **Review Format:**
 
@@ -255,21 +258,26 @@ class PRReviewer:
 - Key architectural changes (if any)
 
 ## Recommendations
-- Security, performance, or logic issues with specific fixes
-- Missing error handling or edge cases
-- Cross-codebase impact concerns
+- Security, performance, or logic issues with specific fixes; missing error handling or edge cases; cross-codebase impact concerns
 
-**Guidelines:** Be specific, actionable, and professional. Reference actual diff content. Focus on issues worth fixing."""
+**Guidelines:** Be specific, actionable, and professional. Reference actual diff content. Focus on issues worth fixing. Use measured technical language - distinguish between defensive code (with safeguards) and actual vulnerabilities."""
 
         # Use LLM to analyze with enhanced context
+        analysis: str
         if self.config.llm.provider == LLMProvider.ANTHROPIC:
-            return await self._analyze_with_anthropic_enhanced(analysis_prompt)
+            analysis = await self._analyze_with_anthropic_enhanced(analysis_prompt)
         elif self.config.llm.provider == LLMProvider.GOOGLE:
-            return await self._analyze_with_google_enhanced(analysis_prompt)
+            analysis = await self._analyze_with_google_enhanced(analysis_prompt)
         elif self.config.llm.provider == LLMProvider.OLLAMA:
-            return await self._analyze_with_ollama_enhanced(analysis_prompt)
+            analysis = await self._analyze_with_ollama_enhanced(analysis_prompt)
         else:
-            return await self._analyze_with_openai_enhanced(analysis_prompt)
+            analysis = await self._analyze_with_openai_enhanced(analysis_prompt)
+
+        # Apply priority filtering if requested
+        priority_filter = self.config.priority_filter
+        filtered_analysis = filter_review_by_priority(analysis, priority_filter, self.config.max_review_size_mb)
+
+        return filtered_analysis
 
     async def _analyze_with_anthropic_enhanced(self, enhanced_prompt: str) -> str:
         """Analyze using Anthropic Claude with enhanced kit context."""

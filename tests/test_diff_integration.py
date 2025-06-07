@@ -250,7 +250,7 @@ index 111..222 100644
      return success_response(data)"""
 
         diff_files = DiffParser.parse_diff(test_diff)
-        context = DiffParser.generate_line_number_context(diff_files)
+        context = DiffParser.generate_line_number_context(diff_files, owner="owner", repo="repo", sha="abc123")
 
         # Test that context is AI-friendly
         lines = context.split("\n")
@@ -259,8 +259,7 @@ index 111..222 100644
         assert any("REMINDER" in line for line in lines)
         assert any("GitHub links" in line for line in lines)
 
-        # Test that the context would help AI generate accurate links
-        # Pattern should be: [file.py:123](https://github.com/owner/repo/blob/sha/file.py#L123)
+        # Test that the context includes the format guidance for GitHub links
         assert "file.py:123" in context
         assert "#L123" in context
 

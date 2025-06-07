@@ -162,7 +162,12 @@ class DiffParser:
         return DiffHunk(old_start=old_start, old_count=old_count, new_start=new_start, new_count=new_count, lines=[])
 
     @staticmethod
-    def generate_line_number_context(diff_files: Dict[str, FileDiff]) -> str:
+    def generate_line_number_context(
+        diff_files: Dict[str, FileDiff],
+        owner: Optional[str] = None,
+        repo: Optional[str] = None,
+        sha: Optional[str] = None,
+    ) -> str:
         """Generate context about line number ranges for AI consumption."""
         context = "**Accurate Line Number Reference:**\n"
 
@@ -202,6 +207,11 @@ class DiffParser:
             "\n**IMPORTANT**: Reference the *exact* lines shown below—not the hunk header.\n"
             "**REMINDER**: The red '-' lines are deletions and no longer exist. Only reference the green '+' lines (actual additions) when citing line numbers.\n"
         )
-        context += "**GitHub links**: reference lines with the format `[file.py:123](https://github.com/owner/repo/blob/sha/file.py#L123)`\n"
+
+        # Generate proper GitHub links if we have repository information
+        if owner and repo and sha:
+            context += f"**GitHub links**: reference lines with the format `[file.py:123](https://github.com/{owner}/{repo}/blob/{sha}/file.py#L123)`\n"
+        else:
+            context += "**GitHub links**: reference lines with clickable file:line format when possible\n"
 
         return context

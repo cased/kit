@@ -43,6 +43,10 @@ kit review -p https://github.com/owner/repo/pull/123
 
 # 7. Override model for specific review
 kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
+
+# 8. Focus on specific priority levels
+kit review --priority=high https://github.com/owner/repo/pull/123
+kit review --priority=high,medium https://github.com/owner/repo/pull/123
 ```
 
 <Aside type="tip">
@@ -84,6 +88,23 @@ kit review -p https://github.com/owner/repo/pull/123
 ```
 **Output**: Just the raw review content with no status messages or formatting.
 
+### Priority Filtering
+```bash
+# Focus on critical issues only
+kit review --priority=high https://github.com/owner/repo/pull/123
+
+# Show important issues (high + medium priority)
+kit review --priority=high,medium https://github.com/owner/repo/pull/123
+
+# Get only style/improvement suggestions
+kit review --priority=low https://github.com/owner/repo/pull/123
+
+# Combine with other flags
+kit review -p --priority=high https://github.com/owner/repo/pull/123 | \
+  claude "Fix these critical security issues"
+```
+**Benefits**: Reduces noise, saves costs, and focuses attention on issues that matter to your workflow.
+
 ### Piping to CLI Code Writers
 
 Combine kit's repository intelligence with your favorite CLI code-generation tooling:
@@ -96,6 +117,10 @@ kit review -p https://github.com/owner/repo/pull/123 | \
 # Use specific models for cost optimization
 kit review -p --model gpt-4.1-nano https://github.com/owner/repo/pull/123 | \
   claude -p "Fix the high-priority issues mentioned in this review"
+
+# Focus on critical issues only
+kit review -p --priority=high https://github.com/owner/repo/pull/123 | \
+  claude -p "Implement these security and reliability fixes"
 ```
 
 ### Integration Examples
@@ -185,7 +210,7 @@ kit review --model qwen2.5-coder:latest https://github.com/owner/repo/pull/123
 - **Multi-Language Support**: Works with any language kit supports
 
 ### Professional Output
-- **Priority-Based Issues**: High/Medium/Low issue categorization
+- **Priority-Based Issues**: High/Medium/Low issue categorization with filtering options
 - **Specific Recommendations**: Concrete code suggestions with examples
 - **GitHub Integration**: Clickable links to all referenced files
 - **Quality Scoring**: Objective metrics for review effectiveness
@@ -195,6 +220,29 @@ kit review --model qwen2.5-coder:latest https://github.com/owner/repo/pull/123
 - **Token Breakdown**: Understand what drives costs
 - **Model Information**: Know which AI provided the analysis
 - **No Hidden Fees**: Pay only for actual LLM usage
+
+### Priority Filtering
+
+Control which priority levels to include in reviews:
+
+```bash
+# CLI priority filtering (overrides config)
+kit review --priority=high https://github.com/owner/repo/pull/123
+kit review --priority=high,medium https://github.com/owner/repo/pull/123
+kit review --priority=low https://github.com/owner/repo/pull/123
+
+# Short flag also works
+kit review -P high,medium https://github.com/owner/repo/pull/123
+```
+
+**Available Priorities:**
+- **high**: Critical security vulnerabilities, breaking changes, data loss risks
+- **medium**: Performance issues, logic errors, architectural concerns  
+- **low**: Code style, minor optimizations, documentation improvements
+
+<Aside type="tip">
+**Use cases**: Focus security reviews on `--priority=high`, code style reviews on `--priority=low`, or general reviews on `--priority=high,medium` to reduce noise.
+</Aside>
 
 ## 🔧 Configuration
 
@@ -306,6 +354,47 @@ review:
   clone_for_analysis: true
   cache_repos: true
   max_files: 50
+```
+
+**Priority Filtering Configuration:**
+```yaml
+github:
+  token: ghp_your_token_here
+  base_url: https://api.github.com
+
+llm:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+  api_key: sk-ant-your_key_here
+  max_tokens: 4000
+  temperature: 0.1
+
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+  # Optional: Set default priority filter
+  priority_filter: ["high", "medium"]  # Only show important issues by default
+```
+
+**Priority Configuration Examples:**
+```yaml
+# Security-focused configuration
+review:
+  priority_filter: ["high"]  # Critical issues only
+
+# General development workflow  
+review:
+  priority_filter: ["high", "medium"]  # Skip style suggestions
+
+# Code quality/style reviews
+review:
+  priority_filter: ["low"]  # Focus on improvements
+
+# Default: show all priorities (same as omitting priority_filter)
+review:
+  priority_filter: ["high", "medium", "low"]
 ```
 
 ## 📊 Review Examples
@@ -446,6 +535,50 @@ jobs:
   env:
     KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Priority-Based Workflows**:
+```yaml
+- name: Security Review (High Priority Only)
+  if: contains(github.event.pull_request.labels.*.name, 'security')
+  run: |
+    pip install cased-kit
+    kit review --priority=high ${{ github.event.pull_request.html_url }}
+
+- name: Code Quality Review (Low Priority)
+  if: contains(github.event.pull_request.labels.*.name, 'code-quality')
+  run: |
+    pip install cased-kit
+    kit review --priority=low ${{ github.event.pull_request.html_url }}
+
+- name: Smart Priority-Based Review
+  run: |
+    pip install cased-kit
+    # Use high priority for main branch, all priorities for feature branches
+    if [ "${{ github.event.pull_request.base.ref }}" == "main" ]; then
+      PRIORITY="high,medium"
+    else
+      PRIORITY="high,medium,low"
+    fi
+    kit review --priority="$PRIORITY" ${{ github.event.pull_request.html_url }}
+```
+
+**Cost-Optimized Priority Workflows**:
+```yaml
+- name: Two-Stage Review Process
+  run: |
+    pip install cased-kit
+    # Stage 1: Quick high-priority scan with budget model
+    HIGH_ISSUES=$(kit review -p --model gpt-4o-mini --priority=high ${{ github.event.pull_request.html_url }})
+    
+    # Stage 2: If critical issues found, do full review with premium model
+    if echo "$HIGH_ISSUES" | grep -q "High Priority"; then
+      kit review --model claude-sonnet-4 ${{ github.event.pull_request.html_url }}
+    else
+      echo "$HIGH_ISSUES" | gh pr comment ${{ github.event.pull_request.number }} --body-file -
+    fi
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## 📈 What's Next: Roadmap

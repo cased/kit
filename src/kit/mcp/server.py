@@ -167,8 +167,8 @@ class KitServerLogic:
 
     def open_repository(self, path_or_url: str, github_token: Optional[str] = None, ref: Optional[str] = None) -> str:
         try:
-            repo = Repository(path_or_url, github_token=github_token, ref=ref)
-            repo_id = str(uuid.uuid4())
+            repo: Repository = Repository(path_or_url, github_token=github_token, ref=ref)
+            repo_id: str = str(uuid.uuid4())
             self._repos[repo_id] = repo
             self._analyzers[repo_id] = {}
             return repo_id

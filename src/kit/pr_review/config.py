@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import yaml
 
@@ -151,6 +151,9 @@ class ReviewConfig:
     agentic_finalize_threshold: int = 15  # Start encouraging finalization at this turn
     # Output control
     quiet: bool = False  # Suppress status output for plain mode
+    # Priority filtering
+    priority_filter: Optional[List[str]] = None  # ["high", "medium", "low"] or subset
+    max_review_size_mb: float = 5.0  # Default 5MB limit (was 1MB hardcoded)
 
     @classmethod
     def from_file(cls, config_path: Optional[str] = None) -> "ReviewConfig":
@@ -248,6 +251,16 @@ class ReviewConfig:
         except ValueError:
             depth = ReviewDepth.STANDARD
 
+        # Validate priority_filter if present in config
+        priority_filter = review_data.get("priority_filter", None)
+        if priority_filter is not None:
+            try:
+                from .priority_utils import Priority
+
+                priority_filter = Priority.validate_priorities(priority_filter)
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid priority_filter in config file: {e}. Valid priorities: high, medium, low")
+
         return cls(
             github=github_config,
             llm=llm_config,
@@ -263,6 +276,8 @@ class ReviewConfig:
             agentic_max_turns=review_data.get("agentic_max_turns", 20),
             agentic_finalize_threshold=review_data.get("agentic_finalize_threshold", 15),
             quiet=review_data.get("quiet", False),
+            priority_filter=priority_filter,
+            max_review_size_mb=review_data.get("max_review_size_mb", 5.0),
         )
 
     def create_default_config_file(self, config_path: Optional[str] = None) -> str:
@@ -295,6 +310,11 @@ class ReviewConfig:
                 "cache_repos": True,
                 "cache_directory": "~/.kit/repo-cache",
                 "cache_ttl_hours": 24,
+                # Priority filtering (can also be set via --priority CLI flag)
+                # "priority_filter": ["high", "medium"],  # Only show high and medium priority issues
+                # "priority_filter": ["high"],            # Only show high priority issues
+                # Performance and safety limits
+                "max_review_size_mb": 5.0,  # Maximum review text size in MB (prevents DoS)
                 # Agentic reviewer settings (for multi-turn analysis)
                 "agentic_max_turns": 20,  # Maximum number of analysis turns
                 "agentic_finalize_threshold": 15,  # Start encouraging finalization at this turn

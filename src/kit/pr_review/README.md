@@ -115,6 +115,74 @@ at 8 cents a review).
 
 **Best for**: Research, experimentation, understanding current AI agent limitations
 
+## 🎯 Priority Filtering
+
+Kit organizes review findings into three priority levels and allows you to filter results to focus on what matters most:
+
+### Priority Levels
+
+- **High Priority**: Critical security vulnerabilities, breaking changes, data loss risks
+- **Medium Priority**: Performance issues, logic errors, architectural concerns  
+- **Low Priority**: Code style, minor optimizations, documentation improvements
+
+### Usage
+
+**CLI Options:**
+```bash
+# Show only critical issues
+kit review --priority=high <pr-url>
+
+# Show critical and important issues
+kit review --priority=high,medium <pr-url>
+
+# Show only style/documentation issues
+kit review --priority=low <pr-url>
+
+# Default: show all priorities
+kit review <pr-url>
+```
+
+**Configuration File:**
+```yaml
+review:
+  priority_filter: ["high", "medium"]  # Only show high and medium priority
+```
+
+### Benefits
+
+- **Focus Time**: Quickly identify critical issues that need immediate attention
+- **Staged Reviews**: Handle high priority issues first, low priority in follow-up
+- **CI/CD Integration**: Use `--priority=high` in CI to only block on critical issues
+- **Learning**: Use `--priority=low` to learn about code style improvements
+- **Cost Optimization**: High priority reviews are shorter and cost less
+
+### Output Example
+
+```bash
+$ kit review --priority=high https://github.com/example/repo/pull/42
+```
+
+```markdown
+## 🛠️ Kit AI Code Review
+
+*Note: Showing only high priority issues*
+
+## Priority Issues
+
+### High Priority
+- [High priority] Critical security vulnerability in auth.py:45 - SQL injection risk
+- [High priority] Breaking change detected in api.py:123 - removes public method
+
+## Summary
+This PR adds user authentication but introduces security concerns that must be addressed.
+
+## Recommendations
+- Fix SQL injection immediately before merging
+- Consider deprecation path for removed public method
+
+*Filtered view: showing 2 issues, filtered 4 issues*
+```
+
 ## 🎯 Key Features
 
 ### Intelligent Analysis
@@ -133,6 +201,13 @@ at 8 cents a review).
 - Real-time cost tracking showing exact LLM usage
 - Token breakdown (input/output) for understanding cost drivers
 - Model information showing which LLM provided the analysis
+
+### Priority Filtering
+- Filter review output by priority level (High/Medium/Low)
+- Focus on critical issues with `--priority=high`
+- Combine priorities: `--priority=high,medium`
+- Configurable in config file or via CLI flag
+- Transparent filtering with issue count summary
 
 ### Enterprise Features
 - Repository caching for faster repeat reviews
@@ -296,8 +371,20 @@ kit review --dry-run https://github.com/owner/repo/pull/123
 kit review --plain https://github.com/owner/repo/pull/123
 kit review -p https://github.com/owner/repo/pull/123
 
+# Priority filtering - only show high priority issues
+kit review --priority=high https://github.com/owner/repo/pull/123
+
+# Priority filtering - show high and medium priority issues
+kit review --priority=high,medium https://github.com/owner/repo/pull/123
+
+# Priority filtering - only show low priority issues (code style, minor improvements)
+kit review --priority=low https://github.com/owner/repo/pull/123
+
 # Override model for specific review
 kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
+
+# Combine priority filtering with other options
+kit review --priority=high --model gpt-4.1-nano --dry-run https://github.com/owner/repo/pull/123
 
 # Pipe to Claude Code for implementation
 kit review -p https://github.com/owner/repo/pull/123 | \

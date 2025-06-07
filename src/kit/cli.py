@@ -427,6 +427,12 @@ def review_pr(
         "-m",
         help="Override LLM model (validated against supported models: e.g., gpt-4.1-nano, gpt-4.1, claude-sonnet-4-20250514)",
     ),
+    priority: Optional[str] = typer.Option(
+        None,
+        "--priority",
+        "-P",
+        help="Filter by priority level (comma-separated): high, medium, low. Default: all",
+    ),
     plain: bool = typer.Option(False, "--plain", "-p", help="Output raw review content for piping (no formatting)"),
     dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Don't post comment, just show what would be posted"),
     agentic: bool = typer.Option(
@@ -447,6 +453,8 @@ def review_pr(
     kit review --dry-run https://github.com/owner/repo/pull/123   # Preview
     kit review --plain https://github.com/owner/repo/pull/123     # Pipe-friendly
     kit review https://github.com/owner/repo/pull/123             # Standard
+    kit review --priority=high https://github.com/owner/repo/pull/123  # Only high priority
+    kit review --priority=high,medium <pr-url>                    # High and medium only
     kit review --model gpt-4.1-nano <pr-url>                      # Ultra budget
     kit review --model claude-opus-4-20250514 <pr-url>            # Premium
     kit review --agentic --agentic-turns 8 <pr-url>               # Budget agentic
@@ -492,6 +500,21 @@ def review_pr(
         # Load configuration
         review_config = ReviewConfig.from_file(config)
 
+        # Parse priority filter
+        if priority:
+            try:
+                from kit.pr_review.priority_utils import Priority
+
+                priority_levels = [p.strip() for p in priority.split(",")]
+                validated_priorities = Priority.validate_priorities(priority_levels)
+                review_config.priority_filter = validated_priorities
+                if not plain:
+                    typer.echo(f"🔍 Priority filter: {', '.join(validated_priorities)}")
+            except ValueError as e:
+                handle_cli_error(e, "Priority filter error", "Valid priorities: high, medium, low")
+        else:
+            review_config.priority_filter = None
+
         # Override model if specified
         if model:
             # Auto-detect provider from model name
@@ -510,19 +533,22 @@ def review_pr(
                 if detected_provider == LLMProvider.ANTHROPIC:
                     new_api_key = os.getenv("KIT_ANTHROPIC_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
                     if not new_api_key:
-                        typer.secho(
-                            f"❌ Model {model} requires Anthropic API key. Set KIT_ANTHROPIC_TOKEN.",
-                            fg=typer.colors.RED,
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires Anthropic API key"),
+                            "Configuration error",
+                            "Set KIT_ANTHROPIC_TOKEN environment variable",
                         )
-                        raise typer.Exit(code=1)
                 else:  # OpenAI
                     new_api_key = os.getenv("KIT_OPENAI_TOKEN") or os.getenv("OPENAI_API_KEY")
                     if not new_api_key:
-                        typer.secho(
-                            f"❌ Model {model} requires OpenAI API key. Set KIT_OPENAI_TOKEN.", fg=typer.colors.RED
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires OpenAI API key"),
+                            "Configuration error",
+                            "Set KIT_OPENAI_TOKEN environment variable",
                         )
-                        raise typer.Exit(code=1)
 
+                # Assert for mypy that new_api_key is not None after error checks
+                assert new_api_key is not None
                 review_config.llm.api_key = new_api_key
                 typer.echo(f"🔄 Switched provider: {old_provider} → {detected_provider.value}")
 
@@ -535,19 +561,13 @@ def review_pr(
 
         if not CostTracker.is_valid_model(review_config.llm.model):
             suggestions = CostTracker.get_model_suggestions(review_config.llm.model)
-            typer.secho(f"❌ Invalid model: {review_config.llm.model}", fg=typer.colors.RED)
-            typer.echo("\n💡 Did you mean one of these?")
-            for suggestion in suggestions:
-                typer.echo(f"   • {suggestion}")
-            typer.echo("\n📋 All available models:")
-            available = CostTracker.get_available_models()
-            for provider, models in available.items():
-                typer.echo(f"   {provider.upper()}:")
-                for m in models[:5]:  # Show first 5 per provider
-                    typer.echo(f"     • {m}")
-                if len(models) > 5:
-                    typer.echo(f"     ... and {len(models) - 5} more")
-            raise typer.Exit(code=1)
+            error_msg = f"Invalid model: {review_config.llm.model}"
+            help_msg = (
+                f"Did you mean: {', '.join(suggestions[:3])}?"
+                if suggestions
+                else "Run 'kit review --help' to see available models"
+            )
+            handle_cli_error(ValueError(error_msg), "Model validation error", help_msg)
 
         # Override comment posting if dry run or plain mode
         if dry_run or plain:
@@ -677,6 +697,19 @@ def review_cache(
     except Exception as e:
         typer.secho(f"❌ Cache operation failed: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+
+
+def handle_cli_error(error: Exception, error_type: str = "Error", help_text: Optional[str] = None) -> None:
+    """Consistent error handling for CLI commands."""
+    if isinstance(error, ValueError):
+        typer.secho(f"❌ {error_type}: {error}", fg=typer.colors.RED)
+    else:
+        typer.secho(f"❌ {error_type}: {error}", fg=typer.colors.RED)
+
+    if help_text:
+        typer.echo(f"💡 {help_text}")
+
+    raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

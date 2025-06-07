@@ -932,8 +932,7 @@ def test_cli_model_validation():
 
         assert result.exit_code == 1
         assert "Invalid model: invalid-model-name" in result.output
-        assert "Did you mean one of these?" in result.output
-        assert "All available models:" in result.output
+        assert "💡 Did you mean:" in result.output
 
 
 # --- Test Thinking Token Stripping in PR Reviewer ---

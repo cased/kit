@@ -12,6 +12,7 @@ from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
 from .diff_parser import DiffParser, FileDiff
 from .file_prioritizer import FilePrioritizer
+from .priority_filter import filter_review_by_priority
 
 
 class AgenticPRReviewer:
@@ -883,7 +884,9 @@ class AgenticPRReviewer:
             diff_files = {}
 
         # Parse diff for accurate line number mapping
-        line_number_context = DiffParser.generate_line_number_context(diff_files)
+        line_number_context = DiffParser.generate_line_number_context(
+            diff_files, owner, repo_name, pr_details["head"]["sha"]
+        )
 
         pr_status = (
             "WIP"
@@ -923,23 +926,29 @@ class AgenticPRReviewer:
 **Output format:** When ready, use finalize_review with a structured review following this format:
 
 ## Priority Issues
-- Most important findings (if any)
+- [High/Medium/Low priority] findings with [file.py:123](https://github.com/{owner}/{repo_name}/blob/{pr_details["head"]["sha"]}/file.py#L123) links
 
 ## Summary
 - What this PR does
 - Key concerns (if any)
 
 ## Recommendations
-- Specific, actionable feedback
+- Security, performance, or logic issues with specific fixes; missing error handling or edge cases; cross-codebase impact concerns
 
 Keep it focused and valuable. Begin your analysis.
 """
 
         # Run the agentic analysis
         if self.config.llm.provider == LLMProvider.ANTHROPIC:
-            return await self._run_agentic_analysis_anthropic(initial_prompt)
+            analysis = await self._run_agentic_analysis_anthropic(initial_prompt)
         else:
-            return await self._run_agentic_analysis_openai(initial_prompt)
+            analysis = await self._run_agentic_analysis_openai(initial_prompt)
+
+        # Apply priority filtering if requested
+        priority_filter = self.config.priority_filter
+        filtered_analysis = filter_review_by_priority(analysis, priority_filter, self.config.max_review_size_mb)
+
+        return filtered_analysis
 
     def post_pr_comment(self, owner: str, repo: str, pr_number: int, comment: str) -> Dict[str, Any]:
         """Post a comment on the PR."""
