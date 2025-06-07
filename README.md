@@ -106,6 +106,7 @@ kit review https://github.com/owner/repo/pull/123
 **Key Features:**
 - **Whole repo context**: Uses `kit` so has all the features of this library
 - **Production-ready**: Rivals paid services, but MIT-licensed; just pay for tokens
+- **Custom context profiles**: Organization-specific coding standards and review guidelines automatically applied
 - **Cost transparency**: Real-time token usage and pricing
 - **Fast**: No queuing, shared services: just your code and the LLM
 - **Works from wherever**: Trigger reviews with the CLI, or run it via CI

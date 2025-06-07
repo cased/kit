@@ -154,10 +154,18 @@ class ReviewConfig:
     # Priority filtering
     priority_filter: Optional[List[str]] = None  # ["high", "medium", "low"] or subset
     max_review_size_mb: float = 5.0  # Default 5MB limit (was 1MB hardcoded)
+    # Custom context profile
+    profile: Optional[str] = None  # Profile name to use
+    profile_context: Optional[str] = None  # Loaded profile context
 
     @classmethod
-    def from_file(cls, config_path: Optional[str] = None) -> "ReviewConfig":
-        """Load configuration from file or environment variables."""
+    def from_file(cls, config_path: Optional[str] = None, profile: Optional[str] = None) -> "ReviewConfig":
+        """Load configuration from file or environment variables.
+
+        Args:
+            config_path: Path to config file
+            profile: Profile name to load custom context from
+        """
         if config_path is None:
             config_path = os.path.expanduser("~/.kit/review-config.yaml")
 
@@ -261,6 +269,18 @@ class ReviewConfig:
             except (ValueError, TypeError) as e:
                 raise ValueError(f"Invalid priority_filter in config file: {e}. Valid priorities: high, medium, low")
 
+        # Load profile context if profile is specified
+        profile_context = None
+        if profile:
+            try:
+                from .profile_manager import ProfileManager
+
+                profile_manager = ProfileManager()
+                profile_obj = profile_manager.get_profile(profile)
+                profile_context = profile_obj.context
+            except Exception as e:
+                raise ValueError(f"Failed to load profile '{profile}': {e}")
+
         return cls(
             github=github_config,
             llm=llm_config,
@@ -278,6 +298,8 @@ class ReviewConfig:
             quiet=review_data.get("quiet", False),
             priority_filter=priority_filter,
             max_review_size_mb=review_data.get("max_review_size_mb", 5.0),
+            profile=profile,
+            profile_context=profile_context,
         )
 
     def create_default_config_file(self, config_path: Optional[str] = None) -> str:

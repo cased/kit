@@ -433,6 +433,9 @@ def review_pr(
         "-P",
         help="Filter by priority level (comma-separated): high, medium, low. Default: all",
     ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="Custom context profile to use for review guidelines"
+    ),
     plain: bool = typer.Option(False, "--plain", "-p", help="Output raw review content for piping (no formatting)"),
     dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Don't post comment, just show what would be posted"),
     agentic: bool = typer.Option(
@@ -453,6 +456,7 @@ def review_pr(
     kit review --dry-run https://github.com/owner/repo/pull/123   # Preview
     kit review --plain https://github.com/owner/repo/pull/123     # Pipe-friendly
     kit review https://github.com/owner/repo/pull/123             # Standard
+    kit review --profile company-standards <pr-url>               # Use custom context
     kit review --priority=high https://github.com/owner/repo/pull/123  # Only high priority
     kit review --priority=high,medium <pr-url>                    # High and medium only
     kit review --model gpt-4.1-nano <pr-url>                      # Ultra budget
@@ -497,8 +501,12 @@ def review_pr(
         raise typer.Exit(code=1)
 
     try:
-        # Load configuration
-        review_config = ReviewConfig.from_file(config)
+        # Load configuration with profile support
+        review_config = ReviewConfig.from_file(config, profile)
+
+        # Show profile info if one is being used
+        if profile and not plain:
+            typer.echo(f"📋 Using profile: {profile}")
 
         # Parse priority filter
         if priority:
@@ -696,6 +704,229 @@ def review_cache(
 
     except Exception as e:
         typer.secho(f"❌ Cache operation failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+# Review Profile Management
+@app.command("review-profile")
+def review_profile_command(
+    action: str = typer.Argument(..., help="Action: create, list, show, edit, delete, copy, export, import"),
+    name: Optional[str] = typer.Option(None, "--name", "-n", help="Profile name"),
+    description: Optional[str] = typer.Option(None, "--description", "-d", help="Profile description"),
+    file: Optional[str] = typer.Option(None, "--file", "-f", help="File to read context from or export to"),
+    tags: Optional[str] = typer.Option(None, "--tags", "-t", help="Comma-separated tags"),
+    target: Optional[str] = typer.Option(None, "--target", help="Target name for copy operation"),
+    format: str = typer.Option("table", "--format", help="Output format: table, json, names"),
+):
+    """Manage custom context profiles for PR reviews.
+
+    EXAMPLES:
+
+    # Create a profile from text input
+    kit review-profile create --name company-standards --description "Company coding standards"
+
+    # Create a profile from a file
+    kit review-profile create --name python-style --file python-guidelines.md --description "Python style guide"
+
+    # List all profiles
+    kit review-profile list
+
+    # Show profile details
+    kit review-profile show --name company-standards
+
+    # Copy a profile
+    kit review-profile copy --name company-standards --target team-standards
+
+    # Export a profile
+    kit review-profile export --name company-standards --file exported-standards.md
+
+    # Import a profile
+    kit review-profile import --file guidelines.md --name imported-standards
+
+    # Delete a profile
+    kit review-profile delete --name old-profile
+    """
+    from kit.pr_review.profile_manager import ProfileManager
+
+    try:
+        profile_manager = ProfileManager()
+
+        if action == "create":
+            if not name:
+                typer.secho("❌ Profile name is required for create", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            if not description:
+                typer.secho("❌ Profile description is required for create", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            if file:
+                # Create from file
+                tag_list = [tag.strip() for tag in tags.split(",")] if tags else []
+                profile = profile_manager.create_profile_from_file(name, description, file, tag_list)
+                typer.echo(f"✅ Created profile '{name}' from file '{file}'")
+            else:
+                # Create from interactive input
+                typer.echo("Enter the custom context (press Ctrl+D when done):")
+                try:
+                    import sys
+                    context_lines = []
+                    for line in sys.stdin:
+                        context_lines.append(line.rstrip('\n'))
+                    context = '\n'.join(context_lines)
+                except KeyboardInterrupt:
+                    typer.echo("\n❌ Creation cancelled")
+                    raise typer.Exit(code=1)
+
+                if not context.strip():
+                    typer.secho("❌ Context cannot be empty", fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
+
+                tag_list = [tag.strip() for tag in tags.split(",")] if tags else []
+                profile = profile_manager.create_profile(name, description, context, tag_list)
+                typer.echo(f"✅ Created profile '{name}'")
+
+        elif action == "list":
+            profiles = profile_manager.list_profiles()
+
+            if not profiles:
+                typer.echo("📭 No profiles found")
+                return
+
+            if format == "json":
+                import json
+                profile_data = [
+                    {
+                        "name": p.name,
+                        "description": p.description,
+                        "tags": p.tags,
+                        "created_at": p.created_at,
+                        "updated_at": p.updated_at
+                    }
+                    for p in profiles
+                ]
+                typer.echo(json.dumps(profile_data, indent=2))
+            elif format == "names":
+                for profile in profiles:
+                    typer.echo(profile.name)
+            else:  # table format
+                from rich.console import Console
+                from rich.table import Table
+
+                console = Console()
+                table = Table(show_header=True, header_style="bold blue")
+                table.add_column("Name", style="cyan")
+                table.add_column("Description")
+                table.add_column("Tags", style="yellow")
+                table.add_column("Created", style="dim")
+
+                for profile in profiles:
+                    created_date = profile.created_at.split('T')[0] if 'T' in profile.created_at else profile.created_at
+                    tags_str = ", ".join(profile.tags) if profile.tags else ""
+                    table.add_row(profile.name, profile.description, tags_str, created_date)
+
+                console.print(table)
+
+        elif action == "show":
+            if not name:
+                typer.secho("❌ Profile name is required for show", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            profile = profile_manager.get_profile(name)
+
+            typer.echo(f"📋 Profile: {profile.name}")
+            typer.echo(f"📝 Description: {profile.description}")
+            if profile.tags:
+                typer.echo(f"🏷️  Tags: {', '.join(profile.tags)}")
+            typer.echo(f"📅 Created: {profile.created_at}")
+            typer.echo(f"📅 Updated: {profile.updated_at}")
+            typer.echo("\n📄 Context:")
+            typer.echo("-" * 50)
+            typer.echo(profile.context)
+
+        elif action == "edit":
+            if not name:
+                typer.secho("❌ Profile name is required for edit", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            # Get current profile
+            current_profile = profile_manager.get_profile(name)
+
+            # Update fields if provided
+            new_description = description if description else current_profile.description
+            new_tags = [tag.strip() for tag in tags.split(",")] if tags else current_profile.tags
+
+            if file:
+                # Update context from file
+                new_context = Path(file).read_text(encoding='utf-8')
+            else:
+                # Interactive context editing
+                typer.echo(f"Current context for '{name}':")
+                typer.echo("-" * 30)
+                typer.echo(current_profile.context)
+                typer.echo("-" * 30)
+                typer.echo("Enter new context (press Ctrl+D when done, or Ctrl+C to keep current):")
+
+                try:
+                    import sys
+                    context_lines = []
+                    for line in sys.stdin:
+                        context_lines.append(line.rstrip('\n'))
+                    new_context = '\n'.join(context_lines)
+                    if not new_context.strip():
+                        new_context = current_profile.context
+                except KeyboardInterrupt:
+                    new_context = current_profile.context
+                    typer.echo("\n⏭️  Keeping current context")
+
+            profile_manager.update_profile(name, new_description, new_context, new_tags)
+            typer.echo(f"✅ Updated profile '{name}'")
+
+        elif action == "delete":
+            if not name:
+                typer.secho("❌ Profile name is required for delete", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            if profile_manager.delete_profile(name):
+                typer.echo(f"✅ Deleted profile '{name}'")
+            else:
+                typer.secho(f"❌ Profile '{name}' not found", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+        elif action == "copy":
+            if not name or not target:
+                typer.secho("❌ Both --name and --target are required for copy", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            profile_manager.copy_profile(name, target)
+            typer.echo(f"✅ Copied profile '{name}' to '{target}'")
+
+        elif action == "export":
+            if not name or not file:
+                typer.secho("❌ Both --name and --file are required for export", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            profile_manager.export_profile(name, file)
+            typer.echo(f"✅ Exported profile '{name}' to '{file}'")
+
+        elif action == "import":
+            if not file:
+                typer.secho("❌ --file is required for import", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            profile = profile_manager.import_profile(file, name)
+            typer.echo(f"✅ Imported profile '{profile.name}' from '{file}'")
+
+        else:
+            typer.secho(f"❌ Unknown action: {action}", fg=typer.colors.RED)
+            typer.echo("Valid actions: create, list, show, edit, delete, copy, export, import")
+            raise typer.Exit(code=1)
+
+    except ValueError as e:
+        typer.secho(f"❌ Profile error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.secho(f"❌ Profile operation failed: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
 

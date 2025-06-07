@@ -906,7 +906,16 @@ class AgenticPRReviewer:
 **Changed Files:**
 {chr(10).join([f"- {f['filename']} (+{f['additions']} -{f['deletions']})" for f in priority_files])}
 
-{line_number_context}
+{line_number_context}"""
+
+        # Add custom context from profile if available
+        if self.config.profile_context:
+            initial_prompt += f"""
+
+**Custom Review Guidelines:**
+{self.config.profile_context}"""
+
+        initial_prompt += f"""
 
 **Diff:**
 ```diff

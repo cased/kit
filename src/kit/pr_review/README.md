@@ -162,27 +162,6 @@ review:
 $ kit review --priority=high https://github.com/example/repo/pull/42
 ```
 
-```markdown
-## 🛠️ Kit AI Code Review
-
-*Note: Showing only high priority issues*
-
-## Priority Issues
-
-### High Priority
-- [High priority] Critical security vulnerability in auth.py:45 - SQL injection risk
-- [High priority] Breaking change detected in api.py:123 - removes public method
-
-## Summary
-This PR adds user authentication but introduces security concerns that must be addressed.
-
-## Recommendations
-- Fix SQL injection immediately before merging
-- Consider deprecation path for removed public method
-
-*Filtered view: showing 2 issues, filtered 4 issues*
-```
-
 ## 🎯 Key Features
 
 ### Intelligent Analysis
@@ -214,6 +193,220 @@ This PR adds user authentication but introduces security concerns that must be a
 - Multiple LLM support (Anthropic Claude, OpenAI GPT-4)
 - Configurable analysis depth and turn limits
 - GitHub integration with token-based authentication
+
+## 📋 Custom Context Profiles
+
+Kit supports organization-specific coding standards and review guidelines through **custom context profiles**. These profiles automatically inject your company's coding standards, security requirements, and style guidelines into every PR review, ensuring consistent and organization-aligned feedback.
+
+### Why Use Profiles?
+
+- **Consistency**: All reviews follow your organization's standards automatically
+- **Efficiency**: No need to manually specify guidelines for each review
+- **Customization**: Different teams can have different standards (backend vs frontend, security vs performance focus)
+- **Knowledge Sharing**: Encode institutional knowledge into reusable profiles
+- **Compliance**: Ensure security and regulatory requirements are consistently checked
+
+### Quick Start
+
+```bash
+# Create a profile from a file containing your coding standards
+kit review-profile create --name company-standards --file coding-guidelines.md --description "Acme Corp coding standards"
+
+# Use the profile in reviews
+kit review --profile company-standards https://github.com/owner/repo/pull/123
+
+# List all available profiles
+kit review-profile list
+```
+
+### Profile Management
+
+#### Creating Profiles
+
+**From a file (recommended):**
+```bash
+kit review-profile create \
+  --name python-security \
+  --file security-guidelines.md \
+  --description "Python security best practices" \
+  --tags "security,python"
+```
+
+**Interactive creation:**
+```bash
+kit review-profile create \
+  --name company-standards \
+  --description "Company coding standards"
+# Then paste/type your guidelines and press Ctrl+D
+```
+
+#### Managing Profiles
+
+```bash
+# List all profiles
+kit review-profile list
+
+# Show profile details
+kit review-profile show --name company-standards
+
+# Edit a profile
+kit review-profile edit --name company-standards --file updated-guidelines.md
+
+# Copy a profile
+kit review-profile copy --name company-standards --target team-standards
+
+# Export for sharing
+kit review-profile export --name company-standards --file exported-standards.md
+
+# Import shared profile
+kit review-profile import --file shared-guidelines.md --name imported-standards
+
+# Delete a profile
+kit review-profile delete --name old-profile
+```
+
+### Example Profile Content
+
+Here's an example of effective profile content:
+
+```markdown
+**Company Code Review Standards:**
+
+1. **Security Requirements:**
+   - All user input must be validated and sanitized
+   - No hardcoded credentials or secrets
+   - Use parameterized queries for database operations
+   - Implement proper authentication and authorization
+
+2. **Performance Guidelines:**
+   - Avoid N+1 queries in database operations
+   - Use appropriate data structures (prefer sets for membership tests)
+   - Consider memory usage for large data processing
+   - Use async/await for I/O bound operations
+
+3. **Code Quality Standards:**
+   - All functions must have docstrings
+   - Use type hints for function parameters and return values
+   - Follow DRY principle - no duplicate code blocks
+   - Maximum function length: 50 lines
+
+4. **Testing Requirements:**
+   - All new features must include unit tests
+   - Minimum 80% test coverage for new code
+   - Integration tests for API endpoints
+   - Mock external dependencies in tests
+
+5. **Documentation Standards:**
+   - README files must be updated for new features
+   - API changes require documentation updates
+   - Include examples in docstrings
+
+6. **Python-Specific Rules:**
+   - Use f-strings for string formatting
+   - Prefer list/dict comprehensions when readable
+   - Use pathlib instead of os.path
+   - Follow PEP 8 formatting standards
+```
+
+### Using Profiles in Reviews
+
+**CLI Usage:**
+```bash
+# Standard review with custom context
+kit review --profile company-standards https://github.com/owner/repo/pull/123
+
+# Agentic review with custom context
+kit review --profile company-standards --agentic https://github.com/owner/repo/pull/123
+
+# Combine with other options
+kit review --profile security-focused --priority=high --dry-run https://github.com/owner/repo/pull/123
+```
+
+**CI/CD Integration:**
+```yaml
+- name: AI Review with Company Standards
+  run: |
+    kit review --profile company-standards ${{ github.event.pull_request.html_url }}
+  env:
+    KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### Profile Organization
+
+#### Team-Specific Profiles
+
+```bash
+# Backend team profile
+kit review-profile create --name backend-api \
+  --description "Backend API development standards" \
+  --tags "backend,api,python"
+
+# Frontend team profile  
+kit review-profile create --name frontend-react \
+  --description "React frontend development standards" \
+  --tags "frontend,react,typescript"
+
+# Security team profile
+kit review-profile create --name security-hardening \
+  --description "Security-focused review guidelines" \
+  --tags "security,compliance"
+```
+
+#### Project-Specific Profiles
+
+```bash
+# Different standards for different project types
+kit review-profile create --name microservice-standards --description "Microservice architecture guidelines"
+kit review-profile create --name data-pipeline-standards --description "Data pipeline best practices"
+kit review-profile create --name mobile-app-standards --description "Mobile app development standards"
+```
+
+### Best Practices
+
+#### Writing Effective Profiles
+
+1. **Be Specific**: Include concrete examples and specific requirements
+2. **Focus on Intent**: Explain *why* certain practices are required
+3. **Use Examples**: Show good and bad code examples when possible
+4. **Stay Current**: Regular update profiles as standards evolve
+5. **Tag Appropriately**: Use tags for easy organization and discovery
+
+#### Profile Management Workflow
+
+1. **Start Small**: Begin with essential standards, expand over time
+2. **Team Input**: Involve team members in creating and updating profiles
+3. **Version Control**: Export profiles and version them alongside your code
+4. **Regular Reviews**: Periodically review and update profile content
+5. **Share Across Teams**: Use export/import to share successful profiles
+
+#### Example: Security-Focused Profile
+
+```markdown
+**Security Review Checklist:**
+
+- **Input Validation**: All user inputs must be validated against expected formats
+- **SQL Injection Prevention**: Use parameterized queries, never string concatenation
+- **XSS Prevention**: Sanitize all user content before rendering
+- **Authentication**: Verify all endpoints require proper authentication
+- **Authorization**: Check that users can only access resources they own
+- **Secrets Management**: No hardcoded API keys, tokens, or passwords
+- **Logging**: Sensitive data must not appear in logs
+- **Error Handling**: Don't expose stack traces or system information
+- **Dependencies**: Check for known vulnerabilities in dependencies
+- **HTTPS**: All external communications must use HTTPS
+```
+
+### Storage and Sharing
+
+- **Location**: Profiles are stored in `~/.kit/profiles/` as YAML files
+- **Format**: Human-readable YAML with metadata and content
+- **Sharing**: Export/import functionality for team collaboration
+- **Backup**: Include profiles in your team's configuration management
+
+### Integration with Review Process
+
+When a profile is specified, the custom context is automatically injected into the review prompt as **"Custom Review Guidelines"**, ensuring the AI reviewer follows your organization's specific standards while maintaining all other kit functionality like repository analysis and symbol extraction.
 
 ## 📋 Setup Instructions
 
@@ -371,6 +564,10 @@ kit review --dry-run https://github.com/owner/repo/pull/123
 kit review --plain https://github.com/owner/repo/pull/123
 kit review -p https://github.com/owner/repo/pull/123
 
+# Custom context profiles - apply organization standards
+kit review --profile company-standards https://github.com/owner/repo/pull/123
+kit review --profile python-security --priority=high https://github.com/owner/repo/pull/123
+
 # Priority filtering - only show high priority issues
 kit review --priority=high https://github.com/owner/repo/pull/123
 
@@ -383,15 +580,28 @@ kit review --priority=low https://github.com/owner/repo/pull/123
 # Override model for specific review
 kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
 
-# Combine priority filtering with other options
-kit review --priority=high --model gpt-4.1-nano --dry-run https://github.com/owner/repo/pull/123
+# Combine all options
+kit review --profile backend-api --priority=high --model gpt-4.1-nano --dry-run https://github.com/owner/repo/pull/123
 
 # Pipe to Claude Code for implementation
 kit review -p https://github.com/owner/repo/pull/123 | \
   claude "Implement all the suggestions from this code review"
 
-# Agentic mode (experimental)
-kit review --agentic --agentic-turns 8 https://github.com/owner/repo/pull/123
+# Agentic mode (experimental) with custom context
+kit review --profile company-standards --agentic --agentic-turns 8 https://github.com/owner/repo/pull/123
+```
+
+### Profile Management
+```bash
+# Create profiles for different teams and projects
+kit review-profile create --name company-standards --file coding-guidelines.md --description "Company coding standards"
+kit review-profile create --name security-focused --description "Security review guidelines" --tags "security"
+
+# List and manage profiles
+kit review-profile list
+kit review-profile show --name company-standards
+kit review-profile edit --name company-standards --file updated-guidelines.md
+kit review-profile delete --name old-profile
 ```
 
 ### Cache Management
@@ -552,140 +762,6 @@ Add these secrets to your repository settings (`Settings` → `Secrets and varia
 
 ```yaml
 # ✅ Good: Use organization/repository secrets
-env:
-  KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
-
-# ❌ Bad: Never hardcode tokens
-env:
-  KIT_ANTHROPIC_TOKEN: "sk-ant-hardcoded-key"
-
-# ✅ Good: Limit permissions
-permissions:
-  pull-requests: write  # Only what's needed
-  contents: read
-
-# ❌ Bad: Excessive permissions
-permissions:
-  contents: write       # Too broad
-```
-
-### Conditional Review Logic
-
-```yaml
-# Only review non-draft PRs
-- name: AI Review
-  if: "!github.event.pull_request.draft"
-  
-# Only review PRs with specific labels
-- name: AI Review
-  if: contains(github.event.pull_request.labels.*.name, 'needs-review')
-  
-# Skip bot PRs
-- name: AI Review
-  if: "!contains(github.event.pull_request.user.login, 'bot')"
-  
-# Review only specific file types
-- name: Check Changed Files
-  id: changes
-  uses: dorny/paths-filter@v2
-  with:
-    filters: |
-      code:
-        - '**/*.py'
-        - '**/*.js'
-        - '**/*.ts'
-        
-- name: AI Review
-  if: steps.changes.outputs.code == 'true'
-```
-
-### Cost Management in CI
-
-#### Set Review Budgets
-
-```yaml
-- name: Cost-Controlled Review
-  run: |
-    # Use budget model for large PRs
-    CHANGED_FILES=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files | length')
-    
-    if [ $CHANGED_FILES -gt 10 ]; then
-      echo "Large PR detected ($CHANGED_FILES files) - using budget model"
-      export MODEL="gpt-4.1-nano"  # ~$0.005 per review
-    else
-      echo "Normal PR size - using recommended model"
-      export MODEL="claude-sonnet-4-20250514"  # ~$0.18 per review
-    fi
-    
-    kit review ${{ github.event.pull_request.html_url }}
-```
-
-#### Monthly Budget Tracking
-
-```yaml
-- name: Budget Tracking
-  run: |
-    echo "💰 Expected monthly costs for this repository:"
-    echo "- Budget model (GPT-4.1-nano): ~$2.30/month (500 PRs)"
-    echo "- Recommended (Claude Sonnet 4): ~$87.95/month (500 PRs)"
-    echo "- Premium (Claude Opus 4): ~$454.30/month (500 PRs)"
-    
-    # You can add actual usage tracking here
-    # e.g., send metrics to your monitoring system
-```
-
-### Troubleshooting CI Issues
-
-#### Common Problems
-
-```yaml
-- name: Debug Review Issues
-  if: failure()
-  run: |
-    echo "🔍 Debugging AI review failure..."
-    
-    # Check token availability
-    if [ -z "$KIT_GITHUB_TOKEN" ]; then
-      echo "❌ Missing GitHub token"
-    else
-      echo "✅ GitHub token available"
-    fi
-    
-    if [ -z "$KIT_ANTHROPIC_TOKEN" ]; then
-      echo "❌ Missing Anthropic token"
-    else
-      echo "✅ Anthropic token available"
-    fi
-    
-    # Check PR accessibility
-    echo "📋 PR Details:"
-    echo "- Number: ${{ github.event.pull_request.number }}"
-    echo "- URL: ${{ github.event.pull_request.html_url }}"
-    echo "- Files changed: $(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files | length')"
-```
-
-#### Rate Limiting Handling
-
-```yaml
-- name: AI Review with Retry
-  uses: nick-invision/retry@v2
-  with:
-    timeout_minutes: 10
-    max_attempts: 3
-    retry_on: error
-    command: |
-      kit review ${{ github.event.pull_request.html_url }}
-  env:
-    KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
-```
-
-### Enterprise Considerations
-
-#### Organization-Level Configuration
-
-```yaml
-# Use organization secrets for consistent configuration
 env:
   KIT_ANTHROPIC_TOKEN: ${{ secrets.ORG_ANTHROPIC_API_KEY }}
   

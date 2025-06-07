@@ -232,7 +232,16 @@ class PRReviewer:
 
 {analysis_summary}
 
-{line_number_context}
+{line_number_context}"""
+
+        # Add custom context from profile if available
+        if self.config.profile_context:
+            analysis_prompt += f"""
+
+**Custom Review Guidelines:**
+{self.config.profile_context}"""
+
+        analysis_prompt += f"""
 
 **Diff:**
 ```diff
