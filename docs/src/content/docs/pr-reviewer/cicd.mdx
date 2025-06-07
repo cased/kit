@@ -1,0 +1,628 @@
+---
+title: CI/CD Integration
+description: GitHub Actions workflows, advanced automation patterns, and cost optimization strategies for AI code reviews
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+# CI/CD Integration
+
+Integrate AI code reviews seamlessly into your development workflow with GitHub Actions and other CI/CD platforms.
+
+## Basic GitHub Actions
+
+### Simple AI Review
+
+Create `.github/workflows/pr-review.yml`:
+
+```yaml
+name: AI PR Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: AI Code Review
+        run: |
+          pip install cased-kit
+          kit review ${{ github.event.pull_request.html_url }}
+        env:
+          KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### With Custom Context Profiles
+
+```yaml
+name: AI PR Review with Company Standards
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: AI Code Review
+        run: |
+          pip install cased-kit
+          kit review --profile company-standards ${{ github.event.pull_request.html_url }}
+        env:
+          KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+## Advanced Workflows
+
+### Free Local AI Setup
+
+For teams using self-hosted runners with Ollama:
+
+```yaml
+name: Free AI Review with Ollama
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: self-hosted  # Requires self-hosted runner with Ollama installed
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: AI Code Review
+        run: |
+          pip install cased-kit
+          # Use completely free local AI
+          kit review --model qwen2.5-coder:latest ${{ github.event.pull_request.html_url }}
+        env:
+          KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No LLM API keys needed - Ollama is free!
+```
+
+### Budget-Conscious Setup
+
+Ultra-low cost with GPT-4.1-nano:
+
+```yaml
+name: Budget AI Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Budget AI Review
+        run: |
+          pip install cased-kit
+          # Configure for ultra-low cost
+          kit review --model gpt-4.1-nano ${{ github.event.pull_request.html_url }}
+        env:
+          KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_OPENAI_TOKEN: ${{ secrets.OPENAI_API_KEY }}
+```
+
+### Smart Model Selection
+
+Choose models based on PR size and complexity:
+
+```yaml
+name: Smart Model Selection
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Smart Model Selection
+        run: |
+          pip install cased-kit
+          
+          # Use budget model for small PRs, premium for large ones
+          FILES_CHANGED=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files | length')
+          
+          if [ "$FILES_CHANGED" -gt 20 ]; then
+            MODEL="claude-sonnet-4-20250514"
+            echo "🏗️ Large PR detected ($FILES_CHANGED files) - using premium model"
+          elif [ "$FILES_CHANGED" -gt 5 ]; then
+            MODEL="gpt-4.1"
+            echo "📝 Medium PR detected ($FILES_CHANGED files) - using standard model"
+          else
+            MODEL="gpt-4.1-nano"
+            echo "🔍 Small PR detected ($FILES_CHANGED files) - using budget model"
+          fi
+          
+          kit review --model "$MODEL" ${{ github.event.pull_request.html_url }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+          KIT_OPENAI_TOKEN: ${{ secrets.OPENAI_API_KEY }}
+```
+
+## Conditional Reviews
+
+### Skip Bot PRs and Drafts
+
+```yaml
+name: AI PR Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    # Only review non-draft PRs from humans
+    if: "!github.event.pull_request.draft && !contains(github.event.pull_request.user.login, 'bot')"
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: AI Code Review
+        run: |
+          pip install cased-kit
+          kit review ${{ github.event.pull_request.html_url }}
+        env:
+          KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### Label-Based Reviews
+
+```yaml
+name: Label-Based Reviews
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+jobs:
+  security-review:
+    if: contains(github.event.pull_request.labels.*.name, 'security')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Security-Focused Review
+        run: |
+          pip install cased-kit
+          kit review --profile security-standards --priority=high ${{ github.event.pull_request.html_url }}
+        env:
+          KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+  
+  breaking-change-review:
+    if: contains(github.event.pull_request.labels.*.name, 'breaking-change')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Premium Review for Breaking Changes
+        run: |
+          pip install cased-kit
+          kit review --model claude-opus-4-20250514 ${{ github.event.pull_request.html_url }}
+        env:
+          KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+## Priority-Based Workflows
+
+### Priority Filtering by Branch
+
+```yaml
+name: Priority-Based Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Smart Priority-Based Review
+        run: |
+          pip install cased-kit
+          
+          # Use high priority for main branch, all priorities for feature branches
+          if [ "${{ github.event.pull_request.base.ref }}" == "main" ]; then
+            PRIORITY="high,medium"
+            echo "🎯 Main branch target - focusing on critical issues"
+          else
+            PRIORITY="high,medium,low"
+            echo "🌿 Feature branch - comprehensive review"
+          fi
+          
+          kit review --priority="$PRIORITY" ${{ github.event.pull_request.html_url }}
+        env:
+          KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### Cost-Optimized Two-Stage Process
+
+```yaml
+name: Two-Stage Review Process
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Two-Stage Review Process
+        run: |
+          pip install cased-kit
+          
+          # Stage 1: Quick high-priority scan with budget model
+          HIGH_ISSUES=$(kit review -p --model gpt-4o-mini --priority=high ${{ github.event.pull_request.html_url }})
+          
+          # Stage 2: If critical issues found, do full review with premium model
+          if echo "$HIGH_ISSUES" | grep -q "High Priority"; then
+            echo "🚨 Critical issues detected - running comprehensive review"
+            kit review --model claude-sonnet-4 ${{ github.event.pull_request.html_url }}
+          else
+            echo "✅ No critical issues found - posting quick scan results"
+            echo "$HIGH_ISSUES" | gh pr comment ${{ github.event.pull_request.number }} --body-file -
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+          KIT_OPENAI_TOKEN: ${{ secrets.OPENAI_API_KEY }}
+```
+
+## Multi-Stage Processing
+
+### Review with Implementation
+
+```yaml
+name: AI Review with Implementation
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review-and-process:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: AI Review with Multi-Stage Processing
+        run: |
+          pip install cased-kit
+          
+          # Stage 1: Generate review with kit's repository intelligence
+          REVIEW=$(kit review -p --model claude-3-5-haiku-20241022 ${{ github.event.pull_request.html_url }})
+          
+          # Stage 2: Extract action items and post as separate comment
+          echo "$REVIEW" | python scripts/extract-action-items.py | \
+            gh pr comment ${{ github.event.pull_request.number }} --body-file -
+          
+          # Stage 3: Save review for later processing
+          echo "$REVIEW" > review-${{ github.event.pull_request.number }}.md
+          
+          # Stage 4: Send to team notification system
+          echo "$REVIEW" | python scripts/notify-team.py --channel engineering
+          
+          # Stage 5: Update metrics dashboard
+          python scripts/update-metrics.py --pr ${{ github.event.pull_request.number }} --review "$REVIEW"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### External Tool Integration
+
+```yaml
+name: Review and Process
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review-integration:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Review and Process
+        run: |
+          pip install cased-kit
+          
+          # Get clean review output for processing
+          kit review -p ${{ github.event.pull_request.html_url }} > raw-review.txt
+          
+          # Parse with custom tools
+          python scripts/extract-security-issues.py raw-review.txt > security-issues.md
+          python scripts/update-team-dashboard.py raw-review.txt
+          python scripts/generate-metrics.py raw-review.txt > metrics.json
+          
+          # Post processed results back to PR
+          if [ -s security-issues.md ]; then
+            echo "## 🔒 Security Issues Detected" > processed-summary.md
+            cat security-issues.md >> processed-summary.md
+            gh pr comment ${{ github.event.pull_request.number }} --body-file processed-summary.md
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+## Smart Profile Selection
+
+### File-Type Based Profiles
+
+```yaml
+name: Smart Profile Selection
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Smart Profile Selection
+        run: |
+          pip install cased-kit
+          
+          # Check what type of files changed
+          CHANGED_FILES=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq -r '.files[].filename')
+          
+          if echo "$CHANGED_FILES" | grep -q "\.py$"; then
+            PROFILE="python-backend"
+            echo "🐍 Python files detected - using backend profile"
+          elif echo "$CHANGED_FILES" | grep -q "\.(ts|tsx|js|jsx)$"; then
+            PROFILE="frontend-react"
+            echo "⚛️ React files detected - using frontend profile"
+          elif echo "$CHANGED_FILES" | grep -q "security\|auth"; then
+            PROFILE="security-focused"
+            echo "🔒 Security-related files - using security profile"
+          elif echo "$CHANGED_FILES" | grep -q "Dockerfile\|docker-compose\|\.yml$"; then
+            PROFILE="infrastructure"
+            echo "🏗️ Infrastructure files - using DevOps profile"
+          else
+            PROFILE="general-standards"
+            echo "📋 General changes - using standard profile"
+          fi
+          
+          kit review --profile "$PROFILE" ${{ github.event.pull_request.html_url }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+## Cost Monitoring
+
+### Review Cost Tracking
+
+```yaml
+name: AI Review with Cost Tracking
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: AI Review with Cost Tracking
+        run: |
+          pip install cased-kit
+          
+          # Run review and capture cost information
+          kit review --dry-run ${{ github.event.pull_request.html_url }} > review-output.txt
+          
+          # Extract cost information
+          COST=$(grep "Total cost:" review-output.txt | awk '{print $3}')
+          MODEL=$(grep "Model:" review-output.txt | awk '{print $2}')
+          
+          # Post actual review
+          kit review ${{ github.event.pull_request.html_url }}
+          
+          # Log cost for monitoring
+          echo "PR ${{ github.event.pull_request.number }}: $COST ($MODEL)" >> /tmp/review-costs.log
+          
+          # Alert if cost is unusually high
+          if [ "$(echo "$COST > 0.50" | bc)" -eq 1 ]; then
+            echo "⚠️ High review cost detected: $COST" >> $GITHUB_STEP_SUMMARY
+          fi
+        env:
+          KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+## Platform-Specific Examples
+
+### GitLab CI
+
+```yaml
+# .gitlab-ci.yml
+ai-review:
+  stage: review
+  image: python:3.9
+  only:
+    - merge_requests
+  script:
+    - pip install cased-kit
+    - kit review --profile company-standards "$CI_MERGE_REQUEST_PROJECT_URL/-/merge_requests/$CI_MERGE_REQUEST_IID"
+  variables:
+    KIT_GITHUB_TOKEN: $GITLAB_TOKEN
+    KIT_ANTHROPIC_TOKEN: $ANTHROPIC_API_KEY
+```
+
+### Azure DevOps
+
+```yaml
+# azure-pipelines.yml
+trigger:
+  - none
+
+pr:
+  - main
+  - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.9'
+    
+- script: |
+    pip install cased-kit
+    kit review --profile company-standards "$(System.PullRequest.SourceRepositoryURI)/pull/$(System.PullRequest.PullRequestNumber)"
+  env:
+    KIT_GITHUB_TOKEN: $(GitHubToken)
+    KIT_ANTHROPIC_TOKEN: $(AnthropicToken)
+  displayName: 'AI Code Review'
+```
+
+## Best Practices
+
+### Error Handling
+
+```yaml
+- name: Robust AI Review
+  run: |
+    pip install cased-kit
+    
+    # Set error handling
+    set +e  # Don't exit on error
+    
+    # Attempt review with timeout
+    timeout 300 kit review ${{ github.event.pull_request.html_url }}
+    EXIT_CODE=$?
+    
+    if [ $EXIT_CODE -eq 0 ]; then
+      echo "✅ Review completed successfully"
+    elif [ $EXIT_CODE -eq 124 ]; then
+      echo "⏰ Review timed out after 5 minutes"
+      gh pr comment ${{ github.event.pull_request.number }} --body "⏰ AI review timed out - PR may be too large for automated analysis"
+    else
+      echo "❌ Review failed with exit code $EXIT_CODE"
+      gh pr comment ${{ github.event.pull_request.number }} --body "❌ AI review encountered an error - please check configuration"
+    fi
+  env:
+    KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### Resource Management
+
+```yaml
+- name: Resource-Efficient Review
+  run: |
+    pip install cased-kit
+    
+    # Check PR size before review
+    FILES_CHANGED=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files | length')
+    LINES_CHANGED=$(gh pr view ${{ github.event.pull_request.number }} --json additions,deletions --jq '.additions + .deletions')
+    
+    if [ "$FILES_CHANGED" -gt 100 ] || [ "$LINES_CHANGED" -gt 10000 ]; then
+      echo "📊 Large PR detected ($FILES_CHANGED files, $LINES_CHANGED lines)"
+      echo "Using focused review to manage costs"
+      kit review --priority=high,medium --model gpt-4.1-mini ${{ github.event.pull_request.html_url }}
+    else
+      echo "📝 Standard PR size - full review"
+      kit review --profile company-standards ${{ github.event.pull_request.html_url }}
+    fi
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### Notification Integration
+
+```yaml
+- name: Review with Notifications
+  run: |
+    pip install cased-kit
+    
+    # Run review and capture result
+    if kit review --profile company-standards ${{ github.event.pull_request.html_url }}; then
+      # Success notification
+      curl -X POST "$SLACK_WEBHOOK" \
+        -H 'Content-type: application/json' \
+        --data '{
+          "text": "✅ AI review completed for PR #${{ github.event.pull_request.number }}",
+          "channel": "#code-reviews"
+        }'
+    else
+      # Error notification
+      curl -X POST "$SLACK_WEBHOOK" \
+        -H 'Content-type: application/json' \
+        --data '{
+          "text": "❌ AI review failed for PR #${{ github.event.pull_request.number }}",
+          "channel": "#engineering-alerts"
+        }'
+    fi
+  env:
+    KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+    SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+```
+
+<Aside type="tip">
+**Pro Tip**: Start with basic workflows and gradually add sophistication. Monitor costs and adjust model selection based on your team's needs and budget.
+</Aside>
+
+---
+
+[← Back to PR Reviewer Overview](/pr-reviewer/) 

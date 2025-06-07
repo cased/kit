@@ -1,0 +1,360 @@
+---
+title: Output Modes & Integration
+description: Different output modes for various workflows - from direct GitHub posting to piping output to CLI code writers
+sidebar:
+  order: 2
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+# Output Modes & Integration
+
+Kit provides different output modes for various workflows - from direct GitHub posting to piping output to CLI code writers and custom automation systems.
+
+## Output Modes
+
+### Standard Mode
+
+```bash
+# Posts comment directly to GitHub PR
+kit review https://github.com/owner/repo/pull/123
+```
+
+**Output includes**: Review comment posted to GitHub, status messages, cost breakdown, and quality metrics.
+
+### Dry Run Mode (`--dry-run` / `-n`)
+
+```bash
+# Shows formatted preview without posting
+kit review --dry-run https://github.com/owner/repo/pull/123
+```
+
+**Output includes**: Status messages, cost breakdown, quality metrics, and formatted review preview. Perfect for testing configurations and seeing full diagnostics.
+
+### Plain Mode (`--plain` / `-p`) 
+
+```bash
+# Clean output perfect for piping to other tools
+kit review --plain https://github.com/owner/repo/pull/123
+kit review -p https://github.com/owner/repo/pull/123
+```
+
+**Output**: Just the raw review content with no status messages or formatting. Ideal for automation and piping workflows.
+
+## Priority Filtering
+
+Focus reviews on what matters most:
+
+```bash
+# Focus on critical issues only
+kit review --priority=high https://github.com/owner/repo/pull/123
+
+# Show important issues (high + medium priority)
+kit review --priority=high,medium https://github.com/owner/repo/pull/123
+
+# Get only style/improvement suggestions
+kit review --priority=low https://github.com/owner/repo/pull/123
+
+# Combine with other flags
+kit review -p --priority=high https://github.com/owner/repo/pull/123 | \
+  claude "Fix these critical security issues"
+```
+
+**Benefits**: Reduces noise, saves costs, and focuses attention on issues that matter to your workflow.
+
+## Piping to CLI Code Writers
+
+Combine kit's repository intelligence with your favorite CLI code-generation tooling:
+
+### Basic Piping Patterns
+
+```bash
+# Analyze with kit, implement with Claude Code
+kit review -p https://github.com/owner/repo/pull/123 | \
+  claude -p "Implement all the suggestions from this code review"
+
+# Use specific models for cost optimization
+kit review -p --model gpt-4.1-nano https://github.com/owner/repo/pull/123 | \
+  claude -p "Fix the high-priority issues mentioned in this review"
+
+# Focus on critical issues only
+kit review -p --priority=high https://github.com/owner/repo/pull/123 | \
+  claude -p "Implement these security and reliability fixes"
+```
+
+### Advanced Multi-Stage Workflows
+
+```bash
+# Stage 1: Kit analyzes codebase context  
+REVIEW=$(kit review -p --model claude-3-5-haiku-20241022 <pr-url>)
+
+# Stage 2: Claude Code implements fixes
+echo "$REVIEW" | claude -p "Implement these code review suggestions"
+
+# Stage 3: Your custom tooling
+echo "$REVIEW" | your-priority-tracker --extract-issues
+```
+
+<Aside type="tip">
+**Why this workflow helps**: Kit excels at codebase understanding and context, while Claude Code excels at implementation. Combining them gives you AI-powered analysis → AI-powered fixes in seconds.
+</Aside>
+
+## Integration Examples
+
+### Pipe to Any Tool
+
+```bash
+# Save review to file
+kit review -p <pr-url> > review.md
+
+# Send to Slack
+kit review -p <pr-url> | curl -X POST -H 'Content-type: application/json' \
+  --data '{"text":"'"$(cat)"'"}' YOUR_SLACK_WEBHOOK
+
+# Process with jq or other tools
+kit review -p <pr-url> | your-custom-processor
+
+# Extract specific sections
+kit review -p <pr-url> | grep -A 5 "High Priority"
+
+# Convert to different formats
+kit review -p <pr-url> | pandoc -f markdown -t html > review.html
+```
+
+### Custom Processing Scripts
+
+**Extract Security Issues:**
+```bash
+#!/bin/bash
+# extract-security-issues.sh
+kit review -p --priority=high "$1" | \
+  grep -i "security\|vulnerability\|injection\|auth" | \
+  while read -r line; do
+    echo "🔒 $line" >> security-report.md
+  done
+```
+
+**Team Notification System:**
+```bash
+#!/bin/bash
+# notify-team.sh
+REVIEW=$(kit review -p "$1")
+CRITICAL_COUNT=$(echo "$REVIEW" | grep -c "High Priority")
+
+if [ "$CRITICAL_COUNT" -gt 0 ]; then
+  echo "$REVIEW" | your-slack-bot --channel security --urgent
+else
+  echo "$REVIEW" | your-slack-bot --channel code-review
+fi
+```
+
+## CI/CD Integration Patterns
+
+### Basic GitHub Actions Integration
+
+```yaml
+- name: AI Review with Plain Output
+  run: |
+    pip install cased-kit
+    kit review -p ${{ github.event.pull_request.html_url }} > review.txt
+    
+    # Post to PR as comment
+    gh pr comment ${{ github.event.pull_request.number }} --body-file review.txt
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### Multi-Stage Processing
+
+```yaml
+- name: AI Review with Multi-Stage Processing
+  run: |
+    pip install cased-kit
+    
+    # Stage 1: Generate review with kit's repository intelligence
+    REVIEW=$(kit review -p --model claude-3-5-haiku-20241022 ${{ github.event.pull_request.html_url }})
+    
+    # Stage 2: Extract action items and post as separate comment
+    echo "$REVIEW" | your-issue-tracker --extract-priorities | \
+      gh pr comment ${{ github.event.pull_request.number }} --body-file -
+    
+    # Stage 3: Save review for later processing
+    echo "$REVIEW" > review-${{ github.event.pull_request.number }}.md
+    
+    # Stage 4: Send to team notification system
+    echo "$REVIEW" | your-slack-notifier --channel engineering
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### Integration with External Tools
+
+```yaml
+- name: Review and Process
+  run: |
+    pip install cased-kit
+    
+    # Get clean review output for processing
+    kit review -p ${{ github.event.pull_request.html_url }} > raw-review.txt
+    
+    # Parse with your custom tools
+    python scripts/extract-security-issues.py raw-review.txt
+    python scripts/update-team-dashboard.py raw-review.txt
+    python scripts/generate-metrics.py raw-review.txt
+    
+    # Optional: Post processed results back to PR
+    gh pr comment ${{ github.event.pull_request.number }} --body-file processed-summary.md
+```
+
+## Cost Optimization Strategies
+
+### Budget-Conscious Multi-Stage Analysis
+
+```bash
+# Stage 1: Quick high-priority scan with budget model
+HIGH_ISSUES=$(kit review -p --model gpt-4o-mini --priority=high <pr-url>)
+
+# Stage 2: If critical issues found, do full review with premium model
+if echo "$HIGH_ISSUES" | grep -q "High Priority"; then
+  kit review --model claude-sonnet-4 <pr-url>
+else
+  echo "$HIGH_ISSUES" | gh pr comment $PR_NUMBER --body-file -
+fi
+```
+
+### Model Selection Based on Content
+
+```bash
+#!/bin/bash
+# smart-review.sh
+PR_URL=$1
+PR_NUMBER=$(echo "$PR_URL" | grep -o '/pull/[0-9]*' | cut -d'/' -f3)
+
+# Check PR size and select appropriate model
+FILES_CHANGED=$(gh pr view "$PR_NUMBER" --json files --jq '.files | length')
+
+if [ "$FILES_CHANGED" -gt 20 ]; then
+  MODEL="claude-sonnet-4"    # Premium for large changes
+elif [ "$FILES_CHANGED" -gt 5 ]; then
+  MODEL="gpt-4.1"           # Mid-tier for medium changes
+else
+  MODEL="gpt-4.1-nano"      # Budget for small changes
+fi
+
+kit review --model "$MODEL" -p "$PR_URL"
+```
+
+## Best Practices
+
+### Output Mode Selection
+
+- **Standard mode**: For direct GitHub integration and team collaboration
+- **Dry run (`--dry-run`)**: For testing configurations and seeing full diagnostics
+- **Plain mode (`--plain` / `-p`)**: For piping to CLI code composers, custom tools, or automation
+- **Tip**: Use plain mode in CI/CD for processing reviews with external systems
+
+### Piping & Integration Workflows
+
+- **Kit → Claude Code**: `kit review -p <pr-url> | claude "implement these suggestions"`
+- **Multi-tool chains**: Use kit for analysis, pipe to specialized tools for processing
+- **Cost optimization**: Use budget models for analysis, premium models for implementation
+- **Automation**: Pipe plain output to issue trackers, notification systems, or custom processors
+
+### Error Handling in Scripts
+
+```bash
+#!/bin/bash
+# robust-review.sh
+set -e  # Exit on error
+
+PR_URL=$1
+if [ -z "$PR_URL" ]; then
+  echo "Usage: $0 <pr-url>"
+  exit 1
+fi
+
+# Generate review with error handling
+if REVIEW=$(kit review -p "$PR_URL" 2>/dev/null); then
+  echo "✅ Review generated successfully"
+  echo "$REVIEW" | your-processor
+else
+  echo "❌ Review failed, check configuration"
+  exit 1
+fi
+```
+
+## Real-World Integration Examples
+
+### Slack Integration
+
+```bash
+#!/bin/bash
+# slack-review.sh
+REVIEW=$(kit review -p --priority=high,medium "$1")
+WEBHOOK_URL="your-slack-webhook-url"
+
+curl -X POST -H 'Content-type: application/json' \
+  --data '{
+    "text": "🤖 AI Code Review Complete",
+    "blocks": [
+      {
+        "type": "section",
+        "text": {
+          "type": "mrkdwn",
+          "text": "```'"$REVIEW"'```"
+        }
+      }
+    ]
+  }' "$WEBHOOK_URL"
+```
+
+### Jira Integration
+
+```bash
+#!/bin/bash
+# jira-review.sh
+REVIEW=$(kit review -p --priority=high "$1")
+CRITICAL_ISSUES=$(echo "$REVIEW" | grep -c "High Priority" || echo "0")
+
+if [ "$CRITICAL_ISSUES" -gt 0 ]; then
+  # Create Jira ticket for critical issues
+  jira issue create \
+    --project="CODE" \
+    --type="Bug" \
+    --summary="Critical issues found in PR review" \
+    --description="$REVIEW"
+fi
+```
+
+### Dashboard Integration
+
+```python
+#!/usr/bin/env python3
+# dashboard-integration.py
+import sys
+import requests
+import subprocess
+
+def get_review(pr_url):
+    result = subprocess.run([
+        'kit', 'review', '-p', '--priority=high,medium', pr_url
+    ], capture_output=True, text=True)
+    return result.stdout
+
+def post_to_dashboard(review_data):
+    response = requests.post('https://your-dashboard.com/api/reviews', 
+                           json={'content': review_data})
+    return response.status_code == 200
+
+if __name__ == "__main__":
+    pr_url = sys.argv[1]
+    review = get_review(pr_url)
+    success = post_to_dashboard(review)
+    print(f"Dashboard update: {'✅' if success else '❌'}")
+```
+
+---
+
+[← Back to PR Reviewer Overview](/pr-reviewer/) 

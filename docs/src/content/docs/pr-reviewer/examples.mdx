@@ -1,0 +1,432 @@
+---
+title: Examples & Use Cases
+description: Real-world review examples with actual costs and analysis across different project types and scenarios
+sidebar:
+  order: 5
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+# Examples & Use Cases
+
+See real-world AI code reviews with actual costs, analysis depth, and practical outcomes across different project types and scenarios.
+
+## Real-World Review Examples
+
+### Large Framework Change
+
+**[FastAPI Packaging Change](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/fastapi_11935_standard_dependencies.md)** - Architectural impact analysis
+
+- **Cost**: $0.034 
+- **Model**: claude-sonnet-4
+- **Files Changed**: 12 files, 150+ lines
+- **Focus**: Architectural impact, dependency management, breaking changes
+- **Key Findings**: Identified potential breaking changes, suggested migration strategies
+
+**Why this example matters**: Shows how kit handles complex architectural changes with full repository context, identifying cross-module impacts that diff-only tools miss.
+
+### Frontend UI Enhancement
+
+**[React.dev UI Feature](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/react_dev_6986_branding_menu.md)** - Accessibility-focused review
+
+- **Cost**: $0.012
+- **Model**: gpt-4.1
+- **Files Changed**: 6 files, 85 lines
+- **Focus**: Accessibility, component design, user experience
+- **Key Findings**: Accessibility improvements, component reusability suggestions
+
+**Why this example matters**: Demonstrates kit's ability to provide specialized feedback on UI/UX concerns, not just technical correctness.
+
+### Documentation Update
+
+**[BioPython Documentation Fix](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/biopython_204_documentation_fix.md)** - Proportional response
+
+- **Cost**: $0.006
+- **Model**: gpt-4.1-mini
+- **Files Changed**: 2 files, 15 lines
+- **Focus**: Documentation clarity, example accuracy
+- **Key Findings**: Minor suggestions for clarity, validation of examples
+
+**Why this example matters**: Shows how kit provides proportional feedback - thorough but concise for documentation changes.
+
+### Multi-Model Comparison
+
+**[Model Comparison Analysis](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/model_comparison_fastapi_11935.md)** - Cost vs quality analysis
+
+Compares the same PR reviewed with different models:
+- **GPT-4.1-nano**: $0.004 - High-level issues
+- **GPT-4.1**: $0.034 - Detailed analysis  
+- **Claude Sonnet**: $0.087 - Comprehensive review
+- **Claude Opus**: $0.156 - Architectural insights
+
+**Why this example matters**: Helps teams choose the right model for their budget and quality requirements.
+
+## Use Case Scenarios
+
+### Security-Critical Changes
+
+```bash
+# Use security-focused profile with premium model
+kit review --profile security-standards \
+  --model claude-opus-4 \
+  --priority=high \
+  https://github.com/company/auth-service/pull/234
+```
+
+**Typical output focus**:
+- Input validation vulnerabilities
+- Authentication/authorization issues  
+- Secrets management problems
+- Dependency security concerns
+- Logging of sensitive data
+
+### High-Volume Development
+
+```bash
+# Cost-optimized for daily reviews
+kit review --model gpt-4.1-nano \
+  --priority=high,medium \
+  https://github.com/company/api/pull/456
+```
+
+**Benefits**:
+- Reviews at ~$0.002-0.015 per PR
+- Focus on important issues only
+- Fast turnaround for daily workflow
+- Sustainable for 100+ PRs/month
+
+### Large Refactoring
+
+```bash
+# Comprehensive analysis for major changes
+kit review --model claude-sonnet-4 \
+  --profile architecture-standards \
+  https://github.com/company/core/pull/789
+```
+
+**Typical output focus**:
+- Cross-module impact analysis
+- Breaking change identification
+- Performance implications
+- Backward compatibility concerns
+- Migration strategy suggestions
+
+### Code Quality Focus
+
+```bash
+# Emphasize style and improvements
+kit review --priority=low \
+  --profile code-quality \
+  --model gpt-4.1-mini \
+  https://github.com/company/utils/pull/101
+```
+
+**Typical output focus**:
+- Code style improvements
+- Refactoring opportunities
+- Documentation enhancements
+- Test coverage suggestions
+- Performance optimizations
+
+## Team Workflow Examples
+
+### Startup Team (Budget-Conscious)
+
+```yaml
+# .github/workflows/ai-review.yml
+name: Budget AI Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: AI Review
+        run: |
+          pip install cased-kit
+          # Use ultra-budget model for all PRs
+          kit review --model gpt-4.1-nano \
+            --priority=high,medium \
+            ${{ github.event.pull_request.html_url }}
+```
+
+**Results**:
+- **Cost**: ~$5-15/month for 500 PRs
+- **Coverage**: Critical and important issues
+- **Speed**: Fast reviews, good for rapid iteration
+
+### Enterprise Team (Quality-Focused)
+
+```yaml
+# .github/workflows/ai-review.yml  
+name: Enterprise AI Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: AI Review with Smart Selection
+        run: |
+          pip install cased-kit
+          
+          # Different models based on target branch
+          if [ "${{ github.event.pull_request.base.ref }}" == "main" ]; then
+            MODEL="claude-sonnet-4"
+            PROFILE="production-standards"
+          else
+            MODEL="gpt-4.1"
+            PROFILE="development-standards"  
+          fi
+          
+          kit review --model "$MODEL" \
+            --profile "$PROFILE" \
+            ${{ github.event.pull_request.html_url }}
+```
+
+**Results**:
+- **Cost**: ~$50-150/month for 500 PRs
+- **Coverage**: Comprehensive analysis  
+- **Quality**: High-quality, detailed feedback
+
+### Open Source Project
+
+```yaml
+# .github/workflows/ai-review.yml
+name: Community AI Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+    # Only review PRs from outside contributors
+  if: github.event.pull_request.head.repo.full_name != github.repository
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Community PR Review
+        run: |
+          pip install cased-kit
+          # Focus on contribution guidelines
+          kit review --profile community-standards \
+            --model gpt-4.1-mini \
+            ${{ github.event.pull_request.html_url }}
+```
+
+**Results**:
+- **Purpose**: Help external contributors
+- **Focus**: Style, testing, documentation
+- **Cost**: Minimal, only for external PRs
+
+### DevSecOps Team (Security-First)
+
+```yaml
+# .github/workflows/security-review.yml
+name: Security-Focused Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'src/auth/**'
+      - 'src/api/**'
+      - '**/*security*'
+      - '**/*auth*'
+
+jobs:
+  security-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Security Review
+        run: |
+          pip install cased-kit
+          # Premium model for security-critical code
+          kit review --model claude-opus-4 \
+            --profile security-hardening \
+            --priority=high \
+            ${{ github.event.pull_request.html_url }}
+```
+
+**Results**:
+- **Focus**: Security vulnerabilities only
+- **Quality**: Maximum thoroughness for critical code
+- **Cost**: Higher per review, but targeted scope
+
+## Cost Analysis Examples
+
+### Monthly Budget Planning
+
+**Small Team (10 developers, 200 PRs/month)**:
+```bash
+# Budget option: ~$10-30/month
+kit review --model gpt-4.1-nano --priority=high,medium
+
+# Balanced option: ~$20-60/month  
+kit review --model gpt-4.1-mini
+
+# Premium option: ~$60-180/month
+kit review --model claude-sonnet-4
+```
+
+**Large Team (50 developers, 1000 PRs/month)**:
+```bash
+# Smart tiering based on PR size
+small_pr="gpt-4.1-nano"     # <5 files: ~$2-8/month per dev
+medium_pr="gpt-4.1-mini"    # 5-20 files: ~$10-30/month per dev  
+large_pr="claude-sonnet-4"  # >20 files: ~$20-60/month per dev
+
+# Total: ~$32-98/month per developer
+```
+
+### ROI Analysis Examples
+
+**Bug Prevention**:
+- **Cost**: $50/month for AI reviews
+- **Prevented**: 2-3 production bugs/month  
+- **Savings**: $2000-15000 in bug fix costs
+- **ROI**: 40-300x return on investment
+
+**Code Quality Improvement**:
+- **Cost**: $100/month for comprehensive reviews
+- **Result**: 25% reduction in tech debt accumulation
+- **Savings**: Faster development velocity
+- **ROI**: Pays for itself in reduced maintenance time
+
+## Integration Examples
+
+### Slack Notifications
+
+```bash
+#!/bin/bash
+# slack-integration.sh
+REVIEW=$(kit review -p --priority=high "$1")
+CRITICAL_COUNT=$(echo "$REVIEW" | grep -c "High Priority")
+
+if [ "$CRITICAL_COUNT" -gt 0 ]; then
+  curl -X POST "$SLACK_WEBHOOK" \
+    -H 'Content-type: application/json' \
+    --data '{
+      "text": "🚨 Critical issues found in PR '"$1"'",
+      "attachments": [{
+        "color": "danger", 
+        "text": "'"$(echo "$REVIEW" | head -500)"'"
+      }]
+    }'
+else
+  curl -X POST "$SLACK_WEBHOOK" \
+    -H 'Content-type: application/json' \
+    --data '{
+      "text": "✅ PR '"$1"' looks good to go!"
+    }'
+fi
+```
+
+### Dashboard Metrics
+
+```python
+#!/usr/bin/env python3
+# metrics-collection.py
+import subprocess
+import json
+import requests
+from datetime import datetime
+
+def collect_review_metrics(pr_url):
+    # Get review with cost information
+    result = subprocess.run([
+        'kit', 'review', '--dry-run', '-p', pr_url
+    ], capture_output=True, text=True)
+    
+    # Parse metrics
+    lines = result.stderr.split('\n')
+    cost = next((l for l in lines if 'Total cost:' in l), '').split('$')[-1]
+    model = next((l for l in lines if 'Model:' in l), '').split(':')[-1].strip()
+    
+    # Extract issue counts
+    issues = result.stdout.count('Priority:')
+    high_priority = result.stdout.count('High Priority')
+    
+    # Send to dashboard
+    metrics = {
+        'pr_url': pr_url,
+        'timestamp': datetime.now().isoformat(),
+        'cost': float(cost) if cost else 0,
+        'model': model,
+        'total_issues': issues,
+        'critical_issues': high_priority
+    }
+    
+    requests.post('https://dashboard.company.com/api/reviews', json=metrics)
+    return metrics
+
+if __name__ == "__main__":
+    import sys
+    collect_review_metrics(sys.argv[1])
+```
+
+### Issue Tracker Integration
+
+```bash
+#!/bin/bash
+# jira-integration.sh
+REVIEW=$(kit review -p --priority=high "$1")
+SECURITY_ISSUES=$(echo "$REVIEW" | grep -i "security\|vulnerability" | wc -l)
+
+if [ "$SECURITY_ISSUES" -gt 0 ]; then
+  # Create security ticket
+  jira issue create \
+    --project="SEC" \
+    --type="Security" \
+    --summary="Security issues found in $1" \
+    --description="$REVIEW" \
+    --priority="High"
+fi
+
+PERFORMANCE_ISSUES=$(echo "$REVIEW" | grep -i "performance\|slow\|optimization" | wc -l)
+if [ "$PERFORMANCE_ISSUES" -gt 0 ]; then
+  # Create performance ticket  
+  jira issue create \
+    --project="PERF" \
+    --type="Task" \
+    --summary="Performance issues found in $1" \
+    --description="$REVIEW" \
+    --priority="Medium"
+fi
+```
+
+## Best Practices from Examples
+
+### Model Selection Strategy
+
+1. **Documentation/Small Changes**: `gpt-4.1-nano` or `gpt-4.1-mini`
+2. **Regular Development**: `gpt-4.1` or `gemini-2.5-flash`  
+3. **Critical/Security Changes**: `claude-sonnet-4` or `claude-opus-4`
+4. **Architectural Changes**: `claude-opus-4` for comprehensive analysis
+5. **High-Volume Teams**: Mix of models based on PR complexity
+
+### Priority Filtering Strategy
+
+1. **Daily Development**: `--priority=high,medium` (focus on important issues)
+2. **Pre-Release**: `--priority=high` (only critical blockers)  
+3. **Code Quality Reviews**: `--priority=low` (style and improvements)
+4. **Security Audits**: `--priority=high` with security profile
+5. **Architecture Reviews**: All priorities with premium model
+
+### Profile Usage Patterns
+
+1. **General Development**: `company-standards` profile
+2. **Security-Critical**: `security-hardening` profile  
+3. **Frontend Work**: `frontend-react` or `ui-standards` profile
+4. **Backend APIs**: `backend-api` or `microservice-standards` profile
+5. **External Contributors**: `community-guidelines` profile
+
+<Aside type="tip">
+**Pro Tip**: Start simple with one model and basic priority filtering. Add complexity gradually as your team sees value and develops preferences for different scenarios.
+</Aside>
+
+---
+
+[← Back to PR Reviewer Overview](/pr-reviewer/) 

@@ -1,0 +1,244 @@
+---
+title: Custom Context Profiles
+description: Store and apply organization-specific coding standards and review guidelines through custom context profiles
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+# Custom Context Profiles
+
+Kit supports **organization-specific coding standards and review guidelines** through custom context profiles. Create profiles that automatically inject your company's coding standards, security requirements, and style guidelines into every PR review, ensuring consistent and organization-aligned feedback.
+
+<Aside type="tip">
+**Why this matters**: Instead of manually specifying guidelines for each review, profiles encode your organization's knowledge once and apply it consistently across all reviews. Perfect for teams with specific security requirements, architectural standards, or coding conventions.
+</Aside>
+
+## Quick Start
+
+```bash
+# Create a profile from your existing coding guidelines
+kit review-profile create --name company-standards \
+  --file coding-guidelines.md \
+  --description "Acme Corp coding standards"
+
+# Use in any review
+kit review --profile company-standards https://github.com/owner/repo/pull/123
+
+# List all profiles
+kit review-profile list
+```
+
+## Profile Management
+
+### Creating Profiles
+
+**From a file (recommended for sharing):**
+```bash
+kit review-profile create \
+  --name python-security \
+  --file security-guidelines.md \
+  --description "Python security best practices" \
+  --tags "security,python"
+```
+
+**Interactive creation:**
+```bash
+kit review-profile create \
+  --name company-standards \
+  --description "Company coding standards"
+# Then type your guidelines, press Enter for new lines, then Ctrl+D to finish
+```
+
+### Managing Profiles
+
+```bash
+# List all profiles with details
+kit review-profile list --format table
+
+# Show specific profile content
+kit review-profile show --name company-standards
+
+# Edit existing profile
+kit review-profile edit --name company-standards \
+  --file updated-guidelines.md
+
+# Share profiles between team members
+kit review-profile export --name company-standards \
+  --file shared-standards.md
+kit review-profile import --file shared-standards.md \
+  --name imported-standards
+
+# Clean up old profiles
+kit review-profile delete --name old-profile
+```
+
+## Example Profile Content
+
+Here's an effective profile structure that provides concrete, actionable guidance:
+
+### Security-Focused Profile
+
+```markdown
+**Security Review Guidelines:**
+
+- **Input Validation**: All user inputs must be validated against expected formats
+- **SQL Injection Prevention**: Use parameterized queries, never string concatenation
+- **XSS Prevention**: Sanitize all user content before rendering
+- **Authentication**: Verify all endpoints require proper authentication
+- **Authorization**: Check that users can only access resources they own
+- **Secrets Management**: No hardcoded API keys, tokens, or passwords
+- **Logging**: Sensitive data must not appear in logs
+- **Dependencies**: Flag any new dependencies for security review
+```
+
+### Code Quality Profile
+
+```markdown
+**Code Quality Standards:**
+
+- **Documentation**: All public functions must have docstrings with examples
+- **Type Safety**: Use type hints for all function parameters and returns
+- **Error Handling**: Implement proper exception handling with specific error types
+- **Testing**: New features require unit tests with 80%+ coverage
+- **Performance**: Flag N+1 queries and inefficient algorithms
+- **Architecture**: Follow SOLID principles, maintain loose coupling
+```
+
+## Using Profiles in Reviews
+
+### Basic Usage
+
+```bash
+# Apply organization standards automatically
+kit review --profile company-standards https://github.com/owner/repo/pull/123
+
+# Combine with other options
+kit review --profile security-focused \
+  --priority=high \
+  --model claude-sonnet-4 \
+  https://github.com/owner/repo/pull/123
+
+# Multiple contexts for different teams
+kit review --profile backend-api https://github.com/owner/repo/pull/123    # API team
+kit review --profile frontend-react https://github.com/owner/repo/pull/123  # UI team
+```
+
+### CI/CD Integration
+
+```yaml
+- name: AI Review with Company Standards
+  run: |
+    pip install cased-kit
+    kit review --profile company-standards ${{ github.event.pull_request.html_url }}
+  env:
+    KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+## Team Organization
+
+### Team-Specific Profiles
+
+```bash
+# Different standards for different teams
+kit review-profile create --name backend-api \
+  --description "Backend API development standards" \
+  --tags "backend,api,python"
+
+kit review-profile create --name frontend-react \
+  --description "React frontend standards" \
+  --tags "frontend,react,typescript"
+
+kit review-profile create --name security-hardening \
+  --description "Security review guidelines" \
+  --tags "security,compliance"
+```
+
+### Project-Type Profiles
+
+```bash
+# Different standards for different project types
+kit review-profile create --name microservice-standards \
+  --description "Microservice architecture guidelines"
+
+kit review-profile create --name data-pipeline-standards \
+  --description "Data processing best practices"
+
+kit review-profile create --name mobile-app-standards \
+  --description "Mobile development guidelines"
+```
+
+## Advanced Examples
+
+### Multi-Modal Team Setup
+
+```yaml
+# In your CI/CD, use different profiles based on changed files
+- name: Smart Profile Selection
+  run: |
+    pip install cased-kit
+    
+    # Check what type of files changed
+    CHANGED_FILES=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq -r '.files[].filename')
+    
+    if echo "$CHANGED_FILES" | grep -q "\.py$"; then
+      PROFILE="python-backend"
+    elif echo "$CHANGED_FILES" | grep -q "\.(ts|tsx|js|jsx)$"; then
+      PROFILE="frontend-react"
+    elif echo "$CHANGED_FILES" | grep -q "security\|auth"; then
+      PROFILE="security-focused"
+    else
+      PROFILE="general-standards"
+    fi
+    
+    kit review --profile "$PROFILE" ${{ github.event.pull_request.html_url }}
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+## Profile Best Practices
+
+### Writing Effective Profiles
+
+1. **Be Specific**: Include concrete examples, not just general principles
+2. **Focus on Intent**: Explain *why* certain practices are required
+3. **Use Examples**: Show good and bad code patterns when possible
+4. **Stay Current**: Regular review and update profiles as standards evolve
+5. **Tag Appropriately**: Use tags for easy organization and discovery
+
+### Team Workflow
+
+1. **Start Small**: Begin with essential standards, expand over time
+2. **Collaborate**: Involve team members in creating and updating profiles
+3. **Version Control**: Export profiles and track them alongside your code
+4. **Regular Reviews**: Schedule quarterly profile review meetings
+5. **Share Success**: Use export/import to share effective profiles across teams
+
+### Example Integration
+
+```bash
+# Morning routine: Update and sync team profiles
+kit review-profile export --name company-standards --file standards.md
+git add standards.md && git commit -m "Update coding standards"
+
+# Review with latest standards
+kit review --profile company-standards https://github.com/owner/repo/pull/123
+```
+
+## Storage and Sharing
+
+- **Location**: Profiles stored in `~/.kit/profiles/` as human-readable YAML files
+- **Format**: Includes metadata (name, description, tags, timestamps) and content
+- **Sharing**: Export/import functionality for team collaboration and version control
+- **Backup**: Include profile exports in your team's configuration management
+
+<Aside type="tip">
+**Pro Tip**: When a profile is specified, the custom context is automatically injected into the review prompt as "Custom Review Guidelines", ensuring the AI reviewer follows your organization's standards while maintaining all kit's repository intelligence features.
+</Aside>
+
+---
+
+[← Back to PR Reviewer Overview](/pr-reviewer/) 

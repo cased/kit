@@ -29,7 +29,6 @@ export default defineConfig({
             "introduction/quickstart",
             "introduction/usage-guide",
             "introduction/cli",
-            "pr-reviewer",
             "changelog"
           ],
         },
@@ -47,6 +46,17 @@ export default defineConfig({
             "core-concepts/dependency-analysis",
             "core-concepts/llm-context-best-practices",
             "core-concepts/context-assembly",
+          ],
+        },
+        {
+          label: " PR Reviewer",
+          items: [
+            "pr-reviewer",
+            "pr-reviewer/profiles",
+            "pr-reviewer/integration",
+            "pr-reviewer/cicd",
+            "pr-reviewer/configuration",
+            "pr-reviewer/examples",
           ],
         },
         {

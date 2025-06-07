@@ -1,5 +1,5 @@
 ---
-title: AI PR Reviewer
+title: Getting started with PR Reviews
 description: Production-ready AI-powered code reviewer with full repository context, transparent pricing, and CI/CD integration
 sidebar:
   order: 2
@@ -9,10 +9,13 @@ import { Aside } from '@astrojs/starlight/components';
 
 # Kit AI PR Reviewer
 
-Kit includes a **production-ready AI PR reviewer** that provides professional-grade code analysis with full repository context. Choose from 15+ models ranging from **$0.00 (free local AI)** to $0.91 per review with complete cost transparency.
+Kit includes a **production-ready AI PR reviewer** that provides professional-grade code analysis with full repository context. 
+Use almost any LLM and pay just for tokens. High-quality reviews with SOTA models like Claude Sonnet 4 generally cost about 10 cents.
+
+Use per-organization profiles and prioritization for further customization. Use kit's local output to pipe to other unix tools.
 
 <Aside type="tip">
-**Want to build a custom reviewer?** See the [Build an AI PR Reviewer tutorial](/tutorials/ai_pr_reviewer) to create your own using kit's components.
+**Want to build a completely custom reviewer?** See the [Build an AI PR Reviewer tutorial](/tutorials/ai_pr_reviewer) to create your own using kit's components.
 </Aside>
 
 ## 🚀 Quick Start
@@ -36,165 +39,36 @@ kit review https://github.com/owner/repo/pull/123
 # 5. Test without posting (dry run with full formatting)
 kit review --dry-run https://github.com/owner/repo/pull/123
 
-# 6. Get clean output for piping to other tools
-kit review --plain https://github.com/owner/repo/pull/123
-# Or use the short form:
-kit review -p https://github.com/owner/repo/pull/123
-
-# 7. Override model for specific review
-kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
-
-# 8. Focus on specific priority levels
-kit review --priority=high https://github.com/owner/repo/pull/123
-kit review --priority=high,medium https://github.com/owner/repo/pull/123
-
-# 9. Use custom context profiles for organization standards
+# 6. Use custom context profiles for organization standards
 kit review --profile company-standards https://github.com/owner/repo/pull/123
-kit review-profile create --name security-standards --file guidelines.md --description "Security guidelines"
+
+# 7. Focus on specific priority levels
+kit review --priority=high,medium https://github.com/owner/repo/pull/123
 ```
 
 <Aside type="tip">
 **Just want the PR reviewer?** The base `pip install cased-kit` gives you everything needed for PR reviews without heavy ML dependencies like PyTorch. If you need semantic search features later, install with `pip install cased-kit[ml]`.
 </Aside>
 
-
-## 🔄 Output Modes & Piping
-
-Kit provides different output modes for various workflows:
-
-### Standard Mode
-```bash
-# Posts comment directly to GitHub PR
-kit review https://github.com/owner/repo/pull/123
-```
-
-### Dry Run Mode (`--dry-run` / `-n`)
-```bash
-# Shows formatted preview without posting
-kit review --dry-run https://github.com/owner/repo/pull/123
-```
-**Output includes**: Status messages, cost breakdown, quality metrics, and formatted review preview.
-
-### Plain Mode (`--plain` / `-p`) 
-```bash
-# Clean output perfect for piping to other tools
-kit review --plain https://github.com/owner/repo/pull/123
-kit review -p https://github.com/owner/repo/pull/123
-```
-**Output**: Just the raw review content with no status messages or formatting.
-
-### Priority Filtering
-```bash
-# Focus on critical issues only
-kit review --priority=high https://github.com/owner/repo/pull/123
-
-# Show important issues (high + medium priority)
-kit review --priority=high,medium https://github.com/owner/repo/pull/123
-
-# Get only style/improvement suggestions
-kit review --priority=low https://github.com/owner/repo/pull/123
-
-# Combine with other flags
-kit review -p --priority=high https://github.com/owner/repo/pull/123 | \
-  claude "Fix these critical security issues"
-```
-**Benefits**: Reduces noise, saves costs, and focuses attention on issues that matter to your workflow.
-
-### Piping to CLI Code Writers
-
-Combine kit's repository intelligence with your favorite CLI code-generation tooling:
-
-```bash
-# Analyze with kit, implement with Claude Code
-kit review -p https://github.com/owner/repo/pull/123 | \
-  claude -p "Implement all the suggestions from this code review"
-
-# Use specific models for cost optimization
-kit review -p --model gpt-4.1-nano https://github.com/owner/repo/pull/123 | \
-  claude -p "Fix the high-priority issues mentioned in this review"
-
-# Focus on critical issues only
-kit review -p --priority=high https://github.com/owner/repo/pull/123 | \
-  claude -p "Implement these security and reliability fixes"
-```
-
-### Integration Examples
-
-**Pipe to any tool:**
-```bash
-# Save review to file
-kit review -p <pr-url> > review.md
-
-# Send to Slack
-kit review -p <pr-url> | curl -X POST -H 'Content-type: application/json' \
-  --data '{"text":"'"$(cat)"'"}' YOUR_SLACK_WEBHOOK
-
-# Process with jq or other tools
-kit review -p <pr-url> | your-custom-processor
-```
-
-**Multi-stage workflows:**
-```bash
-# Stage 1: Kit analyzes codebase context  
-REVIEW=$(kit review -p --model claude-3-5-haiku-20241022 <pr-url>)
-
-# Stage 2: Claude Code implements fixes
-echo "$REVIEW" | claude -p "Implement these code review suggestions"
-
-# Stage 3: Your custom tooling
-echo "$REVIEW" | your-priority-tracker --extract-issues
-```
-
-<Aside type="tip">
-**Why this workflow rocks**: Kit excels at codebase understanding and context, while Claude Code excels at implementation. Combining them gives you AI-powered analysis → AI-powered fixes in seconds.
-</Aside>
-
 ## 💰 Transparent Pricing
 
-Based on real-world testing on production open source PRs:
-
-### Model Options (Large PR Example)
+Some examples based on real-world testing on production open source PRs:
 
 | Model | Typical Cost | Quality | Best For |
 |-------|------|---------|----------|
-| **qwen2.5-coder:latest** | **$0.00** | ⭐⭐⭐⭐ | Free local AI |
 | **gemini-1.5-flash-8b** | **$0.003** | ⭐⭐⭐ | Ultra-budget, high volume |
 | **gpt-4.1-nano** | **$0.0015-0.004** | ⭐⭐⭐ | High-volume, ultra-budget |
 | **gpt-4.1-mini** | **$0.005-0.015** | ⭐⭐⭐⭐ | Budget-friendly, often very good for the price |
 | **gemini-2.5-flash** | **$0.007** | ⭐⭐⭐⭐ | Excellent value, fast |
-| **gpt-4.1** | **$0.02-0.10** | ⭐⭐⭐⭐ | Good value |
 | **claude-sonnet-4** | **0.08-$0.14** | ⭐⭐⭐⭐⭐ | **Recommended for most** |
 
-### In practice
+### In Practice
 
-Even without optimizing your model mix (see below), a team doing 500 
-large PRs a month will generally pay under $50 a month total (yes)
-for reviews with SOTA models; and likely less. 
+Even without optimizing your model mix, a team doing 500 large PRs a month will generally pay under $50 a month total for reviews with SOTA models.
 
 <Aside type="tip">
-Don't underestimate the smaller models.
-gpt-4.1-mini (or even nano!) delivers surprisingly useful reviews *when given the right context via kit*. For simple projects, you can get decent AI code reviews for **less than $1/month**.
-Here's an example [against kit itself](https://github.com/cased/kit/pull/56#issuecomment-2928399599). This review cost *half a cent*.
+Don't underestimate the smaller models. gpt-4.1-mini delivers surprisingly useful reviews *when given the right context via kit*. For simple projects, you can get decent AI code reviews for **less than $1/month**. Here's an example [against kit itself](https://github.com/cased/kit/pull/56#issuecomment-2928399599). This review cost *half a cent*.
 </Aside>
-
-### Free Local AI with Ollama
-
-**Zero-cost PR reviews** using state-of-the-art local models. 
-Perfect for teams who want professional code analysis at zero cost and without sending code to external APIs.
-
-```bash
-# 1. Install Ollama (one-time setup)
-curl -fsSL https://ollama.ai/install.sh | sh
-
-# 2. Pull a model, take your pick!
-ollama pull qwen2.5-coder:latest
-
-# 3. Configure kit for Ollama
-export KIT_GITHUB_TOKEN="ghp_your_token"  # Still need GitHub API access
-
-# 4. Review with free local AI
-kit review --model qwen2.5-coder:latest https://github.com/owner/repo/pull/123
-```
 
 ## 🎯 Key Features
 
@@ -218,13 +92,7 @@ kit review --model qwen2.5-coder:latest https://github.com/owner/repo/pull/123
 
 ## 📋 Custom Context Profiles
 
-Kit supports **organization-specific coding standards and review guidelines** through custom context profiles. Create profiles that automatically inject your company's coding standards, security requirements, and style guidelines into every PR review, ensuring consistent and organization-aligned feedback.
-
-<Aside type="tip">
-**Why this matters**: Instead of manually specifying guidelines for each review, profiles encode your organization's knowledge once and apply it consistently across all reviews. Perfect for teams with specific security requirements, architectural standards, or coding conventions.
-</Aside>
-
-### Quick Start
+Store and apply **organization-specific coding standards and review guidelines** through custom context profiles. Create profiles that automatically inject your company's coding standards, security requirements, and style guidelines into every PR review.
 
 ```bash
 # Create a profile from your existing coding guidelines
@@ -239,368 +107,29 @@ kit review --profile company-standards https://github.com/owner/repo/pull/123
 kit review-profile list
 ```
 
-### Profile Management
+→ **[Complete Profiles Guide](/pr-reviewer/profiles)** - Profile management, team workflows, and examples
 
-**Creating Profiles:**
-```bash
-# From a file (recommended for sharing)
-kit review-profile create \
-  --name python-security \
-  --file security-guidelines.md \
-  --description "Python security best practices" \
-  --tags "security,python"
+## 🔄 Output Modes & Integration
 
-# Interactive creation
-kit review-profile create \
-  --name company-standards \
-  --description "Company coding standards"
-# Then type your guidelines, press Enter for new lines, then Ctrl+D to finish
-```
-
-**Managing Profiles:**
-```bash
-# List all profiles with details
-kit review-profile list --format table
-
-# Show specific profile content
-kit review-profile show --name company-standards
-
-# Edit existing profile
-kit review-profile edit --name company-standards \
-  --file updated-guidelines.md
-
-# Share profiles between team members
-kit review-profile export --name company-standards \
-  --file shared-standards.md
-kit review-profile import --file shared-standards.md \
-  --name imported-standards
-
-# Clean up old profiles
-kit review-profile delete --name old-profile
-```
-
-### Example Profile Content
-
-Here's an effective profile structure that provides concrete, actionable guidance:
-
-**Security-Focused Profile:**
-```markdown
-**Security Review Guidelines:**
-
-- **Input Validation**: All user inputs must be validated against expected formats
-- **SQL Injection Prevention**: Use parameterized queries, never string concatenation
-- **XSS Prevention**: Sanitize all user content before rendering
-- **Authentication**: Verify all endpoints require proper authentication
-- **Authorization**: Check that users can only access resources they own
-- **Secrets Management**: No hardcoded API keys, tokens, or passwords
-- **Logging**: Sensitive data must not appear in logs
-- **Dependencies**: Flag any new dependencies for security review
-```
-
-**Code Quality Profile:**
-```markdown
-**Code Quality Standards:**
-
-- **Documentation**: All public functions must have docstrings with examples
-- **Type Safety**: Use type hints for all function parameters and returns
-- **Error Handling**: Implement proper exception handling with specific error types
-- **Testing**: New features require unit tests with 80%+ coverage
-- **Performance**: Flag N+1 queries and inefficient algorithms
-- **Architecture**: Follow SOLID principles, maintain loose coupling
-```
-
-### Using Profiles in Reviews
-
-**Basic Usage:**
-```bash
-# Apply organization standards automatically
-kit review --profile company-standards https://github.com/owner/repo/pull/123
-
-# Combine with other options
-kit review --profile security-focused \
-  --priority=high \
-  --model claude-sonnet-4 \
-  https://github.com/owner/repo/pull/123
-
-# Multiple contexts for different teams
-kit review --profile backend-api https://github.com/owner/repo/pull/123    # API team
-kit review --profile frontend-react https://github.com/owner/repo/pull/123  # UI team
-```
-
-**CI/CD Integration:**
-```yaml
-- name: AI Review with Company Standards
-  run: |
-    pip install cased-kit
-    kit review --profile company-standards ${{ github.event.pull_request.html_url }}
-  env:
-    KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
-```
-
-### Team Organization
-
-**Team-Specific Profiles:**
-```bash
-# Different standards for different teams
-kit review-profile create --name backend-api \
-  --description "Backend API development standards" \
-  --tags "backend,api,python"
-
-kit review-profile create --name frontend-react \
-  --description "React frontend standards" \
-  --tags "frontend,react,typescript"
-
-kit review-profile create --name security-hardening \
-  --description "Security review guidelines" \
-  --tags "security,compliance"
-```
-
-**Project-Type Profiles:**
-```bash
-# Different standards for different project types
-kit review-profile create --name microservice-standards \
-  --description "Microservice architecture guidelines"
-
-kit review-profile create --name data-pipeline-standards \
-  --description "Data processing best practices"
-
-kit review-profile create --name mobile-app-standards \
-  --description "Mobile development guidelines"
-```
-
-### Advanced Examples
-
-**Multi-Modal Team Setup:**
-```yaml
-# In your CI/CD, use different profiles based on changed files
-- name: Smart Profile Selection
-  run: |
-    pip install cased-kit
-    
-    # Check what type of files changed
-    CHANGED_FILES=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq -r '.files[].filename')
-    
-    if echo "$CHANGED_FILES" | grep -q "\.py$"; then
-      PROFILE="python-backend"
-    elif echo "$CHANGED_FILES" | grep -q "\.(ts|tsx|js|jsx)$"; then
-      PROFILE="frontend-react"
-    elif echo "$CHANGED_FILES" | grep -q "security\|auth"; then
-      PROFILE="security-focused"
-    else
-      PROFILE="general-standards"
-    fi
-    
-    kit review --profile "$PROFILE" ${{ github.event.pull_request.html_url }}
-  env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
-```
-
-### Profile Best Practices
-
-**Writing Effective Profiles:**
-1. **Be Specific**: Include concrete examples, not just general principles
-2. **Focus on Intent**: Explain *why* certain practices are required
-3. **Use Examples**: Show good and bad code patterns when possible
-4. **Stay Current**: Regular review and update profiles as standards evolve
-5. **Tag Appropriately**: Use tags for easy organization and discovery
-
-**Team Workflow:**
-1. **Start Small**: Begin with essential standards, expand over time
-2. **Collaborate**: Involve team members in creating and updating profiles
-3. **Version Control**: Export profiles and track them alongside your code
-4. **Regular Reviews**: Schedule quarterly profile review meetings
-5. **Share Success**: Use export/import to share effective profiles across teams
-
-**Example Integration:**
-```bash
-# Morning routine: Update and sync team profiles
-kit review-profile export --name company-standards --file standards.md
-git add standards.md && git commit -m "Update coding standards"
-
-# Review with latest standards
-kit review --profile company-standards https://github.com/owner/repo/pull/123
-```
-
-### Storage and Sharing
-
-- **Location**: Profiles stored in `~/.kit/profiles/` as human-readable YAML files
-- **Format**: Includes metadata (name, description, tags, timestamps) and content
-- **Sharing**: Export/import functionality for team collaboration and version control
-- **Backup**: Include profile exports in your team's configuration management
-
-<Aside type="tip">
-**Pro Tip**: When a profile is specified, the custom context is automatically injected into the review prompt as "Custom Review Guidelines", ensuring the AI reviewer follows your organization's standards while maintaining all kit's repository intelligence features.
-</Aside>
-
-## 🔧 Configuration
-
-### Model Override via CLI
-
-Override the model for any specific review without modifying your configuration:
+Kit provides different output modes for various workflows - from direct GitHub posting to piping output to CLI code writers:
 
 ```bash
-kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
-kit review --model gpt-4.1 https://github.com/owner/repo/pull/123
+# Standard mode - posts directly to GitHub
+kit review https://github.com/owner/repo/pull/123
 
-# Short flag also works
-kit review -m claude-sonnet-4-20250514 https://github.com/owner/repo/pull/123
+# Plain mode - clean output for piping to other tools
+kit review --plain https://github.com/owner/repo/pull/123 | \
+  claude "implement these suggestions"
+
+# Priority filtering - focus on what matters
+kit review --priority=high,medium https://github.com/owner/repo/pull/123
 ```
 
-**Available Models:**
-- **Ollama (Free Local)**: `qwen2.5-coder:latest`, `deepseek-r1:latest`, `gemma3:latest`, `devstral:latest`, etc
-- **OpenAI**: `gpt-4.1-nano`, `gpt-4.1-mini`, `gpt-4.1`, `gpt-4o-mini`, `gpt-4o`
-- **Anthropic**: `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022`, `claude-opus-4-20250514`, `claude-sonnet-4-20250514`
-- **Google**: `gemini-1.5-flash-8b`, `gemini-2.5-flash`, `gemini-1.5-flash`, `gemini-1.5-pro`, `gemini-2.5-pro`
-
-<Aside type="tip">
-**Model validation**: Kit automatically validates model names and provides helpful suggestions if you mistype. Try `kit review --model gpt4` to see the validation in action!
-</Aside>
-
-<Aside type="tip">
-**Pro tip**: Use different models based on PR complexity. Save `claude-opus-4` for architectural changes and use `gpt-4.1-nano` for documentation/minor fixes.
-</Aside>
-
-### Setup API Keys
-
-**GitHub Token**: Get from [GitHub Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens)
-```bash
-export KIT_GITHUB_TOKEN="ghp_your_token_here"
-```
-
-**LLM API Keys**: 
-```bash
-# For Anthropic Claude (recommended)
-export KIT_ANTHROPIC_TOKEN="sk-ant-your_key"
-
-# For OpenAI GPT models
-export KIT_OPENAI_TOKEN="sk-your_openai_key"
-
-# For Google Gemini models
-export KIT_GOOGLE_API_KEY="AIzaSy-your_google_key"
-```
-
-### Configuration File
-
-Edit `~/.kit/review-config.yaml`:
-
-**Cloud API Configuration:**
-```yaml
-github:
-  token: ghp_your_token_here
-  base_url: https://api.github.com
-
-llm:
-  provider: anthropic  # or "openai", "google"
-  model: claude-sonnet-4-20250514
-  api_key: sk-ant-your_key_here
-  max_tokens: 4000
-  temperature: 0.1
-
-review:
-  post_as_comment: true
-  clone_for_analysis: true
-  cache_repos: true
-  max_files: 50
-```
-
-**Google Gemini Configuration:**
-```yaml
-github:
-  token: ghp_your_token_here
-  base_url: https://api.github.com
-
-llm:
-  provider: google
-  model: gemini-2.5-flash  # or gemini-1.5-flash-8b for ultra-budget
-  api_key: AIzaSy-your_google_key
-  max_tokens: 4000
-  temperature: 0.1
-
-review:
-  post_as_comment: true
-  clone_for_analysis: true
-  cache_repos: true
-  max_files: 50
-```
-
-**Free Local AI Configuration (Ollama):**
-```yaml
-github:
-  token: ghp_your_token_here  # Still need GitHub API access
-  base_url: https://api.github.com
-
-llm:
-  provider: ollama
-  model: qwen2.5-coder:latest  # or deepseek-r1:latest
-  api_base_url: http://localhost:11434
-  api_key: ollama  # Placeholder (Ollama doesn't use API keys)
-  max_tokens: 4000
-  temperature: 0.1
-
-review:
-  post_as_comment: true
-  clone_for_analysis: true
-  cache_repos: true
-  max_files: 50
-```
-
-**Priority Filtering Configuration:**
-```yaml
-github:
-  token: ghp_your_token_here
-  base_url: https://api.github.com
-
-llm:
-  provider: anthropic
-  model: claude-sonnet-4-20250514
-  api_key: sk-ant-your_key_here
-  max_tokens: 4000
-  temperature: 0.1
-
-review:
-  post_as_comment: true
-  clone_for_analysis: true
-  cache_repos: true
-  max_files: 50
-  # Optional: Set default priority filter
-  priority_filter: ["high", "medium"]  # Only show important issues by default
-```
-
-**Priority Configuration Examples:**
-```yaml
-# Security-focused configuration
-review:
-  priority_filter: ["high"]  # Critical issues only
-
-# General development workflow  
-review:
-  priority_filter: ["high", "medium"]  # Skip style suggestions
-
-# Code quality/style reviews
-review:
-  priority_filter: ["low"]  # Focus on improvements
-
-# Default: show all priorities (same as omitting priority_filter)
-review:
-  priority_filter: ["high", "medium", "low"]
-```
-
-## 📊 Review Examples
-
-See real-world examples with actual costs and analysis:
-
-- **[FastAPI Packaging Change](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/fastapi_11935_standard_dependencies.md)** ($0.034) - Architectural impact analysis
-- **[React.dev UI Feature](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/react_dev_6986_branding_menu.md)** ($0.012) - Accessibility-focused review  
-- **[Documentation Fix](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/biopython_204_documentation_fix.md)** ($0.006) - Proportional response
-- **[Multi-Model Comparison](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/model_comparison_fastapi_11935.md)** - Cost vs quality analysis
+→ **[Integration Guide](/pr-reviewer/integration)** - Output modes, piping workflows, and multi-stage AI analysis
 
 ## 🚀 CI/CD Integration
 
-### GitHub Actions
-
-Create `.github/workflows/pr-review.yml`:
+Add AI code reviews to your GitHub Actions workflow:
 
 ```yaml
 name: AI PR Review
@@ -625,156 +154,37 @@ jobs:
           KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-### Advanced Workflows
+→ **[CI/CD Guide](/pr-reviewer/cicd)** - GitHub Actions, advanced workflows, and cost optimization strategies
 
-**Free Local AI Setup** (Self-hosted runners with Ollama):
-```yaml
-- name: Free AI Review with Ollama
-  runs-on: self-hosted  # Requires self-hosted runner with Ollama installed
-  steps:
-    - name: AI Code Review
-      run: |
-        pip install cased-kit
-        # Use completely free local AI
-        kit review --model qwen2.5-coder:latest ${{ github.event.pull_request.html_url }}
-      env:
-        KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # No LLM API keys needed - Ollama is free!
+## 🔧 Configuration
+
+Quick configuration for common setups:
+
+```bash
+# Override model for specific review
+kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
+
+# Free local AI with Ollama
+kit review --model qwen2.5-coder:latest https://github.com/owner/repo/pull/123
 ```
 
-**Budget-Conscious Setup** (GPT-4.1-nano):
-```yaml
-- name: Budget AI Review
-  run: |
-    pip install cased-kit
-    # Configure for ultra-low cost
-    kit review --model gpt-4.1-nano ${{ github.event.pull_request.html_url }}
-```
+→ **[Configuration Guide](/pr-reviewer/configuration)** - Model selection, API keys, and configuration files
 
-**Model-Based on PR Size**:
-```yaml
-- name: Smart Model Selection
-  run: |
-    pip install cased-kit
-    # Use budget model for small PRs, premium for large ones
-    FILES_CHANGED=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files | length')
-    if [ "$FILES_CHANGED" -gt 10 ]; then
-      MODEL="claude-sonnet-4-20250514"
-    else
-      MODEL="gpt-4o-mini"
-    fi
-    kit review --model "$MODEL" ${{ github.event.pull_request.html_url }}
-  env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+## 📊 Examples
 
-**Multi-Stage Analysis with Piping**:
-```yaml
-- name: AI Review with Implementation
-  run: |
-    pip install cased-kit
-    # Stage 1: Generate review with kit's repository intelligence
-    REVIEW=$(kit review -p --model claude-3-5-haiku-20241022 ${{ github.event.pull_request.html_url }})
-    
-    # Stage 2: Extract action items and post as separate comment
-    echo "$REVIEW" | your-issue-tracker --extract-priorities | \
-      gh pr comment ${{ github.event.pull_request.number }} --body-file -
-    
-    # Stage 3: Save review for later processing
-    echo "$REVIEW" > review-${{ github.event.pull_request.number }}.md
-    
-    # Stage 4: Send to team notification system
-    echo "$REVIEW" | your-slack-notifier --channel engineering
-  env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
-```
+See real-world reviews with actual costs and analysis:
 
-**Integration with External Tools**:
-```yaml
-- name: Review and Process
-  run: |
-    pip install cased-kit
-    # Get clean review output for processing
-    kit review -p ${{ github.event.pull_request.html_url }} > raw-review.txt
-    
-    # Parse with your custom tools
-    python scripts/extract-security-issues.py raw-review.txt
-    python scripts/update-team-dashboard.py raw-review.txt
-    
-    # Optional: Post processed results back to PR
-    gh pr comment ${{ github.event.pull_request.number }} --body-file processed-summary.md
-```
+- **[FastAPI Packaging Change](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/fastapi_11935_standard_dependencies.md)** ($0.034) - Architectural impact analysis
+- **[React.dev UI Feature](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/react_dev_6986_branding_menu.md)** ($0.012) - Accessibility-focused review  
+- **[Documentation Fix](https://github.com/cased/kit/blob/main/src/kit/pr_review/example_reviews/biopython_204_documentation_fix.md)** ($0.006) - Proportional response
 
-**Conditional Reviews**:
-```yaml
-# Only review non-draft PRs
-- name: AI Review
-  if: "!github.event.pull_request.draft"
-  
-# Only review PRs with specific labels  
-- name: AI Review
-  if: contains(github.event.pull_request.labels.*.name, 'needs-review')
-  
-# Use premium model for breaking changes
-- name: Premium Review for Breaking Changes
-  if: contains(github.event.pull_request.labels.*.name, 'breaking-change')
-  run: |
-    pip install cased-kit
-    kit review --model claude-opus-4-20250514 ${{ github.event.pull_request.html_url }}
-  env:
-    KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
-```
-
-**Priority-Based Workflows**:
-```yaml
-- name: Security Review (High Priority Only)
-  if: contains(github.event.pull_request.labels.*.name, 'security')
-  run: |
-    pip install cased-kit
-    kit review --priority=high ${{ github.event.pull_request.html_url }}
-
-- name: Code Quality Review (Low Priority)
-  if: contains(github.event.pull_request.labels.*.name, 'code-quality')
-  run: |
-    pip install cased-kit
-    kit review --priority=low ${{ github.event.pull_request.html_url }}
-
-- name: Smart Priority-Based Review
-  run: |
-    pip install cased-kit
-    # Use high priority for main branch, all priorities for feature branches
-    if [ "${{ github.event.pull_request.base.ref }}" == "main" ]; then
-      PRIORITY="high,medium"
-    else
-      PRIORITY="high,medium,low"
-    fi
-    kit review --priority="$PRIORITY" ${{ github.event.pull_request.html_url }}
-```
-
-**Cost-Optimized Priority Workflows**:
-```yaml
-- name: Two-Stage Review Process
-  run: |
-    pip install cased-kit
-    # Stage 1: Quick high-priority scan with budget model
-    HIGH_ISSUES=$(kit review -p --model gpt-4o-mini --priority=high ${{ github.event.pull_request.html_url }})
-    
-    # Stage 2: If critical issues found, do full review with premium model
-    if echo "$HIGH_ISSUES" | grep -q "High Priority"; then
-      kit review --model claude-sonnet-4 ${{ github.event.pull_request.html_url }}
-    else
-      echo "$HIGH_ISSUES" | gh pr comment ${{ github.event.pull_request.number }} --body-file -
-    fi
-  env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+→ **[More Examples](/pr-reviewer/examples)** - Real review examples and use cases
 
 ## 📈 What's Next: Roadmap
 
 #### Recently Shipped ✅
-- **Custom Context Profiles**: Store and apply organization-specific coding standards and guidelines (see [Custom Context Profiles](#custom-context-profiles) above)
+- **Custom Context Profiles**: Store and apply organization-specific coding standards and guidelines
+- **Priority Filtering**: Focus reviews on what matters most
 
 #### In Development  
 - **Feedback Learning**: Simple database to learn from review feedback and improve over time
@@ -785,75 +195,21 @@ jobs:
 - **Multi-Model Consensus**: Compare reviews from multiple models for high-stakes changes
 - **Smart Review Routing**: Automatically select the best model based on change type and team preferences
 
-```bash
-# Available now
-kit review-profile create --name "company-standards" --file coding-guidelines.md
-kit review --profile company-standards <pr-url>
-
-# Coming soon
-kit feedback <review-id> --helpful --notes "Great catch!"
-kit review <pr-url> --mode inline  # Line-level comments
-
-# Future
-kit review <pr-url> --consensus  # Multiple models
-kit review <pr-url> --auto-route  # Smart model selection
-```
-
-## 🔍 Advanced Usage
-
-### Cache Management
-```bash
-# Check cache status
-kit review-cache status
-
-# Clean up old repositories  
-kit review-cache cleanup
-
-# Clear all cached repositories
-kit review-cache clear
-```
-
-### Quality Validation
-
-Every review includes objective quality scoring:
-- **File References**: Checks if review references actual changed files
-- **Specificity**: Measures concrete vs vague feedback  
-- **Coverage**: Assesses if major changes are addressed
-- **Relevance**: Ensures suggestions align with actual code changes
-
 ## 💡 Best Practices
 
 ### Cost Optimization
 - **Use free local AI** for unlimited reviews with Ollama (requires self-hosted setup)
 - Use budget models for routine changes, premium for breaking changes
-- Use the `--model` flag to override models per PR: `kit review --model gpt-4.1-nano <pr-url>`
+- Use the `--model` flag to override models per PR
 - Leverage caching - repeat reviews of same repo are 5-10x faster
 - Set up profiles to avoid redundant context
 
-### Output Mode Selection
-- **Standard mode**: For direct GitHub integration and team collaboration
-- **Dry run (`--dry-run`)**: For testing configurations and seeing full diagnostics
-- **Plain mode (`--plain` / `-p`)**: For piping to CLI code composers, custom tools, or automation
-- **Tip**: Use plain mode in CI/CD for processing reviews with external systems
-
-### Piping & Integration Workflows
-- **Kit → Claude Code**: `kit review -p <pr-url> | claude "implement these suggestions"`
-- **Multi-tool chains**: Use kit for analysis, pipe to specialized tools for processing
-- **Cost optimization**: Use budget models for analysis, premium models for implementation
-- **Automation**: Pipe plain output to issue trackers, notification systems, or custom processors
-
 ### Team Adoption
 - **Start with free local AI** to build confidence without costs
-- Start with dry runs to build confidence
 - Use budget models initially to control costs
 - Create organization-specific guidelines for consistent reviews
-
-### Integration
 - Add to CI/CD for all PRs or just high-impact branches
-- Use conditional logic to avoid reviewing bot PRs or documentation-only changes
-- Monitor costs and adjust model selection based on team needs
-- **Consider self-hosted runners** with Ollama for zero ongoing LLM costs
 
 ---
 
-The kit AI PR reviewer provides **professional-grade code analysis** at costs accessible to any team size, from **$0.00/month with free local AI** to enterprise-scale deployment. With full repository context and transparent pricing, it's designed to enhance your development workflow without breaking the budget. 
+The kit AI PR reviewer provides **professional-grade code analysis** at costs accessible to any team size, from **$0.00/month with free local AI** to enterprise-scale deployment. With full repository context and transparent pricing, it's designed to enhance your development workflow without breaking the budget.

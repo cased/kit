@@ -1,0 +1,589 @@
+---
+title: Configuration
+description: Model selection, API keys, configuration files, and advanced setup options for AI code reviews
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+# Configuration
+
+Configure kit's AI PR reviewer for your team's needs with flexible model selection, API key management, and configuration options.
+
+## Model Override via CLI
+
+Override the model for any specific review without modifying your configuration:
+
+```bash
+kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
+kit review --model gpt-4.1 https://github.com/owner/repo/pull/123
+
+# Short flag also works
+kit review -m claude-sonnet-4-20250514 https://github.com/owner/repo/pull/123
+```
+
+<Aside type="tip">
+**Model validation**: Kit automatically validates model names and provides helpful suggestions if you mistype. Try `kit review --model gpt4` to see the validation in action!
+</Aside>
+
+## Available Models
+
+### Free Local AI (Ollama)
+
+Perfect for unlimited reviews without external API costs:
+
+```bash
+# Popular coding models
+qwen2.5-coder:latest      # Excellent for code analysis
+deepseek-r1:latest        # Strong reasoning capabilities
+gemma3:latest             # Good general purpose
+devstral:latest           # Mistral's coding model
+llama3.2:latest           # Meta's latest model
+codellama:latest          # Code-specialized Llama
+```
+
+**Setup:**
+```bash
+# 1. Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# 2. Pull a model
+ollama pull qwen2.5-coder:latest
+
+# 3. Use with kit
+kit review --model qwen2.5-coder:latest <pr-url>
+```
+
+### OpenAI Models
+
+```bash
+# Budget options
+gpt-4.1-nano             # Ultra-budget: ~$0.0015-0.004
+gpt-4.1-mini             # Budget-friendly: ~$0.005-0.015
+gpt-4o-mini              # Newer mini model
+
+# Standard options  
+gpt-4.1                  # Good balance: ~$0.02-0.10
+gpt-4o                   # Latest GPT-4 model
+gpt-4-turbo              # Fast GPT-4 variant
+```
+
+### Anthropic Claude
+
+```bash
+# Budget option
+claude-3-5-haiku-20241022    # Fast and economical
+
+# Recommended
+claude-3-5-sonnet-20241022   # Excellent balance
+claude-sonnet-4-20250514     # Latest Sonnet (recommended)
+
+# Premium
+claude-opus-4-20250514       # Highest quality
+```
+
+### Google Gemini
+
+```bash
+# Ultra-budget
+gemini-1.5-flash-8b         # ~$0.003 per review
+
+# Standard options
+gemini-2.5-flash            # Excellent value: ~$0.007  
+gemini-1.5-flash            # Fast and efficient
+gemini-1.5-pro              # More capable
+gemini-2.5-pro              # Latest pro model
+```
+
+<Aside type="tip">
+**Pro tip**: Use different models based on PR complexity. Save `claude-opus-4` for architectural changes and use `gpt-4.1-nano` for documentation/minor fixes.
+</Aside>
+
+## API Key Setup
+
+### GitHub Token
+
+Get from [GitHub Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens)
+
+**Required permissions:**
+- `repo` (for private repositories)
+- `public_repo` (for public repositories)
+- `pull_requests:write` (to post comments)
+
+```bash
+export KIT_GITHUB_TOKEN="ghp_your_token_here"
+```
+
+### LLM Provider API Keys
+
+**Anthropic Claude (Recommended):**
+```bash
+export KIT_ANTHROPIC_TOKEN="sk-ant-your_key"
+```
+Get from: [Anthropic Console](https://console.anthropic.com/)
+
+**OpenAI GPT Models:**
+```bash
+export KIT_OPENAI_TOKEN="sk-your_openai_key"
+```
+Get from: [OpenAI Platform](https://platform.openai.com/api-keys)
+
+**Google Gemini:**
+```bash
+export KIT_GOOGLE_API_KEY="AIzaSy-your_google_key"
+```
+Get from: [Google AI Studio](https://aistudio.google.com/app/apikey)
+
+**Ollama (Local - No API Key Required):**
+```bash
+# Just ensure Ollama is running
+ollama serve
+```
+
+## Configuration Files
+
+### Basic Configuration
+
+Edit `~/.kit/review-config.yaml`:
+
+```yaml
+github:
+  token: ghp_your_token_here
+  base_url: https://api.github.com
+
+llm:
+  provider: anthropic  # or "openai", "google", "ollama"
+  model: claude-sonnet-4-20250514
+  api_key: sk-ant-your_key_here
+  max_tokens: 4000
+  temperature: 0.1
+
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+```
+
+### Provider-Specific Configurations
+
+**Anthropic Claude:**
+```yaml
+github:
+  token: ghp_your_token_here
+  base_url: https://api.github.com
+
+llm:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+  api_key: sk-ant-your_key_here
+  max_tokens: 4000
+  temperature: 0.1
+
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+```
+
+**OpenAI GPT:**
+```yaml
+github:
+  token: ghp_your_token_here
+  base_url: https://api.github.com
+
+llm:
+  provider: openai
+  model: gpt-4.1
+  api_key: sk-your_openai_key
+  max_tokens: 4000
+  temperature: 0.1
+
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+```
+
+**Google Gemini:**
+```yaml
+github:
+  token: ghp_your_token_here
+  base_url: https://api.github.com
+
+llm:
+  provider: google
+  model: gemini-2.5-flash  # or gemini-1.5-flash-8b for ultra-budget
+  api_key: AIzaSy-your_google_key
+  max_tokens: 4000
+  temperature: 0.1
+
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+```
+
+**Free Local AI (Ollama):**
+```yaml
+github:
+  token: ghp_your_token_here  # Still need GitHub API access
+  base_url: https://api.github.com
+
+llm:
+  provider: ollama
+  model: qwen2.5-coder:latest  # or deepseek-r1:latest
+  api_base_url: http://localhost:11434
+  api_key: ollama  # Placeholder (Ollama doesn't use API keys)
+  max_tokens: 4000
+  temperature: 0.1
+
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+```
+
+## Priority Filtering Configuration
+
+### Default Priority Settings
+
+```yaml
+github:
+  token: ghp_your_token_here
+  base_url: https://api.github.com
+
+llm:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+  api_key: sk-ant-your_key_here
+  max_tokens: 4000
+  temperature: 0.1
+
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+  # Optional: Set default priority filter
+  priority_filter: ["high", "medium"]  # Only show important issues by default
+```
+
+### Priority Configuration Examples
+
+**Security-focused configuration:**
+```yaml
+review:
+  priority_filter: ["high"]  # Critical issues only
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+```
+
+**General development workflow:**
+```yaml
+review:
+  priority_filter: ["high", "medium"]  # Skip style suggestions
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+```
+
+**Code quality/style reviews:**
+```yaml
+review:
+  priority_filter: ["low"]  # Focus on improvements
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+```
+
+**Default (show all priorities):**
+```yaml
+review:
+  priority_filter: ["high", "medium", "low"]  # Same as omitting priority_filter
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+```
+
+## Advanced Configuration Options
+
+### Repository Analysis Settings
+
+```yaml
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+  
+  # Advanced settings
+  max_file_size: 1048576      # 1MB max file size
+  exclude_patterns:           # Files to ignore
+    - "*.lock"
+    - "package-lock.json"
+    - "yarn.lock"
+    - "*.min.js"
+    - "dist/"
+    - "build/"
+  
+  include_patterns:           # Only analyze these files (if specified)
+    - "*.py"
+    - "*.js"
+    - "*.ts"
+    - "*.java"
+    - "*.go"
+  
+  analysis_timeout: 300       # 5 minute timeout
+  retry_attempts: 3           # Retry failed requests
+```
+
+### Multi-Provider Configuration
+
+```yaml
+github:
+  token: ghp_your_token_here
+  base_url: https://api.github.com
+
+# Default provider
+llm:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+  api_key: sk-ant-your_key_here
+  max_tokens: 4000
+  temperature: 0.1
+
+# Alternative providers (for CLI override)
+providers:
+  openai:
+    api_key: sk-your_openai_key
+    api_base_url: https://api.openai.com/v1
+  
+  google:
+    api_key: AIzaSy-your_google_key
+    api_base_url: https://generativelanguage.googleapis.com/v1beta
+  
+  ollama:
+    api_base_url: http://localhost:11434
+    api_key: ollama
+
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+```
+
+### Custom Profile Defaults
+
+```yaml
+github:
+  token: ghp_your_token_here
+  base_url: https://api.github.com
+
+llm:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+  api_key: sk-ant-your_key_here
+  max_tokens: 4000
+  temperature: 0.1
+
+review:
+  post_as_comment: true
+  clone_for_analysis: true
+  cache_repos: true
+  max_files: 50
+  
+  # Default profile for all reviews
+  default_profile: "company-standards"
+  
+  # Repository-specific profiles
+  profile_overrides:
+    "cased/frontend-app": "frontend-react"
+    "cased/api-service": "backend-python"
+    "cased/security-lib": "security-focused"
+```
+
+## Environment Variable Overrides
+
+You can override any configuration setting using environment variables:
+
+```bash
+# GitHub settings
+export KIT_GITHUB_TOKEN="ghp_your_token"
+export KIT_GITHUB_BASE_URL="https://api.github.com"
+
+# LLM settings
+export KIT_LLM_PROVIDER="anthropic"
+export KIT_LLM_MODEL="claude-sonnet-4-20250514"
+export KIT_ANTHROPIC_TOKEN="sk-ant-your_key"
+export KIT_LLM_MAX_TOKENS="4000"
+export KIT_LLM_TEMPERATURE="0.1"
+
+# Review settings  
+export KIT_REVIEW_POST_AS_COMMENT="true"
+export KIT_REVIEW_CACHE_REPOS="true"
+export KIT_REVIEW_MAX_FILES="50"
+export KIT_REVIEW_PRIORITY_FILTER="high,medium"
+```
+
+## Configuration Validation
+
+Test your configuration:
+
+```bash
+# Initialize configuration with guided setup
+kit review --init-config
+
+# Validate current configuration
+kit review --validate-config
+
+# Test with dry run
+kit review --dry-run --model claude-sonnet-4 https://github.com/owner/repo/pull/123
+```
+
+## Multiple Configuration Profiles
+
+### Team-Specific Configs
+
+```bash
+# Create team-specific config directories
+mkdir -p ~/.kit/profiles/frontend-team
+mkdir -p ~/.kit/profiles/backend-team
+mkdir -p ~/.kit/profiles/security-team
+
+# Frontend team config
+cat > ~/.kit/profiles/frontend-team/review-config.yaml << EOF
+llm:
+  provider: openai
+  model: gpt-4.1-mini
+  api_key: sk-frontend-team-key
+review:
+  default_profile: "frontend-react"
+  priority_filter: ["high", "medium"]
+EOF
+
+# Use specific config
+KIT_CONFIG_DIR=~/.kit/profiles/frontend-team kit review <pr-url>
+```
+
+### Project-Specific Configs
+
+```bash
+# In your project directory
+mkdir .kit
+cat > .kit/review-config.yaml << EOF
+llm:
+  provider: ollama
+  model: qwen2.5-coder:latest
+review:
+  default_profile: "project-standards"
+  max_files: 30
+EOF
+
+# Kit automatically uses project-local config if available
+kit review <pr-url>
+```
+
+## Cost Management Configuration
+
+### Budget Controls
+
+```yaml
+llm:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+  api_key: sk-ant-your_key_here
+  max_tokens: 4000
+  temperature: 0.1
+  
+  # Cost controls
+  cost_limit_per_review: 0.50    # Maximum $0.50 per review
+  monthly_cost_limit: 100.00     # Maximum $100 per month
+  
+review:
+  # Auto-downgrade model if cost limit exceeded
+  fallback_model: "gpt-4.1-mini"
+  
+  # Skip review if PR is too large
+  max_cost_estimate: 1.00        # Skip if estimated cost > $1.00
+```
+
+### Usage Tracking
+
+```yaml
+tracking:
+  enabled: true
+  log_file: ~/.kit/usage.log
+  metrics_endpoint: https://your-metrics-server.com/api/usage
+  team_id: "engineering-team"
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**1. API Key Issues:**
+```bash
+# Test API key
+curl -H "Authorization: Bearer sk-ant-your_key" \
+  https://api.anthropic.com/v1/messages
+
+# Check environment
+echo $KIT_ANTHROPIC_TOKEN
+```
+
+**2. Model Availability:**
+```bash
+# List available models
+kit review --list-models
+
+# Test specific model
+kit review --model claude-sonnet-4 --dry-run <pr-url>
+```
+
+**3. GitHub Permissions:**
+```bash
+# Test GitHub token
+curl -H "Authorization: token ghp_your_token" \
+  https://api.github.com/user
+
+# Check permissions
+gh auth status
+```
+
+### Debug Mode
+
+```bash
+# Enable debug logging
+export KIT_DEBUG=true
+kit review --dry-run <pr-url>
+
+# Verbose output
+kit review --verbose <pr-url>
+```
+
+### Configuration Reset
+
+```bash
+# Reset to defaults
+rm ~/.kit/review-config.yaml
+kit review --init-config
+
+# Backup current config
+cp ~/.kit/review-config.yaml ~/.kit/review-config.yaml.backup
+```
+
+<Aside type="tip">
+**Pro Tip**: Start with a simple configuration and gradually add complexity. Use `--dry-run` mode to test changes before applying them to live reviews.
+</Aside>
+
+---
+
+[← Back to PR Reviewer Overview](/pr-reviewer/) 
