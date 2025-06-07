@@ -1,0 +1,496 @@
+# TreeSitter Symbol Extractor Plugin System
+
+kit includes a plugin system that allows you to extend and customize symbol extraction for any programming language. This system enables you to:
+
+- **Extend existing languages** with additional query patterns (e.g., detect FastAPI routes in Python)
+- **Register completely new languages** with custom parsers and queries
+- **Load multiple query files** per language for modular organization
+- **Use custom query directories** for team-specific or project-specific patterns
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+- [Extending Existing Languages](#extending-existing-languages)
+- [Registering New Languages](#registering-new-languages)
+- [Real-World Examples](#real-world-examples)
+- [Best Practices](#best-practices)
+- [Troubleshooting](#troubleshooting)
+
+## Quick Start
+
+### Extending Python for Custom Patterns
+
+```python
+from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
+
+# Define a custom query for detecting test functions
+test_query = '''
+(function_definition
+  name: (identifier) @name
+  (#match? @name "^test_")
+) @definition.test_function
+'''
+
+# Save query to a file
+with open('test_patterns.scm', 'w') as f:
+    f.write(test_query)
+
+# Extend Python language
+TreeSitterSymbolExtractor.extend_language("python", "test_patterns.scm")
+
+# Extract symbols with new patterns
+code = '''
+def test_user_login():
+    pass
+
+def regular_function():
+    pass
+'''
+
+symbols = TreeSitterSymbolExtractor.extract_symbols(".py", code)
+for symbol in symbols:
+    print(f"{symbol['type']}: {symbol['name']}")
+# Output:
+# test_function: test_user_login
+# function: test_user_login  
+# function: regular_function
+```
+
+## API Reference
+
+### Core Methods
+
+#### `extend_language(language: str, query_file: str) -> None`
+
+Extend an existing language with additional query patterns.
+
+- **language**: Language name (e.g., 'python', 'javascript')
+- **query_file**: Path to .scm query file (absolute or relative to queries directory)
+
+#### `register_language(name: str, extensions: List[str], query_files: List[str], query_dirs: Optional[List[str]] = None) -> None`
+
+Register a completely new language.
+
+- **name**: Language name (should match tree-sitter-language-pack)
+- **extensions**: File extensions (e.g., ['.kt', '.kts'])
+- **query_files**: List of .scm query files to load
+- **query_dirs**: Optional custom directories to search for queries
+
+#### `list_supported_languages() -> Dict[str, List[str]]`
+
+Returns mapping of language names to their supported file extensions.
+
+#### `reset_plugins() -> None`
+
+Reset all custom languages and extensions. Useful for testing and cleanup.
+
+### Symbol Structure
+
+Extracted symbols have this structure:
+
+```python
+{
+    "name": "function_name",      # Symbol name
+    "type": "function",           # Symbol type (function, class, method, etc.)
+    "start_line": 0,             # Starting line number (0-indexed)
+    "end_line": 5,               # Ending line number (0-indexed)
+    "code": "def function_name():\n    pass",  # Full symbol code
+    "subtype": "optional"        # Optional subtype for specialized symbols
+}
+```
+
+## Extending Existing Languages
+
+### Python: FastAPI Routes
+
+Detect FastAPI route decorators:
+
+```python
+fastapi_query = '''
+; FastAPI route handlers
+(decorated_definition
+  (decorator_list
+    (decorator
+      (call
+        (attribute
+          object: (identifier) @app_name
+          attribute: (identifier) @http_method
+        )
+        arguments: (argument_list
+          (string) @route_path
+        )
+      )
+    )
+  )
+  definition: (function_definition
+    name: (identifier) @name
+  )
+) @definition.route_handler
+'''
+
+TreeSitterSymbolExtractor.extend_language("python", "/path/to/fastapi.scm")
+```
+
+### Python: Django Models
+
+Detect Django model fields:
+
+```python
+django_query = '''
+; Django model fields
+(assignment
+  target: (identifier) @field_name
+  value: (call
+    function: (attribute
+      object: (identifier) @models
+      attribute: (identifier) @field_type
+    )
+  )
+) @definition.model_field
+
+; Django Meta classes
+(class_definition
+  name: (identifier) @name
+  (#match? @name "Meta")
+) @definition.meta_class
+'''
+
+TreeSitterSymbolExtractor.extend_language("python", "/path/to/django.scm")
+```
+
+### JavaScript: React Components
+
+Detect React functional components:
+
+```python
+react_query = '''
+; React functional components
+(function_declaration
+  name: (identifier) @name
+  (#match? @name "^[A-Z]")
+  body: (block
+    (return_statement
+      argument: (jsx_element)
+    )
+  )
+) @definition.react_component
+
+; React hooks
+(call_expression
+  function: (identifier) @hook_name
+  (#match? @hook_name "^use[A-Z]")
+) @definition.hook_usage
+'''
+
+TreeSitterSymbolExtractor.extend_language("javascript", "/path/to/react.scm")
+```
+
+## Registering New Languages
+
+### Example: Kotlin Support
+
+```python
+# Kotlin query patterns
+kotlin_query = '''
+; Function declarations
+(function_declaration
+  name: (identifier) @name
+) @definition.function
+
+; Class declarations
+(class_declaration
+  name: (identifier) @name
+) @definition.class
+
+; Property declarations
+(property_declaration
+  name: (identifier) @name
+) @definition.property
+
+; Data classes
+(class_declaration
+  modifiers: (modifiers
+    (modifier) @data_modifier
+    (#match? @data_modifier "data")
+  )
+  name: (identifier) @name
+) @definition.data_class
+'''
+
+# Register the language
+TreeSitterSymbolExtractor.register_language(
+    name="kotlin",
+    extensions=[".kt", ".kts"],
+    query_files=["kotlin.scm"],
+    query_dirs=["/path/to/custom/queries"]
+)
+```
+
+### Example: Custom DSL
+
+```python
+# Register a custom domain-specific language
+TreeSitterSymbolExtractor.register_language(
+    name="my_dsl",
+    extensions=[".mydsl"],
+    query_files=["base.scm", "advanced.scm"],
+    query_dirs=[
+        "/company/shared/queries",
+        "/project/local/queries"
+    ]
+)
+```
+
+## Real-World Examples
+
+### Team Coding Standards
+
+Enforce naming conventions across your codebase:
+
+```python
+# naming_standards.scm
+(function_definition
+  name: (identifier) @name
+  (#match? @name "^(get|set|create|update|delete)_")
+) @definition.crud_function
+
+(class_definition
+  name: (identifier) @name
+  (#match? @name ".*Service$")
+) @definition.service_class
+
+(class_definition
+  name: (identifier) @name
+  (#match? @name ".*Repository$") 
+) @definition.repository_class
+```
+
+### API Documentation Generation
+
+Extract API endpoints for documentation:
+
+```python
+# api_patterns.scm
+(decorated_definition
+  (decorator_list
+    (decorator
+      (call
+        (attribute
+          attribute: (identifier) @http_method
+          (#match? @http_method "(get|post|put|delete|patch)")
+        )
+      )
+    )
+  )
+  definition: (function_definition
+    name: (identifier) @name
+  )
+) @definition.api_endpoint
+```
+
+### Testing Pattern Detection
+
+Identify test functions and test classes:
+
+```python
+# test_patterns.scm
+(function_definition
+  name: (identifier) @name
+  (#match? @name "^test_")
+) @definition.test_function
+
+(class_definition
+  name: (identifier) @name
+  (#match? @name "^Test")
+) @definition.test_class
+
+(function_definition
+  decorators: (decorator_list
+    (decorator
+      (identifier) @decorator
+      (#match? @decorator "pytest.fixture")
+    )
+  )
+  name: (identifier) @name
+) @definition.test_fixture
+```
+
+## Best Practices
+
+### Query Organization
+
+1. **Separate by Purpose**: Create different .scm files for different concerns
+   ```
+   queries/
+   ├── python/
+   │   ├── tags.scm          # Base language patterns
+   │   ├── django.scm        # Django-specific patterns
+   │   ├── fastapi.scm       # FastAPI-specific patterns
+   │   └── testing.scm       # Testing patterns
+   ```
+
+2. **Use Descriptive Names**: Make symbol types self-documenting
+   ```python
+   # Good
+   @definition.api_endpoint
+   @definition.model_field
+   @definition.test_fixture
+   
+   # Avoid
+   @definition.thing
+   @definition.item
+   ```
+
+3. **Comment Your Queries**: Explain complex patterns
+   ```scheme
+   ; Match Django model fields with specific field types
+   ; Captures both the field name and field type for analysis
+   (assignment
+     target: (identifier) @field_name
+     value: (call
+       function: (attribute
+         object: (identifier) @models
+         attribute: (identifier) @field_type
+       )
+     )
+   ) @definition.model_field
+   ```
+
+### Performance Considerations
+
+1. **Use Specific Patterns**: More specific queries are faster
+   ```scheme
+   ; Better - specific pattern
+   (function_definition
+     name: (identifier) @name
+     (#match? @name "^handle_")
+   ) @definition.handler
+   
+   ; Slower - overly broad pattern
+   (function_definition
+     name: (identifier) @name
+   ) @definition.function
+   ```
+
+2. **Combine Related Patterns**: Group similar patterns in one file
+3. **Test Query Performance**: Use logging to monitor query compilation time
+
+### Version Control
+
+1. **Include Query Files**: Check .scm files into version control
+2. **Document Extensions**: Maintain a README explaining custom queries
+3. **Team Sharing**: Use shared query directories for team standards
+
+## Troubleshooting
+
+### Common Query Errors
+
+1. **Invalid Field Name**: Field doesn't exist in grammar
+   ```
+   Error: Invalid field name at row 5, column 10: slice
+   ```
+   **Solution**: Check the tree-sitter grammar documentation for valid field names
+
+2. **Invalid Node Type**: Node type doesn't exist
+   ```
+   Error: Invalid node type at row 3, column 5: decorator_list
+   ```
+   **Solution**: Use tree-sitter playground to explore the actual AST structure
+
+3. **Query Compilation Failed**: Syntax error in query
+   ```
+   Error: Query compile error for ext .py
+   ```
+   **Solution**: Validate query syntax, check parentheses matching
+
+### Debugging Tips
+
+1. **Enable Debug Logging**:
+   ```python
+   import logging
+   logging.getLogger('kit.tree_sitter_symbol_extractor').setLevel(logging.DEBUG)
+   ```
+
+2. **Test Queries Incrementally**: Start with simple patterns and add complexity
+
+3. **Use Tree-sitter Playground**: Visualize AST structure at https://tree-sitter.github.io/tree-sitter/playground
+
+4. **Check Language Support**: Verify the language is available in tree-sitter-language-pack
+
+### Reset and Recovery
+
+If you encounter issues with cached queries:
+
+```python
+# Reset all plugins and start fresh
+TreeSitterSymbolExtractor.reset_plugins()
+
+# Re-register your extensions
+TreeSitterSymbolExtractor.extend_language("python", "your_query.scm")
+```
+
+## Advanced Usage
+
+### Multiple Query Directories
+
+Load queries from multiple locations with fallback priority:
+
+```python
+TreeSitterSymbolExtractor.register_language(
+    name="python",
+    extensions=[".py"],
+    query_files=["base.scm", "company.scm", "project.scm"],
+    query_dirs=[
+        "/project/queries",           # Highest priority
+        "/company/shared/queries",    # Medium priority
+        "/home/user/.kit/queries"     # Lowest priority
+    ]
+)
+```
+
+### Dynamic Query Loading
+
+Load queries based on project configuration:
+
+```python
+import yaml
+
+def load_project_queries():
+    with open('.kit-config.yml') as f:
+        config = yaml.safe_load(f)
+    
+    for lang_config in config.get('languages', []):
+        TreeSitterSymbolExtractor.extend_language(
+            language=lang_config['name'],
+            query_file=lang_config['query_file']
+        )
+
+# Usage in project setup
+load_project_queries()
+```
+
+### Integration with CI/CD
+
+Use plugins to enforce coding standards:
+
+```python
+# check_standards.py
+def check_naming_conventions(file_path: str) -> List[str]:
+    violations = []
+    
+    with open(file_path) as f:
+        code = f.read()
+    
+    symbols = TreeSitterSymbolExtractor.extract_symbols(
+        file_path.suffix, code
+    )
+    
+    for symbol in symbols:
+        if symbol['type'] == 'function' and not symbol['name'].startswith(('get_', 'set_', 'create_')):
+            violations.append(f"Function {symbol['name']} doesn't follow naming convention")
+    
+    return violations
+```
+
+This plugin system makes Kit's symbol extraction completely customizable while maintaining excellent performance and backward compatibility. You can now adapt Kit to work with any codebase's specific patterns and conventions! 

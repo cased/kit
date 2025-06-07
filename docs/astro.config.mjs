@@ -46,6 +46,7 @@ export default defineConfig({
             "core-concepts/dependency-analysis",
             "core-concepts/llm-context-best-practices",
             "core-concepts/context-assembly",
+            "core-concepts/plugin-system",
           ],
         },
         {

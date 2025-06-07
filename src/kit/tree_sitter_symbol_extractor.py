@@ -1,6 +1,7 @@
 import logging
 import traceback
 from importlib.resources import files  # type: ignore[no-redef]
+from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Optional, cast
 
 from tree_sitter_language_pack import get_language, get_parser
@@ -24,15 +25,79 @@ LANGUAGES: dict[str, str] = {
 }
 
 
+class LanguagePlugin:
+    """Represents a language plugin with query files and configuration."""
+
+    def __init__(
+        self, name: str, extensions: List[str], query_files: List[str], query_dirs: Optional[List[str]] = None
+    ):
+        self.name = name
+        self.extensions = extensions
+        self.query_files = query_files  # List of .scm files to load
+        self.query_dirs = query_dirs or []  # Additional directories to search for queries
+
+
 class TreeSitterSymbolExtractor:
     """
-    Multi-language symbol extractor using tree-sitter queries (tags.scm).
-    Register new languages by adding to LANGUAGES and providing a tags.scm.
+    Multi-language symbol extractor using tree-sitter queries with plugin support.
+
+    Supports:
+    - Extending existing languages with additional query files
+    - Registering completely new languages
+    - Loading multiple .scm files per language
     """
 
     LANGUAGES = set(LANGUAGES.keys())
     _parsers: ClassVar[dict[str, Any]] = {}
     _queries: ClassVar[dict[str, Any]] = {}
+    _custom_languages: ClassVar[dict[str, LanguagePlugin]] = {}
+    _language_extensions: ClassVar[dict[str, List[str]]] = {}  # lang_name -> list of additional .scm files
+
+    @classmethod
+    def register_language(
+        cls, name: str, extensions: List[str], query_files: List[str], query_dirs: Optional[List[str]] = None
+    ) -> None:
+        """Register a completely new language.
+
+        Args:
+            name: Language name (should match tree-sitter-language-pack name)
+            extensions: List of file extensions (e.g., ['.kt', '.kts'])
+            query_files: List of .scm query files to load
+            query_dirs: Optional additional directories to search for queries
+        """
+        plugin = LanguagePlugin(name, extensions, query_files, query_dirs)
+        cls._custom_languages[name] = plugin
+
+        # Update LANGUAGES mapping
+        for ext in extensions:
+            LANGUAGES[ext] = name
+            cls.LANGUAGES.add(ext)
+
+        # Clear cached parsers and queries for this language
+        for ext in extensions:
+            cls._parsers.pop(ext, None)
+            cls._queries.pop(ext, None)
+
+        logger.info(f"Registered new language: {name} with extensions {extensions}")
+
+    @classmethod
+    def extend_language(cls, language: str, query_file: str) -> None:
+        """Extend an existing language with additional query patterns.
+
+        Args:
+            language: Language name (e.g., 'python', 'javascript')
+            query_file: Path to additional .scm file (relative to queries dir or absolute)
+        """
+        if language not in cls._language_extensions:
+            cls._language_extensions[language] = []
+        cls._language_extensions[language].append(query_file)
+
+        # Clear cached queries for this language
+        extensions_to_clear = [ext for ext, lang in LANGUAGES.items() if lang == language]
+        for ext in extensions_to_clear:
+            cls._queries.pop(ext, None)
+
+        logger.info(f"Extended language {language} with query file: {query_file}")
 
     @classmethod
     def get_parser(cls, ext: str) -> Optional[Any]:
@@ -45,6 +110,124 @@ class TreeSitterSymbolExtractor:
         return cls._parsers[ext]
 
     @classmethod
+    def _load_query_files(cls, lang_name: str) -> str:
+        """Load and combine all query files for a language."""
+        query_contents = []
+
+        # Check if this is a custom language
+        if lang_name in cls._custom_languages:
+            plugin = cls._custom_languages[lang_name]
+
+            # Load files from custom plugin
+            for query_file in plugin.query_files:
+                try:
+                    # Check if it's an absolute path
+                    if Path(query_file).is_absolute():
+                        with open(query_file, "r", encoding="utf-8") as f:
+                            content = f.read()
+                    else:
+                        # Search in plugin directories first, then built-in
+                        content = None
+                        for query_dir in plugin.query_dirs:
+                            try:
+                                query_path = Path(query_dir) / query_file
+                                if query_path.exists():
+                                    with open(query_path, "r", encoding="utf-8") as f:
+                                        content = f.read()
+                                    break
+                            except (FileNotFoundError, OSError):
+                                continue
+
+                        # Fallback to built-in queries directory
+                        if content is None:
+                            try:
+                                package_files = files("kit.queries").joinpath(lang_name)
+                                query_path = package_files.joinpath(query_file)
+                                content = query_path.read_text(encoding="utf-8")
+                            except (FileNotFoundError, OSError):
+                                logger.warning(f"Could not find query file {query_file} for language {lang_name}")
+                                continue
+
+                    if content:
+                        query_contents.append(content)
+                        logger.debug(f"Loaded query file: {query_file}")
+
+                except Exception as e:
+                    logger.warning(f"Error loading query file {query_file}: {e}")
+                    continue
+        else:
+            # Load built-in language queries
+            try:
+                # First try to load all .scm files in the language directory
+                package_files = files("kit.queries").joinpath(lang_name)
+
+                # Try to load tags.scm first (backward compatibility)
+                try:
+                    tags_path = package_files.joinpath("tags.scm")
+                    tags_content = tags_path.read_text(encoding="utf-8")
+                    query_contents.append(tags_content)
+                    logger.debug(f"Loaded base tags.scm for {lang_name}")
+                except (FileNotFoundError, OSError) as e:
+                    if lang_name == "tsx":
+                        # Fallback to TypeScript query definitions
+                        tags_path = files("kit.queries").joinpath("typescript").joinpath("tags.scm")
+                        tags_content = tags_path.read_text(encoding="utf-8")
+                        query_contents.append(tags_content)
+                    else:
+                        logger.warning(f"No base tags.scm found for {lang_name}: {e}")
+
+                # Load any additional .scm files in the directory
+                try:
+                    if hasattr(package_files, "iterdir"):
+                        for query_file in package_files.iterdir():
+                            if query_file.name.endswith(".scm") and query_file.name != "tags.scm":
+                                try:
+                                    content = query_file.read_text(encoding="utf-8")
+                                    query_contents.append(content)
+                                    logger.debug(f"Loaded additional query file: {query_file.name}")
+                                except Exception as e:
+                                    logger.warning(f"Error loading {query_file.name}: {e}")
+                except AttributeError:
+                    # package_files doesn't support iterdir, skip additional files
+                    pass
+
+            except Exception as e:
+                logger.warning(f"Error loading built-in queries for {lang_name}: {e}")
+
+        # Load language extensions
+        if lang_name in cls._language_extensions:
+            for extension_file in cls._language_extensions[lang_name]:
+                try:
+                    # Check if it's an absolute path
+                    if Path(extension_file).is_absolute():
+                        with open(extension_file, "r", encoding="utf-8") as f:
+                            content = f.read()
+                            query_contents.append(content)
+                            logger.debug(f"Loaded extension file: {extension_file}")
+                    else:
+                        # Try to load from built-in queries directory
+                        try:
+                            package_files = files("kit.queries").joinpath(lang_name)
+                            query_path = package_files.joinpath(extension_file)
+                            content = query_path.read_text(encoding="utf-8")
+                            query_contents.append(content)
+                            logger.debug(f"Loaded extension file: {extension_file}")
+                        except (FileNotFoundError, OSError):
+                            logger.warning(f"Could not find extension file {extension_file} for language {lang_name}")
+
+                except Exception as e:
+                    logger.warning(f"Error loading extension file {extension_file}: {e}")
+
+        # Combine all query contents
+        combined_query = "\n\n".join(query_contents)
+        if not combined_query.strip():
+            logger.warning(f"No query content loaded for language {lang_name}")
+            return ""
+
+        logger.debug(f"Combined {len(query_contents)} query files for {lang_name}")
+        return combined_query
+
+    @classmethod
     def get_query(cls, ext: str) -> Optional[Any]:
         if ext not in LANGUAGES:
             logger.debug(f"get_query: Extension {ext} not supported.")
@@ -55,35 +238,62 @@ class TreeSitterSymbolExtractor:
 
         lang_name = LANGUAGES[ext]
         logger.debug(f"get_query: lang={lang_name}")
-        resource_package = f"kit.queries.{lang_name}"
+
         try:
+            # Load and combine all query files for this language
+            combined_query_content = cls._load_query_files(lang_name)
+
+            if not combined_query_content.strip():
+                logger.warning(f"No query content available for language {lang_name}")
+                return None
+
             language = get_language(cast(Any, lang_name))  # type: ignore[arg-type]
-
-            # Prefer tags under the language's own directory (e.g., tsx/) but
-            # gracefully fall back to TypeScript's tags if none are found.
-            package_files = files("kit.queries").joinpath(lang_name)
-            tags_path = package_files.joinpath("tags.scm")
-
-            try:
-                tags_content = tags_path.read_text(encoding="utf-8")
-            except (FileNotFoundError, OSError) as e:
-                if lang_name == "tsx":
-                    # Fallback to TypeScript query definitions – they work for most TSX constructs.
-                    tags_path = files("kit.queries").joinpath("typescript").joinpath("tags.scm")
-                    tags_content = tags_path.read_text(encoding="utf-8")
-                else:
-                    raise e
-            query = language.query(tags_content)
+            query = language.query(combined_query_content)
             cls._queries[ext] = query
             logger.debug(f"get_query: Query loaded successfully for ext {ext}")
             return query
-        except (FileNotFoundError, ModuleNotFoundError) as e:
-            logger.warning(f"get_query: tags.scm not found for {lang_name} in package {resource_package}: {e}")
-            return None
+
         except Exception as e:
             logger.error(f"get_query: Query compile error for ext {ext}: {e}")
-            logger.error(traceback.format_exc())  # Log stack trace
+            logger.error(traceback.format_exc())
             return None
+
+    @classmethod
+    def list_supported_languages(cls) -> Dict[str, List[str]]:
+        """Return a mapping of language names to their supported extensions."""
+        lang_to_extensions = {}
+        for ext, lang in LANGUAGES.items():
+            if lang not in lang_to_extensions:
+                lang_to_extensions[lang] = []
+            lang_to_extensions[lang].append(ext)
+        return lang_to_extensions
+
+    @classmethod
+    def reset_plugins(cls) -> None:
+        """Reset all custom languages and extensions. Useful for testing."""
+        cls._custom_languages.clear()
+        cls._language_extensions.clear()
+        cls._queries.clear()
+        cls._parsers.clear()
+
+        # Reset LANGUAGES to original state
+        global LANGUAGES
+        original_languages = {
+            ".py": "python",
+            ".js": "javascript",
+            ".go": "go",
+            ".rs": "rust",
+            ".hcl": "hcl",
+            ".tf": "hcl",
+            ".ts": "typescript",
+            ".tsx": "tsx",
+            ".c": "c",
+            ".rb": "ruby",
+            ".java": "java",
+        }
+        LANGUAGES.clear()
+        LANGUAGES.update(original_languages)
+        cls.LANGUAGES = set(LANGUAGES.keys())
 
     @staticmethod
     def extract_symbols(ext: str, source_code: str) -> List[Dict[str, Any]]:
