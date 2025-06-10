@@ -251,22 +251,9 @@ class CostTracker:
         - openrouter/meta-llama/llama-3.3-70b -> meta-llama/llama-3.3-70b
         - gpt-4o -> gpt-4o (unchanged)
         """
-        # Common prefixes to strip
-        prefixes_to_strip = [
-            "vertex_ai/",
-            "openrouter/",
-            "together/",
-            "groq/",
-            "fireworks/",
-            "perplexity/",
-            "replicate/",
-            "bedrock/",
-            "azure/",
-        ]
-
-        for prefix in prefixes_to_strip:
-            if model_name.startswith(prefix):
-                return model_name[len(prefix) :]
+        # Remove anything before the first "/"
+        if "/" in model_name:
+            return model_name.split("/", 1)[1]
 
         return model_name
 
