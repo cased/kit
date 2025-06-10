@@ -161,11 +161,10 @@ def test_model_prefix_detection():
 
     assert CostTracker._strip_model_prefix("claude-3-5-sonnet-20241022") == "claude-3-5-sonnet-20241022"
 
-    # Test complex model names with multiple slashes - this one should remain as-is
-    # because "provider" is not in the prefixes_to_strip list
-    assert CostTracker._strip_model_prefix("provider/org/model/version/variant") == "provider/org/model/version/variant"
+    # Test complex model names with multiple slashes - now strips first prefix generically
+    assert CostTracker._strip_model_prefix("provider/org/model/version/variant") == "org/model/version/variant"
 
-    # Test vertex_ai prefix (which is in the list)
+    # Test vertex_ai prefix
     assert CostTracker._strip_model_prefix("vertex_ai/claude-sonnet-4-20250514") == "claude-sonnet-4-20250514"
 
 
@@ -321,10 +320,10 @@ def test_complex_prefixed_model_names():
             "replicate/meta/llama-2-70b-chat:13c3cdee13ee059ab779f0291d29054dab00a47dad8261375654de5540165fb0",
             "meta/llama-2-70b-chat:13c3cdee13ee059ab779f0291d29054dab00a47dad8261375654de5540165fb0",
         ),
-        # This one won't be stripped because "provider" is not in prefixes_to_strip
-        ("provider/org/team/model/version/variant", "provider/org/team/model/version/variant"),
-        # This one won't be stripped because "a" is not in prefixes_to_strip
-        ("a/b/c/d/e/f/g", "a/b/c/d/e/f/g"),
+        # Now strips first prefix generically
+        ("provider/org/team/model/version/variant", "org/team/model/version/variant"),
+        # Now strips first prefix generically
+        ("a/b/c/d/e/f/g", "b/c/d/e/f/g"),
     ]
 
     for original_model, expected_result in complex_models:
@@ -335,41 +334,31 @@ def test_complex_prefixed_model_names():
 def test_provider_prefix_detection():
     """Test detection of various provider prefixes."""
 
-    # Test known provider prefixes that are actually in prefixes_to_strip
-    known_providers = [
+    # Test various provider prefixes - all should be stripped generically
+    providers = [
         "openrouter",
         "together",
         "groq",
         "fireworks",
         "replicate",
         "bedrock",
-        "vertex_ai",  # Note: it's vertex_ai, not vertex
+        "vertex_ai",
+        "huggingface",  # Now gets stripped too
+        "vertex",       # Now gets stripped too
+        "perplexity",   # Now gets stripped too
+        "newprovider",  # Any prefix gets stripped
     ]
 
-    for provider in known_providers:
-        if provider == "vertex_ai":
-            model_name = f"{provider}/test/model"
-        else:
-            model_name = f"{provider}/test/model"
+    for provider in providers:
+        model_name = f"{provider}/test/model"
         base_name = CostTracker._strip_model_prefix(model_name)
         assert base_name == "test/model", f"Failed for {provider}: got {base_name}"
         assert not base_name.startswith(f"{provider}/")
 
-    # Test unknown provider (should NOT be stripped since it's not in the list)
-    unknown_model = "newprovider/test/model"
-    base_name = CostTracker._strip_model_prefix(unknown_model)
-    assert base_name == "newprovider/test/model"  # Should remain unchanged
-
-    # Test providers that are NOT in the prefixes_to_strip list
-    unsupported_providers = ["huggingface", "vertex", "perplexity"]
-    for provider in unsupported_providers:
-        model_name = f"{provider}/test/model"
-        base_name = CostTracker._strip_model_prefix(model_name)
-        # These should be stripped since they ARE in prefixes_to_strip
-        if provider == "perplexity":
-            assert base_name == "test/model"
-        else:
-            assert base_name == f"{provider}/test/model"  # Not stripped
+    # Test model without any prefix (should remain unchanged)
+    no_prefix_model = "test-model-without-prefix"
+    base_name = CostTracker._strip_model_prefix(no_prefix_model)
+    assert base_name == "test-model-without-prefix"  # Should remain unchanged
 
 
 def test_cost_tracking_edge_cases_with_prefixes():
