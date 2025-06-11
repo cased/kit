@@ -637,6 +637,155 @@ def review_pr(
         raise typer.Exit(code=1)
 
 
+@app.command("summarize")
+def summarize_pr(
+    pr_url: str = typer.Argument(..., help="GitHub PR URL (https://github.com/owner/repo/pull/123)"),
+    config: Optional[str] = typer.Option(
+        None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
+    ),
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m", help="Override LLM model (e.g., gpt-4.1-nano, claude-sonnet-4-20250514)"
+    ),
+    plain: bool = typer.Option(False, "--plain", "-p", help="Output raw summary content for piping (no formatting)"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to file instead of stdout"),
+    update_pr_body: bool = typer.Option(
+        False, "--update-pr-body", "-u", help="Update the PR description with the summary"
+    ),
+):
+    """Generate a concise summary of a GitHub PR using kit's repository intelligence.
+
+    Provides a quick overview of what the PR does, key changes, and potential impact.
+    Much faster and cheaper than a full review - perfect for triage and understanding.
+
+    EXAMPLES:
+    kit summarize https://github.com/owner/repo/pull/123        # Quick summary
+    kit summarize --plain <pr-url> | pbcopy                     # Copy to clipboard
+    kit summarize --model gpt-4.1-nano <pr-url>                 # Ultra budget model
+    kit summarize --output summary.md <pr-url>                  # Save to file
+    kit summarize --update-pr-body <pr-url>                     # Add summary to PR description
+
+    Cost: ~$0.005-0.02 per summary (much cheaper than review)
+    """
+    from kit.pr_review.config import ReviewConfig
+    from kit.pr_review.summarizer import PRSummarizer
+
+    try:
+        # Load configuration (can reuse same config as review)
+        review_config = ReviewConfig.from_file(config)
+
+        # Override model if specified
+        if model:
+            # Auto-detect provider from model name
+            from kit.pr_review.config import _detect_provider_from_model
+
+            detected_provider = _detect_provider_from_model(model)
+
+            if detected_provider and detected_provider != review_config.llm.provider:
+                # Switch provider and update API key
+                from kit.pr_review.config import LLMProvider
+
+                old_provider = review_config.llm.provider.value
+                review_config.llm.provider = detected_provider
+
+                # Update API key for new provider
+                if detected_provider == LLMProvider.ANTHROPIC:
+                    new_api_key = os.getenv("KIT_ANTHROPIC_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
+                    if not new_api_key:
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires Anthropic API key"),
+                            "Configuration error",
+                            "Set KIT_ANTHROPIC_TOKEN environment variable",
+                        )
+                elif detected_provider == LLMProvider.GOOGLE:
+                    new_api_key = os.getenv("KIT_GOOGLE_TOKEN") or os.getenv("GOOGLE_API_KEY")
+                    if not new_api_key:
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires Google API key"),
+                            "Configuration error",
+                            "Set KIT_GOOGLE_TOKEN environment variable",
+                        )
+                elif detected_provider == LLMProvider.OLLAMA:
+                    new_api_key = "not_required"  # Ollama doesn't need API key
+                else:  # OpenAI
+                    new_api_key = os.getenv("KIT_OPENAI_TOKEN") or os.getenv("OPENAI_API_KEY")
+                    if not new_api_key:
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires OpenAI API key"),
+                            "Configuration error",
+                            "Set KIT_OPENAI_TOKEN environment variable",
+                        )
+
+                # Assert for mypy that new_api_key is not None after error checks
+                assert new_api_key is not None
+                review_config.llm.api_key = new_api_key
+                if not plain:
+                    typer.echo(f"🔄 Switched provider: {old_provider} → {detected_provider.value}")
+
+            review_config.llm.model = model
+            if not plain:
+                typer.echo(f"🎛️  Using model: {model}")
+
+        # Validate model exists
+        from kit.pr_review.cost_tracker import CostTracker
+
+        if not CostTracker.is_valid_model(review_config.llm.model):
+            suggestions = CostTracker.get_model_suggestions(review_config.llm.model)
+            error_msg = f"Invalid model: {review_config.llm.model}"
+            help_msg = (
+                f"Did you mean: {', '.join(suggestions[:3])}?"
+                if suggestions
+                else "Run 'kit summarize --help' to see available models"
+            )
+            handle_cli_error(ValueError(error_msg), "Model validation error", help_msg)
+
+        # Set quiet mode for plain output
+        if plain:
+            review_config.quiet = True
+
+        # Never post comments for summarization
+        review_config.post_as_comment = False
+
+        # Create summarizer and run summarization
+        summarizer = PRSummarizer(review_config)
+        summary = summarizer.summarize_pr(pr_url, update_body=update_pr_body)
+
+        # Handle output
+        if output:
+            # Write to file
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(summary)
+            if not plain:
+                typer.echo(f"✅ Summary saved to: {output}")
+        else:
+            # Output to stdout
+            if plain:
+                typer.echo(summary)
+            else:
+                typer.echo("\n" + "=" * 60)
+                typer.echo("PR SUMMARY")
+                typer.echo("=" * 60)
+                typer.echo(summary)
+                typer.echo("=" * 60)
+
+        # Show update status
+        if update_pr_body and not plain:
+            typer.echo("✅ PR description updated with AI summary!")
+
+        # Show cost summary if not in plain mode
+        if not plain:
+            total_cost = summarizer.cost_tracker.get_total_cost()
+            if total_cost > 0:
+                typer.echo(f"\n💰 Cost: ${total_cost:.4f}")
+
+    except ValueError as e:
+        typer.secho(f"❌ Configuration error: {e}", fg=typer.colors.RED)
+        typer.echo("\n💡 Try running: kit review --init-config")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.secho(f"❌ Summarization failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 # Cache Management
 @app.command("review-cache")
 def review_cache(
