@@ -100,11 +100,12 @@ The CLI supports all major repository operations with Unix-friendly output for s
 
 ## kit-powered Features & Utilities
 
+As both demonstrations of this library, and as standalone products,
+`kit` ships with MIT-licensed, CLI-based pull request review and summarization features.
+
 ### PR Reviews
 
-As both of a demonstration of this library, and as a standalone product,
-`kit` includes a MIT-licensed, CLI-based pull request reviewer that
-ranks with the better closed-source paid options, but at 
+The pull request reviewer ranks with the better closed-source paid options, but at 
 a fraction of the cost with cloud models. At Cased we use `kit` extensively
 with models like Sonnet 4 and gpt4.1, paying just for the price of tokens.
 
@@ -126,7 +127,7 @@ No API keys, no costs, no data leaving your machine.
 
 **📖 [Complete PR Reviewer Documentation](src/kit/pr_review/README.md)**
 
-### AI-Powered PR Summaries
+### PR Summaries
 
 For quick PR triage and understanding, `kit` includes a fast, cost-effective PR summarization feature.
 Perfect for teams that need to quickly understand what PRs do before deciding on detailed review.
@@ -143,7 +144,7 @@ kit summarize --update-pr-body https://github.com/owner/repo/pull/123
 - **Same LLM support**: Works with OpenAI, Anthropic, Google, and free Ollama models
 - **Repository intelligence**: Leverages symbol extraction and dependency analysis for context
 
-### AI-Powered Commit Messages
+### Commit Messages
 
 Generate intelligent commit messages from staged changes using the same repository intelligence:
 
