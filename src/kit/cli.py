@@ -444,6 +444,9 @@ def review_pr(
     agentic_turns: int = typer.Option(
         15, "--agentic-turns", help="Number of analysis turns for agentic mode (default: 15)"
     ),
+    repo_path: Optional[str] = typer.Option(
+        None, "--repo-path", help="Path to existing repository (skips cloning, uses current state)"
+    ),
 ):
     """Review a GitHub PR using kit's repository intelligence and AI analysis.
 
@@ -462,6 +465,8 @@ def review_pr(
     kit review --model gpt-4.1-nano <pr-url>                      # Ultra budget
     kit review --model claude-opus-4-20250514 <pr-url>            # Premium
     kit review --agentic --agentic-turns 8 <pr-url>               # Budget agentic
+    kit review --repo-path /path/to/repo <pr-url>                 # Use existing repo
+    kit review --repo-path ~/projects/myapp <pr-url>              # Local development
     """
     from kit.pr_review.config import ReviewConfig
     from kit.pr_review.reviewer import PRReviewer
@@ -502,11 +507,16 @@ def review_pr(
 
     try:
         # Load configuration with profile support
-        review_config = ReviewConfig.from_file(config, profile)
+        review_config = ReviewConfig.from_file(config, profile, repo_path=repo_path)
 
         # Show profile info if one is being used
         if profile and not plain:
             typer.echo(f"📋 Using profile: {profile}")
+
+        # Show repo path info if one is being used
+        if repo_path and not plain:
+            typer.echo(f"📁 Using existing repository: {repo_path}")
+            typer.echo("⚠️ WARNING: Analysis will be performed against current local state")
 
         # Parse priority filter
         if priority:
@@ -651,6 +661,9 @@ def summarize_pr(
     update_pr_body: bool = typer.Option(
         False, "--update-pr-body", "-u", help="Update the PR description with the summary"
     ),
+    repo_path: Optional[str] = typer.Option(
+        None, "--repo-path", help="Path to existing repository (skips cloning, uses current state)"
+    ),
 ):
     """Generate a concise summary of a GitHub PR using kit's repository intelligence.
 
@@ -663,6 +676,7 @@ def summarize_pr(
     kit summarize --model gpt-4.1-nano <pr-url>                 # Ultra budget model
     kit summarize --output summary.md <pr-url>                  # Save to file
     kit summarize --update-pr-body <pr-url>                     # Add summary to PR description
+    kit summarize --repo-path /path/to/repo <pr-url>            # Use existing repo
 
     Cost: ~$0.005-0.02 per summary (much cheaper than review)
     """
@@ -671,7 +685,12 @@ def summarize_pr(
 
     try:
         # Load configuration (can reuse same config as review)
-        review_config = ReviewConfig.from_file(config)
+        review_config = ReviewConfig.from_file(config, repo_path=repo_path)
+
+        # Show repo path info if one is being used
+        if repo_path and not plain:
+            typer.echo(f"📁 Using existing repository: {repo_path}")
+            typer.echo("⚠️ WARNING: Analysis will be performed against current local state")
 
         # Override model if specified
         if model:

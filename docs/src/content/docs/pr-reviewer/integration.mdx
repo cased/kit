@@ -41,6 +41,31 @@ kit review -p https://github.com/owner/repo/pull/123
 
 **Output**: Just the raw review content with no status messages or formatting. Ideal for automation and piping workflows.
 
+## Repository Options
+
+### Using Existing Repositories
+
+```bash
+# Skip cloning with existing local repository
+kit review --repo-path /path/to/repo https://github.com/owner/repo/pull/123
+
+# Combine with dry-run mode for local testing
+kit review --repo-path ~/projects/myapp --dry-run https://github.com/company/myapp/pull/456
+
+# Use with plain mode for piping workflows
+kit review --repo-path /workspace/project -p https://github.com/company/project/pull/789
+```
+
+<Aside type="note">
+**Repository State Warning**: When using `--repo-path`, kit analyzes the current state of your local repository, which may differ from the main branch. A warning message will be displayed to remind you of this.
+</Aside>
+
+**When to use `--repo-path`:**
+- **Large repositories**: Skip cloning time for repos you already have locally
+- **Local development**: Analyze PRs against your working copy with uncommitted changes
+- **Bandwidth constraints**: Useful for large repositories or limited internet connections
+- **Offline workflows**: Work with cached repositories when internet is unavailable
+
 ## Priority Filtering
 
 Focus reviews on what matters most:
@@ -354,7 +379,5 @@ if __name__ == "__main__":
     success = post_to_dashboard(review)
     print(f"Dashboard update: {'✅' if success else '❌'}")
 ```
-
----
 
 [← Back to PR Reviewer Overview](/pr-reviewer/) 

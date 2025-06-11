@@ -584,6 +584,33 @@ cp ~/.kit/review-config.yaml ~/.kit/review-config.yaml.backup
 **Pro Tip**: Start with a simple configuration and gradually add complexity. Use `--dry-run` mode to test changes before applying them to live reviews.
 </Aside>
 
+## Repository Configuration Options
+
+### Using Existing Local Repositories
+
+Skip cloning and use an existing local repository for analysis:
+
+```bash
+# Use existing repository instead of cloning
+kit review --repo-path /path/to/existing/repo https://github.com/owner/repo/pull/123
+
+# Works with any other flags
+kit review --repo-path ~/projects/myproject --model gpt-4.1-nano https://github.com/owner/repo/pull/123
+
+# Can be combined with configuration files
+kit review --repo-path /workspace/repo --config custom-config.yaml https://github.com/owner/repo/pull/123
+```
+
+<Aside type="caution">
+**Important**: When using `--repo-path`, the analysis is performed against the current state of your local repository, which may not reflect the main branch. Kit will display a warning to remind you of this.
+</Aside>
+
+**Benefits of using existing repositories:**
+- **Faster analysis**: Skip cloning time for large repositories
+- **Local development**: Analyze PRs against your working copy with local changes
+- **Network efficiency**: No need to download repositories you already have
+- **Bandwidth savings**: Useful for large repositories or limited internet connections
+
 ---
 
 [← Back to PR Reviewer Overview](/pr-reviewer/) 

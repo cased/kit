@@ -128,6 +128,57 @@ kit review --priority=low \
 - Test coverage suggestions
 - Performance optimizations
 
+### Local Development Workflow
+
+```bash
+# Analyze PR against your local working copy
+kit review --repo-path ~/projects/myapp \
+  --model gpt-4.1-mini \
+  https://github.com/company/myapp/pull/456
+```
+
+**Typical output focus**:
+- Compatibility with your local changes
+- Analysis against current branch state
+- Integration testing considerations
+- Merge conflict potential
+
+<Aside type="tip">
+**Local Development Pro Tip**: Use `--repo-path` when you want to analyze how a PR integrates with your local changes or when working on a feature branch that's not yet pushed.
+</Aside>
+
+### Large Repository Optimization
+
+```bash
+# Skip cloning large repositories you already have locally
+kit review --repo-path /workspace/large-monorepo \
+  --model claude-sonnet-4 \
+  --priority high,medium \
+  https://github.com/company/monorepo/pull/789
+```
+
+**Benefits**:
+- Save 5-15 minutes of cloning time for large repos
+- Preserve bandwidth for remote/mobile development
+- Use your existing repository cache
+- Work with repositories that have complex setup requirements
+
+### Offline Development Support
+
+```bash
+# Work offline with cached repositories
+kit review --repo-path /local/cache/project \
+  --model ollama:qwen2.5-coder:latest \
+  --dry-run \
+  https://github.com/company/project/pull/123
+```
+
+**Use case**:
+- Limited or expensive internet connectivity
+- Air-gapped development environments
+- Local-only testing and validation
+- Offline model usage with Ollama
+
 ## Team Workflow Examples
 
 ### Startup Team (Budget-Conscious)

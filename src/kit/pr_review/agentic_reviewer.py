@@ -34,9 +34,11 @@ class AgenticPRReviewer:
         self.conversation_history: List[Dict[str, str]] = []
         self.analysis_state: Dict[str, Any] = {}
 
-        # Customizable turn limit - default to 15 for reasonble completion rate
+        # Customizable turn limit - default to 15 for reasonable completion rate
         self.max_turns = getattr(config, "agentic_max_turns", 15)
-        self.finalize_threshold = getattr(config, "agentic_finalize_threshold", 10)
+        self.finalize_threshold = getattr(
+            config, "agentic_finalize_threshold", 10
+        )
 
         # Diff caching placeholders
         self._cached_diff_key: Optional[tuple[str, str, int]] = None
@@ -55,16 +57,26 @@ class AgenticPRReviewer:
         owner, repo, pr_number = match.groups()
         return owner, repo, int(pr_number)
 
-    def get_pr_details(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+    def get_pr_details(
+        self, owner: str, repo: str, pr_number: int
+    ) -> Dict[str, Any]:
         """Get PR details from GitHub API."""
-        url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
+        url = (
+            f"{self.config.github.base_url}/repos/{owner}/{repo}"
+            f"/pulls/{pr_number}"
+        )
         response = self.github_session.get(url)
         response.raise_for_status()
         return response.json()
 
-    def get_pr_files(self, owner: str, repo: str, pr_number: int) -> list[Dict[str, Any]]:
+    def get_pr_files(
+        self, owner: str, repo: str, pr_number: int
+    ) -> list[Dict[str, Any]]:
         """Get list of files changed in the PR."""
-        url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}/files"
+        url = (
+            f"{self.config.github.base_url}/repos/{owner}/{repo}"
+            f"/pulls/{pr_number}/files"
+        )
         response = self.github_session.get(url)
         response.raise_for_status()
         return response.json()
@@ -73,11 +85,17 @@ class AgenticPRReviewer:
         """Get the full diff for the PR."""
         key = (owner, repo, pr_number)
 
-        if getattr(self, "_cached_diff_key", None) == key and hasattr(self, "_cached_diff_text"):
+        if (
+            getattr(self, "_cached_diff_key", None) == key
+            and hasattr(self, "_cached_diff_text")
+        ):
             assert self._cached_diff_text is not None
             return self._cached_diff_text
 
-        url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
+        url = (
+            f"{self.config.github.base_url}/repos/{owner}/{repo}"
+            f"/pulls/{pr_number}"
+        )
         headers = dict(self.github_session.headers)
         headers["Accept"] = "application/vnd.github.v3.diff"
 
@@ -91,10 +109,15 @@ class AgenticPRReviewer:
 
         return response.text
 
-    def get_parsed_diff(self, owner: str, repo: str, pr_number: int) -> Dict[str, FileDiff]:
+    def get_parsed_diff(
+        self, owner: str, repo: str, pr_number: int
+    ) -> Dict[str, FileDiff]:
         key = (owner, repo, pr_number)
 
-        if self._cached_parsed_key == key and self._cached_parsed_diff is not None:
+        if (
+            self._cached_parsed_key == key
+            and self._cached_parsed_diff is not None
+        ):
             return self._cached_parsed_diff
 
         diff_text = self.get_pr_diff(owner, repo, pr_number)
@@ -103,8 +126,25 @@ class AgenticPRReviewer:
         self._cached_parsed_diff = parsed
         return parsed
 
-    def get_repo_for_analysis(self, owner: str, repo: str, pr_details: Dict[str, Any]) -> str:
+    def get_repo_for_analysis(
+        self, owner: str, repo: str, pr_details: Dict[str, Any]
+    ) -> str:
         """Get repository for analysis, using cache if available."""
+        # If a repo_path is configured, use the existing repository
+        if self.config.repo_path:
+            from pathlib import Path
+            repo_path = Path(self.config.repo_path).expanduser().resolve()
+            if not repo_path.exists():
+                raise ValueError(
+                    f"Specified repository path does not exist: {repo_path}"
+                )
+            if not (repo_path / ".git").exists():
+                raise ValueError(
+                    f"Specified path is not a git repository: {repo_path}"
+                )
+            return str(repo_path)
+
+        # Default behavior: use cache
         head_sha = pr_details["head"]["sha"]
         return self.repo_cache.get_repo_path(owner, repo, head_sha)
 
@@ -124,7 +164,7 @@ class AgenticPRReviewer:
                 anthropic_tool = {
                     "name": tool["name"],
                     "description": tool["description"],
-                    "input_schema": tool["inputSchema"],  # Convert camelCase to snake_case
+                    "input_schema": tool["inputSchema"],
                 }
                 kit_tools.append(anthropic_tool)
 
@@ -139,20 +179,35 @@ class AgenticPRReviewer:
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "review_content": {"type": "string", "description": "The final comprehensive review content"}
+                        "review_content": {
+                            "type": "string",
+                            "description": "The final comprehensive review content"
+                        }
                     },
                     "required": ["review_content"],
                 },
             },
             {
                 "name": "get_relevant_chunks",
-                "description": "Get specific chunks from a file based on relevance to the PR changes",
+                "description": (
+                    "Get specific chunks from a file based on relevance to the PR changes"
+                ),
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "file_path": {"type": "string", "description": "Path to the file to chunk"},
-                        "relevance_query": {"type": "string", "description": "What to look for in chunks"},
-                        "max_chunks": {"type": "integer", "description": "Maximum chunks to return", "default": 3},
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the file to chunk"
+                        },
+                        "relevance_query": {
+                            "type": "string",
+                            "description": "What to look for in chunks"
+                        },
+                        "max_chunks": {
+                            "type": "integer",
+                            "description": "Maximum chunks to return",
+                            "default": 3
+                        },
                     },
                     "required": ["file_path", "relevance_query"],
                 },
@@ -163,16 +218,27 @@ class AgenticPRReviewer:
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "file_paths": {"type": "array", "items": {"type": "string"}},
-                        "include_symbols": {"type": "boolean", "default": True},
-                        "max_content_length": {"type": "integer", "default": 3000},
+                        "file_paths": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "include_symbols": {
+                            "type": "boolean",
+                            "default": True
+                        },
+                        "max_content_length": {
+                            "type": "integer",
+                            "default": 3000
+                        },
                     },
                     "required": ["file_paths"],
                 },
             },
             {
                 "name": "deep_code_analysis",
-                "description": "Perform deep analysis of code quality, patterns, and issues",
+                "description": (
+                    "Perform deep analysis of code quality, patterns, and issues"
+                ),
                 "input_schema": {
                     "type": "object",
                     "properties": {
@@ -180,7 +246,12 @@ class AgenticPRReviewer:
                         "analysis_focus": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "default": ["security", "performance", "maintainability", "correctness"],
+                            "default": [
+                                "security",
+                                "performance",
+                                "maintainability",
+                                "correctness"
+                            ],
                         },
                     },
                     "required": ["file_path"],
@@ -188,11 +259,17 @@ class AgenticPRReviewer:
             },
             {
                 "name": "analyze_cross_file_impact",
-                "description": "Analyze how changes affect other files and the broader codebase",
+                "description": (
+                    "Analyze how changes affect other files and the "
+                    "broader codebase"
+                ),
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "changed_files": {"type": "array", "items": {"type": "string"}},
+                        "changed_files": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
                         "impact_depth": {
                             "type": "string",
                             "enum": ["immediate", "extended", "full"],
@@ -744,8 +821,8 @@ class AgenticPRReviewer:
                 "function": {
                     "name": tool["name"],
                     "description": tool["description"],
-                    "parameters": tool["input_schema"],
-                },
+                    "parameters": tool["input_schema"],  # Convert camelCase to snake_case
+                 },
             }
             for tool in self._get_available_tools()
         ]
@@ -989,9 +1066,17 @@ Keep it focused and valuable. Begin your analysis.
             print(f"Changed files: {len(files)}")
 
             # Clone repository for analysis
-            print("Cloning repository for agentic analysis...")
+            if self.config.repo_path:
+                # Show warning when using existing repository
+                print("⚠️ WARNING: Using existing repository - results may not reflect the main branch")
+                print(f"Using existing repository at: {self.config.repo_path}")
+            else:
+                print("Cloning repository for agentic analysis...")
+
             repo_path = self.get_repo_for_analysis(owner, repo, pr_details)
-            print(f"Repository cloned to: {repo_path}")
+
+            if not self.config.repo_path:
+                print(f"Repository cloned to: {repo_path}")
 
             # Run agentic analysis
             analysis = asyncio.run(self.analyze_pr_agentic(repo_path, pr_details, files))

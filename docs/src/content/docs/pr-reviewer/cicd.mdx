@@ -443,6 +443,46 @@ jobs:
           KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
+### Repository Optimization Workflows
+
+Use `--repo-path` in CI/CD environments to optimize performance and handle special cases:
+
+#### Pre-Cloned Repository Workflow
+
+```yaml
+name: Optimized Review with Pre-Cloned Repo
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comprehensive analysis
+          
+      - name: AI Review with Local Repository
+        run: |
+          pip install cased-kit
+          
+          # Use the checked-out repository directly
+          kit review --repo-path . ${{ github.event.pull_request.html_url }}
+        env:
+          KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+<Aside type="tip">
+**Performance Benefit**: Using `--repo-path .` with a pre-checkout saves 30-90 seconds per review by skipping the clone step, especially valuable for large repositories or high-volume workflows.
+</Aside>
+
 ## Cost Monitoring
 
 ### Review Cost Tracking
