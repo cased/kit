@@ -34,7 +34,7 @@ source .venv/bin/activate
 uv pip install -e .
 ```
 
-## Basic Usage
+## Basic Toolkit Usage
 
 ### Python API
 
@@ -98,7 +98,9 @@ kit commit  # Analyze and commit with AI-generated message
 
 The CLI supports all major repository operations with Unix-friendly output for scripting and automation. See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehensive usage examples.
 
-### AI-Powered PR Reviews
+## kit-powered Features & Utilities
+
+### PR Reviews
 
 As both of a demonstration of this library, and as a standalone product,
 `kit` includes a MIT-licensed, CLI-based pull request reviewer that
@@ -150,13 +152,7 @@ git add .       # Stage your changes
 kit commit      # Analyze and commit with AI-generated message
 ```
 
-**Key Features:**
-- **Contextual analysis**: Understands what symbols and files changed
-- **Best practices**: Follows conventional commit format and standards  
-- **Ultra-cheap**: ~$0.002-0.01 per commit message
-- **Instant workflow**: One command to analyze and commit
-
-## Key Features & Capabilities
+## Key Toolkit Capabilities
 
 `kit` helps your apps and agents understand and interact with codebases, with components to build your own AI-powered developer tools.
 
