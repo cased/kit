@@ -2,7 +2,7 @@
 
 import asyncio
 import subprocess
-from typing import List
+from typing import Any, Dict, List
 
 from kit import Repository
 
@@ -16,7 +16,7 @@ class CommitMessageGenerator:
     def __init__(self, config: ReviewConfig):
         self.config = config
         self.cost_tracker = CostTracker(config.custom_pricing)
-        self._llm_client = None
+        self._llm_client: Any = None
 
     def get_staged_diff(self) -> str:
         """Get the diff of staged changes."""
@@ -53,7 +53,7 @@ class CommitMessageGenerator:
             return "No staged changes to commit"
 
         # Analyze changed files with repository context
-        file_analysis = {}
+        file_analysis: Dict[str, Dict[str, Any]] = {}
         change_types = set()
 
         for file_path in staged_files:
@@ -88,7 +88,9 @@ class CommitMessageGenerator:
 
 **File Analysis:**"""
 
-        for file_path, analysis in list(file_analysis.items())[:5]:  # Limit to 5 files
+        # Limit to 5 files and ensure proper typing
+        file_items = list(file_analysis.items())[:5]
+        for file_path, analysis in file_items:
             commit_prompt += f"""
 - {file_path}: {analysis["symbol_count"]} symbols"""
             if analysis["symbols"]:
