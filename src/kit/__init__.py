@@ -3,7 +3,7 @@ A modular toolkit for LLM-powered codebase understanding.
 """
 
 __author__ = "cased"
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
