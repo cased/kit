@@ -344,8 +344,8 @@ def test_provider_prefix_detection():
         "bedrock",
         "vertex_ai",
         "huggingface",  # Now gets stripped too
-        "vertex",       # Now gets stripped too
-        "perplexity",   # Now gets stripped too
+        "vertex",  # Now gets stripped too
+        "perplexity",  # Now gets stripped too
         "newprovider",  # Any prefix gets stripped
     ]
 
