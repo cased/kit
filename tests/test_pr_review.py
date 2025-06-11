@@ -35,9 +35,7 @@ def test_pr_url_parsing():
     reviewer = PRReviewer(config)
 
     # Test valid PR URL
-    owner, repo, pr_number = reviewer.parse_pr_url(
-        "https://github.com/cased/kit/pull/47"
-    )
+    owner, repo, pr_number = reviewer.parse_pr_url("https://github.com/cased/kit/pull/47")
     assert owner == "cased"
     assert repo == "kit"
     assert pr_number == 47
@@ -56,9 +54,7 @@ def test_cost_tracker_anthropic():
     tracker = CostTracker()
 
     # Test Claude 3.5 Sonnet pricing
-    tracker.track_llm_usage(
-        LLMProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", 1000, 500
-    )
+    tracker.track_llm_usage(LLMProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", 1000, 500)
 
     expected_cost = (1000 / 1_000_000) * 3.00 + (500 / 1_000_000) * 15.00
     assert abs(tracker.breakdown.llm_cost_usd - expected_cost) < 0.0001
@@ -102,15 +98,11 @@ def test_cost_tracker_multiple_calls():
     tracker = CostTracker()
 
     # First call
-    tracker.track_llm_usage(
-        LLMProvider.ANTHROPIC, "claude-3-5-haiku-20241022", 500, 200
-    )
+    tracker.track_llm_usage(LLMProvider.ANTHROPIC, "claude-3-5-haiku-20241022", 500, 200)
     first_cost = tracker.breakdown.llm_cost_usd
 
     # Second call
-    tracker.track_llm_usage(
-        LLMProvider.ANTHROPIC, "claude-3-5-haiku-20241022", 300, 150
-    )
+    tracker.track_llm_usage(LLMProvider.ANTHROPIC, "claude-3-5-haiku-20241022", 300, 150)
 
     # Should accumulate
     assert tracker.breakdown.llm_input_tokens == 800
@@ -122,9 +114,7 @@ def test_cost_tracker_reset():
     """Test cost tracker reset functionality."""
     tracker = CostTracker()
 
-    tracker.track_llm_usage(
-        LLMProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", 1000, 500
-    )
+    tracker.track_llm_usage(LLMProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", 1000, 500)
     assert tracker.breakdown.llm_cost_usd > 0
 
     tracker.reset()
@@ -142,16 +132,10 @@ def test_model_prefix_detection():
         == "meta-llama/llama-3.1-8b-instruct"
     )
 
-    assert (
-        CostTracker._strip_model_prefix("openrouter/anthropic/claude-3.5-sonnet")
-        == "anthropic/claude-3.5-sonnet"
-    )
+    assert CostTracker._strip_model_prefix("openrouter/anthropic/claude-3.5-sonnet") == "anthropic/claude-3.5-sonnet"
 
     # Test Together AI prefixes
-    assert (
-        CostTracker._strip_model_prefix("together/meta-llama/Llama-3-8b-chat-hf")
-        == "meta-llama/Llama-3-8b-chat-hf"
-    )
+    assert CostTracker._strip_model_prefix("together/meta-llama/Llama-3-8b-chat-hf") == "meta-llama/Llama-3-8b-chat-hf"
 
     assert (
         CostTracker._strip_model_prefix("together/mistralai/Mixtral-8x7B-Instruct-v0.1")
@@ -161,44 +145,27 @@ def test_model_prefix_detection():
     # Test Groq prefixes
     assert CostTracker._strip_model_prefix("groq/llama3-8b-8192") == "llama3-8b-8192"
 
-    assert (
-        CostTracker._strip_model_prefix("groq/mixtral-8x7b-32768")
-        == "mixtral-8x7b-32768"
-    )
+    assert CostTracker._strip_model_prefix("groq/mixtral-8x7b-32768") == "mixtral-8x7b-32768"
 
     # Test Fireworks AI prefixes
     assert (
-        CostTracker._strip_model_prefix(
-            "fireworks/accounts/fireworks/models/llama-v3p1-8b-instruct"
-        )
+        CostTracker._strip_model_prefix("fireworks/accounts/fireworks/models/llama-v3p1-8b-instruct")
         == "accounts/fireworks/models/llama-v3p1-8b-instruct"
     )
 
     # Test Replicate prefixes
-    assert (
-        CostTracker._strip_model_prefix("replicate/meta/llama-2-70b-chat")
-        == "meta/llama-2-70b-chat"
-    )
+    assert CostTracker._strip_model_prefix("replicate/meta/llama-2-70b-chat") == "meta/llama-2-70b-chat"
 
     # Test models without prefixes (should return as-is)
     assert CostTracker._strip_model_prefix("gpt-4o") == "gpt-4o"
 
-    assert (
-        CostTracker._strip_model_prefix("claude-3-5-sonnet-20241022")
-        == "claude-3-5-sonnet-20241022"
-    )
+    assert CostTracker._strip_model_prefix("claude-3-5-sonnet-20241022") == "claude-3-5-sonnet-20241022"
 
     # Test complex model names with multiple slashes - now strips first prefix generically
-    assert (
-        CostTracker._strip_model_prefix("provider/org/model/version/variant")
-        == "org/model/version/variant"
-    )
+    assert CostTracker._strip_model_prefix("provider/org/model/version/variant") == "org/model/version/variant"
 
     # Test vertex_ai prefix
-    assert (
-        CostTracker._strip_model_prefix("vertex_ai/claude-sonnet-4-20250514")
-        == "claude-sonnet-4-20250514"
-    )
+    assert CostTracker._strip_model_prefix("vertex_ai/claude-sonnet-4-20250514") == "claude-sonnet-4-20250514"
 
 
 def test_cost_tracking_with_prefixed_models():
@@ -220,9 +187,7 @@ def test_cost_tracking_with_prefixed_models():
     # Since "together/anthropic/claude-3-5-sonnet-20241022" doesn't match
     # the exact pricing key, it will use fallback pricing
     with patch("builtins.print"):  # Suppress warning output
-        tracker.track_llm_usage(
-            LLMProvider.ANTHROPIC, "together/claude-3-5-sonnet-20241022", 800, 400
-        )
+        tracker.track_llm_usage(LLMProvider.ANTHROPIC, "together/claude-3-5-sonnet-20241022", 800, 400)
 
     # Should extract claude-3-5-sonnet-20241022 and use its pricing
     expected_cost = (800 / 1_000_000) * 3.00 + (400 / 1_000_000) * 15.00
@@ -235,9 +200,7 @@ def test_cost_tracking_unknown_prefixed_models():
 
     with patch("builtins.print") as mock_print:
         # Test completely unknown prefixed model
-        tracker.track_llm_usage(
-            LLMProvider.OPENAI, "newprovider/unknown/model-v1", 1000, 500
-        )
+        tracker.track_llm_usage(LLMProvider.OPENAI, "newprovider/unknown/model-v1", 1000, 500)
 
         # Should print warning about unknown pricing
         mock_print.assert_called()
@@ -314,9 +277,7 @@ def test_pr_reviewer_with_prefixed_models():
     assert reviewer.config.llm.model == "openrouter/gpt-4o-mini"
 
     # Cost tracker should handle the prefixed model correctly
-    reviewer.cost_tracker.track_llm_usage(
-        LLMProvider.OPENAI, "openrouter/gpt-4o-mini", 500, 250
-    )
+    reviewer.cost_tracker.track_llm_usage(LLMProvider.OPENAI, "openrouter/gpt-4o-mini", 500, 250)
 
     # Should extract base model for pricing
     assert reviewer.cost_tracker.breakdown.llm_cost_usd > 0
@@ -367,9 +328,7 @@ def test_complex_prefixed_model_names():
 
     for original_model, expected_result in complex_models:
         base_model = CostTracker._strip_model_prefix(original_model)
-        assert (
-            base_model == expected_result
-        ), f"Expected {expected_result}, got {base_model}"
+        assert base_model == expected_result, f"Expected {expected_result}, got {base_model}"
 
 
 def test_provider_prefix_detection():
@@ -408,9 +367,7 @@ def test_cost_tracking_edge_cases_with_prefixes():
 
     # Test model with provider prefix but unknown base model
     with patch("builtins.print") as mock_print:
-        tracker.track_llm_usage(
-            LLMProvider.ANTHROPIC, "openrouter/unknown/mystery-model-v1", 1000, 500
-        )
+        tracker.track_llm_usage(LLMProvider.ANTHROPIC, "openrouter/unknown/mystery-model-v1", 1000, 500)
 
         # Should warn about unknown pricing
         mock_print.assert_called()
@@ -464,17 +421,12 @@ def test_validator_empty_review():
 
 def test_validator_vague_review():
     """Test validator detects vague reviews."""
-    vague_review = (
-        "This looks good. Maybe consider some improvements. Seems fine overall."
-    )
+    vague_review = "This looks good. Maybe consider some improvements. Seems fine overall."
 
     validation = validate_review_quality(vague_review, "diff", ["file.py"])
 
     assert validation.metrics["vague_statements"] > 0
-    assert any(
-        "Review doesn't reference any changed files" in issue
-        for issue in validation.issues
-    )
+    assert any("Review doesn't reference any changed files" in issue for issue in validation.issues)
 
 
 def test_validator_no_file_references():
@@ -484,10 +436,7 @@ def test_validator_no_file_references():
     validation = validate_review_quality(review, "diff", ["main.py", "test.py"])
 
     assert validation.metrics["file_references"] == 0
-    assert any(
-        "Review doesn't reference any changed files" in issue
-        for issue in validation.issues
-    )
+    assert any("Review doesn't reference any changed files" in issue for issue in validation.issues)
 
 
 def test_validator_change_coverage():
@@ -1076,9 +1025,7 @@ class TestExistingRepoPath:
         """Test ReviewConfig with repo_path parameter."""
         config = ReviewConfig(
             github=GitHubConfig(token="test"),
-            llm=LLMConfig(
-                provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"
-            ),
+            llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"),
             repo_path="/path/to/existing/repo",
         )
         assert config.repo_path == "/path/to/existing/repo"
@@ -1098,18 +1045,14 @@ class TestExistingRepoPath:
             temp_config_path = f.name
 
         try:
-            config = ReviewConfig.from_file(
-                temp_config_path, repo_path="/custom/repo/path"
-            )
+            config = ReviewConfig.from_file(temp_config_path, repo_path="/custom/repo/path")
             assert config.repo_path == "/custom/repo/path"
         finally:
             os.unlink(temp_config_path)
 
     @patch("kit.pr_review.reviewer.requests.Session")
     @patch("pathlib.Path.exists")
-    def test_get_repo_for_analysis_with_existing_path(
-        self, mock_exists, mock_session_class
-    ):
+    def test_get_repo_for_analysis_with_existing_path(self, mock_exists, mock_session_class):
         """Test get_repo_for_analysis uses existing repo path when configured."""
         # Setup mocks
         mock_exists.return_value = True
@@ -1118,9 +1061,7 @@ class TestExistingRepoPath:
 
         config = ReviewConfig(
             github=GitHubConfig(token="test"),
-            llm=LLMConfig(
-                provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"
-            ),
+            llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"),
             repo_path="/existing/repo",
         )
 
@@ -1141,9 +1082,7 @@ class TestExistingRepoPath:
 
     @patch("kit.pr_review.reviewer.requests.Session")
     @patch("pathlib.Path.exists")
-    def test_get_repo_for_analysis_nonexistent_path(
-        self, mock_exists, mock_session_class
-    ):
+    def test_get_repo_for_analysis_nonexistent_path(self, mock_exists, mock_session_class):
         """Test get_repo_for_analysis raises error for nonexistent repo path."""
         mock_exists.return_value = False
         mock_session = Mock()
@@ -1151,9 +1090,7 @@ class TestExistingRepoPath:
 
         config = ReviewConfig(
             github=GitHubConfig(token="test"),
-            llm=LLMConfig(
-                provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"
-            ),
+            llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"),
             repo_path="/nonexistent/repo",
         )
 
@@ -1161,9 +1098,7 @@ class TestExistingRepoPath:
 
         pr_details = {"head": {"sha": "abc123"}}
 
-        with pytest.raises(
-            ValueError, match="Specified repository path does not exist"
-        ):
+        with pytest.raises(ValueError, match="Specified repository path does not exist"):
             reviewer.get_repo_for_analysis("owner", "repo", pr_details)
 
     @patch("kit.pr_review.reviewer.requests.Session")
@@ -1175,9 +1110,7 @@ class TestExistingRepoPath:
 
         config = ReviewConfig(
             github=GitHubConfig(token="test"),
-            llm=LLMConfig(
-                provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"
-            ),
+            llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"),
             repo_path="/not/a/git/repo",
         )
 
@@ -1193,17 +1126,13 @@ class TestExistingRepoPath:
 
                 pr_details = {"head": {"sha": "abc123"}}
 
-                with pytest.raises(
-                    ValueError, match="Specified path is not a git repository"
-                ):
+                with pytest.raises(ValueError, match="Specified path is not a git repository"):
                     reviewer.get_repo_for_analysis("owner", "repo", pr_details)
 
     @patch("kit.pr_review.reviewer.requests.Session")
     @patch("kit.pr_review.reviewer.subprocess.run")
     @patch("builtins.print")
-    def test_review_pr_with_existing_repo_warning(
-        self, mock_print, mock_subprocess, mock_session_class
-    ):
+    def test_review_pr_with_existing_repo_warning(self, mock_print, mock_subprocess, mock_session_class):
         """Test that warning message is displayed when using existing repository."""
         # Setup similar to test_pr_review_dry_run but with repo_path
         mock_session = Mock()
@@ -1228,13 +1157,9 @@ class TestExistingRepoPath:
                     },
                 }
             elif url.endswith("/files"):
-                mock_response.json.return_value = [
-                    {"filename": "test.py", "additions": 10, "deletions": 5}
-                ]
+                mock_response.json.return_value = [{"filename": "test.py", "additions": 10, "deletions": 5}]
             elif url.endswith("/comments"):
-                mock_response.json.return_value = {
-                    "html_url": "https://github.com/test/comment"
-                }
+                mock_response.json.return_value = {"html_url": "https://github.com/test/comment"}
             else:
                 mock_response.text = "diff content"
             mock_response.raise_for_status = Mock()
@@ -1246,9 +1171,7 @@ class TestExistingRepoPath:
         # Mock existing repository path
         config = ReviewConfig(
             github=GitHubConfig(token="test"),
-            llm=LLMConfig(
-                provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"
-            ),
+            llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"),
             clone_for_analysis=True,
             post_as_comment=False,
             repo_path="/existing/repo",
@@ -1279,19 +1202,13 @@ class TestExistingRepoPath:
                         assert len(warning_calls) > 0
 
                         # Check that the existing repo path was mentioned
-                        repo_path_calls = [
-                            call
-                            for call in mock_print.call_args_list
-                            if "/existing/repo" in str(call)
-                        ]
+                        repo_path_calls = [call for call in mock_print.call_args_list if "/existing/repo" in str(call)]
                         assert len(repo_path_calls) > 0
 
     @patch("kit.pr_review.agentic_reviewer.requests.Session")
     @patch("kit.pr_review.agentic_reviewer.asyncio.run")
     @patch("builtins.print")
-    def test_agentic_reviewer_with_repo_path(
-        self, mock_print, mock_asyncio_run, mock_session_class
-    ):
+    def test_agentic_reviewer_with_repo_path(self, mock_print, mock_asyncio_run, mock_session_class):
         """Test AgenticPRReviewer with existing repository path and warning messages."""
         from kit.pr_review.agentic_reviewer import AgenticPRReviewer
 
@@ -1318,13 +1235,9 @@ class TestExistingRepoPath:
                     },
                 }
             elif url.endswith("/files"):
-                mock_response.json.return_value = [
-                    {"filename": "test.py", "additions": 10, "deletions": 5}
-                ]
+                mock_response.json.return_value = [{"filename": "test.py", "additions": 10, "deletions": 5}]
             elif url.endswith("/comments"):
-                mock_response.json.return_value = {
-                    "html_url": "https://github.com/test/comment"
-                }
+                mock_response.json.return_value = {"html_url": "https://github.com/test/comment"}
             else:
                 mock_response.text = "diff content"
             mock_response.raise_for_status = Mock()
@@ -1336,9 +1249,7 @@ class TestExistingRepoPath:
         # Mock existing repository path
         config = ReviewConfig(
             github=GitHubConfig(token="test"),
-            llm=LLMConfig(
-                provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"
-            ),
+            llm=LLMConfig(provider=LLMProvider.ANTHROPIC, model="claude-4-sonnet", api_key="test"),
             post_as_comment=False,
             repo_path="/existing/repo",
         )
@@ -1365,16 +1276,10 @@ class TestExistingRepoPath:
 
                     # Check that warning message was printed
                     warning_calls = [
-                        call
-                        for call in mock_print.call_args_list
-                        if "WARNING: Using existing repository" in str(call)
+                        call for call in mock_print.call_args_list if "WARNING: Using existing repository" in str(call)
                     ]
                     assert len(warning_calls) > 0
 
                     # Check that the existing repo path was mentioned
-                    repo_path_calls = [
-                        call
-                        for call in mock_print.call_args_list
-                        if "/existing/repo" in str(call)
-                    ]
+                    repo_path_calls = [call for call in mock_print.call_args_list if "/existing/repo" in str(call)]
                     assert len(repo_path_calls) > 0

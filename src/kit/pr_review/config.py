@@ -161,7 +161,9 @@ class ReviewConfig:
     repo_path: Optional[str] = None  # Path to existing repository to use for analysis
 
     @classmethod
-    def from_file(cls, config_path: Optional[str] = None, profile: Optional[str] = None, repo_path: Optional[str] = None) -> "ReviewConfig":
+    def from_file(
+        cls, config_path: Optional[str] = None, profile: Optional[str] = None, repo_path: Optional[str] = None
+    ) -> "ReviewConfig":
         """Load configuration from file or environment variables.
 
         Args:
