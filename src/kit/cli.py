@@ -648,6 +648,9 @@ def summarize_pr(
     ),
     plain: bool = typer.Option(False, "--plain", "-p", help="Output raw summary content for piping (no formatting)"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to file instead of stdout"),
+    update_pr_body: bool = typer.Option(
+        False, "--update-pr-body", "-u", help="Update the PR description with the summary"
+    ),
 ):
     """Generate a concise summary of a GitHub PR using kit's repository intelligence.
 
@@ -659,6 +662,7 @@ def summarize_pr(
     kit summarize --plain <pr-url> | pbcopy                     # Copy to clipboard
     kit summarize --model gpt-4.1-nano <pr-url>                 # Ultra budget model
     kit summarize --output summary.md <pr-url>                  # Save to file
+    kit summarize --update-pr-body <pr-url>                     # Add summary to PR description
 
     Cost: ~$0.005-0.02 per summary (much cheaper than review)
     """
@@ -743,7 +747,7 @@ def summarize_pr(
 
         # Create summarizer and run summarization
         summarizer = PRSummarizer(review_config)
-        summary = summarizer.summarize_pr(pr_url)
+        summary = summarizer.summarize_pr(pr_url, update_body=update_pr_body)
 
         # Handle output
         if output:
@@ -763,11 +767,15 @@ def summarize_pr(
                 typer.echo(summary)
                 typer.echo("=" * 60)
 
+        # Show update status
+        if update_pr_body and not plain:
+            typer.echo("✅ PR description updated with AI summary!")
+
         # Show cost summary if not in plain mode
         if not plain:
-            cost_info = summarizer.cost_tracker.get_session_summary()
-            if cost_info and cost_info.get("total_cost", 0) > 0:
-                typer.echo(f"\n💰 Cost: ${cost_info['total_cost']:.4f}")
+            total_cost = summarizer.cost_tracker.get_total_cost()
+            if total_cost > 0:
+                typer.echo(f"\n💰 Cost: ${total_cost:.4f}")
 
     except ValueError as e:
         typer.secho(f"❌ Configuration error: {e}", fg=typer.colors.RED)

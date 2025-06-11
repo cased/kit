@@ -86,6 +86,10 @@ kit export /path/to/repo symbols symbols.json
 kit review --init-config
 kit review --dry-run https://github.com/owner/repo/pull/123
 kit review https://github.com/owner/repo/pull/123
+
+# Generate PR summaries for quick triage
+kit summarize https://github.com/owner/repo/pull/123
+kit summarize --update-pr-body https://github.com/owner/repo/pull/123
 ```
 
 The CLI supports all major repository operations with Unix-friendly output for scripting and automation. See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehensive usage examples.
@@ -111,10 +115,27 @@ kit review https://github.com/owner/repo/pull/123
 - **Fast**: No queuing, shared services: just your code and the LLM
 - **Works from wherever**: Trigger reviews with the CLI, or run it via CI
 
-`kit` also has first-class support for **free local models** via [Ollama](https://ollama.ai/). 
+`kit` also has first-class support for free local models via [Ollama](https://ollama.ai/). 
 No API keys, no costs, no data leaving your machine.
 
 **📖 [Complete PR Reviewer Documentation](src/kit/pr_review/README.md)**
+
+### AI-Powered PR Summaries
+
+For quick PR triage and understanding, `kit` includes a fast, cost-effective PR summarization feature.
+Perfect for teams that need to quickly understand what PRs do before deciding on detailed review.
+
+```bash
+kit summarize https://github.com/owner/repo/pull/123
+kit summarize --update-pr-body https://github.com/owner/repo/pull/123
+```
+
+**Key Features:**
+- **5-10x cheaper** than full reviews (~$0.005-0.02 vs $0.01-0.05+)
+- **Fast triage**: Quick overview of changes, impact, and key modifications
+- **PR body updates**: Automatically add AI summaries to PR descriptions for team visibility
+- **Same LLM support**: Works with OpenAI, Anthropic, Google, and free Ollama models
+- **Repository intelligence**: Leverages symbol extraction and dependency analysis for context
 
 ## Key Features & Capabilities
 
@@ -153,8 +174,8 @@ No API keys, no costs, no data leaving your machine.
     *   **REST API**: HTTP endpoints for web applications and microservices.
     *   **MCP Server**: Model Context Protocol integration for AI agents and development tools.
 
-*   **AI-Powered Code Review:**
-    *   Automated PR review with `kit review` using **free local models (Ollama)** or cloud models (Claude, GPT-4).
+*   **AI-Powered Code Review & Summaries:**
+    *   Automated PR review and summarization with `kit review` and `kit summarize`
     *   Repository cloning and comprehensive file analysis for deep code understanding.
     *   Configurable review depth (quick, standard, thorough) and customizable analysis settings.
     *   Seamless GitHub integration with automatic comment posting and PR workflow integration.
