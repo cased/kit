@@ -11,8 +11,8 @@ cd "$(dirname "$0")/.."
 # Check the first argument
 if [ "$1" == "--fix" ]; then
   echo "Running Ruff to apply fixes (linting and formatting)..."
-  # Apply lint rule fixes (autofixable ones)
-  ruff check . --fix
+  # Apply lint rule fixes (autofixable ones, including unsafe fixes)
+  ruff check . --fix --unsafe-fixes
   # Apply formatting fixes
   ruff format .
   echo "Ruff fixes applied successfully!"
