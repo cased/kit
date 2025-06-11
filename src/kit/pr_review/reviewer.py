@@ -118,6 +118,17 @@ class PRReviewer:
 
     def get_repo_for_analysis(self, owner: str, repo: str, pr_details: Dict[str, Any]) -> str:
         """Get repository for analysis, using cache if available."""
+        # If a repo_path is configured, use the existing repository
+        if self.config.repo_path:
+            from pathlib import Path
+            repo_path = Path(self.config.repo_path).expanduser().resolve()
+            if not repo_path.exists():
+                raise ValueError(f"Specified repository path does not exist: {repo_path}")
+            if not (repo_path / ".git").exists():
+                raise ValueError(f"Specified path is not a git repository: {repo_path}")
+            return str(repo_path)
+
+        # Default behavior: use cache
         head_sha = pr_details["head"]["sha"]
         return self.repo_cache.get_repo_path(owner, repo, head_sha)
 
@@ -495,13 +506,15 @@ class PRReviewer:
 
             # For more comprehensive analysis, clone the repo
             if len(files) > 0 and self.config.analysis_depth.value != "quick" and self.config.clone_for_analysis:
-                if not quiet:
-                    print("Cloning repository for analysis...")
-                with tempfile.TemporaryDirectory():
+                # Check if using existing repository
+                if self.config.repo_path:
+                    # Show warning when using existing repository
+                    if not quiet:
+                        print("⚠️ WARNING: Using existing repository - results may not reflect the main branch")
+                        print(f"Using existing repository at: {self.config.repo_path}")
+
                     try:
                         repo_path = self.get_repo_for_analysis(owner, repo, pr_details)
-                        if not quiet:
-                            print(f"Repository cloned to: {repo_path}")
 
                         # Run async analysis
                         analysis = asyncio.run(self.analyze_pr_with_kit(repo_path, pr_details, files))
@@ -534,18 +547,65 @@ class PRReviewer:
 
                         review_comment = self._generate_intelligent_comment(pr_details, files, analysis)
 
-                    except subprocess.CalledProcessError as e:
-                        if not quiet:
-                            print(f"Failed to clone repository: {e}")
-                        # Fall back to basic analysis without cloning
-                        basic_analysis = f"Repository analysis failed (clone error). Reviewing based on GitHub API data only.\n\nFiles changed: {len(files)} files with {sum(f['additions'] for f in files)} additions and {sum(f['deletions'] for f in files)} deletions."
-                        review_comment = self._generate_intelligent_comment(pr_details, files, basic_analysis)
                     except Exception as e:
                         if not quiet:
                             print(f"Analysis failed: {e}")
-                        # Fall back to basic analysis without cloning
+                        # Fall back to basic analysis
                         basic_analysis = f"Analysis failed ({e!s}). Reviewing based on GitHub API data only.\n\nFiles changed: {len(files)} files with {sum(f['additions'] for f in files)} additions and {sum(f['deletions'] for f in files)} deletions."
                         review_comment = self._generate_intelligent_comment(pr_details, files, basic_analysis)
+                else:
+                    # Standard cloning behavior
+                    if not quiet:
+                        print("Cloning repository for analysis...")
+                    with tempfile.TemporaryDirectory():
+                        try:
+                            repo_path = self.get_repo_for_analysis(owner, repo, pr_details)
+                            if not quiet:
+                                print(f"Repository cloned to: {repo_path}")
+
+                            # Run async analysis
+                            analysis = asyncio.run(self.analyze_pr_with_kit(repo_path, pr_details, files))
+
+                            # Validate review quality
+                            try:
+                                pr_diff = self.get_pr_diff(owner, repo, pr_number)  # cached
+                                changed_files = [f["filename"] for f in files]
+                                validation = validate_review_quality(analysis, pr_diff, changed_files)
+
+                                if not quiet:
+                                    print(f"📊 Review Quality Score: {validation.score:.2f}/1.0")
+                                    if validation.issues:
+                                        print(f"⚠️  Quality Issues: {', '.join(validation.issues)}")
+                                    print(f"📈 Metrics: {validation.metrics}")
+
+                                # Auto-fix wrong line numbers if any
+                                if validation.metrics.get("line_reference_errors", 0) > 0:
+                                    from .line_ref_fixer import LineRefFixer
+
+                                    analysis, fixes = LineRefFixer.fix_comment(analysis, pr_diff)
+                                    if fixes and not quiet:
+                                        print(
+                                            f"🔧 Auto-fixed {len(fixes) // (2 if any(f[1] != f[2] for f in fixes) else 1)} line reference(s)"
+                                        )
+
+                            except Exception as e:
+                                if not quiet:
+                                    print(f"⚠️  Could not validate review quality: {e}")
+
+                            review_comment = self._generate_intelligent_comment(pr_details, files, analysis)
+
+                        except subprocess.CalledProcessError as e:
+                            if not quiet:
+                                print(f"Failed to clone repository: {e}")
+                            # Fall back to basic analysis without cloning
+                            basic_analysis = f"Repository analysis failed (clone error). Reviewing based on GitHub API data only.\n\nFiles changed: {len(files)} files with {sum(f['additions'] for f in files)} additions and {sum(f['deletions'] for f in files)} deletions."
+                            review_comment = self._generate_intelligent_comment(pr_details, files, basic_analysis)
+                        except Exception as e:
+                            if not quiet:
+                                print(f"Analysis failed: {e}")
+                            # Fall back to basic analysis without cloning
+                            basic_analysis = f"Analysis failed ({e!s}). Reviewing based on GitHub API data only.\n\nFiles changed: {len(files)} files with {sum(f['additions'] for f in files)} additions and {sum(f['deletions'] for f in files)} deletions."
+                            review_comment = self._generate_intelligent_comment(pr_details, files, basic_analysis)
             else:
                 # Basic analysis for quick mode or no files
                 basic_analysis = f"Quick analysis mode.\n\nFiles changed: {len(files)} files with {sum(f['additions'] for f in files)} additions and {sum(f['deletions'] for f in files)} deletions."

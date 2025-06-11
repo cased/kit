@@ -327,8 +327,16 @@ class PRSummarizer(PRReviewer):
 
             # Clone repository for analysis (reusing reviewer logic)
             if len(files) > 0 and self.config.clone_for_analysis:
-                if not quiet:
-                    print("Cloning repository for analysis...")
+                # Check if using existing repository
+                if self.config.repo_path:
+                    # Show warning when using existing repository
+                    if not quiet:
+                        print("⚠️ WARNING: Using existing repository - results may not reflect the main branch")
+                        print(f"Using existing repository at: {self.config.repo_path}")
+                else:
+                    if not quiet:
+                        print("Cloning repository for analysis...")
+
                 repo_path = self.get_repo_for_analysis(owner, repo, pr_details)
 
                 # Run async analysis

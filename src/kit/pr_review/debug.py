@@ -13,6 +13,7 @@ def review_pr(
     pr_url: str,
     config: Optional[str] = typer.Option(None, "--config", "-c", help="Path to config file"),
     dry_run: bool = typer.Option(True, "--dry-run/--post", help="Run analysis but do not post comment"),
+    repo_path: Optional[str] = typer.Option(None, "--repo-path", help="Path to existing repository (skips cloning)"),
 ):
     """Review a GitHub PR using kit analysis for testing."""
     try:
@@ -21,9 +22,9 @@ def review_pr(
 
         # Load configuration
         if config:
-            review_config = ReviewConfig.from_file(config)
+            review_config = ReviewConfig.from_file(config, repo_path=repo_path)
         else:
-            review_config = ReviewConfig.from_file()
+            review_config = ReviewConfig.from_file(repo_path=repo_path)
 
         # Override post_as_comment if dry run
         if dry_run:

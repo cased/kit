@@ -157,14 +157,17 @@ class ReviewConfig:
     # Custom context profile
     profile: Optional[str] = None  # Profile name to use
     profile_context: Optional[str] = None  # Loaded profile context
+    # Existing repository path (skips cloning when provided)
+    repo_path: Optional[str] = None  # Path to existing repository to use for analysis
 
     @classmethod
-    def from_file(cls, config_path: Optional[str] = None, profile: Optional[str] = None) -> "ReviewConfig":
+    def from_file(cls, config_path: Optional[str] = None, profile: Optional[str] = None, repo_path: Optional[str] = None) -> "ReviewConfig":
         """Load configuration from file or environment variables.
 
         Args:
             config_path: Path to config file
             profile: Profile name to load custom context from
+            repo_path: Path to existing repository to use for analysis
         """
         if config_path is None:
             config_path = os.path.expanduser("~/.kit/review-config.yaml")
@@ -300,6 +303,7 @@ class ReviewConfig:
             max_review_size_mb=review_data.get("max_review_size_mb", 5.0),
             profile=profile,
             profile_context=profile_context,
+            repo_path=repo_path,
         )
 
     def create_default_config_file(self, config_path: Optional[str] = None) -> str:
