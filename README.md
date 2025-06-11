@@ -90,6 +90,10 @@ kit review https://github.com/owner/repo/pull/123
 # Generate PR summaries for quick triage
 kit summarize https://github.com/owner/repo/pull/123
 kit summarize --update-pr-body https://github.com/owner/repo/pull/123
+
+# Generate intelligent commit messages from staged changes
+git add .  # Stage your changes first
+kit commit  # Analyze and commit with AI-generated message
 ```
 
 The CLI supports all major repository operations with Unix-friendly output for scripting and automation. See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehensive usage examples.
@@ -137,6 +141,21 @@ kit summarize --update-pr-body https://github.com/owner/repo/pull/123
 - **Same LLM support**: Works with OpenAI, Anthropic, Google, and free Ollama models
 - **Repository intelligence**: Leverages symbol extraction and dependency analysis for context
 
+### AI-Powered Commit Messages
+
+Generate intelligent commit messages from staged changes using the same repository intelligence:
+
+```bash
+git add .       # Stage your changes
+kit commit      # Analyze and commit with AI-generated message
+```
+
+**Key Features:**
+- **Contextual analysis**: Understands what symbols and files changed
+- **Best practices**: Follows conventional commit format and standards  
+- **Ultra-cheap**: ~$0.002-0.01 per commit message
+- **Instant workflow**: One command to analyze and commit
+
 ## Key Features & Capabilities
 
 `kit` helps your apps and agents understand and interact with codebases, with components to build your own AI-powered developer tools.
@@ -174,8 +193,9 @@ kit summarize --update-pr-body https://github.com/owner/repo/pull/123
     *   **REST API**: HTTP endpoints for web applications and microservices.
     *   **MCP Server**: Model Context Protocol integration for AI agents and development tools.
 
-*   **AI-Powered Code Review & Summaries:**
-    *   Automated PR review and summarization with `kit review` and `kit summarize`
+*   **AI-Powered Code Review, Summaries & Commits:**
+    *   Automated PR review and summarization with `kit review` and `kit summarize` using **free local models (Ollama)** or cloud models (Claude, GPT-4).
+    *   Intelligent commit message generation with `kit commit` using repository context and best practices.
     *   Repository cloning and comprehensive file analysis for deep code understanding.
     *   Configurable review depth (quick, standard, thorough) and customizable analysis settings.
     *   Seamless GitHub integration with automatic comment posting and PR workflow integration.

@@ -121,6 +121,7 @@ class PRReviewer:
         # If a repo_path is configured, use the existing repository
         if self.config.repo_path:
             from pathlib import Path
+
             repo_path = Path(self.config.repo_path).expanduser().resolve()
             if not repo_path.exists():
                 raise ValueError(f"Specified repository path does not exist: {repo_path}")

@@ -16,7 +16,7 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
-app = typer.Typer(help="A modular toolkit for LLM-powered codebase understanding.")
+app = typer.Typer(help="A modular toolkit for LLM-powered codebase understanding.", rich_markup_mode="rich")
 
 
 @app.callback()
@@ -25,240 +25,24 @@ def main(
         None, "--version", callback=version_callback, is_eager=True, help="Show version and exit."
     ),
 ):
-    """A modular toolkit for LLM-powered codebase understanding."""
+    """
+    [bold blue]Kit[/] - A modular toolkit for LLM-powered codebase understanding.
+
+    [bold yellow]🤖 AI-Powered Commands:[/]
+    • [cyan]review[/]     - AI code reviews for GitHub PRs
+    • [cyan]summarize[/]  - Quick PR summaries for triage
+    • [cyan]commit[/]     - Generate intelligent commit messages
+
+    [bold green]📊 Analysis Commands:[/]
+    • [cyan]symbols[/]    - Extract functions, classes, etc.
+    • [cyan]search[/]     - Find patterns across codebase
+    • [cyan]file-tree[/]  - Repository structure overview
+
+    [bold magenta]🔧 Utility Commands:[/]
+    • [cyan]serve[/]      - Start REST API server
+    • [cyan]export[/]     - Export data to JSON files
+    """
     pass
-
-
-@app.command()
-def serve(host: str = "0.0.0.0", port: int = 8000, reload: bool = True):
-    """Run the kit REST API server."""
-    try:
-        import uvicorn
-
-        from kit.api import app as fastapi_app
-    except ImportError:
-        typer.secho(
-            "Error: FastAPI or Uvicorn not installed. Please reinstall kit: `pip install cased-kit`",
-            fg=typer.colors.RED,
-        )
-        raise typer.Exit(code=1)
-
-    typer.echo(f"Starting kit API server on http://{host}:{port}")
-    uvicorn.run(fastapi_app, host=host, port=port, reload=reload)
-
-
-# File Operations
-@app.command("file-tree")
-def file_tree(
-    path: str = typer.Argument(..., help="Path to the local repository."),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
-    ref: Optional[str] = typer.Option(
-        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
-    ),
-):
-    """Get the file tree structure of a repository."""
-    from kit import Repository
-
-    try:
-        repo = Repository(path, ref=ref)
-        tree = repo.get_file_tree()
-
-        if output:
-            Path(output).write_text(json.dumps(tree, indent=2))
-            typer.echo(f"File tree written to {output}")
-        else:
-            for file_info in tree:
-                indicator = "📁" if file_info.get("is_dir") else "📄"
-                size = f" ({file_info.get('size', 0)} bytes)" if not file_info.get("is_dir") else ""
-                typer.echo(f"{indicator} {file_info['path']}{size}")
-    except Exception as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
-@app.command("file-content")
-def file_content(
-    path: str = typer.Argument(..., help="Path to the local repository."),
-    file_path: str = typer.Argument(..., help="Relative path to the file within the repository."),
-):
-    """Get the content of a specific file in the repository."""
-    from kit import Repository
-
-    try:
-        repo = Repository(path)
-        content = repo.get_file_content(file_path)
-        typer.echo(content)
-    except FileNotFoundError:
-        typer.secho(f"Error: File not found: {file_path}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-    except Exception as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
-@app.command("index")
-def index(
-    path: str = typer.Argument(..., help="Path to the local repository."),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
-):
-    """Build and return a comprehensive index of the repository."""
-    from kit import Repository
-
-    try:
-        repo = Repository(path)
-        index_data = repo.index()
-
-        if output:
-            Path(output).write_text(json.dumps(index_data, indent=2))
-            typer.echo(f"Repository index written to {output}")
-        else:
-            typer.echo(json.dumps(index_data, indent=2))
-    except Exception as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
-# Symbol Operations
-@app.command("symbols")
-def extract_symbols(
-    path: str = typer.Argument(..., help="Path to the local repository."),
-    file_path: Optional[str] = typer.Option(None, "--file", "-f", help="Extract symbols from specific file only."),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
-    format: str = typer.Option("table", "--format", help="Output format: table, json, or names"),
-    ref: Optional[str] = typer.Option(
-        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
-    ),
-):
-    """Extract code symbols (functions, classes, etc.) from the repository."""
-    from kit import Repository
-
-    try:
-        repo = Repository(path, ref=ref)
-        symbols = repo.extract_symbols(file_path)
-
-        if output:
-            Path(output).write_text(json.dumps(symbols, indent=2))
-            typer.echo(f"Symbols written to {output}")
-        elif format == "json":
-            typer.echo(json.dumps(symbols, indent=2))
-        elif format == "names":
-            for symbol in symbols:
-                typer.echo(symbol["name"])
-        else:  # table format
-            if symbols:
-                typer.echo(f"{'Name':<30} {'Type':<15} {'File':<40} {'Lines'}")
-                typer.echo("-" * 95)
-                for symbol in symbols:
-                    file_rel = symbol.get("file", "").replace(str(repo.local_path), "").lstrip("/")
-                    lines = f"{symbol.get('start_line', 'N/A')}-{symbol.get('end_line', 'N/A')}"
-                    typer.echo(f"{symbol['name']:<30} {symbol['type']:<15} {file_rel:<40} {lines}")
-            else:
-                typer.echo("No symbols found.")
-    except Exception as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
-@app.command("usages")
-def find_symbol_usages(
-    path: str = typer.Argument(..., help="Path to the local repository."),
-    symbol_name: str = typer.Argument(..., help="Name of the symbol to find usages for."),
-    symbol_type: Optional[str] = typer.Option(None, "--type", "-t", help="Symbol type filter (function, class, etc.)."),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
-    ref: Optional[str] = typer.Option(
-        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
-    ),
-):
-    """Find definitions and references of a specific symbol."""
-    from kit import Repository
-
-    try:
-        repo = Repository(path, ref=ref)
-        usages = repo.find_symbol_usages(symbol_name, symbol_type)
-
-        if output:
-            Path(output).write_text(json.dumps(usages, indent=2))
-            typer.echo(f"Symbol usages written to {output}")
-        else:
-            if usages:
-                typer.echo(f"Found {len(usages)} usage(s) of '{symbol_name}':")
-                for usage in usages:
-                    file_rel = usage.get("file", "").replace(str(repo.local_path), "").lstrip("/")
-                    line = usage.get("line_number", usage.get("line", "N/A"))
-                    context = usage.get("line_content") or usage.get("context") or ""
-                    if context:
-                        context = str(context).strip()
-                    typer.echo(f"{file_rel}:{line}: {context}")
-            else:
-                typer.echo(f"No usages found for symbol '{symbol_name}'.")
-    except Exception as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
-# Search Operations
-@app.command("search")
-def search_text(
-    path: str = typer.Argument(..., help="Path to the local repository."),
-    query: str = typer.Argument(..., help="Text or regex pattern to search for."),
-    pattern: str = typer.Option("*", "--pattern", "-p", help="Glob pattern for files to search."),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
-    ref: Optional[str] = typer.Option(
-        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
-    ),
-):
-    """Perform a textual search in a local repository."""
-    from kit import Repository
-
-    try:
-        repo = Repository(path, ref=ref)
-        results = repo.search_text(query, file_pattern=pattern)
-
-        if output:
-            Path(output).write_text(json.dumps(results, indent=2))
-            typer.echo(f"Search results written to {output}")
-        else:
-            if results:
-                for res in results:
-                    file_rel = res["file"].replace(str(repo.local_path), "").lstrip("/")
-                    typer.echo(f"{file_rel}:{res['line_number']}: {res['line'].strip()}")
-            else:
-                typer.echo("No results found.")
-    except Exception as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
-# Context Operations
-@app.command("context")
-def extract_context(
-    path: str = typer.Argument(..., help="Path to the local repository."),
-    file_path: str = typer.Argument(..., help="Relative path to the file within the repository."),
-    line: int = typer.Argument(..., help="Line number to extract context around."),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
-):
-    """Extract surrounding code context for a specific line."""
-    from kit import Repository
-
-    try:
-        repo = Repository(path)
-        context = repo.extract_context_around_line(file_path, line)
-
-        if output:
-            Path(output).write_text(json.dumps(context, indent=2) if context else "null")
-            typer.echo(f"Context written to {output}")
-        else:
-            if context:
-                typer.echo(f"Context for {file_path}:{line}")
-                typer.echo(f"Symbol: {context.get('name', 'N/A')} ({context.get('type', 'N/A')})")
-                typer.echo(f"Lines: {context.get('start_line', 'N/A')}-{context.get('end_line', 'N/A')}")
-                typer.echo("Code:")
-                typer.echo(context.get("code", ""))
-            else:
-                typer.echo(f"No context found for {file_path}:{line}")
-    except Exception as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
 
 
 @app.command("chunk-lines")
@@ -315,7 +99,151 @@ def chunk_by_symbols(
         raise typer.Exit(code=1)
 
 
-# Export Operations
+@app.command("commit")
+def commit_changes(
+    config: Optional[str] = typer.Option(
+        None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
+    ),
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m", help="Override LLM model (e.g., gpt-4.1-nano, claude-sonnet-4-20250514)"
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Show generated message without committing"),
+):
+    """Generate intelligent commit messages and commit staged changes."""
+    from kit.pr_review.commit_generator import CommitMessageGenerator
+    from kit.pr_review.config import ReviewConfig
+
+    try:
+        # Load configuration (reuse PR review config)
+        review_config = ReviewConfig.from_file(config)
+
+        # Override model if specified
+        if model:
+            # Auto-detect provider from model name
+            from kit.pr_review.config import _detect_provider_from_model
+
+            detected_provider = _detect_provider_from_model(model)
+
+            if detected_provider and detected_provider != review_config.llm.provider:
+                # Switch provider and update API key
+                from kit.pr_review.config import LLMProvider
+
+                old_provider = review_config.llm.provider.value
+                review_config.llm.provider = detected_provider
+
+                # Update API key for new provider
+                if detected_provider == LLMProvider.ANTHROPIC:
+                    new_api_key = os.getenv("KIT_ANTHROPIC_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
+                    if not new_api_key:
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires Anthropic API key"),
+                            "Configuration error",
+                            "Set KIT_ANTHROPIC_TOKEN environment variable",
+                        )
+                elif detected_provider == LLMProvider.GOOGLE:
+                    new_api_key = os.getenv("KIT_GOOGLE_TOKEN") or os.getenv("GOOGLE_API_KEY")
+                    if not new_api_key:
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires Google API key"),
+                            "Configuration error",
+                            "Set KIT_GOOGLE_TOKEN environment variable",
+                        )
+                elif detected_provider == LLMProvider.OLLAMA:
+                    new_api_key = "not_required"  # Ollama doesn't need API key
+                else:  # OpenAI
+                    new_api_key = os.getenv("KIT_OPENAI_TOKEN") or os.getenv("OPENAI_API_KEY")
+                    if not new_api_key:
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires OpenAI API key"),
+                            "Configuration error",
+                            "Set KIT_OPENAI_TOKEN environment variable",
+                        )
+
+                # Assert for mypy that new_api_key is not None after error checks
+                assert new_api_key is not None
+                review_config.llm.api_key = new_api_key
+                typer.echo(f"🔄 Switched provider: {old_provider} → {detected_provider.value}")
+
+            review_config.llm.model = model
+            typer.echo(f"🎛️  Using model: {model}")
+
+        # Validate model exists
+        from kit.pr_review.cost_tracker import CostTracker
+
+        if not CostTracker.is_valid_model(review_config.llm.model):
+            suggestions = CostTracker.get_model_suggestions(review_config.llm.model)
+            error_msg = f"Invalid model: {review_config.llm.model}"
+            help_msg = (
+                f"Did you mean: {', '.join(suggestions[:3])}?"
+                if suggestions
+                else "Run 'kit commit --help' to see available models"
+            )
+            handle_cli_error(ValueError(error_msg), "Model validation error", help_msg)
+
+        # Create commit generator
+        generator = CommitMessageGenerator(review_config)
+
+        # Check for staged changes
+        if not generator.check_staged_changes():
+            typer.secho("❌ No staged changes to commit.", fg=typer.colors.RED)
+            typer.echo("💡 Use 'git add <files>' to stage changes first")
+            raise typer.Exit(code=1)
+
+        if dry_run:
+            # Just show the generated message
+            import asyncio
+
+            typer.echo("🔍 Analyzing staged changes...")
+            message = asyncio.run(generator.analyze_changes_for_commit("."))
+            typer.echo("\n💭 Generated commit message:")
+            typer.echo("=" * 50)
+            typer.echo(message)
+            typer.echo("=" * 50)
+        else:
+            # Generate and commit
+            result = generator.generate_and_commit(".")
+            typer.echo(result)
+
+    except ValueError as e:
+        typer.secho(f"❌ Configuration error: {e}", fg=typer.colors.RED)
+        typer.echo("\n💡 Try running: kit review --init-config")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.secho(f"❌ Commit failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command("context")
+def extract_context(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    file_path: str = typer.Argument(..., help="Relative path to the file within the repository."),
+    line: int = typer.Argument(..., help="Line number to extract context around."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+):
+    """Extract surrounding code context for a specific line."""
+    from kit import Repository
+
+    try:
+        repo = Repository(path)
+        context = repo.extract_context_around_line(file_path, line)
+
+        if output:
+            Path(output).write_text(json.dumps(context, indent=2) if context else "null")
+            typer.echo(f"Context written to {output}")
+        else:
+            if context:
+                typer.echo(f"Context for {file_path}:{line}")
+                typer.echo(f"Symbol: {context.get('name', 'N/A')} ({context.get('type', 'N/A')})")
+                typer.echo(f"Lines: {context.get('start_line', 'N/A')}-{context.get('end_line', 'N/A')}")
+                typer.echo("Code:")
+                typer.echo(context.get("code", ""))
+            else:
+                typer.echo(f"No context found for {file_path}:{line}")
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 @app.command("export")
 def export_data(
     path: str = typer.Argument(..., help="Path to the local repository."),
@@ -363,7 +291,54 @@ def export_data(
         raise typer.Exit(code=1)
 
 
-# Git Operations
+@app.command("file-content")
+def file_content(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    file_path: str = typer.Argument(..., help="Relative path to the file within the repository."),
+):
+    """Get the content of a specific file in the repository."""
+    from kit import Repository
+
+    try:
+        repo = Repository(path)
+        content = repo.get_file_content(file_path)
+        typer.echo(content)
+    except FileNotFoundError:
+        typer.secho(f"Error: File not found: {file_path}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command("file-tree")
+def file_tree(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
+):
+    """Get the file tree structure of a repository."""
+    from kit import Repository
+
+    try:
+        repo = Repository(path, ref=ref)
+        tree = repo.get_file_tree()
+
+        if output:
+            Path(output).write_text(json.dumps(tree, indent=2))
+            typer.echo(f"File tree written to {output}")
+        else:
+            for file_info in tree:
+                indicator = "📁" if file_info.get("is_dir") else "📄"
+                size = f" ({file_info.get('size', 0)} bytes)" if not file_info.get("is_dir") else ""
+                typer.echo(f"{indicator} {file_info['path']}{size}")
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 @app.command("git-info")
 def git_info(
     path: str = typer.Argument(..., help="Path to the local repository."),
@@ -413,7 +388,28 @@ def git_info(
         raise typer.Exit(code=1)
 
 
-# PR Review Operations
+@app.command("index")
+def index(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+):
+    """Build and return a comprehensive index of the repository."""
+    from kit import Repository
+
+    try:
+        repo = Repository(path)
+        index_data = repo.index()
+
+        if output:
+            Path(output).write_text(json.dumps(index_data, indent=2))
+            typer.echo(f"Repository index written to {output}")
+        else:
+            typer.echo(json.dumps(index_data, indent=2))
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 @app.command("review")
 def review_pr(
     init_config: bool = typer.Option(False, "--init-config", help="Create a default configuration file and exit"),
@@ -448,26 +444,7 @@ def review_pr(
         None, "--repo-path", help="Path to existing repository (skips cloning, uses current state)"
     ),
 ):
-    """Review a GitHub PR using kit's repository intelligence and AI analysis.
-
-    MODES:
-    • Standard (~$0.01-0.05): kit review <pr-url>
-    • Agentic (~$0.36-2.57): kit review --agentic <pr-url>
-
-    EXAMPLES:
-    kit review --init-config                                      # Setup
-    kit review --dry-run https://github.com/owner/repo/pull/123   # Preview
-    kit review --plain https://github.com/owner/repo/pull/123     # Pipe-friendly
-    kit review https://github.com/owner/repo/pull/123             # Standard
-    kit review --profile company-standards <pr-url>               # Use custom context
-    kit review --priority=high https://github.com/owner/repo/pull/123  # Only high priority
-    kit review --priority=high,medium <pr-url>                    # High and medium only
-    kit review --model gpt-4.1-nano <pr-url>                      # Ultra budget
-    kit review --model claude-opus-4-20250514 <pr-url>            # Premium
-    kit review --agentic --agentic-turns 8 <pr-url>               # Budget agentic
-    kit review --repo-path /path/to/repo <pr-url>                 # Use existing repo
-    kit review --repo-path ~/projects/myapp <pr-url>              # Local development
-    """
+    """Review a GitHub PR using kit's repository intelligence and AI analysis."""
     from kit.pr_review.config import ReviewConfig
     from kit.pr_review.reviewer import PRReviewer
 
@@ -647,189 +624,13 @@ def review_pr(
         raise typer.Exit(code=1)
 
 
-@app.command("summarize")
-def summarize_pr(
-    pr_url: str = typer.Argument(..., help="GitHub PR URL (https://github.com/owner/repo/pull/123)"),
-    config: Optional[str] = typer.Option(
-        None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
-    ),
-    model: Optional[str] = typer.Option(
-        None, "--model", "-m", help="Override LLM model (e.g., gpt-4.1-nano, claude-sonnet-4-20250514)"
-    ),
-    plain: bool = typer.Option(False, "--plain", "-p", help="Output raw summary content for piping (no formatting)"),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to file instead of stdout"),
-    update_pr_body: bool = typer.Option(
-        False, "--update-pr-body", "-u", help="Update the PR description with the summary"
-    ),
-    repo_path: Optional[str] = typer.Option(
-        None, "--repo-path", help="Path to existing repository (skips cloning, uses current state)"
-    ),
-):
-    """Generate a concise summary of a GitHub PR using kit's repository intelligence.
-
-    Provides a quick overview of what the PR does, key changes, and potential impact.
-    Much faster and cheaper than a full review - perfect for triage and understanding.
-
-    EXAMPLES:
-    kit summarize https://github.com/owner/repo/pull/123        # Quick summary
-    kit summarize --plain <pr-url> | pbcopy                     # Copy to clipboard
-    kit summarize --model gpt-4.1-nano <pr-url>                 # Ultra budget model
-    kit summarize --output summary.md <pr-url>                  # Save to file
-    kit summarize --update-pr-body <pr-url>                     # Add summary to PR description
-    kit summarize --repo-path /path/to/repo <pr-url>            # Use existing repo
-
-    Cost: ~$0.005-0.02 per summary (much cheaper than review)
-    """
-    from kit.pr_review.config import ReviewConfig
-    from kit.pr_review.summarizer import PRSummarizer
-
-    try:
-        # Load configuration (can reuse same config as review)
-        review_config = ReviewConfig.from_file(config, repo_path=repo_path)
-
-        # Show repo path info if one is being used
-        if repo_path and not plain:
-            typer.echo(f"📁 Using existing repository: {repo_path}")
-            typer.echo("⚠️ WARNING: Analysis will be performed against current local state")
-
-        # Override model if specified
-        if model:
-            # Auto-detect provider from model name
-            from kit.pr_review.config import _detect_provider_from_model
-
-            detected_provider = _detect_provider_from_model(model)
-
-            if detected_provider and detected_provider != review_config.llm.provider:
-                # Switch provider and update API key
-                from kit.pr_review.config import LLMProvider
-
-                old_provider = review_config.llm.provider.value
-                review_config.llm.provider = detected_provider
-
-                # Update API key for new provider
-                if detected_provider == LLMProvider.ANTHROPIC:
-                    new_api_key = os.getenv("KIT_ANTHROPIC_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
-                    if not new_api_key:
-                        handle_cli_error(
-                            ValueError(f"Model {model} requires Anthropic API key"),
-                            "Configuration error",
-                            "Set KIT_ANTHROPIC_TOKEN environment variable",
-                        )
-                elif detected_provider == LLMProvider.GOOGLE:
-                    new_api_key = os.getenv("KIT_GOOGLE_TOKEN") or os.getenv("GOOGLE_API_KEY")
-                    if not new_api_key:
-                        handle_cli_error(
-                            ValueError(f"Model {model} requires Google API key"),
-                            "Configuration error",
-                            "Set KIT_GOOGLE_TOKEN environment variable",
-                        )
-                elif detected_provider == LLMProvider.OLLAMA:
-                    new_api_key = "not_required"  # Ollama doesn't need API key
-                else:  # OpenAI
-                    new_api_key = os.getenv("KIT_OPENAI_TOKEN") or os.getenv("OPENAI_API_KEY")
-                    if not new_api_key:
-                        handle_cli_error(
-                            ValueError(f"Model {model} requires OpenAI API key"),
-                            "Configuration error",
-                            "Set KIT_OPENAI_TOKEN environment variable",
-                        )
-
-                # Assert for mypy that new_api_key is not None after error checks
-                assert new_api_key is not None
-                review_config.llm.api_key = new_api_key
-                if not plain:
-                    typer.echo(f"🔄 Switched provider: {old_provider} → {detected_provider.value}")
-
-            review_config.llm.model = model
-            if not plain:
-                typer.echo(f"🎛️  Using model: {model}")
-
-        # Validate model exists
-        from kit.pr_review.cost_tracker import CostTracker
-
-        if not CostTracker.is_valid_model(review_config.llm.model):
-            suggestions = CostTracker.get_model_suggestions(review_config.llm.model)
-            error_msg = f"Invalid model: {review_config.llm.model}"
-            help_msg = (
-                f"Did you mean: {', '.join(suggestions[:3])}?"
-                if suggestions
-                else "Run 'kit summarize --help' to see available models"
-            )
-            handle_cli_error(ValueError(error_msg), "Model validation error", help_msg)
-
-        # Set quiet mode for plain output
-        if plain:
-            review_config.quiet = True
-
-        # Never post comments for summarization
-        review_config.post_as_comment = False
-
-        # Create summarizer and run summarization
-        summarizer = PRSummarizer(review_config)
-        summary = summarizer.summarize_pr(pr_url, update_body=update_pr_body)
-
-        # Handle output
-        if output:
-            # Write to file
-            with open(output, "w", encoding="utf-8") as f:
-                f.write(summary)
-            if not plain:
-                typer.echo(f"✅ Summary saved to: {output}")
-        else:
-            # Output to stdout
-            if plain:
-                typer.echo(summary)
-            else:
-                typer.echo("\n" + "=" * 60)
-                typer.echo("PR SUMMARY")
-                typer.echo("=" * 60)
-                typer.echo(summary)
-                typer.echo("=" * 60)
-
-        # Show update status
-        if update_pr_body and not plain:
-            typer.echo("✅ PR description updated with AI summary!")
-
-        # Show cost summary if not in plain mode
-        if not plain:
-            total_cost = summarizer.cost_tracker.get_total_cost()
-            if total_cost > 0:
-                typer.echo(f"\n💰 Cost: ${total_cost:.4f}")
-
-    except ValueError as e:
-        typer.secho(f"❌ Configuration error: {e}", fg=typer.colors.RED)
-        typer.echo("\n💡 Try running: kit review --init-config")
-        raise typer.Exit(code=1)
-    except Exception as e:
-        typer.secho(f"❌ Summarization failed: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
-# Cache Management
 @app.command("review-cache")
 def review_cache(
     action: str = typer.Argument(..., help="Action: status, cleanup, clear"),
     max_size: Optional[float] = typer.Option(None, "--max-size", help="Maximum cache size in GB (for cleanup)"),
     config: Optional[str] = typer.Option(None, "--config", "-c", help="Path to config file"),
 ):
-    """Manage repository cache for PR reviews.
-
-    Actions:
-    - status: Show cache size and location
-    - cleanup: Remove old cached repositories (optionally with --max-size)
-    - clear: Remove all cached repositories
-
-    Examples:
-
-    # Show cache status
-    kit review-cache status
-
-    # Clean up cache to max 2GB
-    kit review-cache cleanup --max-size 2.0
-
-    # Clear all cache
-    kit review-cache clear
-    """
+    """Manage repository cache for PR reviews."""
     from kit.pr_review.cache import RepoCache
     from kit.pr_review.config import ReviewConfig
 
@@ -875,7 +676,6 @@ def review_cache(
         raise typer.Exit(code=1)
 
 
-# Review Profile Management
 @app.command("review-profile")
 def review_profile_command(
     action: str = typer.Argument(..., help="Action: create, list, show, edit, delete, copy, export, import"),
@@ -886,35 +686,7 @@ def review_profile_command(
     target: Optional[str] = typer.Option(None, "--target", help="Target name for copy operation"),
     format: str = typer.Option("table", "--format", help="Output format: table, json, names"),
 ):
-    """Manage custom context profiles for PR reviews.
-
-    EXAMPLES:
-
-    # Create a profile from text input
-    kit review-profile create --name company-standards --description "Company coding standards"
-    # Type your guidelines, press Enter for new lines, then Ctrl+D to finish
-
-    # Create a profile from a file
-    kit review-profile create --name python-style --file python-guidelines.md --description "Python style guide"
-
-    # List all profiles
-    kit review-profile list
-
-    # Show profile details
-    kit review-profile show --name company-standards
-
-    # Copy a profile
-    kit review-profile copy --name company-standards --target team-standards
-
-    # Export a profile
-    kit review-profile export --name company-standards --file exported-standards.md
-
-    # Import a profile
-    kit review-profile import --file guidelines.md --name imported-standards
-
-    # Delete a profile
-    kit review-profile delete --name old-profile
-    """
+    """Manage custom context profiles for PR reviews."""
     from kit.pr_review.profile_manager import ProfileManager
 
     try:
@@ -1109,6 +881,271 @@ def review_profile_command(
         raise typer.Exit(code=1)
     except Exception as e:
         typer.secho(f"❌ Profile operation failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command("search")
+def search_text(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    query: str = typer.Argument(..., help="Text or regex pattern to search for."),
+    pattern: str = typer.Option("*", "--pattern", "-p", help="Glob pattern for files to search."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
+):
+    """Perform a textual search in a local repository."""
+    from kit import Repository
+
+    try:
+        repo = Repository(path, ref=ref)
+        results = repo.search_text(query, file_pattern=pattern)
+
+        if output:
+            Path(output).write_text(json.dumps(results, indent=2))
+            typer.echo(f"Search results written to {output}")
+        else:
+            if results:
+                for res in results:
+                    file_rel = res["file"].replace(str(repo.local_path), "").lstrip("/")
+                    typer.echo(f"{file_rel}:{res['line_number']}: {res['line'].strip()}")
+            else:
+                typer.echo("No results found.")
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def serve(host: str = "0.0.0.0", port: int = 8000, reload: bool = True):
+    """Run the kit REST API server."""
+    try:
+        import uvicorn
+
+        from kit.api import app as fastapi_app
+    except ImportError:
+        typer.secho(
+            "Error: FastAPI or Uvicorn not installed. Please reinstall kit: `pip install cased-kit`",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Starting kit API server on http://{host}:{port}")
+    uvicorn.run(fastapi_app, host=host, port=port, reload=reload)
+
+
+@app.command("summarize")
+def summarize_pr(
+    pr_url: str = typer.Argument(..., help="GitHub PR URL (https://github.com/owner/repo/pull/123)"),
+    config: Optional[str] = typer.Option(
+        None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
+    ),
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m", help="Override LLM model (e.g., gpt-4.1-nano, claude-sonnet-4-20250514)"
+    ),
+    plain: bool = typer.Option(False, "--plain", "-p", help="Output raw summary content for piping (no formatting)"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to file instead of stdout"),
+    update_pr_body: bool = typer.Option(
+        False, "--update-pr-body", "-u", help="Update the PR description with the summary"
+    ),
+    repo_path: Optional[str] = typer.Option(
+        None, "--repo-path", help="Path to existing repository (skips cloning, uses current state)"
+    ),
+):
+    """Generate a concise summary of a GitHub PR using kit's repository intelligence."""
+    from kit.pr_review.config import ReviewConfig
+    from kit.pr_review.summarizer import PRSummarizer
+
+    try:
+        # Load configuration (can reuse same config as review)
+        review_config = ReviewConfig.from_file(config, repo_path=repo_path)
+
+        # Show repo path info if one is being used
+        if repo_path and not plain:
+            typer.echo(f"📁 Using existing repository: {repo_path}")
+            typer.echo("⚠️ WARNING: Analysis will be performed against current local state")
+
+        # Override model if specified
+        if model:
+            # Auto-detect provider from model name
+            from kit.pr_review.config import _detect_provider_from_model
+
+            detected_provider = _detect_provider_from_model(model)
+
+            if detected_provider and detected_provider != review_config.llm.provider:
+                # Switch provider and update API key
+                from kit.pr_review.config import LLMProvider
+
+                old_provider = review_config.llm.provider.value
+                review_config.llm.provider = detected_provider
+
+                # Update API key for new provider
+                if detected_provider == LLMProvider.ANTHROPIC:
+                    new_api_key = os.getenv("KIT_ANTHROPIC_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
+                    if not new_api_key:
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires Anthropic API key"),
+                            "Configuration error",
+                            "Set KIT_ANTHROPIC_TOKEN environment variable",
+                        )
+                elif detected_provider == LLMProvider.GOOGLE:
+                    new_api_key = os.getenv("KIT_GOOGLE_TOKEN") or os.getenv("GOOGLE_API_KEY")
+                    if not new_api_key:
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires Google API key"),
+                            "Configuration error",
+                            "Set KIT_GOOGLE_TOKEN environment variable",
+                        )
+                elif detected_provider == LLMProvider.OLLAMA:
+                    new_api_key = "not_required"  # Ollama doesn't need API key
+                else:  # OpenAI
+                    new_api_key = os.getenv("KIT_OPENAI_TOKEN") or os.getenv("OPENAI_API_KEY")
+                    if not new_api_key:
+                        handle_cli_error(
+                            ValueError(f"Model {model} requires OpenAI API key"),
+                            "Configuration error",
+                            "Set KIT_OPENAI_TOKEN environment variable",
+                        )
+
+                # Assert for mypy that new_api_key is not None after error checks
+                assert new_api_key is not None
+                review_config.llm.api_key = new_api_key
+                if not plain:
+                    typer.echo(f"🔄 Switched provider: {old_provider} → {detected_provider.value}")
+
+            review_config.llm.model = model
+            if not plain:
+                typer.echo(f"🎛️  Using model: {model}")
+
+        # Validate model exists
+        from kit.pr_review.cost_tracker import CostTracker
+
+        if not CostTracker.is_valid_model(review_config.llm.model):
+            suggestions = CostTracker.get_model_suggestions(review_config.llm.model)
+            error_msg = f"Invalid model: {review_config.llm.model}"
+            help_msg = (
+                f"Did you mean: {', '.join(suggestions[:3])}?"
+                if suggestions
+                else "Run 'kit summarize --help' to see available models"
+            )
+            handle_cli_error(ValueError(error_msg), "Model validation error", help_msg)
+
+        # Set quiet mode for plain output
+        if plain:
+            review_config.quiet = True
+
+        # Never post comments for summarization
+        review_config.post_as_comment = False
+
+        # Create summarizer and run summarization
+        summarizer = PRSummarizer(review_config)
+        summary = summarizer.summarize_pr(pr_url, update_body=update_pr_body)
+
+        # Handle output
+        if output:
+            # Write to file
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(summary)
+            if not plain:
+                typer.echo(f"✅ Summary saved to: {output}")
+        else:
+            # Output to stdout
+            if plain:
+                typer.echo(summary)
+            else:
+                typer.echo("\n" + "=" * 60)
+                typer.echo("PR SUMMARY")
+                typer.echo("=" * 60)
+                typer.echo(summary)
+                typer.echo("=" * 60)
+
+        # Show update status
+        if update_pr_body and not plain:
+            typer.echo("✅ PR description updated with AI summary!")
+
+    except ValueError as e:
+        typer.secho(f"❌ Configuration error: {e}", fg=typer.colors.RED)
+        typer.echo("\n💡 Try running: kit review --init-config")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.secho(f"❌ Summarization failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command("symbols")
+def extract_symbols(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    file_path: Optional[str] = typer.Option(None, "--file", "-f", help="Extract symbols from specific file only."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    format: str = typer.Option("table", "--format", help="Output format: table, json, or names"),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
+):
+    """Extract code symbols (functions, classes, etc.) from the repository."""
+    from kit import Repository
+
+    try:
+        repo = Repository(path, ref=ref)
+        symbols = repo.extract_symbols(file_path)
+
+        if output:
+            Path(output).write_text(json.dumps(symbols, indent=2))
+            typer.echo(f"Symbols written to {output}")
+        elif format == "json":
+            typer.echo(json.dumps(symbols, indent=2))
+        elif format == "names":
+            for symbol in symbols:
+                typer.echo(symbol["name"])
+        else:  # table format
+            if symbols:
+                typer.echo(f"{'Name':<30} {'Type':<15} {'File':<40} {'Lines'}")
+                typer.echo("-" * 95)
+                for symbol in symbols:
+                    file_rel = symbol.get("file", "").replace(str(repo.local_path), "").lstrip("/")
+                    lines = f"{symbol.get('start_line', 'N/A')}-{symbol.get('end_line', 'N/A')}"
+                    typer.echo(f"{symbol['name']:<30} {symbol['type']:<15} {file_rel:<40} {lines}")
+            else:
+                typer.echo("No symbols found.")
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command("usages")
+def find_symbol_usages(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    symbol_name: str = typer.Argument(..., help="Name of the symbol to find usages for."),
+    symbol_type: Optional[str] = typer.Option(None, "--type", "-t", help="Symbol type filter (function, class, etc.)."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
+):
+    """Find definitions and references of a specific symbol."""
+    from kit import Repository
+
+    try:
+        repo = Repository(path, ref=ref)
+        usages = repo.find_symbol_usages(symbol_name, symbol_type)
+
+        if output:
+            Path(output).write_text(json.dumps(usages, indent=2))
+            typer.echo(f"Symbol usages written to {output}")
+        else:
+            if usages:
+                typer.echo(f"Found {len(usages)} usage(s) of '{symbol_name}':")
+                for usage in usages:
+                    file_rel = usage.get("file", "").replace(str(repo.local_path), "").lstrip("/")
+                    line = usage.get("line_number", usage.get("line", "N/A"))
+                    context = usage.get("line_content") or usage.get("context") or ""
+                    if context:
+                        context = str(context).strip()
+                    typer.echo(f"{file_rel}:{line}: {context}")
+            else:
+                typer.echo(f"No usages found for symbol '{symbol_name}'.")
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
 
