@@ -352,7 +352,7 @@ class PRSummarizer(PRReviewer):
         total_additions = sum(f.get("additions", 0) for f in files)
         total_deletions = sum(f.get("deletions", 0) for f in files)
 
-        file_types = {}
+        file_types: Dict[str, int] = {}
         for f in files:
             ext = f["filename"].split(".")[-1] if "." in f["filename"] else "no_ext"
             file_types[ext] = file_types.get(ext, 0) + 1
