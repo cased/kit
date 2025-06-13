@@ -204,6 +204,8 @@ The `kit` tool includes an MCP (Model Context Protocol) server that allows AI ag
 
 MCP support is currently in alpha. Add a stanza like this to your MCP tool:
 
+
+
 ```jsonc
 {
   "mcpServers": {
@@ -215,6 +217,20 @@ MCP support is currently in alpha. Add a stanza like this to your MCP tool:
 }
 ```
 
+This requires you have `uvx` installed (`pip install uvx` or `pipx install uvx`).
+
+If you have installed `cased-kit` with `pip` or some other method, you can invoke with python: 
+
+```jsonc
+{
+  "mcpServers": {
+    "kit-mcp": {
+      "command": "python",
+      "args": ["-m", "kit.mcp"]
+    }
+  }
+}
+```
 The `python` executable invoked must be the one where `cased-kit` is installed.
 If you see `ModuleNotFoundError: No module named 'kit'`, ensure the Python
 interpreter your MCP client is using is the correct one.
