@@ -188,7 +188,7 @@ class KitServerLogic:
         repo = self.get_repo(repo_id)
         # Validate that the requested path stays within repo
         safe_path = self._check_within_repo(repo, file_path)
-        rel_path = str(safe_path.relative_to(Path(repo.repo_path)))
+        rel_path = str(safe_path.relative_to(Path(repo.repo_path).resolve()))
         try:
             return repo.get_file_content(rel_path)
         except FileNotFoundError as e:
@@ -200,7 +200,7 @@ class KitServerLogic:
         repo = self.get_repo(repo_id)
         try:
             safe_path = self._check_within_repo(repo, file_path)
-            rel_path = str(safe_path.relative_to(Path(repo.repo_path)))
+            rel_path = str(safe_path.relative_to(Path(repo.repo_path).resolve()))
             symbols = repo.extract_symbols(rel_path)
             return [s for s in symbols if s["type"] == symbol_type] if symbol_type else symbols
         except FileNotFoundError as e:
@@ -219,7 +219,7 @@ class KitServerLogic:
         if file_path:
             # validate path but use only relative path for comparison
             safe_path = self._check_within_repo(repo, file_path)
-            file_path_rel = str(safe_path.relative_to(Path(repo.repo_path)))
+            file_path_rel = str(safe_path.relative_to(Path(repo.repo_path).resolve()))
         else:
             file_path_rel = None
 
@@ -274,14 +274,14 @@ class KitServerLogic:
         analyzer = self.get_analyzer(repo_id, "docstring_indexer")
         if file_path:
             safe = self._check_within_repo(self.get_repo(repo_id), file_path)
-            file_path = str(safe.relative_to(Path(self.get_repo(repo_id).repo_path)))
+            file_path = str(safe.relative_to(Path(self.get_repo(repo_id).repo_path).resolve()))
         return analyzer.get_documentation(symbol_name=symbol_name, file_path=file_path)
 
     def get_code_summary(self, repo_id: str, file_path: str, symbol_name: Optional[str] = None) -> Any:
         repo = self.get_repo(repo_id)
         # validate path
         safe_path = self._check_within_repo(repo, file_path)
-        rel_path = str(safe_path.relative_to(Path(repo.repo_path)))
+        rel_path = str(safe_path.relative_to(Path(repo.repo_path).resolve()))
         try:
             analyzer = self.get_analyzer(repo_id, "code_summarizer")
             # Get all three types of summaries
@@ -630,7 +630,7 @@ class KitServerLogic:
         analyzer = self.get_analyzer(repo_id, "dependency_analyzer")
         if file_path:
             safe = self._check_within_repo(self.get_repo(repo_id), file_path)
-            file_path = str(safe.relative_to(Path(self.get_repo(repo_id).repo_path)))
+            file_path = str(safe.relative_to(Path(self.get_repo(repo_id).repo_path).resolve()))
         return analyzer.analyze(file_path=file_path, depth=depth)
 
     # ---------------------------------------------------------------------
@@ -643,8 +643,12 @@ class KitServerLogic:
         Raises MCPError(INVALID_PARAMS) if the resolved path escapes the
         repository.  Returns the absolute ``Path`` on success.
         """
+        # We need to resolve() to handle ../. sequences for security,
+        # but we must compare resolved paths to handle symlinks consistently
+        repo_path_resolved = Path(repo.repo_path).resolve()
         requested = (Path(repo.repo_path) / path).resolve()
-        if not str(requested).startswith(str(Path(repo.repo_path).resolve())):
+
+        if not str(requested).startswith(str(repo_path_resolved)):
             raise MCPError(INVALID_PARAMS, "Path traversal outside repository root")
         return requested
 
