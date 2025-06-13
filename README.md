@@ -1,5 +1,4 @@
 # kit 🛠️ Code Intelligence Toolkit
-[![smithery badge](https://smithery.ai/badge/@cased/kit)](https://smithery.ai/server/@cased/kit)
 
 <img src="https://github.com/user-attachments/assets/7bdfa9c6-94f0-4ee0-9fdd-cbd8bd7ec060" width="360">
 
