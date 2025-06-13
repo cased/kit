@@ -1,4 +1,5 @@
 # kit 🛠️ Code Intelligence Toolkit
+[![smithery badge](https://smithery.ai/badge/@cased/kit)](https://smithery.ai/server/@cased/kit)
 
 <img src="https://github.com/user-attachments/assets/7bdfa9c6-94f0-4ee0-9fdd-cbd8bd7ec060" width="360">
 
@@ -11,6 +12,14 @@ Work with `kit` directly from Python, or with MCP + function calling, REST, or C
 `kit` also ships with damn fine PR reviewer that works with your choice of LLM, showcasing the power of this library in just a few lines of code.
 
 ## Quick Installation
+
+### Installing via Smithery
+
+To install kit for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@cased/kit):
+
+```bash
+npx -y @smithery/cli install @cased/kit --client claude
+```
 
 ### Install from PyPI
 
