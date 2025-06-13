@@ -55,7 +55,9 @@ curl -X POST localhost:8000/repository \
   -H 'Content-Type: application/json'
 ```
 
-> Note If `path_or_url` is a **GitHub URL**, the server shells out to `git clone`.  Pass `github_token` to authenticate when cloning **private** repositories. The `ref` parameter allows you to analyze specific versions - useful for historical analysis, release comparisons, or ensuring reproducible results.
+> **Note:** If `path_or_url` is a **GitHub URL**, the server shells out to `git clone`. Pass `github_token` to authenticate when cloning **private** repositories. The `ref` parameter allows you to analyze specific versions - useful for historical analysis, release comparisons, or ensuring reproducible results.
+
+> **Authentication Note:** Unlike the Python API and MCP server, the REST API requires explicit `github_token` parameters and does not automatically check environment variables like `KIT_GITHUB_TOKEN`. This is by design to keep the HTTP API stateless and explicit.
 
 ## 2  Navigation
 

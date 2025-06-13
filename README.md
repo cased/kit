@@ -47,6 +47,10 @@ repo = Repository("/path/to/your/local/codebase")
 # Load a remote public GitHub repo
 # repo = Repository("https://github.com/owner/repo")
 
+# Load a private GitHub repo (automatically uses KIT_GITHUB_TOKEN if set)
+# repo = Repository("https://github.com/owner/private-repo")
+# Or explicitly: repo = Repository("https://github.com/owner/private-repo", github_token="ghp_...")
+
 # Load a repository at a specific commit, tag, or branch
 # repo = Repository("https://github.com/owner/repo", ref="v1.2.3")
 
@@ -211,7 +215,10 @@ MCP support is currently in alpha. Add a stanza like this to your MCP tool:
   "mcpServers": {
     "kit-mcp": {
       "command": "uvx",
-      "args": ["--from", "cased-kit", "kit-mcp"]
+      "args": ["--from", "cased-kit", "kit-mcp"],
+      "env": {
+        "KIT_GITHUB_TOKEN": "ghp_your_token_here"  // Optional: for private repos
+      }
     }
   }
 }

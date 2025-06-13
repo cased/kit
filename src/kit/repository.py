@@ -31,6 +31,10 @@ class Repository:
         cache_dir: Optional[str] = None,
         ref: Optional[str] = None,
     ) -> None:
+        # Auto-pickup GitHub token from environment if not provided
+        if github_token is None:
+            github_token = os.getenv("KIT_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
+
         self.ref = ref  # Store the requested ref
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):  # Remote repo
             self.local_path = self._clone_github_repo(path_or_url, github_token, cache_dir, ref)

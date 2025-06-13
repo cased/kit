@@ -14,6 +14,90 @@ def logic():
     return KitServerLogic()
 
 
+class TestMCPGitHubTokenPickup:
+    """Test MCP server automatic GitHub token pickup from environment."""
+
+    @patch.dict("os.environ", {"KIT_GITHUB_TOKEN": "test_kit_token", "GITHUB_TOKEN": "test_github_token"})
+    @patch("kit.mcp.server.Repository")
+    def test_mcp_picks_up_kit_github_token(self, mock_repo_class):
+        """Test that MCP server picks up KIT_GITHUB_TOKEN when no token provided."""
+        logic = KitServerLogic()
+
+        repo_id = logic.open_repository("https://github.com/test/repo")
+
+        # Should have called Repository with KIT_GITHUB_TOKEN
+        mock_repo_class.assert_called_once_with(
+            "https://github.com/test/repo",
+            github_token="test_kit_token",  # KIT_GITHUB_TOKEN should be used
+            ref=None,
+        )
+        assert repo_id in logic._repos
+
+    @patch.dict("os.environ", {"GITHUB_TOKEN": "test_github_token"}, clear=True)
+    @patch("kit.mcp.server.Repository")
+    def test_mcp_picks_up_github_token_fallback(self, mock_repo_class):
+        """Test that MCP server falls back to GITHUB_TOKEN when KIT_GITHUB_TOKEN not set."""
+        logic = KitServerLogic()
+
+        repo_id = logic.open_repository("https://github.com/test/repo")
+
+        # Should have called Repository with GITHUB_TOKEN
+        mock_repo_class.assert_called_once_with(
+            "https://github.com/test/repo",
+            github_token="test_github_token",  # GITHUB_TOKEN should be used as fallback
+            ref=None,
+        )
+        assert repo_id in logic._repos
+
+    @patch.dict("os.environ", {}, clear=True)
+    @patch("kit.mcp.server.Repository")
+    def test_mcp_no_token_when_env_empty(self, mock_repo_class):
+        """Test that MCP server passes None when no environment tokens are set."""
+        logic = KitServerLogic()
+
+        repo_id = logic.open_repository("https://github.com/test/repo")
+
+        # Should have called Repository with None
+        mock_repo_class.assert_called_once_with(
+            "https://github.com/test/repo",
+            github_token=None,  # No token should be passed
+            ref=None,
+        )
+        assert repo_id in logic._repos
+
+    @patch.dict("os.environ", {"KIT_GITHUB_TOKEN": "env_token"})
+    @patch("kit.mcp.server.Repository")
+    def test_mcp_explicit_token_overrides_env(self, mock_repo_class):
+        """Test that explicitly provided token overrides environment variables."""
+        logic = KitServerLogic()
+
+        repo_id = logic.open_repository("https://github.com/test/repo", github_token="explicit_token")
+
+        # Should have called Repository with explicit token
+        mock_repo_class.assert_called_once_with(
+            "https://github.com/test/repo",
+            github_token="explicit_token",  # Explicit token should override environment
+            ref=None,
+        )
+        assert repo_id in logic._repos
+
+    @patch.dict("os.environ", {"KIT_GITHUB_TOKEN": "test_token"})
+    @patch("kit.mcp.server.Repository")
+    def test_mcp_with_ref_passes_token(self, mock_repo_class):
+        """Test that MCP server passes environment token even when ref is specified."""
+        logic = KitServerLogic()
+
+        repo_id = logic.open_repository("https://github.com/test/repo", ref="main")
+
+        # Should have called Repository with environment token and ref
+        mock_repo_class.assert_called_once_with(
+            "https://github.com/test/repo",
+            github_token="test_token",  # Environment token should be used
+            ref="main",
+        )
+        assert repo_id in logic._repos
+
+
 def test_open_repository(logic):
     repo_id = logic.open_repository(".")
     uuid.UUID(repo_id)

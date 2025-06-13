@@ -67,6 +67,41 @@ Use the `get_git_info` tool to access repository metadata:
 
 This returns information like current commit SHA, branch name, and remote URL - useful for understanding what version of code you're analyzing.
 
+### Automatic GitHub Token Handling
+
+For convenience when working with private repositories, the MCP server automatically checks for GitHub tokens in environment variables:
+
+1. First checks `KIT_GITHUB_TOKEN`
+2. Falls back to `GITHUB_TOKEN` if `KIT_GITHUB_TOKEN` is not set  
+3. Uses no authentication if neither environment variable is set
+
+This means you can set up your MCP client with:
+
+```json
+{
+  "mcpServers": {
+    "kit-mcp": {
+      "command": "python",
+      "args": ["-m", "kit.mcp"],
+      "env": {
+        "KIT_GITHUB_TOKEN": "ghp_your_token_here"
+      }
+    }
+  }
+}
+```
+
+And then simply open private repositories without needing to specify the `github_token` parameter:
+
+```json
+{
+  "tool": "open_repository", 
+  "arguments": {
+    "path_or_url": "https://github.com/your-org/private-repo"
+  }
+}
+```
+
 More MCP features are coming soon.
 
 ## Setup
@@ -76,6 +111,8 @@ More MCP features are coming soon.
 Available environment variables for the `env` section:
 - `OPENAI_API_KEY`
 - `KIT_MCP_LOG_LEVEL`
+- `KIT_GITHUB_TOKEN` - Automatically used for private repository access
+- `GITHUB_TOKEN` - Fallback for private repository access
 
 ```json
 {

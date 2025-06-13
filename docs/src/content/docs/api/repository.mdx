@@ -59,9 +59,21 @@ repository_instance = Repository(path_or_url="/path/to/local/project")
 **Parameters:**
 
 *   `path_or_url` (str): The path to a local directory or the URL of a remote Git repository.
-*   `github_token` (Optional[str]): A GitHub personal access token required for cloning private repositories. Defaults to `None`.
+*   `github_token` (Optional[str]): A GitHub personal access token required for cloning private repositories. If not provided, automatically checks the `KIT_GITHUB_TOKEN` and `GITHUB_TOKEN` environment variables. Defaults to `None`.
 *   `cache_dir` (Optional[str]): Path to a directory for caching cloned repositories. Defaults to a system temporary directory.
 *   `ref` (Optional[str]): Git reference (commit SHA, tag, or branch) to checkout. For remote repositories, this determines which version to clone. For local repositories, this will checkout the specified ref. Defaults to `None`.
+
+<Aside type="tip">
+**Automatic GitHub Token Pickup**
+
+For convenience, the Repository class automatically checks for GitHub tokens in environment variables when cloning remote repositories:
+
+1. First checks `KIT_GITHUB_TOKEN`
+2. Falls back to `GITHUB_TOKEN` if `KIT_GITHUB_TOKEN` is not set
+3. Uses `None` if neither environment variable is set
+
+This means you can set `export KIT_GITHUB_TOKEN="ghp_your_token"` and omit the `github_token` parameter entirely.
+</Aside>
 
 Once you have a `repository` object, you can call the following methods on it:
 
