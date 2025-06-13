@@ -208,8 +208,8 @@ MCP support is currently in alpha. Add a stanza like this to your MCP tool:
 {
   "mcpServers": {
     "kit-mcp": {
-      "command": "python",
-      "args": ["-m", "kit.mcp"]
+      "command": "uvx",
+      "args": ["--from", "cased-kit", "kit-mcp"]
     }
   }
 }
