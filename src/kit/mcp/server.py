@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 import uuid
 from pathlib import Path
@@ -167,6 +168,10 @@ class KitServerLogic:
 
     def open_repository(self, path_or_url: str, github_token: Optional[str] = None, ref: Optional[str] = None) -> str:
         try:
+            # Auto-pickup GitHub token from environment if not provided
+            if github_token is None:
+                github_token = os.getenv("KIT_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
+
             repo: Repository = Repository(path_or_url, github_token=github_token, ref=ref)
             repo_id: str = str(uuid.uuid4())
             self._repos[repo_id] = repo
