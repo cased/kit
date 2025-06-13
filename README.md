@@ -12,14 +12,6 @@ Work with `kit` directly from Python, or with MCP + function calling, REST, or C
 
 ## Quick Installation
 
-### Installing via Smithery
-
-To install kit for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@cased/kit):
-
-```bash
-npx -y @smithery/cli install @cased/kit --client claude
-```
-
 ### Install from PyPI
 
 ```bash
