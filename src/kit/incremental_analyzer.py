@@ -42,21 +42,23 @@ class FileAnalysisCache:
         try:
             if self.metadata_file.exists():
                 with open(self.metadata_file, "r") as f:
-                    self._file_metadata = json.load(f)
+                    loaded_metadata = json.load(f)
+                    self._file_metadata = OrderedDict(loaded_metadata)
 
             if self.symbols_cache_file.exists():
                 with open(self.symbols_cache_file, "r") as f:
-                    self._symbols_cache = json.load(f)
+                    loaded_symbols = json.load(f)
+                    self._symbols_cache = OrderedDict(loaded_symbols)
 
             logger.debug(f"Loaded cache: {len(self._file_metadata)} files, {len(self._symbols_cache)} symbol sets")
         except (IOError, OSError, PermissionError) as e:
             logger.warning(f"Failed to load cache due to filesystem issue: {e}")
-            self._file_metadata = {}
-            self._symbols_cache = {}
+            self._file_metadata = OrderedDict()
+            self._symbols_cache = OrderedDict()
         except (json.JSONDecodeError, ValueError) as e:
             logger.warning(f"Failed to load cache due to corrupted data: {e}")
-            self._file_metadata = {}
-            self._symbols_cache = {}
+            self._file_metadata = OrderedDict()
+            self._symbols_cache = OrderedDict()
         except Exception as e:
             logger.error(f"Unexpected error loading cache: {e}")
             # Re-raise for serious issues like out of memory

@@ -15,8 +15,9 @@ def format_duration(seconds: float) -> str:
 
 def format_size(bytes_size: int) -> str:
     """Format size in human-readable format."""
+    size = float(bytes_size)
     for unit in ["B", "KB", "MB", "GB"]:
-        if bytes_size < 1024:
-            return f"{bytes_size:.1f}{unit}"
-        bytes_size /= 1024
-    return f"{bytes_size:.1f}TB"
+        if size < 1024:
+            return f"{size:.1f}{unit}"
+        size /= 1024
+    return f"{size:.1f}TB"
