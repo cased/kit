@@ -139,3 +139,49 @@ class TestSymbolTypeProcessing:
         test_label3 = "not_definition.function"
         result3 = test_label3.removeprefix("definition.").removeprefix("@")
         assert result3 == "not_definition.function"  # Should remain unchanged
+
+
+class TestDartSupport:
+    """Tests for Dart language support."""
+
+    def test_dart_basic_symbols(self):
+        """Test that Dart symbols are extracted correctly."""
+        dart_code = """
+class Calculator {
+  int add(int a, int b) {
+    return a + b;
+  }
+}
+
+void main() {
+  print('Hello, Dart!');
+}
+
+enum Status {
+  pending,
+  completed
+}
+"""
+
+        symbols = TreeSitterSymbolExtractor.extract_symbols(".dart", dart_code)
+
+        # Should extract class, function, and enum
+        assert len(symbols) >= 3
+
+        symbol_types = {s["type"] for s in symbols}
+        symbol_names = {s["name"] for s in symbols}
+
+        assert "class" in symbol_types
+        assert "function" in symbol_types
+        assert "enum" in symbol_types
+
+        assert "Calculator" in symbol_names
+        assert "add" in symbol_names
+        assert "main" in symbol_names
+        assert "Status" in symbol_names
+
+    def test_dart_in_supported_languages(self):
+        """Test that Dart is included in supported languages."""
+        supported = TreeSitterSymbolExtractor.list_supported_languages()
+        assert "dart" in supported
+        assert ".dart" in supported["dart"]
