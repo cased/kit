@@ -4,8 +4,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
-from typing import overload
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, overload
 
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
