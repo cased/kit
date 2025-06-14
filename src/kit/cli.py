@@ -3,7 +3,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Union
 
 import typer
 
@@ -294,17 +294,41 @@ def export_data(
 @app.command("file-content")
 def file_content(
     path: str = typer.Argument(..., help="Path to the local repository."),
-    file_path: str = typer.Argument(..., help="Relative path to the file within the repository."),
+    file_paths: List[str] = typer.Argument(
+        ..., metavar="FILE_PATH...", help="One or more relative paths within the repository"
+    ),
 ):
-    """Get the content of a specific file in the repository."""
+    """Get the content of one or more files in the repository.
+
+    Examples:
+        • Single file: `kit file-content . src/main.py`
+        • Multiple files: `kit file-content . src/main.py src/utils/helper.py`
+    """
     from kit import Repository
 
     try:
         repo = Repository(path)
-        content = repo.get_file_content(file_path)
-        typer.echo(content)
-    except FileNotFoundError:
-        typer.secho(f"Error: File not found: {file_path}", fg=typer.colors.RED)
+
+        # Determine if single or multiple
+        file_input: Union[str, List[str]] = file_paths[0] if len(file_paths) == 1 else file_paths
+
+        content = repo.get_file_content(file_input)
+
+        if isinstance(content, str):
+            # Single file output directly
+            typer.echo(content)
+        else:
+            # Multiple files – print header per file for readability
+            for fp, text in content.items():
+                header = f"\n===== {fp} =====\n"
+                typer.echo(header)
+                typer.echo(text)
+    except FileNotFoundError as e:
+        # Preserve previous behaviour for single file to satisfy existing expectations
+        if len(file_paths) == 1:
+            typer.secho(f"Error: File not found: {file_paths[0]}", fg=typer.colors.RED)
+        else:
+            typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
     except Exception as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED)

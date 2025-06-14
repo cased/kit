@@ -8,7 +8,7 @@ import os
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -114,7 +114,12 @@ class SearchParams(BaseModel):
 
 class GetFileContentParams(BaseModel):
     repo_id: str
-    file_path: str
+    file_path: Union[str, List[str]]
+
+
+class GetMultipleFileContentsParams(BaseModel):
+    repo_id: str
+    file_paths: List[str]
 
 
 class ExtractSymbolsParams(BaseModel):
@@ -189,17 +194,50 @@ class KitServerLogic:
         except Exception as e:
             raise MCPError(code=INVALID_PARAMS, message=f"Invalid search pattern: {e!s}")
 
-    def get_file_content(self, repo_id: str, file_path: str) -> str:
+    def get_file_content(self, repo_id: str, file_path: Union[str, List[str]]) -> Union[str, Dict[str, str]]:
         repo = self.get_repo(repo_id)
-        # Validate that the requested path stays within repo
-        safe_path = self._check_within_repo(repo, file_path)
-        rel_path = str(safe_path.relative_to(Path(repo.repo_path).resolve()))
+
+        if isinstance(file_path, str):
+            # Single file - existing behavior
+            safe_path = self._check_within_repo(repo, file_path)
+            rel_path = str(safe_path.relative_to(Path(repo.repo_path).resolve()))
+            try:
+                return repo.get_file_content(rel_path)
+            except FileNotFoundError as e:
+                raise MCPError(code=INVALID_PARAMS, message=str(e))
+            except Exception as e:
+                raise MCPError(code=INVALID_PARAMS, message=f"Error reading file: {e!s}")
+        else:
+            # Multiple files - new behavior
+            return self.get_multiple_file_contents(repo_id, file_path)
+
+    def get_multiple_file_contents(self, repo_id: str, file_paths: List[str]) -> Dict[str, str]:
+        """Get contents of multiple files at once."""
+        repo = self.get_repo(repo_id)
+
+        # Validate all paths first
+        validated_paths = {}
+        for file_path in file_paths:
+            safe_path = self._check_within_repo(repo, file_path)
+            rel_path = str(safe_path.relative_to(Path(repo.repo_path).resolve()))
+            validated_paths[file_path] = rel_path
+
         try:
-            return repo.get_file_content(rel_path)
-        except FileNotFoundError as e:
+            # Use repository's multi-file method with validated relative paths
+            rel_file_paths = list(validated_paths.values())
+            # Using overload of Repository.get_file_content -> Dict[str, str]
+            result: Dict[str, str] = repo.get_file_content(rel_file_paths)  # type: ignore[assignment]
+
+            # Map back from relative paths to original paths for consistency
+            final_result = {}
+            for original_path, rel_path in validated_paths.items():
+                final_result[original_path] = result[rel_path]
+
+            return final_result
+        except (FileNotFoundError, IOError) as e:
             raise MCPError(code=INVALID_PARAMS, message=str(e))
         except Exception as e:
-            raise MCPError(code=INVALID_PARAMS, message=f"Error reading file: {e!s}")
+            raise MCPError(code=INVALID_PARAMS, message=f"Error reading files: {e!s}")
 
     def extract_symbols(self, repo_id: str, file_path: str, symbol_type: Optional[str] = None) -> list[dict]:
         repo = self.get_repo(repo_id)
@@ -340,8 +378,14 @@ class KitServerLogic:
             ),
             Tool(
                 name="get_file_content",
-                description="Get file contents",
+                description="Get single or multiple file contents",
                 inputSchema=GetFileContentParams.model_json_schema(),
+                annotations=ro_ann,
+            ),
+            Tool(
+                name="get_multiple_file_contents",
+                description="Get contents of multiple files at once (optimized for bulk operations)",
+                inputSchema=GetMultipleFileContentsParams.model_json_schema(),
                 annotations=ro_ann,
             ),
             Tool(
@@ -403,10 +447,14 @@ class KitServerLogic:
             ),
             Prompt(
                 name="get_file_content",
-                description="Get the content of a specific file",
+                description="Get the content of one or more files",
                 arguments=[
                     PromptArgument(name="repo_id", description="ID of the repository", required=True),
-                    PromptArgument(name="file_path", description="Path to the file", required=True),
+                    PromptArgument(
+                        name="file_path",
+                        description="Single file path (string) or multiple file paths (list)",
+                        required=True,
+                    ),
                 ],
             ),
             Prompt(
@@ -483,19 +531,30 @@ class KitServerLogic:
                     )
                 case "get_file_content":
                     gfc_args = GetFileContentParams(**arguments)
-                    # Validate path access but avoid sending full file in-band
-                    self.get_file_content(gfc_args.repo_id, gfc_args.file_path)
-                    return GetPromptResult(
-                        description="File content",
-                        messages=[
-                            PromptMessage(
-                                role="user",
-                                content=TextContent(
-                                    type="text", text=f"/repos/{gfc_args.repo_id}/files/{gfc_args.file_path}"
-                                ),
-                            )
-                        ],
-                    )
+                    result = self.get_file_content(gfc_args.repo_id, gfc_args.file_path)
+
+                    if isinstance(result, str):
+                        # Single file content
+                        return GetPromptResult(
+                            description="File content",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=TextContent(type="text", text=result),
+                                )
+                            ],
+                        )
+                    else:
+                        # Multiple file contents
+                        return GetPromptResult(
+                            description="Multiple file contents",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=TextContent(type="text", text=json.dumps(result, indent=2)),
+                                )
+                            ],
+                        )
                 case "extract_symbols":
                     es_args = ExtractSymbolsParams(**arguments)
                     symbols = self.extract_symbols(es_args.repo_id, es_args.file_path, es_args.symbol_type)
@@ -622,7 +681,8 @@ class KitServerLogic:
         if kind == "file" and len(path_parts) >= 3:
             repo_id = path_parts[1]
             file_path = "/".join(path_parts[2:])
-            content = self.get_file_content(repo_id, unquote(file_path))
+            # get_file_content with str input → str output (overload)
+            content: str = self.get_file_content(repo_id, unquote(file_path))  # type: ignore[assignment]
             return "text/plain", content
         elif kind == "tree" and len(path_parts) == 2:
             repo_id = path_parts[1]
@@ -675,9 +735,18 @@ async def serve() -> None:
                 return [TextContent(type="text", text=json.dumps(results, indent=2))]
             elif name == "get_file_content":
                 gfc_args = GetFileContentParams(**arguments)
-                # Validate path access but avoid sending full file in-band
-                logic.get_file_content(gfc_args.repo_id, gfc_args.file_path)
-                return [TextContent(type="text", text=f"/repos/{gfc_args.repo_id}/files/{gfc_args.file_path}")]
+                result = logic.get_file_content(gfc_args.repo_id, gfc_args.file_path)
+
+                if isinstance(result, str):
+                    # Single file - return the content directly
+                    return [TextContent(type="text", text=result)]
+                else:
+                    # Multiple files - return JSON with file contents
+                    return [TextContent(type="text", text=json.dumps(result, indent=2))]
+            elif name == "get_multiple_file_contents":
+                gmfc_args = GetMultipleFileContentsParams(**arguments)
+                result = logic.get_multiple_file_contents(gmfc_args.repo_id, gmfc_args.file_paths)
+                return [TextContent(type="text", text=json.dumps(result, indent=2))]
             elif name == "extract_symbols":
                 es_args = ExtractSymbolsParams(**arguments)
                 symbols = logic.extract_symbols(es_args.repo_id, es_args.file_path, es_args.symbol_type)

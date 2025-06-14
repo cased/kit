@@ -10,6 +10,13 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3]
+
+### New Features
+
+- **Batch File Retrieval**: `Repository.get_file_content` now accepts a list of paths and returns a mapping of `path → content`, eliminating the need for multiple calls when bulk loading files.
+  - Backwards-compatible: single-path calls still return a plain string.
+
 ## [1.0.2]
 
 ### 🔧 Improvements

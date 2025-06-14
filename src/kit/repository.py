@@ -4,7 +4,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, overload
 
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
@@ -338,19 +338,38 @@ class Repository:
         """
         return self.context.extract_context_around_line(file_path, line)
 
-    def get_file_content(self, file_path: str) -> str:
+    # Type overloads for precise return types
+    @overload
+    def get_file_content(self, file_path: str) -> str: ...
+
+    @overload
+    def get_file_content(self, file_path: List[str]) -> Dict[str, str]: ...
+
+    def get_file_content(self, file_path: Union[str, List[str]]) -> Union[str, Dict[str, str]]:
         """
-        Reads and returns the content of a file within the repository.
+        Reads and returns the content of one or more files within the repository.
 
         Args:
-            file_path (str): The path to the file, relative to the repository root.
+            file_path: Single file path (str) or list of file paths (List[str]),
+                      relative to the repository root.
 
         Returns:
-            str: The content of the file.
+            str: Content of the single file (when file_path is str)
+            Dict[str, str]: Mapping of file_path -> content (when file_path is List[str])
 
         Raises:
-            FileNotFoundError: If the file does not exist within the repository.
+            FileNotFoundError: If any file does not exist (includes details of all missing files)
+            IOError: If any file reading error occurs
         """
+        if isinstance(file_path, str):
+            # Single file - existing behavior
+            return self._get_single_file_content(file_path)
+        else:
+            # Multiple files - new behavior
+            return self._get_multiple_file_contents(file_path)
+
+    def _get_single_file_content(self, file_path: str) -> str:
+        """Reads and returns the content of a single file within the repository."""
         full_path = self.local_path / file_path
         if not full_path.is_file():
             raise FileNotFoundError(f"File not found in repository: {file_path}")
@@ -360,6 +379,34 @@ class Repository:
         except Exception as e:
             # Catch potential decoding errors or other file reading issues
             raise IOError(f"Error reading file {file_path}: {e}") from e
+
+    def _get_multiple_file_contents(self, file_paths: List[str]) -> Dict[str, str]:
+        """Reads and returns the contents of multiple files within the repository."""
+        if not file_paths:
+            return {}
+
+        results = {}
+        missing_files = []
+        read_errors = []
+
+        for file_path in file_paths:
+            try:
+                results[file_path] = self._get_single_file_content(file_path)
+            except FileNotFoundError:
+                missing_files.append(file_path)
+            except IOError as e:
+                read_errors.append(f"{file_path}: {e!s}")
+
+        # Report all errors at once for better user experience
+        if missing_files or read_errors:
+            error_parts = []
+            if missing_files:
+                error_parts.append(f"Files not found: {', '.join(missing_files)}")
+            if read_errors:
+                error_parts.append(f"Read errors: {'; '.join(read_errors)}")
+            raise IOError("; ".join(error_parts))
+
+        return results
 
     def index(self) -> Dict[str, Any]:
         """

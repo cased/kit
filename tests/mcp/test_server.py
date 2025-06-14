@@ -98,6 +98,144 @@ class TestMCPGitHubTokenPickup:
         assert repo_id in logic._repos
 
 
+class TestMCPMultiFileContent:
+    """Test MCP server multi-file get_file_content functionality."""
+
+    def test_get_single_file_content_mcp(self, logic):
+        """Test single file content retrieval through MCP server."""
+        repo_id = logic.open_repository(".")
+
+        with patch("kit.repository.Repository.get_file_content") as mock_content:
+            mock_content.return_value = "def hello():\n    print('world')\n"
+
+            result = logic.get_file_content(repo_id, "test.py")
+
+            assert isinstance(result, str)
+            assert "def hello()" in result
+            mock_content.assert_called_once_with("test.py")
+
+    def test_get_multiple_file_contents_mcp(self, logic):
+        """Test multiple file content retrieval through MCP server."""
+        repo_id = logic.open_repository(".")
+
+        with patch("kit.repository.Repository.get_file_content") as mock_content:
+            mock_content.return_value = {"file1.py": "# File 1\nprint('hello')", "file2.py": "# File 2\nprint('world')"}
+
+            result = logic.get_file_content(repo_id, ["file1.py", "file2.py"])
+
+            assert isinstance(result, dict)
+            assert len(result) == 2
+            assert "file1.py" in result
+            assert "file2.py" in result
+            assert "# File 1" in result["file1.py"]
+            assert "# File 2" in result["file2.py"]
+
+    def test_get_multiple_file_contents_dedicated_method(self, logic):
+        """Test dedicated get_multiple_file_contents method."""
+        repo_id = logic.open_repository(".")
+
+        with patch("kit.repository.Repository.get_file_content") as mock_content:
+            mock_content.return_value = {"src/main.py": "# Main file", "src/utils.py": "# Utils file"}
+
+            result = logic.get_multiple_file_contents(repo_id, ["src/main.py", "src/utils.py"])
+
+            assert isinstance(result, dict)
+            assert len(result) == 2
+            assert result["src/main.py"] == "# Main file"
+            assert result["src/utils.py"] == "# Utils file"
+
+    def test_get_file_content_path_validation_single(self, logic):
+        """Test path validation for single file."""
+        repo_id = logic.open_repository(".")
+
+        with pytest.raises(MCPError) as exc:
+            logic.get_file_content(repo_id, "../secrets.txt")
+        assert exc.value.code == INVALID_PARAMS
+        assert "Path traversal" in exc.value.message
+
+    def test_get_file_content_path_validation_multiple(self, logic):
+        """Test path validation for multiple files."""
+        repo_id = logic.open_repository(".")
+
+        with pytest.raises(MCPError) as exc:
+            logic.get_file_content(repo_id, ["valid.py", "../secrets.txt"])
+        assert exc.value.code == INVALID_PARAMS
+        assert "Path traversal" in exc.value.message
+
+    def test_get_multiple_file_contents_error_handling(self, logic):
+        """Test error handling in dedicated multiple file method."""
+        repo_id = logic.open_repository(".")
+
+        with patch("kit.repository.Repository.get_file_content") as mock_content:
+            mock_content.side_effect = FileNotFoundError("Files not found: missing.py")
+
+            with pytest.raises(MCPError) as exc:
+                logic.get_multiple_file_contents(repo_id, ["missing.py"])
+            assert exc.value.code == INVALID_PARAMS
+            assert "Files not found" in exc.value.message
+
+    def test_get_file_content_type_detection(self, logic):
+        """Test that method correctly handles both string and list inputs."""
+        repo_id = logic.open_repository(".")
+
+        with patch("kit.repository.Repository.get_file_content") as mock_content:
+            # Test string input
+            mock_content.return_value = "string content"
+            result1 = logic.get_file_content(repo_id, "single.py")
+            assert isinstance(result1, str)
+
+            # Test list input
+            mock_content.return_value = {"multi.py": "dict content"}
+            result2 = logic.get_file_content(repo_id, ["multi.py"])
+            assert isinstance(result2, dict)
+
+    def test_get_file_content_empty_list(self, logic):
+        """Test handling of empty file list."""
+        repo_id = logic.open_repository(".")
+
+        with patch("kit.repository.Repository.get_file_content") as mock_content:
+            mock_content.return_value = {}
+
+            result = logic.get_file_content(repo_id, [])
+            assert isinstance(result, dict)
+            assert len(result) == 0
+
+    def test_mcp_tools_list_includes_multi_file(self, logic):
+        """Test that tools list includes the new multi-file tool."""
+        tools = logic.list_tools()
+        tool_names = [tool.name for tool in tools]
+
+        assert "get_file_content" in tool_names
+        assert "get_multiple_file_contents" in tool_names
+
+    def test_path_mapping_consistency(self, logic):
+        """Test that original paths are preserved in results."""
+        repo_id = logic.open_repository(".")
+
+        # Mock the path validation to return different relative paths
+        with patch.object(logic, "_check_within_repo") as mock_check:
+
+            def mock_path_check(repo, path):
+                from pathlib import Path
+
+                # Simulate path validation returning absolute paths
+                return Path(repo.repo_path) / path
+
+            mock_check.side_effect = mock_path_check
+
+            with patch("kit.repository.Repository.get_file_content") as mock_content:
+                mock_content.return_value = {"nested/file1.py": "content1", "nested/file2.py": "content2"}
+
+                # Request with original paths
+                result = logic.get_multiple_file_contents(repo_id, ["nested/file1.py", "nested/file2.py"])
+
+                # Should get back results keyed by original paths
+                assert "nested/file1.py" in result
+                assert "nested/file2.py" in result
+                assert result["nested/file1.py"] == "content1"
+                assert result["nested/file2.py"] == "content2"
+
+
 def test_open_repository(logic):
     repo_id = logic.open_repository(".")
     uuid.UUID(repo_id)
