@@ -52,6 +52,7 @@ class Repository:
 
         # Initialize incremental analyzer for enhanced caching
         from .incremental_analyzer import IncrementalAnalyzer
+
         self._incremental_analyzer: Optional[IncrementalAnalyzer] = None
 
         self.mapper: RepoMapper = RepoMapper(self.repo_path)
@@ -690,10 +691,11 @@ class Repository:
         self.vector_searcher = None
 
     @property
-    def incremental_analyzer(self) -> "IncrementalAnalyzer":
+    def incremental_analyzer(self):
         """Get or create the incremental analyzer instance."""
         if self._incremental_analyzer is None:
             from .incremental_analyzer import IncrementalAnalyzer
+
             # Use a cache directory specific to this repository
             cache_dir = self.local_path / ".kit" / "incremental_cache"
             self._incremental_analyzer = IncrementalAnalyzer(self.local_path, cache_dir)
@@ -703,11 +705,6 @@ class Repository:
         """Finalize analysis and save cache."""
         if self._incremental_analyzer is not None:
             self._incremental_analyzer.finalize()
-
-            # Log final stats
-            stats = self._incremental_analyzer.get_analysis_stats()
-            logger.info(f"Analysis complete: {stats['cache_hit_rate']} cache hit rate, "
-                       f"{stats['files_analyzed']} files analyzed in {stats['analysis_time']:.2f}s")
 
     def extract_symbols_incremental(self, file_paths: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
@@ -724,11 +721,14 @@ class Repository:
         if file_paths is None:
             # Get all supported files
             from .tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
+
             supported_files = []
             for file_path in self.local_path.rglob("*"):
-                if (file_path.is_file() and
-                    ".git" not in file_path.parts and
-                    file_path.suffix.lower() in TreeSitterSymbolExtractor.LANGUAGES):
+                if (
+                    file_path.is_file()
+                    and ".git" not in file_path.parts
+                    and file_path.suffix.lower() in TreeSitterSymbolExtractor.LANGUAGES
+                ):
                     supported_files.append(file_path)
         else:
             # Convert relative paths to absolute

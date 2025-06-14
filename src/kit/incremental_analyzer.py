@@ -39,11 +39,11 @@ class FileAnalysisCache:
         """Load existing cache from disk."""
         try:
             if self.metadata_file.exists():
-                with open(self.metadata_file, 'r') as f:
+                with open(self.metadata_file, "r") as f:
                     self._file_metadata = json.load(f)
 
             if self.symbols_cache_file.exists():
-                with open(self.symbols_cache_file, 'r') as f:
+                with open(self.symbols_cache_file, "r") as f:
                     self._symbols_cache = json.load(f)
 
             logger.debug(f"Loaded cache: {len(self._file_metadata)} files, {len(self._symbols_cache)} symbol sets")
@@ -55,10 +55,10 @@ class FileAnalysisCache:
     def _save_cache(self) -> None:
         """Save cache to disk."""
         try:
-            with open(self.metadata_file, 'w') as f:
+            with open(self.metadata_file, "w") as f:
                 json.dump(self._file_metadata, f, indent=2)
 
-            with open(self.symbols_cache_file, 'w') as f:
+            with open(self.symbols_cache_file, "w") as f:
                 json.dump(self._symbols_cache, f, indent=2)
 
             logger.debug(f"Saved cache: {len(self._file_metadata)} files, {len(self._symbols_cache)} symbol sets")
@@ -68,7 +68,7 @@ class FileAnalysisCache:
     def _get_file_hash(self, file_path: Path) -> str:
         """Get content hash of a file for change detection."""
         try:
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 # Read in chunks for large files
                 hasher = hashlib.sha256()
                 for chunk in iter(lambda: f.read(8192), b""):
@@ -86,7 +86,7 @@ class FileAnalysisCache:
                 "mtime": stat.st_mtime,
                 "size": stat.st_size,
                 "hash": self._get_file_hash(file_path),
-                "last_analyzed": time.time()
+                "last_analyzed": time.time(),
             }
         except Exception as e:
             logger.warning(f"Failed to get metadata for {file_path}: {e}")
@@ -183,7 +183,7 @@ class FileAnalysisCache:
             "total_symbols": total_symbols,
             "cache_size_bytes": cache_size,
             "cache_size_mb": cache_size / (1024 * 1024),
-            "cache_dir": str(self.cache_dir)
+            "cache_dir": str(self.cache_dir),
         }
 
     def clear_cache(self) -> None:
@@ -211,13 +211,7 @@ class IncrementalAnalyzer:
         self.cache = FileAnalysisCache(repo_path, cache_dir)
 
         # Performance tracking
-        self._stats = {
-            "files_analyzed": 0,
-            "files_cached": 0,
-            "cache_hits": 0,
-            "cache_misses": 0,
-            "analysis_time": 0.0
-        }
+        self._stats = {"files_analyzed": 0, "files_cached": 0, "cache_hits": 0, "cache_misses": 0, "analysis_time": 0.0}
 
     def analyze_file(self, file_path: Path) -> List[Dict[str, Any]]:
         """Analyze a single file with caching."""
@@ -253,7 +247,7 @@ class IncrementalAnalyzer:
             return []
 
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 code = f.read()
 
             symbols = TreeSitterSymbolExtractor.extract_symbols(ext, code)
@@ -284,7 +278,9 @@ class IncrementalAnalyzer:
                     results[str(file_path.relative_to(self.repo_path))] = cached_symbols
                     self._stats["cache_hits"] += 1
 
-        logger.info(f"Analyzing {len(changed_files)} changed files (skipping {len(file_paths) - len(changed_files)} cached)")
+        logger.info(
+            f"Analyzing {len(changed_files)} changed files (skipping {len(file_paths) - len(changed_files)} cached)"
+        )
 
         # Analyze changed files
         for file_path in changed_files:
@@ -304,7 +300,7 @@ class IncrementalAnalyzer:
             **self._stats,
             "cache_hit_rate": f"{hit_rate:.1f}%",
             "avg_analysis_time": self._stats["analysis_time"] / max(self._stats["files_analyzed"], 1),
-            **cache_stats
+            **cache_stats,
         }
 
     def cleanup_cache(self) -> None:
@@ -314,13 +310,7 @@ class IncrementalAnalyzer:
     def clear_cache(self) -> None:
         """Clear all cached data."""
         self.cache.clear_cache()
-        self._stats = {
-            "files_analyzed": 0,
-            "files_cached": 0,
-            "cache_hits": 0,
-            "cache_misses": 0,
-            "analysis_time": 0.0
-        }
+        self._stats = {"files_analyzed": 0, "files_cached": 0, "cache_hits": 0, "cache_misses": 0, "analysis_time": 0.0}
 
     def finalize(self) -> None:
         """Finalize analysis and save cache."""
@@ -328,5 +318,7 @@ class IncrementalAnalyzer:
 
         # Log final stats
         stats = self.get_analysis_stats()
-        logger.info(f"Analysis complete: {stats['cache_hit_rate']} cache hit rate, "
-                   f"{stats['files_analyzed']} files analyzed in {stats['analysis_time']:.2f}s")
+        logger.info(
+            f"Analysis complete: {stats['cache_hit_rate']} cache hit rate, "
+            f"{stats['files_analyzed']} files analyzed in {stats['analysis_time']:.2f}s"
+        )
