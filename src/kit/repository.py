@@ -50,6 +50,10 @@ class Repository:
         self._cached_git_sha: Optional[str] = None
         self._git_state_valid = False
 
+        # Initialize incremental analyzer for enhanced caching
+        from .incremental_analyzer import IncrementalAnalyzer
+        self._incremental_analyzer: Optional[IncrementalAnalyzer] = None
+
         self.mapper: RepoMapper = RepoMapper(self.repo_path)
         self.searcher: CodeSearcher = CodeSearcher(self.repo_path)
         self.context: ContextExtractor = ContextExtractor(self.repo_path)
@@ -678,5 +682,84 @@ class Repository:
         if hasattr(self.context, "_cache"):
             self.context._cache.clear()
 
+        # Clear incremental analyzer cache
+        if self._incremental_analyzer is not None:
+            self._incremental_analyzer.clear_cache()
+
         # Clear vector searcher (it needs to be rebuilt)
         self.vector_searcher = None
+
+    @property
+    def incremental_analyzer(self) -> "IncrementalAnalyzer":
+        """Get or create the incremental analyzer instance."""
+        if self._incremental_analyzer is None:
+            from .incremental_analyzer import IncrementalAnalyzer
+            # Use a cache directory specific to this repository
+            cache_dir = self.local_path / ".kit" / "incremental_cache"
+            self._incremental_analyzer = IncrementalAnalyzer(self.local_path, cache_dir)
+        return self._incremental_analyzer
+
+    def finalize(self) -> None:
+        """Finalize analysis and save cache."""
+        if self._incremental_analyzer is not None:
+            self._incremental_analyzer.finalize()
+
+            # Log final stats
+            stats = self._incremental_analyzer.get_analysis_stats()
+            logger.info(f"Analysis complete: {stats['cache_hit_rate']} cache hit rate, "
+                       f"{stats['files_analyzed']} files analyzed in {stats['analysis_time']:.2f}s")
+
+    def extract_symbols_incremental(self, file_paths: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        Extract symbols using incremental analysis for better performance.
+
+        Args:
+            file_paths: Optional list of specific files to analyze. If None, analyzes all supported files.
+
+        Returns:
+            List of symbol dictionaries with enhanced caching.
+        """
+        self._ensure_git_state_valid()
+
+        if file_paths is None:
+            # Get all supported files
+            from .tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
+            supported_files = []
+            for file_path in self.local_path.rglob("*"):
+                if (file_path.is_file() and
+                    ".git" not in file_path.parts and
+                    file_path.suffix.lower() in TreeSitterSymbolExtractor.LANGUAGES):
+                    supported_files.append(file_path)
+        else:
+            # Convert relative paths to absolute
+            supported_files = [self.local_path / fp for fp in file_paths]
+
+        # Use incremental analyzer
+        all_symbols = []
+        for file_path in supported_files:
+            symbols = self.incremental_analyzer.analyze_file(file_path)
+            all_symbols.extend(symbols)
+
+        return all_symbols
+
+    def get_incremental_stats(self) -> Dict[str, Any]:
+        """Get incremental analysis performance statistics."""
+        if self._incremental_analyzer is None:
+            return {"status": "not_initialized"}
+
+        return self.incremental_analyzer.get_analysis_stats()
+
+    def cleanup_incremental_cache(self) -> None:
+        """Clean up stale entries in the incremental cache."""
+        if self._incremental_analyzer is not None:
+            self.incremental_analyzer.cleanup_cache()
+
+    def clear_incremental_cache(self) -> None:
+        """Clear all incremental analysis cache."""
+        if self._incremental_analyzer is not None:
+            self.incremental_analyzer.clear_cache()
+
+    def finalize_analysis(self) -> None:
+        """Finalize analysis and save incremental cache."""
+        if self._incremental_analyzer is not None:
+            self.incremental_analyzer.finalize()
