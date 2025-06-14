@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.0]
 
-### 🎉 Major Features
+### Major Features
 
 - **Incremental Analysis System**: High-performance caching for symbol extraction
   - 25x performance improvements for warm cache scenarios
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - LRU eviction with configurable cache size limits
   - New CLI commands: `kit cache status`, `kit cache clear`, `kit cache cleanup`, `kit cache stats`
 
-### ✨ Enhanced Features
+### Enhanced Features
 
 - **Dart Language Support**: Initial anguage integration with tree-sitter
   - Classes, functions, constructors, getters, setters, enums, extensions, mixins
@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive symbol extraction with inheritance relationships
   - Plugin system support for custom Dart patterns
 
-### 🐛 Bug Fixes
+### Bug Fixes
 
 - **Cache Invalidation Fix**: Resolved stale data issues causing incorrect line numbers
   - Repository objects now properly detect git state changes (branch switches, commits, merges)
@@ -40,7 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Proper fallback to TypeScript queries when tsx directory doesn't exist
   - Ensures consistent symbol extraction for React TypeScript projects
 
-
 ## [1.0.3]
 
 ### New Features
@@ -50,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.2]
 
-### 🔧 Improvements
+### Improvements
 
 - **Automatic GitHub Token Pickup**: Repository class and MCP server now automatically detect GitHub tokens from environment variables
   - Checks `KIT_GITHUB_TOKEN` first, then falls back to `GITHUB_TOKEN`
@@ -64,13 +63,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixes "not in subpath" errors when using Claude Desktop and other MCP clients
 
 
-## [1.0.0] 🎉
+## [1.0.0]
 
-### 🎊 Major Release
+### Major Release
 
 Kit 1.0.0 represents the first stable release of the code intelligence toolkit, marking a significant milestone in providing production-ready code analysis capabilities.
 
-### 🎉 Major Features
+### Major Features
 
 - **Production-Ready Core**: Stable API for code intelligence operations
   - Comprehensive symbol extraction across multiple programming languages
@@ -97,7 +96,7 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
   - Semantic search with vector embeddings
   - Context-aware code chunking for LLM consumption
 
-### ✨ Enhanced Features
+### Enhanced Features
 
 - **Repository Versioning**: Analyze code at specific commits, tags, or branches
 - **Caching System**: Intelligent repository caching for improved performance
@@ -105,28 +104,28 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 - **Cost Tracking**: Real-time LLM usage monitoring and pricing transparency
 - **Custom Profiles**: Organization-specific coding standards and review guidelines
 
-### 🏗️ Architecture Highlights
+### Architecture Highlights
 
 - **Extensible Design**: Plugin architecture for adding new languages and analyzers
 - **Memory Efficient**: Streaming operations for large codebases
 - **Git Integration**: Native git operations with branch and commit support
 - **Type Safety**: Comprehensive type annotations and validation
 
-### 📊 Supported Languages
+### Supported Languages
 
 - **Primary**: Python, JavaScript, TypeScript, Go
 - **Additional**: Java, C/C++, Rust, Ruby, PHP, and more via tree-sitter
 - **Configuration**: JSON, YAML, TOML, Dockerfile
 - **Infrastructure**: Terraform, Kubernetes YAML
 
-### 💡 LLM Provider Support
+### LLM Provider Support
 
 - **Cloud Providers**: OpenAI GPT models, Anthropic Claude, Google Gemini
 - **Alternative Providers**: OpenRouter, Together AI, Groq, Fireworks
 - **Local Providers**: Ollama with free local models (DeepSeek R1, Qwen2.5-coder, CodeLlama)
 - **Cost Optimization**: Hybrid workflows combining free local and premium cloud analysis
 
-### 🔧 Developer Experience
+### Developer Experience
 
 - **Comprehensive Documentation**: Full API reference and usage guides
 - **Example Applications**: Real-world usage patterns and integrations
@@ -135,7 +134,7 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 
 ## [0.7.0]
 
-### 🎉 Major Features
+### Major Features
 
 - **Custom Context Profiles**: Store and apply organization-specific coding standards and guidelines
   - Create reusable profiles: `kit review-profile create --name company-standards`
@@ -149,7 +148,7 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 
 ## [0.6.4]
 
-### 🎉 Major Features
+### Major Features
 
 - **OpenRouter & LiteLLM Provider Support**: Complete integration with OpenAI-compatible providers
   - Access to 100+ models through OpenRouter at competitive prices
@@ -162,14 +161,14 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
   - Ultra-budget option with Gemini 1.5 Flash 8B at ~$0.003 per large PR
   - Automatic provider detection and accurate token-based cost tracking for Gemini
 
-### 🐛 Bug Fixes
+### Bug Fixes
 
 - **Better fork PR Support**: Fixed issue preventing reviews of PRs from certain outside forks
   - Now uses base repository coordinates instead of head repository for diff fetching
   - Resolves 404 errors when reviewing external contributor PRs
   - Thanks to @redvelvets for this contribution
 
-### ✨ Enhanced Features
+### Enhanced Features
 
 - **Expanded Provider Ecosystem**: Three major categories now supported
   - **Cloud Providers**: Anthropic Claude, OpenAI GPT, Google Gemini
@@ -184,7 +183,7 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 
 ## [0.6.3]
 
-### 🐛 Bug Fixes
+### Bug Fixes
 
 - **Symbol Type Extraction Fix**: Fixed bug where some symbol types were incorrectly processed
   - Classes and other symbol types no longer have characters incorrectly stripped
@@ -192,7 +191,7 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 
 ## [0.6.2]
 
-### 🎉 Major Features
+### Major Features
 
 - **Ollama Support**: Complete local LLM inference support with Ollama
   - Zero-cost PR reviews with local models
@@ -212,7 +211,7 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
   - Enables powerful multi-stage AI workflows (e.g., `kit review -p | claude`)
   - Quiet mode suppresses all progress/status output
 
-### ✨ Enhanced Features
+### Enhanced Features
 
 - **CLI Improvements**
   - Added `--version` flag to display current kit version
@@ -225,7 +224,7 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
   - Multi-stage AI analysis patterns
   - Updated CLI reference with new flags
 
-### 🔧 Developer Experience
+### Developer Experience
 
 - **Community**
   - Added Discord community server for support and discussions
@@ -236,7 +235,7 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
   - Ollama integration tests with mock scenarios
   - PR reviewer test coverage for new features
 
-### 💰 Cost Optimization
+### Cost Optimization
 
 - **Free Local Analysis**: Use Ollama for zero-cost code analysis
 - **Hybrid Workflows**: Combine free local analysis with premium cloud implementation
@@ -244,14 +243,14 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 
 ## [0.6.1]
 
-### 🔧 Improvements
+### Improvements
 
 - Enhanced line number accuracy in PR reviews
 - Improved debug output for troubleshooting
 - Better test coverage for core functionality
 - Performance optimizations for large repositories
 
-### 🐛 Bug Fixes
+### Bug Fixes
 
 - Fixed edge cases in symbol extraction
 - Improved error handling for malformed diffs
@@ -259,14 +258,14 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 
 ## [0.6.0]
 
-### 🎉 Major Features
+### Major Features
 
 - Advanced PR reviews
 - Enhanced line number context and accuracy fore reviews
 - Comprehensive cost tracking and pricing updates for reviews
 - Improved repository intelligence with better symbol analysis
 
-### ✨ Enhanced Features
+### Enhanced Features
 
 - Better diff parsing and analysis
 - Enhanced file prioritization algorithms for reviews
