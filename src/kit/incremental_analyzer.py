@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import time
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -19,18 +20,19 @@ logger = logging.getLogger(__name__)
 class FileAnalysisCache:
     """Manages file-level analysis caching with multiple invalidation strategies."""
 
-    def __init__(self, repo_path: Path, cache_dir: Optional[Path] = None):
+    def __init__(self, repo_path: Path, cache_dir: Optional[Path] = None, max_cache_size: int = 10000):
         self.repo_path = repo_path
         self.cache_dir = cache_dir or (repo_path / ".kit" / "cache")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.max_cache_size = max_cache_size
 
         # Cache file paths
         self.metadata_file = self.cache_dir / "analysis_metadata.json"
         self.symbols_cache_file = self.cache_dir / "symbols_cache.json"
 
-        # In-memory caches
-        self._file_metadata: Dict[str, Dict[str, Any]] = {}
-        self._symbols_cache: Dict[str, List[Dict[str, Any]]] = {}
+        # In-memory caches with LRU eviction
+        self._file_metadata: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self._symbols_cache: OrderedDict[str, List[Dict[str, Any]]] = OrderedDict()
 
         # Load existing cache
         self._load_cache()
@@ -47,10 +49,27 @@ class FileAnalysisCache:
                     self._symbols_cache = json.load(f)
 
             logger.debug(f"Loaded cache: {len(self._file_metadata)} files, {len(self._symbols_cache)} symbol sets")
-        except Exception as e:
-            logger.warning(f"Failed to load cache: {e}")
+        except (IOError, OSError, PermissionError) as e:
+            logger.warning(f"Failed to load cache due to filesystem issue: {e}")
             self._file_metadata = {}
             self._symbols_cache = {}
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Failed to load cache due to corrupted data: {e}")
+            self._file_metadata = {}
+            self._symbols_cache = {}
+        except Exception as e:
+            logger.error(f"Unexpected error loading cache: {e}")
+            # Re-raise for serious issues like out of memory
+            raise
+
+    def _evict_if_needed(self) -> None:
+        """Evict oldest entries if cache size exceeds limit."""
+        while len(self._file_metadata) > self.max_cache_size:
+            # Remove oldest entry (FIFO/LRU)
+            oldest_key = next(iter(self._file_metadata))
+            self._file_metadata.pop(oldest_key, None)
+            self._symbols_cache.pop(oldest_key, None)
+            logger.debug(f"Evicted cache entry for {oldest_key}")
 
     def _save_cache(self) -> None:
         """Save cache to disk."""
@@ -74,8 +93,11 @@ class FileAnalysisCache:
                 for chunk in iter(lambda: f.read(8192), b""):
                     hasher.update(chunk)
                 return hasher.hexdigest()
-        except Exception as e:
+        except (IOError, OSError, PermissionError) as e:
             logger.warning(f"Failed to hash file {file_path}: {e}")
+            return ""
+        except Exception as e:
+            logger.error(f"Unexpected error hashing file {file_path}: {e}")
             return ""
 
     def _get_file_metadata(self, file_path: Path) -> Dict[str, Any]:
@@ -123,17 +145,26 @@ class FileAnalysisCache:
         if self.is_file_changed(file_path):
             return None
 
-        return self._symbols_cache.get(rel_path)
+        # Move to end for LRU behavior
+        if rel_path in self._symbols_cache:
+            symbols = self._symbols_cache.pop(rel_path)
+            self._symbols_cache[rel_path] = symbols
+            return symbols
+
+        return None
 
     def cache_symbols(self, file_path: Path, symbols: List[Dict[str, Any]]) -> None:
         """Cache symbols for a file with current metadata."""
         rel_path = str(file_path.relative_to(self.repo_path))
+        metadata = self._get_file_metadata(file_path)
 
-        # Update metadata
-        self._file_metadata[rel_path] = self._get_file_metadata(file_path)
-
-        # Cache symbols
+        # Atomic update: prepare data first, then update both caches together
+        # This reduces the window for inconsistent state
+        self._file_metadata[rel_path] = metadata
         self._symbols_cache[rel_path] = symbols
+
+        # Evict old entries if needed
+        self._evict_if_needed()
 
         # Periodically save to disk
         if len(self._file_metadata) % 50 == 0:  # Save every 50 files

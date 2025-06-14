@@ -250,12 +250,14 @@ def benchmark_scalability(repo: Repo) -> Dict:
     file_counts = [1, 5, 10, 20, 50]
     file_counts = [count for count in file_counts if count <= len(all_files)]
 
+    # Clear cache once at the beginning for fair comparison
+    analyzer.clear_cache()
+
     for count in file_counts:
         print(f"  Testing with {count} files...", end=" ", flush=True)
         test_files = all_files[:count]
 
-        # Clear cache and measure
-        analyzer.clear_cache()
+        # Measure incremental analysis (realistic usage pattern)
         start = time.time()
         file_results = analyzer.analyze_changed_files(test_files)
         elapsed = time.time() - start

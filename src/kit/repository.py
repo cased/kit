@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import tempfile
@@ -16,6 +17,8 @@ from .vector_searcher import VectorSearcher
 if TYPE_CHECKING:
     from .dependency_analyzer.dependency_analyzer import DependencyAnalyzer
     from .summaries import AnthropicConfig, GoogleConfig, OllamaConfig, OpenAIConfig, Summarizer
+
+logger = logging.getLogger(__name__)
 
 
 class Repository:
@@ -720,14 +723,20 @@ class Repository:
 
         if file_paths is None:
             # Get all supported files
-            from .tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
+            try:
+                from .tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
+
+                supported_extensions = getattr(TreeSitterSymbolExtractor, "LANGUAGES", {})
+            except (ImportError, AttributeError) as e:
+                logger.warning(f"TreeSitterSymbolExtractor not available: {e}")
+                supported_extensions = {".py", ".js", ".ts", ".go", ".rs"}  # fallback
 
             supported_files = []
             for file_path in self.local_path.rglob("*"):
                 if (
                     file_path.is_file()
                     and ".git" not in file_path.parts
-                    and file_path.suffix.lower() in TreeSitterSymbolExtractor.LANGUAGES
+                    and file_path.suffix.lower() in supported_extensions
                 ):
                     supported_files.append(file_path)
         else:
