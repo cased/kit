@@ -36,5 +36,6 @@
 (initialized_variable_definition
   name: (identifier) @name) @definition.variable
 
-; Constant declarations
-(const_builtin) @definition.constant 
+; TODO: Add proper constant declarations pattern
+; The tree-sitter-dart grammar needs to be researched for correct node types
+; for const variable declarations 
