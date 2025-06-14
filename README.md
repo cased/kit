@@ -132,61 +132,6 @@ curl -X POST localhost:8000/repository/abc123/files \
 #   }
 ```
 
-## kit-powered Features & Utilities
-
-As both demonstrations of this library, and as standalone products,
-`kit` ships with MIT-licensed, CLI-based pull request review and summarization features.
-
-### PR Reviews
-
-The pull request reviewer ranks with the better closed-source paid options, but at 
-a fraction of the cost with cloud models. At Cased we use `kit` extensively
-with models like Sonnet 4 and gpt4.1, paying just for the price of tokens.
-
-```bash
-kit review --init-config
-kit review https://github.com/owner/repo/pull/123
-```
-
-**Key Features:**
-- **Whole repo context**: Uses `kit` so has all the features of this library
-- **Production-ready**: Rivals paid services, but MIT-licensed; just pay for tokens
-- **Custom context profiles**: Organization-specific coding standards and review guidelines automatically applied
-- **Cost transparency**: Real-time token usage and pricing
-- **Fast**: No queuing, shared services: just your code and the LLM
-- **Works from wherever**: Trigger reviews with the CLI, or run it via CI
-
-`kit` also has first-class support for free local models via [Ollama](https://ollama.ai/). 
-No API keys, no costs, no data leaving your machine.
-
-**📖 [Complete PR Reviewer Documentation](src/kit/pr_review/README.md)**
-
-### PR Summaries
-
-For quick PR triage and understanding, `kit` includes a fast, cost-effective PR summarization feature.
-Perfect for teams that need to quickly understand what PRs do before deciding on detailed review.
-
-```bash
-kit summarize https://github.com/owner/repo/pull/123
-kit summarize --update-pr-body https://github.com/owner/repo/pull/123
-```
-
-**Key Features:**
-- **5-10x cheaper** than full reviews (~$0.005-0.02 vs $0.01-0.05+)
-- **Fast triage**: Quick overview of changes, impact, and key modifications
-- **PR body updates**: Automatically add AI summaries to PR descriptions for team visibility
-- **Same LLM support**: Works with OpenAI, Anthropic, Google, and free Ollama models
-- **Repository intelligence**: Leverages symbol extraction and dependency analysis for context
-
-### Commit Messages
-
-Generate intelligent commit messages from staged changes using the same repository intelligence:
-
-```bash
-git add .       # Stage your changes
-kit commit      # Analyze and commit with AI-generated message
-```
-
 ## Key Toolkit Capabilities
 
 `kit` helps your apps and agents understand and interact with codebases, with components to build your own AI-powered developer tools.
@@ -271,6 +216,61 @@ If you have installed `cased-kit` with `pip` or some other method, you can invok
 The `python` executable invoked must be the one where `cased-kit` is installed.
 If you see `ModuleNotFoundError: No module named 'kit'`, ensure the Python
 interpreter your MCP client is using is the correct one.
+
+## kit-powered Features & Utilities
+
+As both demonstrations of this library, and as standalone products,
+`kit` ships with MIT-licensed, CLI-based pull request review and summarization features.
+
+### PR Reviews
+
+The pull request reviewer ranks with the better closed-source paid options, but at 
+a fraction of the cost with cloud models. At Cased we use `kit` extensively
+with models like Sonnet 4 and gpt4.1, paying just for the price of tokens.
+
+```bash
+kit review --init-config
+kit review https://github.com/owner/repo/pull/123
+```
+
+**Key Features:**
+- **Whole repo context**: Uses `kit` so has all the features of this library
+- **Production-ready**: Rivals paid services, but MIT-licensed; just pay for tokens
+- **Custom context profiles**: Organization-specific coding standards and review guidelines automatically applied
+- **Cost transparency**: Real-time token usage and pricing
+- **Fast**: No queuing, shared services: just your code and the LLM
+- **Works from wherever**: Trigger reviews with the CLI, or run it via CI
+
+`kit` also has first-class support for free local models via [Ollama](https://ollama.ai/). 
+No API keys, no costs, no data leaving your machine.
+
+**📖 [Complete PR Reviewer Documentation](src/kit/pr_review/README.md)**
+
+### PR Summaries
+
+For quick PR triage and understanding, `kit` includes a fast, cost-effective PR summarization feature.
+Perfect for teams that need to quickly understand what PRs do before deciding on detailed review.
+
+```bash
+kit summarize https://github.com/owner/repo/pull/123
+kit summarize --update-pr-body https://github.com/owner/repo/pull/123
+```
+
+**Key Features:**
+- **5-10x cheaper** than full reviews (~$0.005-0.02 vs $0.01-0.05+)
+- **Fast triage**: Quick overview of changes, impact, and key modifications
+- **PR body updates**: Automatically add AI summaries to PR descriptions for team visibility
+- **Same LLM support**: Works with OpenAI, Anthropic, Google, and free Ollama models
+- **Repository intelligence**: Leverages symbol extraction and dependency analysis for context
+
+### Commit Messages
+
+Generate intelligent commit messages from staged changes using the same repository intelligence:
+
+```bash
+git add .       # Stage your changes
+kit commit      # Analyze and commit with AI-generated message
+```
 
 
 ## Documentation
