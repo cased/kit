@@ -22,6 +22,7 @@ LANGUAGES: dict[str, str] = {
     ".c": "c",
     ".rb": "ruby",
     ".java": "java",
+    ".dart": "dart",
 }
 
 
@@ -320,6 +321,7 @@ class TreeSitterSymbolExtractor:
             ".c": "c",
             ".rb": "ruby",
             ".java": "java",
+            ".dart": "dart",
         }
         LANGUAGES.clear()
         LANGUAGES.update(original_languages)
