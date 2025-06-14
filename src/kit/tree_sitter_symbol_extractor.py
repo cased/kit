@@ -170,9 +170,11 @@ class TreeSitterSymbolExtractor:
                 except (FileNotFoundError, OSError) as e:
                     if lang_name == "tsx":
                         # Fallback to TypeScript query definitions
+                        logger.debug("TSX queries not found, falling back to TypeScript queries")
                         ts_tags_traversable = files("kit.queries").joinpath("typescript").joinpath("tags.scm")
                         tags_content = ts_tags_traversable.read_text(encoding="utf-8")
                         query_contents.append(tags_content)
+                        logger.debug("Loaded TypeScript fallback tags.scm for tsx")
                     else:
                         logger.warning(f"No base tags.scm found for {lang_name}: {e}")
 
@@ -190,9 +192,34 @@ class TreeSitterSymbolExtractor:
                                     logger.debug(f"Loaded additional query file: {query_file_traversable.name}")
                                 except Exception as e:
                                     logger.warning(f"Error loading {query_file_traversable.name}: {e}")
-                except AttributeError:
-                    # package_files doesn't support iterdir, skip additional files
-                    pass
+                except (AttributeError, FileNotFoundError, OSError):
+                    # AttributeError: package_files doesn't support iterdir
+                    # FileNotFoundError/OSError: directory doesn't exist or access issues
+                    if lang_name == "tsx":
+                        # For TSX, try to load additional TypeScript files as fallback
+                        try:
+                            ts_package_files = files("kit.queries").joinpath("typescript")
+                            if hasattr(ts_package_files, "iterdir"):
+                                for query_file_traversable in ts_package_files.iterdir():
+                                    if (
+                                        query_file_traversable.name.endswith(".scm")
+                                        and query_file_traversable.name != "tags.scm"
+                                    ):
+                                        try:
+                                            content = query_file_traversable.read_text(encoding="utf-8")
+                                            query_contents.append(content)
+                                            logger.debug(
+                                                f"Loaded additional TypeScript query file for tsx: {query_file_traversable.name}"
+                                            )
+                                        except (FileNotFoundError, OSError, UnicodeDecodeError) as file_error:
+                                            # Only catch specific file-related errors, let other exceptions bubble up
+                                            logger.warning(
+                                                f"Error loading TypeScript query file {query_file_traversable.name}: {file_error}"
+                                            )
+                        except (AttributeError, FileNotFoundError, OSError) as ts_error:
+                            # TypeScript directory access failed - log but don't fail completely
+                            logger.debug(f"Could not access TypeScript queries for TSX fallback: {ts_error}")
+                    # For non-TSX languages, silently skip additional files if directory access fails
 
             except Exception as e:
                 logger.warning(f"Error loading built-in queries for {lang_name}: {e}")
