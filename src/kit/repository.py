@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import overload
 
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
@@ -337,6 +338,13 @@ class Repository:
             Optional[Dict[str, Any]]: A dictionary representing the extracted context, or None if not found.
         """
         return self.context.extract_context_around_line(file_path, line)
+
+    # Type overloads for precise return types
+    @overload
+    def get_file_content(self, file_path: str) -> str: ...
+
+    @overload
+    def get_file_content(self, file_path: List[str]) -> Dict[str, str]: ...
 
     def get_file_content(self, file_path: Union[str, List[str]]) -> Union[str, Dict[str, str]]:
         """

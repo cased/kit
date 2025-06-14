@@ -225,7 +225,8 @@ class KitServerLogic:
         try:
             # Use repository's multi-file method with validated relative paths
             rel_file_paths = list(validated_paths.values())
-            result = repo.get_file_content(rel_file_paths)
+            # Using overload of Repository.get_file_content -> Dict[str, str]
+            result: Dict[str, str] = repo.get_file_content(rel_file_paths)  # type: ignore[assignment]
 
             # Map back from relative paths to original paths for consistency
             final_result = {}
@@ -680,7 +681,8 @@ class KitServerLogic:
         if kind == "file" and len(path_parts) >= 3:
             repo_id = path_parts[1]
             file_path = "/".join(path_parts[2:])
-            content = self.get_file_content(repo_id, unquote(file_path))
+            # get_file_content with str input → str output (overload)
+            content: str = self.get_file_content(repo_id, unquote(file_path))  # type: ignore[assignment]
             return "text/plain", content
         elif kind == "tree" and len(path_parts) == 2:
             repo_id = path_parts[1]
