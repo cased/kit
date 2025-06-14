@@ -1173,6 +1173,64 @@ def find_symbol_usages(
         raise typer.Exit(code=1)
 
 
+@app.command("cache")
+def cache_command(
+    action: str = typer.Argument(..., help="Action: status, cleanup, clear, stats"),
+    repo_path: str = typer.Option(".", "--repo", "-r", help="Repository path"),
+):
+    """🗄️ Manage incremental analysis cache."""
+    from kit.repository import Repository
+
+    try:
+        repo = Repository(repo_path)
+
+        if action == "status":
+            stats = repo.get_incremental_stats()
+            if stats.get("status") == "not_initialized":
+                typer.echo("📭 Incremental cache not initialized")
+            else:
+                typer.echo("📊 Incremental Cache Status:")
+                typer.echo(f"   Cached files: {stats.get('cached_files', 0)}")
+                typer.echo(f"   Total symbols: {stats.get('total_symbols', 0)}")
+                typer.echo(f"   Cache size: {stats.get('cache_size_mb', 0):.2f} MB")
+                typer.echo(f"   Cache hit rate: {stats.get('cache_hit_rate', '0%')}")
+                typer.echo(f"   Files analyzed: {stats.get('files_analyzed', 0)}")
+                typer.echo(f"   Cache directory: {stats.get('cache_dir', 'N/A')}")
+
+        elif action == "cleanup":
+            repo.cleanup_incremental_cache()
+            typer.echo("✅ Cleaned up stale cache entries")
+
+        elif action == "clear":
+            repo.clear_incremental_cache()
+            typer.echo("✅ Cleared incremental cache")
+
+        elif action == "stats":
+            # Run a quick analysis to generate stats
+            typer.echo("🔍 Analyzing repository for cache statistics...")
+            symbols = repo.extract_symbols_incremental()
+            stats = repo.get_incremental_stats()
+
+            typer.echo("📈 Analysis Performance:")
+            typer.echo(f"   Total symbols found: {len(symbols)}")
+            typer.echo(f"   Files analyzed: {stats.get('files_analyzed', 0)}")
+            typer.echo(f"   Cache hits: {stats.get('cache_hits', 0)}")
+            typer.echo(f"   Cache misses: {stats.get('cache_misses', 0)}")
+            typer.echo(f"   Hit rate: {stats.get('cache_hit_rate', '0%')}")
+            typer.echo(f"   Average analysis time: {stats.get('avg_analysis_time', 0):.4f}s per file")
+
+            # Finalize to save cache
+            repo.finalize_analysis()
+
+        else:
+            typer.secho(f"❌ Unknown action: {action}. Use: status, cleanup, clear, stats", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.secho(f"❌ Cache operation failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 def handle_cli_error(error: Exception, error_type: str = "Error", help_text: Optional[str] = None) -> None:
     """Consistent error handling for CLI commands."""
     if isinstance(error, ValueError):
