@@ -193,9 +193,10 @@ class TreeSitterSymbolExtractor:
                                 except Exception as e:
                                     logger.warning(f"Error loading {query_file_traversable.name}: {e}")
                 except (AttributeError, FileNotFoundError, OSError):
-                    # package_files doesn't support iterdir or directory doesn't exist, skip additional files
+                    # AttributeError: package_files doesn't support iterdir
+                    # FileNotFoundError/OSError: directory doesn't exist or access issues
                     if lang_name == "tsx":
-                        # For TSX, try to load additional TypeScript files
+                        # For TSX, try to load additional TypeScript files as fallback
                         try:
                             ts_package_files = files("kit.queries").joinpath("typescript")
                             if hasattr(ts_package_files, "iterdir"):
@@ -210,12 +211,15 @@ class TreeSitterSymbolExtractor:
                                             logger.debug(
                                                 f"Loaded additional TypeScript query file for tsx: {query_file_traversable.name}"
                                             )
-                                        except Exception as e:
+                                        except (FileNotFoundError, OSError, UnicodeDecodeError) as file_error:
+                                            # Only catch specific file-related errors, let other exceptions bubble up
                                             logger.warning(
-                                                f"Error loading TypeScript query file {query_file_traversable.name}: {e}"
+                                                f"Error loading TypeScript query file {query_file_traversable.name}: {file_error}"
                                             )
-                        except (AttributeError, FileNotFoundError, OSError):
-                            pass
+                        except (AttributeError, FileNotFoundError, OSError) as ts_error:
+                            # TypeScript directory access failed - log but don't fail completely
+                            logger.debug(f"Could not access TypeScript queries for TSX fallback: {ts_error}")
+                    # For non-TSX languages, silently skip additional files if directory access fails
 
             except Exception as e:
                 logger.warning(f"Error loading built-in queries for {lang_name}: {e}")
