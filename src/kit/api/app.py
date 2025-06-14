@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Dict, List
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -16,6 +18,10 @@ class RepoIn(BaseModel):
     path_or_url: str
     github_token: str | None = None
     ref: str | None = None
+
+
+class FilePathsIn(BaseModel):
+    paths: List[str]
 
 
 @app.post("/repository", status_code=201)
@@ -189,3 +195,30 @@ def get_git_info(repo_id: str):
         "current_branch": repo.current_branch,
         "remote_url": repo.remote_url,
     }
+
+
+@app.post("/repository/{repo_id}/files")
+def get_multiple_file_contents(repo_id: str, body: FilePathsIn) -> Dict[str, str]:
+    """Get the contents of multiple files in one call.
+
+    Request body JSON:
+        {
+            "paths": ["src/main.py", "src/utils/helper.py"]
+        }
+    """
+    try:
+        repo = registry.get_repo(repo_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Repo not found")
+
+    if not body.paths:
+        return {}
+
+    try:
+        contents = repo.get_file_content(body.paths)
+        # Ensure we return mapping of requested path -> content
+        return contents  # type: ignore[return-value]
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except IOError as e:
+        raise HTTPException(status_code=500, detail=f"Error reading files: {e!s}")

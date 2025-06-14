@@ -64,6 +64,17 @@ print(repo.extract_symbols('src/main.py'))
 # Access git metadata
 print(f"Current SHA: {repo.current_sha}")
 print(f"Branch: {repo.current_branch}")
+
+# Read one file
+main_py = repo.get_file_content("src/main.py")
+
+# Read many files in one round-trip (NEW in 1.0.4)
+contents = repo.get_file_content([
+    "src/main.py",
+    "src/utils/helper.py",
+    "tests/test_main.py",
+])
+print(contents["src/utils/helper.py"])
 ```
 
 ### Command Line Interface
@@ -101,6 +112,25 @@ kit commit  # Analyze and commit with AI-generated message
 ```
 
 The CLI supports all major repository operations with Unix-friendly output for scripting and automation. See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehensive usage examples.
+
+### REST API (FastAPI)
+
+Once you run `kit serve` (or import `kit.api.app` in your own FastAPI server) you can fetch multiple files in **one HTTP call**:
+
+```bash
+# Register / open a repo – returns an ID
+curl -X POST localhost:8000/repository -d '{"path_or_url": "/path/to/repo"}' -H 'Content-Type: application/json'
+#=> {"id": "abc123"}
+
+# Fetch many files at once
+curl -X POST localhost:8000/repository/abc123/files \
+     -d '{"paths": ["src/main.py", "src/utils/helper.py"]}' \
+     -H 'Content-Type: application/json'
+#=> {
+#     "src/main.py": "print('hello')\n...",
+#     "src/utils/helper.py": "def helper(): ..."
+#   }
+```
 
 ## kit-powered Features & Utilities
 

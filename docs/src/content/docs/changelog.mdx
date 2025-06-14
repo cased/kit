@@ -234,6 +234,34 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 - Enhanced file prioritization algorithms for reviews
 - Improved cost breakdown reporting
 
+## [1.0.3]
+
+### 🎉 Major Features
+
+- **Batch File Retrieval**: `Repository.get_file_content` now accepts a list of paths and returns a mapping of `path → content`, eliminating the need for multiple calls when bulk loading files.
+  - Backwards-compatible: single-path calls still return a plain string.
+
+### 🖥️  Interface Updates
+
+- **MCP Server**
+  - New tool `get_multiple_file_contents` plus expanded behaviour for existing `get_file_content`.
+  - Each request path is validated individually for secure bulk fetches.
+
+- **CLI** (`kit file-content`)
+  - Accepts multiple file paths in one invocation. Outputs each file with a header separator.
+
+- **REST API**
+  - New endpoint `POST /repository/{id}/files` with JSON body `{ "paths": ["src/main.py", "src/utils.py"] }`.
+
+### 🧪  Tests
+
+- 11 Repository tests and 10 MCP tests covering single/multi, error aggregation, path traversal checks, and tool registration.
+
+### 🏷️  Misc
+
+- Bumped internal version to 1.0.3.
+- Updated documentation and help texts accordingly.
+
 ## Links
 
 - [GitHub Releases](https://github.com/cased/kit/releases)
