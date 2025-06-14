@@ -77,7 +77,7 @@ def start_ollama():
         print("✅ Ollama is already running")
         return True
 
-    print("🚀 Starting Ollama service...")
+    print("Starting Ollama service...")
     # Start in background
     success, stdout, stderr = run_command("ollama serve &", check=False)
 
