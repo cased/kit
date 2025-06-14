@@ -27,8 +27,16 @@ local_repo = Repository("/path/to/your/local/project")
 *   `get_file_tree()`: Returns the file tree structure.
 *   `get_file_content(file_path)`: Reads and returns the content of a specified file.
 *   `extract_symbols(path)`: Extracts code symbols.
+*   `extract_symbols_incremental()`: Extracts symbols with intelligent caching
 *   `search_semantic(query)`: Performs semantic search.
 *   `get_summarizer()`: Gets the code summarizer.
+
+## Incremental Analysis Methods
+
+*   `extract_symbols_incremental()`: High-performance symbol extraction with caching.
+*   `get_incremental_stats()`: Get cache performance statistics.
+*   `cleanup_incremental_cache()`: Remove stale cache entries.
+*   `clear_incremental_cache()`: Clear all cached data.
 
 ## Git Metadata Properties
 
@@ -125,6 +133,105 @@ repository.extract_symbols(file_path: Optional[str] = None) -> List[Dict[str, An
 **Returns:**
 
 *   `List[Dict[str, Any]]`: A list of dictionaries, each representing a symbol with keys like `name`, `type`, `file`, `line_start`, `line_end`, `code`.
+
+## `repository.extract_symbols_incremental()`
+
+Extracts code symbols with intelligent caching for dramatically improved performance. Uses multiple invalidation strategies (mtime, size, content hash, git state) to ensure accuracy while providing 25-36x speedups for warm cache scenarios.
+
+```python
+repository.extract_symbols_incremental(file_path: Optional[str] = None) -> List[Dict[str, Any]]
+```
+
+**Parameters:**
+
+*   `file_path` (Optional[str]): If provided, extracts symbols only from this specific file path relative to the repo root. If `None`, extracts symbols from all supported files in the repository. Defaults to `None`.
+
+**Returns:**
+
+*   `List[Dict[str, Any]]`: A list of dictionaries, each representing a symbol with keys like `name`, `type`, `file`, `line_start`, `line_end`, `code`.
+
+**Performance:**
+
+- **Cold cache**: Full analysis with cache building
+- **Warm cache**: 25x faster using cached results
+- **Automatic invalidation**: Cache invalidated on git state changes, file modifications
+
+**Example:**
+
+```python
+# First call builds cache
+symbols = repository.extract_symbols_incremental()
+print(f"Found {len(symbols)} symbols")
+
+# Subsequent calls use cache (much faster)
+symbols = repository.extract_symbols_incremental()
+print(f"Found {len(symbols)} symbols (cached)")
+
+# Check performance
+stats = repository.get_incremental_stats()
+print(f"Cache hit rate: {stats['cache_hit_rate']}")
+```
+
+## `repository.get_incremental_stats()`
+
+Returns performance statistics for the incremental analysis system.
+
+```python
+repository.get_incremental_stats() -> Dict[str, Any]
+```
+
+**Returns:**
+
+*   `Dict[str, Any]`: Statistics dictionary containing:
+    - `cache_hit_rate`: Percentage of cache hits (0.0-1.0)
+    - `files_analyzed`: Number of files analyzed in last operation
+    - `cache_hits`: Total cache hits
+    - `cache_misses`: Total cache misses
+    - `avg_analysis_time`: Average time per file analysis
+    - `cache_size_mb`: Cache size in megabytes
+
+**Example:**
+
+```python
+stats = repository.get_incremental_stats()
+print(f"Cache hit rate: {stats['cache_hit_rate']:.1%}")
+print(f"Files analyzed: {stats['files_analyzed']}")
+print(f"Cache size: {stats['cache_size_mb']:.1f}MB")
+```
+
+## `repository.cleanup_incremental_cache()`
+
+Removes stale cache entries for files that no longer exist in the repository.
+
+```python
+repository.cleanup_incremental_cache() -> int
+```
+
+**Returns:**
+
+*   `int`: Number of stale entries removed.
+
+**Example:**
+
+```python
+removed_count = repository.cleanup_incremental_cache()
+print(f"Removed {removed_count} stale cache entries")
+```
+
+## `repository.clear_incremental_cache()`
+
+Clears all cached data for the incremental analysis system.
+
+```python
+repository.clear_incremental_cache() -> None
+```
+
+**Example:**
+
+```python
+repository.clear_incremental_cache()
+print("Cache cleared")
+```
 
 ## `repository.search_text()`
 

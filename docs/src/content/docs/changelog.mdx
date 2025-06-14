@@ -10,6 +10,42 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0]
+
+### 🎉 Major Features
+
+- **Incremental Analysis System**: High-performance caching for symbol extraction
+  - 25x performance improvements for warm cache scenarios
+  - Multi-strategy cache invalidation (mtime, size, content hash, git state detection)
+  - Automatic cache invalidation on git operations (checkout, commit, merge, rebase)
+  - LRU eviction with configurable cache size limits
+  - New CLI commands: `kit cache status`, `kit cache clear`, `kit cache cleanup`, `kit cache stats`
+
+### ✨ Enhanced Features
+
+- **Dart Language Support**: Complete language integration with tree-sitter
+  - Classes, functions, constructors, getters, setters, enums, extensions, mixins
+  - Flutter widget detection patterns for StatelessWidget and StatefulWidget
+  - Comprehensive symbol extraction with inheritance relationships
+  - Plugin system support for custom Dart patterns
+
+### 🐛 Bug Fixes
+
+- **Critical Cache Invalidation Fix**: Resolved stale data issues causing incorrect line numbers
+  - Repository objects now properly detect git state changes (branch switches, commits, merges)
+  - Automatic cache invalidation prevents serving outdated symbol data from previous git states
+  - Fixed line number accuracy crisis that could affect production reliability
+  - Comprehensive git SHA tracking ensures data consistency across git operations
+
+- **TSX Language Support**: Fixed missing TypeScript JSX support
+  - Proper fallback to TypeScript queries when tsx directory doesn't exist
+  - Ensures consistent symbol extraction for React TypeScript projects
+
+- **Type Safety Improvements**: Enhanced cross-branch compatibility
+  - Fixed type errors when switching between branches with different code structures
+  - Better error handling for specific exceptions (IOError, OSError, PermissionError)
+  - Improved memory management and resource cleanup
+
 ## [1.0.3]
 
 ### New Features

@@ -9,6 +9,27 @@ kit includes a plugin system that allows you to extend and customize symbol extr
 - **Load multiple query files** per language for modular organization
 - **Use custom query directories** for team-specific or project-specific patterns
 
+## Supported Languages
+
+kit comes with built-in support for 12+ programming languages:
+
+- **Python** (`.py`) - Functions, classes, methods, decorators
+- **JavaScript** (`.js`) - Functions, classes, variables, imports
+- **TypeScript** (`.ts`, `.tsx`) - Types, interfaces, functions, classes
+- **Go** (`.go`) - Functions, methods, structs, interfaces
+- **Rust** (`.rs`) - Functions, structs, enums, traits
+- **Java** (`.java`) - Classes, methods, fields, interfaces
+- **C/C++** (`.c`) - Functions, structs, typedefs
+- **Ruby** (`.rb`) - Classes, methods, modules
+- **Dart** (`.dart`) - Classes, functions, mixins, enums, extensions
+- **HCL/Terraform** (`.hcl`, `.tf`) - Resources, variables, modules
+
+Each language supports comprehensive symbol extraction including:
+- **Classes and interfaces** with inheritance relationships
+- **Functions and methods** with parameter information
+- **Variables and constants** with type information
+- **Language-specific constructs** (decorators, generics, etc.)
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
@@ -59,6 +80,48 @@ for symbol in symbols:
 # function: regular_function
 ```
 
+### Working with Dart
+
+kit includes comprehensive Dart support out of the box:
+
+```python
+from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
+
+dart_code = '''
+class Calculator {
+  int add(int a, int b) => a + b;
+  
+  Calculator.named(String name) : this();
+  
+  String get displayName => 'Calculator';
+}
+
+mixin Flyable {
+  void fly() => print('Flying...');
+}
+
+enum Status { pending, completed }
+
+extension StringExtension on String {
+  String get reversed => split('').reversed.join('');
+}
+'''
+
+symbols = TreeSitterSymbolExtractor.extract_symbols(".dart", dart_code)
+for symbol in symbols:
+    print(f"{symbol['type']}: {symbol['name']}")
+# Output:
+# class: Calculator
+# function: add
+# constructor: Calculator
+# constructor: named
+# getter: displayName
+# function: fly
+# enum: Status
+# extension: StringExtension
+# getter: reversed
+```
+
 ## API Reference
 
 ### Core Methods
@@ -67,7 +130,7 @@ for symbol in symbols:
 
 Extend an existing language with additional query patterns.
 
-- **language**: Language name (e.g., 'python', 'javascript')
+- **language**: Language name (e.g., 'python', 'javascript', 'dart')
 - **query_file**: Path to .scm query file (absolute or relative to queries directory)
 
 #### `register_language(name: str, extensions: List[str], query_files: List[str], query_dirs: Optional[List[str]] = None) -> None`
@@ -82,6 +145,19 @@ Register a completely new language.
 #### `list_supported_languages() -> Dict[str, List[str]]`
 
 Returns mapping of language names to their supported file extensions.
+
+```python
+languages = TreeSitterSymbolExtractor.list_supported_languages()
+print(languages)
+# Output:
+# {
+#   'python': ['.py'],
+#   'javascript': ['.js'],
+#   'dart': ['.dart'],
+#   'go': ['.go'],
+#   ...
+# }
+```
 
 #### `reset_plugins() -> None`
 
@@ -132,6 +208,40 @@ fastapi_query = '''
 '''
 
 TreeSitterSymbolExtractor.extend_language("python", "/path/to/fastapi.scm")
+```
+
+### Dart: Flutter Widgets
+
+Detect Flutter widget classes:
+
+```python
+flutter_query = '''
+; Flutter StatelessWidget classes
+(class_definition
+  name: (identifier) @name
+  superclass: (identifier) @superclass
+  (#match? @superclass "StatelessWidget")
+) @definition.stateless_widget
+
+; Flutter StatefulWidget classes
+(class_definition
+  name: (identifier) @name
+  superclass: (identifier) @superclass
+  (#match? @superclass "StatefulWidget")
+) @definition.stateful_widget
+
+; Build methods in widgets
+(class_definition
+  body: (class_body
+    (method_signature
+      name: (identifier) @name
+      (#match? @name "build")
+    )
+  )
+) @definition.build_method
+'''
+
+TreeSitterSymbolExtractor.extend_language("dart", "/path/to/flutter.scm")
 ```
 
 ### Python: Django Models
@@ -330,6 +440,10 @@ Identify test functions and test classes:
    │   ├── django.scm        # Django-specific patterns
    │   ├── fastapi.scm       # FastAPI-specific patterns
    │   └── testing.scm       # Testing patterns
+   ├── dart/
+   │   ├── tags.scm          # Base Dart patterns
+   │   ├── flutter.scm       # Flutter-specific patterns
+   │   └── testing.scm       # Dart testing patterns
    ```
 
 2. **Use Descriptive Names**: Make symbol types self-documenting
@@ -338,6 +452,7 @@ Identify test functions and test classes:
    @definition.api_endpoint
    @definition.model_field
    @definition.test_fixture
+   @definition.flutter_widget
    
    # Avoid
    @definition.thing

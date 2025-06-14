@@ -1,326 +1,277 @@
 ---
 title: Command Line Interface
-description: Complete guide to using kit's powerful CLI for repository analysis and code exploration
+description: Complete guide to kit's CLI commands for repository analysis, symbol extraction, and AI-powered workflows
 sidebar:
-  order: 4
+  order: 3
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-The `kit` command-line interface provides powerful tools for repository analysis, code exploration, and automation. All major repository operations are available through Unix-friendly commands with multiple output formats.
+kit provides a comprehensive command-line interface for repository analysis, symbol extraction, and AI-powered development workflows. All commands support both human-readable and machine-readable output formats for seamless integration with other tools.
 
 ## Installation & Setup
 
-The CLI is automatically available after installing kit:
-
 ```bash
+# Install kit
 pip install cased-kit
-```
 
-Verify the installation:
+# Verify installation
+kit --version
 
-```bash
+# Get help for any command
 kit --help
+kit <command> --help
 ```
 
-<Aside type="note">
-The CLI provides the same functionality as the Python API, making it perfect for shell scripts, CI/CD pipelines, and integration with other Unix tools.
-</Aside>
+## Core Commands
 
-## Quick Start
-
-```bash
-# Explore a repository structure
-kit file-tree /path/to/your/repo
-
-# Find all Python functions
-kit symbols /path/to/your/repo --format names | grep -E "^[a-z_]"
-
-# Search for specific patterns
-kit search /path/to/your/repo "TODO" --pattern "*.py"
-
-# Export analysis for external tools
-kit export /path/to/your/repo symbols analysis.json
-```
-
-## Getting Help
-
-The CLI includes comprehensive built-in help to discover all available commands, arguments, and options:
-
-### Main Help
-
-```bash
-# See all available commands
-kit --help
-```
-
-This shows you all the available commands like `symbols`, `search`, `file-tree`, etc.
-
-### Command-Specific Help
-
-```bash
-# Get detailed help for any specific command
-kit symbols --help
-kit search --help
-kit export --help
-```
-
-Each command's help shows:
-- **Required arguments** (like repository path)
-- **Optional parameters** (like `--file`, `--output`, `--format`)
-- **Available options** (like output formats or filters)
-- **Short descriptions** of what each option does
-
-### Example Help Output
-
-```bash
-$ kit symbols --help
-
-Usage: kit symbols [OPTIONS] PATH
-
-Extract code symbols (functions, classes, etc.) from the repository.
-
-╭─ Arguments ──────────────────────────────────────────╮
-│ *  path    TEXT  Path to the local repository.      │
-╰──────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────╮
-│ --file    -f  TEXT  Extract from specific file only │
-│ --output  -o  TEXT  Output to JSON file             │
-│ --format      TEXT  Output format: table, json, names │
-│ --help            Show this message and exit        │
-╰──────────────────────────────────────────────────────╯
-```
-
-### Shell Completion
-
-For even faster discovery, install shell completion:
-
-```bash
-kit --install-completion
-```
-
-After restarting your shell, you can use tab completion to:
-- See all available commands: `kit <TAB>`
-- See command options: `kit symbols --<TAB>`
-- Complete file paths: `kit symbols /path/to/repo --file src/<TAB>`
-
-## Command Reference
-
-### File Operations
-
-#### `kit file-tree`
-
-Get the repository file structure with file sizes and types.
-
-```bash
-kit file-tree <repository-path> [OPTIONS]
-```
-
-**Options:**
-- `--output, -o <file>`: Save output to JSON file instead of stdout
-
-**Examples:**
-
-```bash
-# Display file tree with icons and sizes
-kit file-tree /path/to/repo
-
-# Save to JSON for processing
-kit file-tree /path/to/repo --output tree.json
-
-# Pipe to other tools
-kit file-tree /path/to/repo | grep "\.py" | head -10
-```
-
-**Output:**
-```
-📄 main.py (1542 bytes)
-📄 utils.py (892 bytes)
-📁 src
-📄 src/core.py (2341 bytes)
-📄 src/helpers.py (567 bytes)
-```
-
-#### `kit file-content`
-
-Read the content of a specific file within the repository.
-
-```bash
-kit file-content <repository-path> <file-path>
-```
-
-**Examples:**
-
-```bash
-# Read a specific file
-kit file-content /path/to/repo src/main.py
-
-# Pipe to other tools
-kit file-content /path/to/repo README.md | head -20
-```
-
-#### `kit index`
-
-Build a comprehensive index combining file tree and symbols.
-
-```bash
-kit index <repository-path> [OPTIONS]
-```
-
-**Options:**
-- `--output, -o <file>`: Save output to JSON file
-
-**Examples:**
-
-```bash
-# Generate complete repository index
-kit index /path/to/repo --output repo-index.json
-
-# Pipe JSON for analysis
-kit index /path/to/repo | jq '.symbols | length'
-```
-
-### Symbol Operations
+### Repository Analysis
 
 #### `kit symbols`
 
-Extract code symbols (functions, classes, variables) from the repository.
+Extract symbols (functions, classes, variables) from a repository with intelligent caching for 25-36x performance improvements.
 
 ```bash
 kit symbols <repository-path> [OPTIONS]
 ```
 
 **Options:**
-- `--file, -f <path>`: Extract symbols from specific file only
-- `--output, -o <file>`: Save output to JSON file
-- `--format <format>`: Output format (`table`, `json`, `names`)
+- `--format, -f <format>`: Output format (`table`, `json`, `names`, `plain`)
+- `--pattern, -p <pattern>`: File pattern filter (e.g., `*.py`, `src/**/*.js`)
+- `--output, -o <file>`: Save output to file
+- `--type, -t <type>`: Filter by symbol type (`function`, `class`, `variable`, etc.)
 
 **Examples:**
 
 ```bash
-# Table format (default) - human readable
+# Extract all symbols (uses incremental analysis for speed)
 kit symbols /path/to/repo
 
-# JSON format - machine readable
-kit symbols /path/to/repo --format json
+# Get only Python functions as JSON
+kit symbols /path/to/repo --pattern "*.py" --type function --format json
 
-# Names only - great for piping
-kit symbols /path/to/repo --format names
+# Export to file for further analysis
+kit symbols /path/to/repo --output symbols.json
 
-# Specific file analysis
-kit symbols /path/to/repo --file src/main.py
-
-# Find only functions
-kit symbols /path/to/repo --format names | grep -v "^[A-Z]"
-
-# Count symbols by type
-kit symbols /path/to/repo --format json | jq 'group_by(.type) | map({type: .[0].type, count: length})'
+# Quick symbol names for scripting
+kit symbols /path/to/repo --format names | grep "test_"
 ```
 
-**Output Formats:**
+#### `kit file-tree`
 
-*Table Format:*
-```
-Name                     Type        File                    Lines
-------------------------------------------------------------------------
-main                     function    src/main.py            10-25
-Calculator               class       src/calc.py            5-45
-add                      function    src/calc.py            8-12
-```
-
-*Names Format:*
-```
-main
-Calculator  
-add
-multiply
-```
-
-#### `kit usages`
-
-Find definitions and references of specific symbols across the repository.
+Display repository structure with file type indicators and statistics.
 
 ```bash
-kit usages <repository-path> <symbol-name> [OPTIONS]
+kit file-tree <repository-path> [OPTIONS]
 ```
 
 **Options:**
-- `--type, -t <type>`: Filter by symbol type (`function`, `class`, etc.)
-- `--output, -o <file>`: Save output to JSON file
+- `--format, -f <format>`: Output format (`tree`, `json`, `names`, `plain`)
+- `--pattern, -p <pattern>`: File pattern filter
+- `--output, -o <file>`: Save output to file
+- `--max-depth, -d <depth>`: Limit directory depth
 
 **Examples:**
 
 ```bash
-# Find all usages of a symbol
-kit usages /path/to/repo "DatabaseConnection"
+# Show repository structure
+kit file-tree /path/to/repo
 
-# Find only class definitions
-kit usages /path/to/repo "User" --type class
+# Only Python files, limited depth
+kit file-tree /path/to/repo --pattern "*.py" --max-depth 3
 
-# Export for analysis
-kit usages /path/to/repo "api_call" --output usages.json
+# Export structure as JSON
+kit file-tree /path/to/repo --format json --output structure.json
 ```
-
-### Search Operations
 
 #### `kit search`
 
-Perform text and regex searches across repository files.
+Fast text search across repository files with regex support.
 
 ```bash
 kit search <repository-path> <query> [OPTIONS]
 ```
 
 **Options:**
-- `--pattern, -p <pattern>`: File pattern to search (default: `*`)
-- `--output, -o <file>`: Save output to JSON file
+- `--pattern, -p <pattern>`: File pattern filter
+- `--output, -o <file>`: Save output to file
+- `--context, -c <lines>`: Show context lines around matches
+- `--case-sensitive, -s`: Enable case-sensitive search
 
 **Examples:**
 
 ```bash
-# Search across all files
-kit search /path/to/repo "TODO"
+# Search for function definitions
+kit search /path/to/repo "def.*login"
 
-# Search only in Python files
-kit search /path/to/repo "def main" --pattern "*.py"
+# Search in specific files with context
+kit search /path/to/repo "TODO" --pattern "*.py" --context 2
 
-# Regex search for function definitions
-kit search /path/to/repo "def \w+\(" --pattern "*.py"
-
-# Search in JavaScript files
-kit search /path/to/repo "function" --pattern "*.js"
-
-# Case-sensitive search for constants
-kit search /path/to/repo "API_KEY"
-
-# Export search results
-kit search /path/to/repo "import" --pattern "*.py" --output imports.json
+# Case-sensitive search
+kit search /path/to/repo "ApiClient" --case-sensitive
 ```
 
-**Advanced Search Examples:**
+#### `kit usages`
+
+Find all usages of a specific symbol across the repository.
 
 ```bash
-# Find all class definitions
-kit search /path/to/repo "^class \w+" --pattern "*.py"
-
-# Find SQL queries
-kit search /path/to/repo "SELECT.*FROM" --pattern "*.py"
-
-# Find configuration keys
-kit search /path/to/repo "\w+_CONFIG" --pattern "*.py"
+kit usages <repository-path> <symbol-name> [OPTIONS]
 ```
 
-### Context Operations
+**Options:**
+- `--symbol-type, -t <type>`: Filter by symbol type
+- `--output, -o <file>`: Save output to file
+- `--format, -f <format>`: Output format
+
+**Examples:**
+
+```bash
+# Find all usages of a function
+kit usages /path/to/repo "calculate_total"
+
+# Find class usages with JSON output
+kit usages /path/to/repo "UserModel" --symbol-type class --format json
+```
+
+### Cache Management
+
+#### `kit cache`
+
+Manage the incremental analysis cache for optimal performance.
+
+```bash
+kit cache <action> <repository-path> [OPTIONS]
+```
+
+**Actions:**
+- `status`: Show cache statistics and health
+- `clear`: Clear all cached data
+- `cleanup`: Remove stale entries for deleted files
+- `stats`: Show detailed performance statistics
+
+**Examples:**
+
+```bash
+# Check cache status
+kit cache status /path/to/repo
+
+# Clear cache if needed
+kit cache clear /path/to/repo
+
+# Clean up stale entries
+kit cache cleanup /path/to/repo
+
+# View detailed statistics
+kit cache stats /path/to/repo
+```
+
+**Sample Output:**
+```
+Cache Statistics:
+  Cached files: 1,234
+  Total symbols: 45,678
+  Cache size: 12.3MB
+  Cache directory: /path/to/repo/.kit/incremental_cache
+  Hit rate: 85.2%
+  Files analyzed: 156
+  Cache hits: 1,078
+  Cache misses: 156
+  Average analysis time: 0.023s
+```
+
+### AI-Powered Workflows
+
+#### `kit summarize`
+
+Generate AI-powered pull request summaries with optional PR body updates.
+
+```bash
+kit summarize <pr-url> [OPTIONS]
+```
+
+**Options:**
+- `--plain, -p`: Output raw summary content (no formatting)
+- `--dry-run, -n`: Generate summary without posting to GitHub
+- `--model, -m <model>`: Override LLM model for this summary
+- `--config, -c <file>`: Use custom configuration file
+- `--update-pr-body`: Add summary to PR description
+
+**Examples:**
+
+```bash
+# Generate and post PR summary
+kit summarize https://github.com/owner/repo/pull/123
+
+# Dry run (preview without posting)
+kit summarize --dry-run https://github.com/owner/repo/pull/123
+
+# Update PR body with summary
+kit summarize --update-pr-body https://github.com/owner/repo/pull/123
+
+# Use specific model
+kit summarize --model claude-3-5-haiku-20241022 https://github.com/owner/repo/pull/123
+
+# Clean output for piping
+kit summarize --plain https://github.com/owner/repo/pull/123
+```
+
+#### `kit commit`
+
+Generate intelligent commit messages from staged git changes.
+
+```bash
+kit commit [repository-path] [OPTIONS]
+```
+
+**Options:**
+- `--dry-run, -n`: Show generated message without committing
+- `--model, -m <model>`: Override LLM model
+- `--config, -c <file>`: Use custom configuration file
+
+**Examples:**
+
+```bash
+# Generate and commit with AI message
+git add .
+kit commit
+
+# Preview message without committing
+git add src/auth.py
+kit commit --dry-run
+
+# Use specific model
+kit commit --model gpt-4o-mini-2024-07-18
+
+# Specify repository path
+kit commit /path/to/repo --dry-run
+```
+
+**Sample Output:**
+```
+Generated commit message:
+feat(auth): add JWT token validation middleware
+
+- Implement JWTAuthMiddleware for request authentication
+- Add token validation with signature verification
+- Include error handling for expired and invalid tokens
+- Update middleware registration in app configuration
+
+Commit? [y/N]: y
+```
+
+### Content Processing
 
 #### `kit context`
 
-Extract surrounding code context for a specific line in a file.
+Extract contextual code around specific lines for LLM analysis.
 
 ```bash
 kit context <repository-path> <file-path> <line-number> [OPTIONS]
 ```
 
 **Options:**
+- `--lines, -n <count>`: Context lines around target (default: 10)
 - `--output, -o <file>`: Save output to JSON file
 
 **Examples:**
@@ -524,7 +475,7 @@ The reviewer uses `~/.kit/review-config.yaml` for configuration:
 ```yaml
 github:
   token: ghp_your_token_here
-  base_url: https://api.github.com
+  base_url: https://api.github.com.com
 
 llm:
   provider: anthropic  # or "openai"
@@ -696,6 +647,43 @@ kit symbols /path/to/repo --format json | jq -r '.[] | .file' | sort | uniq -c |
 
 ## Practical Workflows
 
+### Development Workflow with Caching
+
+```bash
+#!/bin/bash
+REPO_PATH="/path/to/repo"
+
+# First analysis (builds cache)
+echo "Initial analysis..."
+time kit symbols $REPO_PATH > /dev/null
+
+# Subsequent analyses (use cache - much faster)
+echo "Cached analysis..."
+time kit symbols $REPO_PATH > /dev/null
+
+# Check cache performance
+kit cache stats $REPO_PATH
+```
+
+### AI-Powered Development
+
+```bash
+#!/bin/bash
+# Stage changes
+git add .
+
+# Generate intelligent commit message
+kit commit --dry-run
+
+# If satisfied, commit
+kit commit
+
+# Create PR and get AI summary
+gh pr create --title "Feature: New auth system" --body "Initial implementation"
+PR_URL=$(gh pr view --json url -q .url)
+kit summarize --update-pr-body $PR_URL
+```
+
 ### Code Review Preparation
 
 ```bash
@@ -705,7 +693,7 @@ OUTPUT_DIR="./analysis"
 
 mkdir -p $OUTPUT_DIR
 
-# Generate comprehensive analysis
+# Generate comprehensive analysis (uses caching)
 kit export $REPO_PATH index $OUTPUT_DIR/repo-index.json
 
 # Find all TODO items
@@ -715,6 +703,9 @@ kit search $REPO_PATH "TODO\|FIXME\|HACK" > $OUTPUT_DIR/todos.txt
 kit symbols $REPO_PATH --format json | \
   jq '.[] | select(.type=="function" and (.end_line - .start_line) > 30)' \
   > $OUTPUT_DIR/complex-functions.json
+
+# Check cache performance
+kit cache stats $REPO_PATH
 
 echo "Analysis complete in $OUTPUT_DIR/"
 ```
@@ -728,7 +719,7 @@ DOCS_DIR="./docs"
 
 mkdir -p $DOCS_DIR
 
-# Extract all public APIs
+# Extract all public APIs (uses incremental analysis)
 kit symbols $REPO_PATH --format json | \
   jq '.[] | select(.type=="function" and (.name | startswith("_") | not))' \
   > $DOCS_DIR/public-api.json
@@ -746,7 +737,7 @@ done
 OLD_REPO="/path/to/old/repo"
 NEW_REPO="/path/to/new/repo"
 
-# Compare symbol counts
+# Compare symbol counts (both use caching)
 echo "Old repo symbols:"
 kit symbols $OLD_REPO --format names | wc -l
 
@@ -779,7 +770,7 @@ jobs:
         
       - name: Analyze codebase
         run: |
-          # Generate repository analysis
+          # Generate repository analysis (uses incremental caching)
           kit export . index analysis.json
           
           # Check for complexity issues
@@ -791,6 +782,9 @@ jobs:
           
           # Find security-related patterns
           kit search . "password\|secret\|key" --pattern "*.py" > security-review.txt
+          
+          # Show cache performance
+          kit cache stats .
           
       - name: Upload analysis
         uses: actions/upload-artifact@v3
@@ -805,9 +799,22 @@ jobs:
 
 ### Performance
 
+- Use incremental analysis (`kit symbols`) for repeated operations - 25-36x faster
 - Use `--format names` for large repositories when you only need symbol names
 - Leverage file patterns (`--pattern`) to limit search scope
-- Export to JSON once, then use `jq` for multiple queries
+- Monitor cache performance with `kit cache stats`
+
+### Caching
+
+- Use `kit cache cleanup` periodically to remove stale entries
+- Monitor cache size with `kit cache status`
+- Clear cache (`kit cache clear`) if switching between very different git states frequently
+
+### AI Workflows
+
+- Use `--dry-run` to preview AI-generated content before posting
+- Combine `kit commit` with `kit summarize` for complete AI-powered development workflow
+- Use `--plain` output for piping to other AI tools
 
 ### Scripting
 

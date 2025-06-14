@@ -1,0 +1,397 @@
+---
+title: Incremental Analysis & Caching
+description: High-performance caching system for faster symbol extraction
+sidebar:
+  order: 8
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+kit's incremental analysis system provides intelligent caching that improves performance for repeated operations. By caching symbol extraction results and using sophisticated invalidation strategies, kit achieves 25x performance improvements for warm cache scenarios.
+
+## Overview
+
+The incremental analysis system consists of two main components:
+
+- **FileAnalysisCache**: Manages file-level caching with multiple invalidation strategies
+- **IncrementalAnalyzer**: Orchestrates analysis with performance tracking and statistics
+
+### Performance Benefits
+
+Real-world performance improvements on the kit repository (60k+ symbols, 7,606 files):
+
+- **Cold cache**: 27.8s (2,158 symbols/sec)
+- **Warm cache**: 0.76s (78,823 symbols/sec)
+- **Speedup**: 36.5x faster
+
+<Aside type="tip">
+The incremental analysis system is automatically integrated with git state detection, ensuring cache invalidation when switching branches or commits.
+</Aside>
+
+## Quick Start
+
+### Basic Usage
+
+```python
+from kit.repository import Repository
+
+# Create repository instance
+repo = Repository("/path/to/your/project")
+
+# First analysis - builds cache
+symbols = repo.extract_symbols_incremental()
+print(f"Found {len(symbols)} symbols")
+
+# Second analysis - uses cache (much faster)
+symbols = repo.extract_symbols_incremental()
+print(f"Found {len(symbols)} symbols (cached)")
+
+# Get performance statistics
+stats = repo.get_incremental_stats()
+print(f"Cache hit rate: {stats['cache_hit_rate']}")
+print(f"Files analyzed: {stats['files_analyzed']}")
+```
+
+### CLI Usage
+
+The incremental analysis system is also available through the CLI:
+
+```bash
+# Extract symbols with caching
+kit symbols /path/to/repo
+
+# View cache statistics
+kit cache status /path/to/repo
+
+# Clear cache if needed
+kit cache clear /path/to/repo
+
+# Cleanup stale entries
+kit cache cleanup /path/to/repo
+```
+
+## Cache Invalidation Strategies
+
+The system uses multiple strategies to detect file changes:
+
+### 1. Modification Time (mtime)
+Fast check using file system metadata:
+```python
+if cached_metadata.get("mtime") != current_metadata.get("mtime"):
+    return True  # File changed
+```
+
+### 2. File Size
+Quick validation of file size changes:
+```python
+if cached_metadata.get("size") != current_metadata.get("size"):
+    return True  # File changed
+```
+
+### 3. Content Hash
+Definitive change detection using SHA-256:
+```python
+if cached_metadata.get("hash") != current_metadata.get("hash"):
+    return True  # File changed
+```
+
+### 4. Git State Detection
+Automatic cache invalidation when git state changes:
+```python
+# Automatically detects branch switches, commits, etc.
+if self._check_git_state_changed():
+    self._invalidate_caches()
+```
+
+## Advanced Features
+
+### LRU Eviction
+
+The cache implements Least Recently Used (LRU) eviction to manage memory:
+
+```python
+from kit.incremental_analyzer import FileAnalysisCache
+
+# Create cache with custom size limit
+cache = FileAnalysisCache(
+    repo_path=Path("/path/to/repo"),
+    max_cache_size=5000  # Limit to 5000 files
+)
+```
+
+### Batch Analysis
+
+Analyze multiple files efficiently:
+
+```python
+from pathlib import Path
+
+# Get incremental analyzer
+analyzer = repo.incremental_analyzer
+
+# Analyze specific files
+files = [Path("src/main.py"), Path("src/utils.py")]
+results = analyzer.analyze_changed_files(files)
+
+for file_path, symbols in results.items():
+    print(f"{file_path}: {len(symbols)} symbols")
+```
+
+### Performance Tracking
+
+Monitor analysis performance:
+
+```python
+# Get detailed statistics
+stats = repo.get_incremental_stats()
+
+print(f"Cache hit rate: {stats['cache_hit_rate']}")
+print(f"Files analyzed: {stats['files_analyzed']}")
+print(f"Cache hits: {stats['cache_hits']}")
+print(f"Cache misses: {stats['cache_misses']}")
+print(f"Average analysis time: {stats['avg_analysis_time']:.3f}s")
+print(f"Cache size: {stats['cache_size_mb']:.1f}MB")
+```
+
+## Cache Management
+
+### Cache Status
+
+Check cache health and statistics:
+
+```python
+# Get cache statistics
+cache_stats = repo.incremental_analyzer.cache.get_cache_stats()
+
+print(f"Cached files: {cache_stats['cached_files']}")
+print(f"Total symbols: {cache_stats['total_symbols']}")
+print(f"Cache size: {cache_stats['cache_size_mb']:.1f}MB")
+print(f"Cache directory: {cache_stats['cache_dir']}")
+```
+
+### Cache Cleanup
+
+Remove stale entries for deleted files:
+
+```python
+# Clean up stale cache entries
+removed_count = repo.cleanup_incremental_cache()
+print(f"Removed {removed_count} stale entries")
+```
+
+### Cache Clearing
+
+Clear all cached data:
+
+```python
+# Clear all cache data
+repo.clear_incremental_cache()
+print("Cache cleared")
+```
+
+## CLI Commands
+
+### Cache Status
+
+```bash
+# View cache statistics
+kit cache status /path/to/repo
+```
+
+Output:
+```
+Cache Statistics:
+  Cached files: 1,234
+  Total symbols: 45,678
+  Cache size: 12.3MB
+  Cache directory: /path/to/repo/.kit/incremental_cache
+  Hit rate: 85.2%
+```
+
+### Cache Management
+
+```bash
+# Clear all cache data
+kit cache clear /path/to/repo
+
+# Clean up stale entries
+kit cache cleanup /path/to/repo
+
+# View detailed statistics
+kit cache stats /path/to/repo
+```
+
+## Integration with Git
+
+The incremental analysis system automatically integrates with git operations:
+
+### Automatic Invalidation
+
+Cache is automatically invalidated when:
+- Switching branches (`git checkout`)
+- Making commits (`git commit`)
+- Merging branches (`git merge`)
+- Rebasing (`git rebase`)
+- Any operation that changes the git SHA
+
+### Example Workflow
+
+```python
+# Initial analysis on main branch
+repo = Repository("/path/to/repo")
+symbols_main = repo.extract_symbols_incremental()
+print(f"Main branch: {len(symbols_main)} symbols")
+
+# Switch to feature branch (cache automatically invalidated)
+# git checkout feature-branch
+
+# Analysis on feature branch (cache rebuilt)
+symbols_feature = repo.extract_symbols_incremental()
+print(f"Feature branch: {len(symbols_feature)} symbols")
+
+# Switch back to main (cache invalidated again)
+# git checkout main
+
+# Analysis back on main (cache rebuilt for main)
+symbols_main_again = repo.extract_symbols_incremental()
+print(f"Back to main: {len(symbols_main_again)} symbols")
+```
+
+## Best Practices
+
+### 1. Use Incremental Analysis for Development
+
+For development workflows where you're repeatedly analyzing the same codebase:
+
+```python
+# Use incremental analysis for better performance
+symbols = repo.extract_symbols_incremental()
+
+# Instead of traditional analysis
+# symbols = repo.extract_symbols()  # Slower
+```
+
+### 2. Monitor Cache Performance
+
+Track cache effectiveness:
+
+```python
+def analyze_with_monitoring(repo):
+    start_time = time.time()
+    symbols = repo.extract_symbols_incremental()
+    elapsed = time.time() - start_time
+    
+    stats = repo.get_incremental_stats()
+    print(f"Analysis: {elapsed:.2f}s, Hit rate: {stats['cache_hit_rate']}")
+    
+    return symbols
+```
+
+### 3. Cleanup in CI/CD
+
+Clean up cache in CI/CD environments:
+
+```bash
+# In CI/CD pipeline
+kit cache cleanup /path/to/repo
+kit symbols /path/to/repo --format json > symbols.json
+```
+
+### 4. Cache Size Management
+
+Monitor and manage cache size:
+
+```python
+# Check cache size periodically
+stats = repo.get_incremental_stats()
+if stats['cache_size_mb'] > 100:  # 100MB limit
+    repo.cleanup_incremental_cache()
+```
+
+## Troubleshooting
+
+### Cache Not Working
+
+If cache doesn't seem to be working:
+
+1. **Check git state**: Ensure you're not switching branches frequently
+2. **Verify file stability**: Check if files are being modified
+3. **Monitor statistics**: Use `get_incremental_stats()` to debug
+
+```python
+# Debug cache behavior
+stats = repo.get_incremental_stats()
+print(f"Cache hits: {stats['cache_hits']}")
+print(f"Cache misses: {stats['cache_misses']}")
+print(f"Hit rate: {stats['cache_hit_rate']}")
+```
+
+### Performance Issues
+
+If performance is still slow:
+
+1. **Clear and rebuild cache**:
+   ```python
+   repo.clear_incremental_cache()
+   symbols = repo.extract_symbols_incremental()
+   ```
+
+2. **Check cache size limits**:
+   ```python
+   # Increase cache size if needed
+   analyzer = repo.incremental_analyzer
+   analyzer.cache.max_cache_size = 20000
+   ```
+
+3. **Monitor file changes**:
+   ```python
+   # Check if files are changing unexpectedly
+   for file_path in changed_files:
+       if analyzer.cache.is_file_changed(file_path):
+           print(f"File changed: {file_path}")
+   ```
+
+### Cache Corruption
+
+If cache becomes corrupted:
+
+```python
+# Reset everything
+repo.clear_incremental_cache()
+repo.incremental_analyzer.cache.clear_cache()
+
+# Rebuild from scratch
+symbols = repo.extract_symbols_incremental()
+```
+
+## Implementation Details
+
+### Cache Storage
+
+Cache data is stored in the repository's `.kit` directory:
+
+```
+.kit/
+├── incremental_cache/
+│   ├── analysis_metadata.json    # File metadata (mtime, size, hash)
+│   └── symbols_cache.json        # Cached symbol data
+```
+
+### Memory Management
+
+- **LRU eviction** prevents unlimited memory growth
+- **Configurable cache size** (default: 10,000 files)
+- **Automatic cleanup** of stale entries
+
+### Thread Safety
+
+The cache is designed for single-threaded use. For multi-threaded scenarios:
+
+```python
+# Create separate instances per thread
+def worker_thread():
+    repo = Repository("/path/to/repo")  # New instance
+    symbols = repo.extract_symbols_incremental()
+```
+
+The incremental analysis system makes kit's symbol extraction dramatically faster for development workflows while maintaining complete accuracy and reliability. 
