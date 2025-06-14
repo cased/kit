@@ -45,6 +45,11 @@ class Repository:
             if ref:
                 self._checkout_ref(ref)
         self.repo_path: str = str(self.local_path)
+
+        # Track git state for cache invalidation
+        self._cached_git_sha: Optional[str] = None
+        self._git_state_valid = False
+
         self.mapper: RepoMapper = RepoMapper(self.repo_path)
         self.searcher: CodeSearcher = CodeSearcher(self.repo_path)
         self.context: ContextExtractor = ContextExtractor(self.repo_path)
@@ -248,6 +253,7 @@ class Repository:
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the file tree.
         """
+        self._ensure_git_state_valid()
         return self.mapper.get_file_tree()
 
     def extract_symbols(self, file_path: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -263,6 +269,7 @@ class Repository:
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the extracted symbols.
         """
+        self._ensure_git_state_valid()
         if file_path is not None:
             return self.mapper.extract_symbols(str(file_path))
         else:
@@ -287,6 +294,7 @@ class Repository:
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the search results.
         """
+        self._ensure_git_state_valid()
         return self.searcher.search_text(query, file_pattern)
 
     def get_code_searcher(self) -> "CodeSearcher":
@@ -298,6 +306,7 @@ class Repository:
         notebooks where you already have a ``Repository`` object and want
         to re-use its searcher without re-instantiating one manually.
         """
+        self._ensure_git_state_valid()
         return self.searcher
 
     def chunk_file_by_lines(self, file_path: str, max_lines: int = 50) -> List[str]:
@@ -311,6 +320,7 @@ class Repository:
         Returns:
             List[str]: A list of strings representing the chunked lines.
         """
+        self._ensure_git_state_valid()
         return self.context.chunk_file_by_lines(file_path, max_lines)
 
     def chunk_file_by_symbols(self, file_path: str) -> List[Dict[str, Any]]:
@@ -323,6 +333,7 @@ class Repository:
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the chunked symbols.
         """
+        self._ensure_git_state_valid()
         return self.context.chunk_file_by_symbols(file_path)
 
     def extract_context_around_line(self, file_path: str, line: int) -> Optional[Dict[str, Any]]:
@@ -336,6 +347,7 @@ class Repository:
         Returns:
             Optional[Dict[str, Any]]: A dictionary representing the extracted context, or None if not found.
         """
+        self._ensure_git_state_valid()
         return self.context.extract_context_around_line(file_path, line)
 
     # Type overloads for precise return types
@@ -370,6 +382,7 @@ class Repository:
 
     def _get_single_file_content(self, file_path: str) -> str:
         """Reads and returns the content of a single file within the repository."""
+        self._ensure_git_state_valid()
         full_path = self.local_path / file_path
         if not full_path.is_file():
             raise FileNotFoundError(f"File not found in repository: {file_path}")
@@ -382,6 +395,7 @@ class Repository:
 
     def _get_multiple_file_contents(self, file_paths: List[str]) -> Dict[str, str]:
         """Reads and returns the contents of multiple files within the repository."""
+        self._ensure_git_state_valid()
         if not file_paths:
             return {}
 
@@ -415,6 +429,7 @@ class Repository:
         Returns:
             Dict[str, Any]: A dictionary representing the index.
         """
+        self._ensure_git_state_valid()
         tree = self.get_file_tree()
         return {
             "file_tree": tree,  # legacy key
@@ -525,6 +540,7 @@ class Repository:
         Returns:
             List[Dict[str, Any]]: List of usage dicts with file, line, and context if available.
         """
+        self._ensure_git_state_valid()
         usages = []
         repo_map = self.mapper.get_repo_map()
         for file, symbols in repo_map["symbols"].items():
@@ -621,3 +637,46 @@ class Repository:
         # their real locations on disk. This yields stable, non-symlinked paths that
         # downstream tools (and tests) expect.
         return str((self.local_path / relative_path).resolve())
+
+    def _check_git_state_changed(self) -> bool:
+        """Check if the git state has changed since last check."""
+        current_sha = self.current_sha
+
+        # If we can't get SHA, assume state is valid (non-git repo or error)
+        if current_sha is None:
+            return False
+
+        # First time checking or SHA changed
+        if self._cached_git_sha != current_sha:
+            self._cached_git_sha = current_sha
+            return True
+
+        return False
+
+    def _ensure_git_state_valid(self) -> None:
+        """Ensure caches are valid for current git state."""
+        if self._check_git_state_changed():
+            # Git state changed, invalidate caches
+            self._invalidate_caches()
+            self._git_state_valid = True
+
+    def _invalidate_caches(self) -> None:
+        """Invalidate all internal caches when git state changes."""
+        # Clear mapper caches
+        if hasattr(self.mapper, "_file_tree_cache"):
+            delattr(self.mapper, "_file_tree_cache")
+        if hasattr(self.mapper, "_repo_map_cache"):
+            delattr(self.mapper, "_repo_map_cache")
+        if hasattr(self.mapper, "_symbols_cache"):
+            delattr(self.mapper, "_symbols_cache")
+
+        # Clear searcher caches
+        if hasattr(self.searcher, "_cache"):
+            self.searcher._cache.clear()
+
+        # Clear context caches
+        if hasattr(self.context, "_cache"):
+            self.context._cache.clear()
+
+        # Clear vector searcher (it needs to be rebuilt)
+        self.vector_searcher = None
