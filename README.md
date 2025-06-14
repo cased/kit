@@ -4,11 +4,11 @@
 
 `kit` is a production-ready toolkit for codebase mapping, symbol extraction, code search, and building LLM-powered developer tools, agents, and workflows. 
 
-Use `kit` to build things like code reviewers, code generators, even IDEs, all enriched with the right code context.
-
-Work with `kit` directly from Python, or with MCP + function calling, REST, or CLI!
+Use `kit` to build things like code reviewers, code generators, even IDEs, all enriched with the right code context. Work with `kit` directly from Python, or with MCP + function calling, REST, or CLI.
 
 `kit` also ships with damn fine PR reviewer that works with your choice of LLM, showcasing the power of this library in just a few lines of code.
+
+Explore the **[Full Documentation](https://kit.cased.com)** for detailed usage, advanced features, and practical examples.
 
 ## Quick Installation
 
