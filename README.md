@@ -289,6 +289,6 @@ MIT License
 
 - **Local Development**: Check out our [Running Tests](https://kit.cased.com/development/running-tests) guide to get started with local development.
 - **Project Direction**: See our [Roadmap](https://kit.cased.com/development/roadmap) for future plans and focus areas.
-- **Discord**: [Join the Discord](https://discord.gg/XpqU65pY) to talk kit and Cased
+- **Discord**: [Join the Discord](https://discord.gg/DzxxC9SdvZ) to talk kit and Cased
 
 To contribute, fork the repository, make your changes, and submit a pull request.
