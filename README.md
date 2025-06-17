@@ -75,7 +75,7 @@ contents = repo.get_file_content([
     "tests/test_main.py",
 ])
 print(contents["src/utils/helper.py"])
-
+```
 
 ### Command Line Interface
 
