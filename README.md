@@ -75,7 +75,7 @@ contents = repo.get_file_content([
     "tests/test_main.py",
 ])
 print(contents["src/utils/helper.py"])
-```
+
 
 ### Command Line Interface
 
@@ -271,7 +271,6 @@ Generate intelligent commit messages from staged changes using the same reposito
 git add .       # Stage your changes
 kit commit      # Analyze and commit with AI-generated message
 ```
-
 
 ## Documentation
 
