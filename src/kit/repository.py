@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 import tempfile
+import time
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, overload
-from functools import lru_cache
-import time
-import shutil
 
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
@@ -54,9 +54,7 @@ class Repository:
                 cache_ttl_hours = float(ttl_env) if ttl_env is not None else None
             except ValueError:
                 # Provide debug info to help users troubleshoot misconfiguration
-                logger.debug(
-                    "Invalid value for KIT_TMP_REPO_TTL_HOURS=%r – falling back to no TTL", ttl_env
-                )
+                logger.debug("Invalid value for KIT_TMP_REPO_TTL_HOURS=%r - falling back to no TTL", ttl_env)
                 cache_ttl_hours = None  # fall back silently on parse error
 
         self.cache_ttl_hours: Optional[float] = cache_ttl_hours
