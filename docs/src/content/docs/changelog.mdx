@@ -271,6 +271,20 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 - Enhanced file prioritization algorithms for reviews
 - Improved cost breakdown reporting
 
+## [1.2.0]
+
+### Enhanced Repository Cache Management
+
+- **Tmp-repo auto-cleanup**: `Repository` now accepts an optional `cache_ttl_hours` argument (or the environment variable `KIT_TMP_REPO_TTL_HOURS`).  When set, Kit will automatically delete cached clones in `/tmp/kit-repo-cache` that are older than the TTL the first time any process clones a remote repository.
+  - One-shot purge per Python process (memoised with `functools.lru_cache`).
+  - Detailed README and API docs updates.
+  - Fallback to previous behavior when unset.
+- **Logging Improvements**: Debug log emitted for invalid `KIT_TMP_REPO_TTL_HOURS` values; warnings emitted if a cached repo cannot be removed during cleanup (permissions, etc.).
+
+### Tests
+
+- Added `tests/test_cache_cleanup.py` covering TTL parsing, invalid env handling, and actual cleanup logic.
+
 ## Links
 
 - [GitHub Releases](https://github.com/cased/kit/releases)
