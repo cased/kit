@@ -6,6 +6,9 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, overload
+from functools import lru_cache
+import time
+import shutil
 
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
@@ -33,10 +36,26 @@ class Repository:
         github_token: Optional[str] = None,
         cache_dir: Optional[str] = None,
         ref: Optional[str] = None,
+        *,
+        cache_ttl_hours: Optional[float] = None,
     ) -> None:
         # Auto-pickup GitHub token from environment if not provided
         if github_token is None:
             github_token = os.getenv("KIT_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
+
+        # ------------------------------------------------------------------
+        # Cache-related settings
+        # ------------------------------------------------------------------
+        # Allow users to override TTL via explicit kwarg or env var.  ``None``
+        # means "do not auto-purge" (preserves previous behaviour).
+        if cache_ttl_hours is None:
+            ttl_env = os.getenv("KIT_TMP_REPO_TTL_HOURS")
+            try:
+                cache_ttl_hours = float(ttl_env) if ttl_env is not None else None
+            except ValueError:
+                cache_ttl_hours = None  # fall back silently on parse error
+
+        self.cache_ttl_hours: Optional[float] = cache_ttl_hours
 
         self.ref = ref  # Store the requested ref
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):  # Remote repo
@@ -170,7 +189,11 @@ class Repository:
         return f"<Repository path='{path_info}'{ref_info}, files: {file_count}>"
 
     def _clone_github_repo(
-        self, url: str, token: Optional[str], cache_dir: Optional[str], ref: Optional[str] = None
+        self,
+        url: str,
+        token: Optional[str],
+        cache_dir: Optional[str],
+        ref: Optional[str] = None,
     ) -> Path:
         from urllib.parse import urlparse
 
@@ -181,6 +204,9 @@ class Repository:
 
         cache_root = Path(cache_dir or tempfile.gettempdir()) / "kit-repo-cache"
         cache_root.mkdir(parents=True, exist_ok=True)
+
+        # One-time (per process) cleanup of stale cache entries.
+        self._perform_cache_cleanup(str(cache_root), self.cache_ttl_hours)
 
         repo_path = cache_root / repo_name
         if repo_path.exists() and (repo_path / ".git").exists():
@@ -772,3 +798,36 @@ class Repository:
         """Finalize analysis and save incremental cache."""
         if self._incremental_analyzer is not None:
             self.incremental_analyzer.finalize()
+
+    # ------------------------------------------------------------------
+    # Cache maintenance helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def _perform_cache_cleanup(cache_root_str: str, ttl_hours: Optional[float]) -> None:
+        """Delete cached repos older than *ttl_hours*.
+
+        This function is wrapped in ``lru_cache`` so the directory walk runs
+        only once per Python process (for each unique *(path, ttl)* tuple).
+        Passing ``ttl_hours`` as *None* disables cleanup entirely.
+        """
+
+        if ttl_hours is None:
+            return  # Feature disabled; keep prior behaviour
+
+        try:
+            cutoff = time.time() - ttl_hours * 3600
+        except Exception:
+            return  # Defensive: invalid ttl
+
+        cache_root = Path(cache_root_str)
+
+        for repo_dir in cache_root.iterdir():
+            # Each sub-dir is a separate cloned repo
+            try:
+                if repo_dir.stat().st_mtime < cutoff:
+                    shutil.rmtree(repo_dir)
+            except Exception:
+                # Suppress all errors – we don't want cleanup failures to block cloning
+                continue
