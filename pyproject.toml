@@ -11,7 +11,6 @@ license = {text = "MIT"}
 dependencies = [
     "tree-sitter-language-pack>=0.7.2",
     "pathspec>=0.11.1",
-    "pytest>=8.3.5",
     "numpy>=1.25",
     "fastapi==0.110.0",     
     "uvicorn[standard]>=0.20",
@@ -22,14 +21,10 @@ dependencies = [
     "anthropic>=0.20.0",
     "google-genai>=1.14.0",
     "python-hcl2>=7.2.0",
-    "mypy",
-    "ruff",
     "mcp>=1.8.0,<2.0.0",
     "redis>=5.0.0",
     "requests>=2.25.0",
     "pyyaml>=6.0",
-    "types-PyYAML>=6.0.12.20250516",  # Type stubs for yaml
-    "types-requests>=2.32.0.20250515",  # Type stubs for requests
 ]
 
 [project.urls]
@@ -52,6 +47,15 @@ where = ["src"]
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15.0",
+    "pytest>=8.3.5",
+    "ruff>=0.11.9",
+    "types-pyyaml>=6.0.12.20250516",
+    "types-requests>=2.32.0.20250515",
+]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
