@@ -324,7 +324,7 @@ def file_content(
                 typer.echo(header)
                 typer.echo(text)
     except FileNotFoundError as e:
-        # Preserve previous behaviour for single file to satisfy existing expectations
+        # Preserve previous behavior for single file to satisfy existing expectations
         if len(file_paths) == 1:
             typer.secho(f"Error: File not found: {file_paths[0]}", fg=typer.colors.RED)
         else:

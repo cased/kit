@@ -47,12 +47,16 @@ class Repository:
         # Cache-related settings
         # ------------------------------------------------------------------
         # Allow users to override TTL via explicit kwarg or env var.  ``None``
-        # means "do not auto-purge" (preserves previous behaviour).
+        # means "do not auto-purge" (preserves previous behavior).
         if cache_ttl_hours is None:
             ttl_env = os.getenv("KIT_TMP_REPO_TTL_HOURS")
             try:
                 cache_ttl_hours = float(ttl_env) if ttl_env is not None else None
             except ValueError:
+                # Provide debug info to help users troubleshoot misconfiguration
+                logger.debug(
+                    "Invalid value for KIT_TMP_REPO_TTL_HOURS=%r – falling back to no TTL", ttl_env
+                )
                 cache_ttl_hours = None  # fall back silently on parse error
 
         self.cache_ttl_hours: Optional[float] = cache_ttl_hours
@@ -814,7 +818,7 @@ class Repository:
         """
 
         if ttl_hours is None:
-            return  # Feature disabled; keep prior behaviour
+            return  # Feature disabled; keep previous behavior
 
         try:
             cutoff = time.time() - ttl_hours * 3600
@@ -828,6 +832,7 @@ class Repository:
             try:
                 if repo_dir.stat().st_mtime < cutoff:
                     shutil.rmtree(repo_dir)
-            except Exception:
-                # Suppress all errors – we don't want cleanup failures to block cloning
+            except Exception as e:
+                # Log and continue – don't let cleanup failures block cloning
+                logger.warning(f"Failed to remove cached repo {repo_dir}: {e}")
                 continue
