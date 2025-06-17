@@ -492,7 +492,7 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
             def dfs(node):
                 if node in path:
                     cycle_start = path.index(node)
-                    cycle = path[cycle_start:] + [node]
+                    cycle = [*path[cycle_start:], node]
                     if cycle not in cycles and len(cycle) > 1:
                         cycles.append(cycle)
                     return
