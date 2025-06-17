@@ -23,6 +23,13 @@ LANGUAGES: dict[str, str] = {
     ".rb": "ruby",
     ".java": "java",
     ".dart": "dart",
+    ".kt": "kotlin",
+    ".kts": "kotlin",
+    ".cpp": "cpp",
+    ".cc": "cpp",
+    ".cxx": "cpp",
+    ".hpp": "cpp",
+    ".hxx": "cpp",
 }
 
 
@@ -322,6 +329,13 @@ class TreeSitterSymbolExtractor:
             ".rb": "ruby",
             ".java": "java",
             ".dart": "dart",
+            ".kt": "kotlin",
+            ".kts": "kotlin",
+            ".cpp": "cpp",
+            ".cc": "cpp",
+            ".cxx": "cpp",
+            ".hpp": "cpp",
+            ".hxx": "cpp",
         }
         LANGUAGES.clear()
         LANGUAGES.update(original_languages)
