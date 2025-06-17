@@ -61,7 +61,7 @@ repository_instance = Repository(path_or_url="/path/to/local/project")
 #     github_token="YOUR_GITHUB_TOKEN",  # Optional: For private repos
 #     cache_dir="/path/to/cache",        # Optional: For caching clones
 #     ref="v1.2.3",                       # Optional: Specific commit, tag, or branch
-#     cache_ttl_hours=2,                  # Optional: New in vNEXT
+#     cache_ttl_hours=2,                  # Optional: New in v1.2.0
 # )
 ```
 
@@ -71,7 +71,7 @@ repository_instance = Repository(path_or_url="/path/to/local/project")
 *   `github_token` (Optional[str]): A GitHub personal access token required for cloning private repositories. If not provided, automatically checks the `KIT_GITHUB_TOKEN` and `GITHUB_TOKEN` environment variables. Defaults to `None`.
 *   `cache_dir` (Optional[str]): Path to a directory for caching cloned repositories. Defaults to a system temporary directory.
 *   `ref` (Optional[str]): Git reference (commit SHA, tag, or branch) to checkout. For remote repositories, this determines which version to clone. For local repositories, this will checkout the specified ref. Defaults to `None`.
-*   `cache_ttl_hours` (Optional[float]): **New in vNEXT.** When cloning a remote repository, Kit stores the clone under `tmp/kit-repo-cache` (or your custom `cache_dir`).  On the *first* clone in each Python process Kit will delete any cached repo directory whose **modification time** is older than this many hours before continuing.  Pass `None` (default) or `0` to disable the cleanup.  You can also set the global environment variable `KIT_TMP_REPO_TTL_HOURS` to apply the policy process-wide without changing code.
+*   `cache_ttl_hours` (Optional[float]): **New in v1.2.0.** When cloning a remote repository, Kit stores the clone under `tmp/kit-repo-cache` (or your custom `cache_dir`).  On the *first* clone in each Python process Kit will delete any cached repo directory whose **modification time** is older than this many hours before continuing.  Pass `None` (default) or `0` to disable the cleanup.  You can also set the global environment variable `KIT_TMP_REPO_TTL_HOURS` to apply the policy process-wide without changing code.
 
 <Aside type="tip">
 **Automatic GitHub Token Pickup**
