@@ -299,7 +299,7 @@ class PythonDependencyAnalyzer(DependencyAnalyzer):
             def dfs(module):
                 if module in path:
                     cycle_start = path.index(module)
-                    cycle = path[cycle_start:] + [module]
+                    cycle = [*path[cycle_start:], module]
                     if cycle not in cycles and len(cycle) > 1:
                         cycles.append(cycle)
                     return
