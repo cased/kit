@@ -5,7 +5,10 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union, runtime_checkable
 
-import tiktoken
+try:
+    import tiktoken
+except ImportError:
+    tiktoken = None
 
 
 # Define a Protocol for LLM clients to help with type checking
@@ -167,6 +170,9 @@ class Summarizer:
             encoding = tiktoken.encoding_for_model(model_name)
             self._tokenizer_cache[model_name] = encoding
             return encoding
+        except NameError:
+            logger.warning("tiktoken not available, token count will be approximate (char count).")
+            return None
         except KeyError:
             try:
                 # Fallback for models not directly in tiktoken.model.MODEL_TO_ENCODING
