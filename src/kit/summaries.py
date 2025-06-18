@@ -167,12 +167,13 @@ class Summarizer:
         if model_name in self._tokenizer_cache:
             return self._tokenizer_cache[model_name]
         try:
-            encoding = tiktoken.encoding_for_model(model_name)
-            self._tokenizer_cache[model_name] = encoding
-            return encoding
-        except NameError:
-            logger.warning("tiktoken not available, token count will be approximate (char count).")
-            return None
+            if tiktoken:
+                encoding = tiktoken.encoding_for_model(model_name)
+                self._tokenizer_cache[model_name] = encoding
+                return encoding
+            else:
+                logger.warning("tiktoken not available, token count will be approximate (char count).")
+                return None
         except KeyError:
             try:
                 # Fallback for models not directly in tiktoken.model.MODEL_TO_ENCODING
