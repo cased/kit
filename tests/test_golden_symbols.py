@@ -13,7 +13,6 @@ def run_extraction(tmpdir, filename, content):
     return repository.extract_symbols(filename)
 
 
-# --- Basic Tests ---
 def test_python_imports_extraction():
     """Test extraction of various Python import patterns."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -51,6 +50,112 @@ def some_function():
         assert ("some_function", "function") in names_types
 
 
+def test_python_function_calls_extraction():
+    """Test extraction of various Python function call patterns with full expressions."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        content = '''
+import os
+import math
+
+# Simple function calls with arguments
+print("Hello, world!")
+len([1, 2, 3, 4, 5])
+max(10, 20, 30)
+
+class MyClass:
+    def __init__(self, value):
+        self.value = value
+
+    def add(self, x, y):
+        return x + y
+
+    def process(self, data, reverse=False):
+        return data
+
+# Method calls with arguments
+obj = MyClass(42)
+result = obj.add(10, 20)
+processed = obj.process("data", reverse=True)
+
+# Module function calls
+file_path = os.path.join("dir", "file.txt")
+sqrt_val = math.sqrt(16)
+
+# Chained method calls
+text = "hello world"
+result = text.upper().strip().replace(" ", "_")
+
+# Constructor calls
+new_obj = MyClass(100)
+my_dict = dict(a=1, b=2)
+
+# Complex arguments
+def handler(func, items):
+    return func(items)
+
+result = handler(lambda x: x * 2, [1, 2, 3])
+
+# Multi-line call
+long_result = handler(
+    lambda x: x.upper(),
+    ["hello", "world"]
+)
+'''
+        symbols = run_extraction(tmpdir, "test_calls.py", content)
+        call_symbols = [s for s in symbols if s["type"] == "call"]
+        calls_by_name = {s["name"]: s for s in call_symbols}
+
+        # Verify function calls are captured with full expressions
+        assert "print" in calls_by_name
+        assert 'print("Hello, world!")' == calls_by_name["print"]["code"]
+
+        assert "len" in calls_by_name
+        assert "len([1, 2, 3, 4, 5])" == calls_by_name["len"]["code"]
+
+        assert "max" in calls_by_name
+        assert "max(10, 20, 30)" == calls_by_name["max"]["code"]
+
+        # Method calls
+        assert "add" in calls_by_name
+        assert "obj.add(10, 20)" == calls_by_name["add"]["code"]
+
+        assert "process" in calls_by_name
+        assert 'obj.process("data", reverse=True)' == calls_by_name["process"]["code"]
+
+        # Module function calls
+        assert "join" in calls_by_name
+        assert 'os.path.join("dir", "file.txt")' == calls_by_name["join"]["code"]
+
+        assert "sqrt" in calls_by_name
+        assert "math.sqrt(16)" == calls_by_name["sqrt"]["code"]
+
+        # Chained method calls - should capture each method in the chain
+        call_names = [s["name"] for s in call_symbols]
+        assert "upper" in call_names
+        assert "strip" in call_names
+        assert "replace" in call_names
+
+        # Constructor calls
+        assert "MyClass" in calls_by_name
+        assert "dict" in calls_by_name
+        assert "dict(a=1, b=2)" == calls_by_name["dict"]["code"]
+
+        # Verify line numbers are captured
+        assert all("start_line" in s and "end_line" in s for s in call_symbols)
+
+        # Multi-line call should span multiple lines
+        handler_calls = [s for s in call_symbols if s["name"] == "handler"]
+        if handler_calls:
+            multiline_call = [s for s in handler_calls if s["start_line"] != s["end_line"]]
+            assert len(multiline_call) > 0, "Should capture multi-line calls"
+
+        # Verify we still capture functions and classes
+        all_symbols = {(s["name"], s["type"]) for s in symbols}
+        assert ("MyClass", "class") in all_symbols
+        assert ("add", "method") in all_symbols
+        assert ("handler", "function") in all_symbols
+
+
 def test_typescript_symbol_extraction():
     with tempfile.TemporaryDirectory() as tmpdir:
         os.path.join(tmpdir, "golden_typescript.ts")
@@ -83,6 +188,7 @@ def test_python_symbol_extraction():
             ("method_one", "method"),
             ("async_function", "function"),
             ("asyncio", "import"),  # Import statement
+            ("sleep", "call"),  # asyncio.sleep(1) call
         }
 
         # We'll refine the assertions as we improve the query
@@ -119,6 +225,10 @@ def test_python_complex_symbol_extraction():
             ("async_generator", "function"),  # Async Generator (captured as function)
             ("lambda_func", "function"),  # Now captured by the improved extraction
             ("another_top_level", "function"),
+            # Function calls now captured
+            ("print", "call"),  # print() calls
+            ("func", "call"),  # func(*args, **kwargs) in decorator
+            ("deeply_nested", "call"),  # deeply_nested() call
         }
 
         # Assert individual expected symbols exist
