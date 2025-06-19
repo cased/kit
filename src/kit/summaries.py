@@ -177,11 +177,17 @@ class Summarizer:
                 logger.warning("tiktoken not available, token count will be approximate (char count).")
                 return None
         except KeyError:
+            if tiktoken is None:
+                # tiktoken may be unavailable at runtime
+                return None
             try:
                 # Fallback for models not directly in tiktoken.model.MODEL_TO_ENCODING
-                encoding = tiktoken.get_encoding("cl100k_base")
-                self._tokenizer_cache[model_name] = encoding
-                return encoding
+                # Model not found, use cl100k_base as fallback if tiktoken available
+                if tiktoken is None:
+                    raise NameError("tiktoken not available")
+                encoder = tiktoken.get_encoding("cl100k_base")  # type: ignore[attr-defined]
+                self._tokenizer_cache[model_name] = encoder
+                return encoder
             except Exception as e:
                 logger.warning(
                     f"Could not load tiktoken encoder for {model_name} due to {e}, token count will be approximate (char count)."
@@ -211,8 +217,10 @@ class Summarizer:
                         try:
                             encoder = tiktoken.encoding_for_model(model_name)
                         except KeyError:
-                            # Model not found, use cl100k_base as fallback
-                            encoder = tiktoken.get_encoding("cl100k_base")
+                            # Model not found, use cl100k_base as fallback if tiktoken available
+                            if tiktoken is None:
+                                raise NameError("tiktoken not available")
+                            encoder = tiktoken.get_encoding("cl100k_base")  # type: ignore[attr-defined]
                         self._tokenizer_cache[model_name] = encoder
 
                     return len(encoder.encode(text))
