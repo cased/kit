@@ -5,6 +5,8 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union, runtime_checkable
 
+tiktoken: Optional[Any]  # noqa: ANN401, PGH003
+
 try:
     import tiktoken
 except ImportError:
