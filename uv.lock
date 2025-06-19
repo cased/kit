@@ -228,7 +228,7 @@ requires-dist = [
     { name = "chromadb", marker = "extra == 'all'", specifier = ">=0.5.23" },
     { name = "chromadb", marker = "extra == 'ml'", specifier = ">=0.5.23" },
     { name = "click", specifier = ">=8.0,<8.2" },
-    { name = "fastapi", specifier = "==0.110.0" },
+    { name = "fastapi", specifier = ">=0.110.0" },
     { name = "fastapi", marker = "extra == 'test-api'" },
     { name = "google-genai", specifier = ">=1.14.0" },
     { name = "mcp", specifier = ">=1.8.0,<2.0.0" },
