@@ -12,7 +12,8 @@
   module_name: (dotted_name) @name) @definition.import
 
 (import_from_statement
-  module_name: (relative_import) @name) @definition.import
+  module_name: (relative_import
+                 (dotted_name) @name)) @definition.import
 
 ; Import aliases
 (aliased_import

@@ -42,8 +42,7 @@ def some_function():
         assert ("collections", "import") in names_types
         assert ("typing", "import") in names_types
         assert ("ListType", "import_alias") in names_types
-        assert (".", "import") in names_types
-        assert ("..parent", "import") in names_types
+        assert ("parent", "import") in names_types
         assert ("math", "import") in names_types
 
         # Also check that function is still captured
