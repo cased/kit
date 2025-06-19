@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
@@ -14,30 +14,19 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
-      - name: Install uv
-        run: pip install uv
-      - name: Set up virtualenv and install deps
-        run: |
-          # Create a new virtual environment
-          uv venv .venv
-          # Activate the virtual environment
-          source .venv/bin/activate
-          # Install runtime and dev dependencies from pyproject.toml
-          uv pip install -e .[dev,all]
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - name: Install dependencies
+        run: uv sync
       - name: Lint and Type Check
         run: |
-          # Activate the virtual environment
-          source .venv/bin/activate
           # Run mypy type checking
-          mypy src/kit
+          uv run mypy src/kit
           # Run ruff linter
-          ruff check .
+          uv run ruff check .
           # Run ruff formatter check (non-modifying)
-          ruff format --check .
+          uv run ruff format --check .
       - name: Run Tests
         run: |
-          # Activate the virtual environment
-          source .venv/bin/activate
           # Run tests via scripts/test.sh
-          bash scripts/test.sh -v
+          uv run scripts/test.sh -v
