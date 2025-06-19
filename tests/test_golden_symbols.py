@@ -14,6 +14,43 @@ def run_extraction(tmpdir, filename, content):
 
 
 # --- Basic Tests ---
+def test_python_imports_extraction():
+    """Test extraction of various Python import patterns."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        content = '''
+import os
+import sys, json
+import numpy as np
+from collections import defaultdict
+from typing import List as ListType, Dict
+from . import local_module
+from ..parent import parent_module
+from math import *
+
+# Some code to ensure imports are at the top
+def some_function():
+    pass
+'''
+        symbols = run_extraction(tmpdir, "test_imports.py", content)
+        names_types = {(s["name"], s["type"]) for s in symbols}
+
+        # Check for import statements
+        assert ("os", "import") in names_types
+        assert ("sys", "import") in names_types
+        assert ("json", "import") in names_types
+        assert ("numpy", "import") in names_types
+        assert ("np", "import_alias") in names_types
+        assert ("collections", "import") in names_types
+        assert ("typing", "import") in names_types
+        assert ("ListType", "import_alias") in names_types
+        assert (".", "import") in names_types
+        assert ("..parent", "import") in names_types
+        assert ("math", "import") in names_types
+
+        # Also check that function is still captured
+        assert ("some_function", "function") in names_types
+
+
 def test_typescript_symbol_extraction():
     with tempfile.TemporaryDirectory() as tmpdir:
         os.path.join(tmpdir, "golden_typescript.ts")
@@ -45,6 +82,7 @@ def test_python_symbol_extraction():
             ("__init__", "method"),
             ("method_one", "method"),
             ("async_function", "function"),
+            ("asyncio", "import"),  # Import statement
         }
 
         # We'll refine the assertions as we improve the query

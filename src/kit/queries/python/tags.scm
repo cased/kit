@@ -1,5 +1,23 @@
 ;; tags.scm for Python symbol extraction
 
+; Import statements
+(import_statement
+  name: (dotted_name) @name) @definition.import
+
+(import_statement
+  name: (aliased_import
+    name: (dotted_name) @name)) @definition.import
+
+(import_from_statement
+  module_name: (dotted_name) @name) @definition.import
+
+(import_from_statement
+  module_name: (relative_import) @name) @definition.import
+
+; Import aliases
+(aliased_import
+  alias: (identifier) @name) @definition.import_alias
+
 ; Top-level function definitions (direct child of module, potentially decorated)
 (module
   (decorated_definition
