@@ -169,13 +169,20 @@ class Summarizer:
         if model_name in self._tokenizer_cache:
             return self._tokenizer_cache[model_name]
         try:
-            if tiktoken:
-                encoding = tiktoken.encoding_for_model(model_name)
-                self._tokenizer_cache[model_name] = encoding
-                return encoding
-            else:
-                logger.warning("tiktoken not available, token count will be approximate (char count).")
+            # If tiktoken is not available, exit early with None
+            if tiktoken is None:
+                logger.warning(
+                    "tiktoken not available, token count will be approximate (char count)."
+                )
                 return None
+
+            # At this point, mypy knows `tiktoken` is not None, but we still cast for clarity
+            from typing import cast
+
+            tk = cast(Any, tiktoken)
+            encoding = tk.encoding_for_model(model_name)
+            self._tokenizer_cache[model_name] = encoding
+            return encoding
         except KeyError:
             if tiktoken is None:
                 # tiktoken may be unavailable at runtime
