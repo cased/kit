@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union, runtime_checkable
 
-tiktoken: Optional[Any]  # noqa: ANN401, PGH003
+tiktoken: Optional[Any]
 
 try:
     import tiktoken
@@ -171,9 +171,7 @@ class Summarizer:
         try:
             # If tiktoken is not available, exit early with None
             if tiktoken is None:
-                logger.warning(
-                    "tiktoken not available, token count will be approximate (char count)."
-                )
+                logger.warning("tiktoken not available, token count will be approximate (char count).")
                 return None
 
             # At this point, mypy knows `tiktoken` is not None, but we still cast for clarity
