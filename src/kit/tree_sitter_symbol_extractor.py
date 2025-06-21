@@ -469,4 +469,22 @@ class TreeSitterSymbolExtractor:
             return []  # Return empty list on error
 
         logger.debug(f"[EXTRACT] Finished extraction for ext {ext}. Found {len(symbols)} symbols.")
-        return symbols
+
+        # Deduplicate symbols that may be captured by multiple query
+        # patterns (e.g., both a generic class capture and an exported
+        # class capture in TypeScript).  We consider a symbol duplicate
+        # if its *name*, *type*, and *start/end* lines are identical.
+        unique_symbols: list[dict[str, Any]] = []
+        seen: set[tuple[Any, ...]] = set()
+        for sym in symbols:
+            key = (sym.get("name"), sym.get("type"), sym.get("start_line"), sym.get("end_line"))
+            if key in seen:
+                logger.debug(f"[EXTRACT] Removing duplicate symbol: {key}")
+                continue
+            seen.add(key)
+            unique_symbols.append(sym)
+
+        if len(unique_symbols) < len(symbols):
+            logger.debug(f"[EXTRACT] Deduplicated symbols list: {len(symbols)} -> {len(unique_symbols)} for ext {ext}")
+
+        return unique_symbols
