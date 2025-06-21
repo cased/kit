@@ -285,6 +285,14 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 
 - Added `tests/test_cache_cleanup.py` covering TTL parsing, invalid env handling, and actual cleanup logic.
 
+## [1.2.3]
+
+### Bug Fixes
+
+- **Duplicate TypeScript / TSX Symbols**: Resolved an issue where some symbols could be recorded twice in `symbols.json` depending on tree-sitter queries. 
+  - The `TreeSitterSymbolExtractor` now removes duplicate symbols based on `(name, type, start_line, end_line)` and a dedicated regression test suite was added.
+  - Coverage: `tests/test_typescript_duplicate_symbols.py`, `tests/test_tsx_duplicate_symbols.py`.
+
 ## Links
 
 - [GitHub Releases](https://github.com/cased/kit/releases)
