@@ -57,17 +57,17 @@ class RepoMapper:
         """
         Returns a list of dicts representing files in the repo or a subdirectory.
         Each dict contains: path, size, mtime, is_file.
-        
+
         Args:
-            subpath: Optional subdirectory path relative to repo root. 
-                    If None, returns entire repo tree. If specified, returns 
+            subpath: Optional subdirectory path relative to repo root.
+                    If None, returns entire repo tree. If specified, returns
                     tree starting from that subdirectory.
         """
         # Don't use cache if subpath is specified (different from default behavior)
         if subpath is not None or self._file_tree is None:
             tree = []
             tracked_tree_paths = set()
-            
+
             # Determine the starting directory
             if subpath:
                 start_dir = self.repo_path / subpath
@@ -75,11 +75,11 @@ class RepoMapper:
                     raise ValueError(f"Subpath '{subpath}' does not exist or is not a directory")
             else:
                 start_dir = self.repo_path
-            
+
             for path in start_dir.rglob("*"):
                 if path.is_dir() or self._should_ignore(path):
                     continue
-                    
+
                 # Calculate relative path from the starting directory
                 if subpath:
                     # Path relative to the subpath
@@ -88,9 +88,9 @@ class RepoMapper:
                     file_path = str(Path(subpath) / rel_to_subpath)
                 else:
                     file_path = str(path.relative_to(self.repo_path))
-                
-                parent_path = str(Path(file_path).parent) if Path(file_path).parent != Path('.') else ""
-                
+
+                parent_path = str(Path(file_path).parent) if Path(file_path).parent != Path(".") else ""
+
                 # Add parent directories
                 if parent_path:
                     for subdir in self._subpaths_for_path(parent_path):
@@ -104,7 +104,7 @@ class RepoMapper:
                                     "size": 0,
                                 }
                             )
-                        
+
                 tree.append(
                     {
                         "path": file_path,
@@ -113,12 +113,12 @@ class RepoMapper:
                         "size": path.stat().st_size,
                     }
                 )
-                
+
             # Only cache if using default behavior (no subpath)
             if subpath is None:
                 self._file_tree = tree
             return tree
-        
+
         return self._file_tree
 
     def scan_repo(self) -> None:

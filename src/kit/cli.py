@@ -339,7 +339,9 @@ def file_content(
 def file_tree(
     path: str = typer.Argument(..., help="Path to the local repository."),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
-    subpath: Optional[str] = typer.Option(None, "--path", "-p", help="Subdirectory path to show tree for (relative to repo root)."),
+    subpath: Optional[str] = typer.Option(
+        None, "--path", "-p", help="Subdirectory path to show tree for (relative to repo root)."
+    ),
     ref: Optional[str] = typer.Option(
         None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
     ),
@@ -1248,7 +1250,7 @@ def grep_command(
     ),
 ):
     """Perform literal grep search on repository files.
-    
+
     Examples:
         kit grep . "TODO" --ignore-case --include "*.py"
         kit grep . "function main" --exclude "*.test.js"

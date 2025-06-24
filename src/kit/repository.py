@@ -287,8 +287,8 @@ class Repository:
         Returns the file tree of the repository.
 
         Args:
-            subpath: Optional subdirectory path relative to repo root. 
-                    If None, returns entire repo tree. If specified, returns 
+            subpath: Optional subdirectory path relative to repo root.
+                    If None, returns entire repo tree. If specified, returns
                     tree starting from that subdirectory.
 
         Returns:
@@ -353,7 +353,7 @@ class Repository:
         Args:
             pattern: The literal string to search for (not a regex).
             case_sensitive: Whether the search should be case sensitive. Defaults to True.
-            include_pattern: Glob pattern for files to include (e.g. '*.py'). 
+            include_pattern: Glob pattern for files to include (e.g. '*.py').
             exclude_pattern: Glob pattern for files to exclude.
             max_results: Maximum number of results to return. Defaults to 1000.
 
@@ -365,29 +365,27 @@ class Repository:
             [{"file": "main.py", "line_number": 42, "line_content": "# TODO: fix this"}]
         """
         import subprocess
-        import shlex
-        from pathlib import Path
 
         self._ensure_git_state_valid()
 
         # Build grep command
         cmd = ["grep", "-r", "-n", "-H"]  # -r for recursive, -n for line numbers, -H for filenames
-        
+
         if not case_sensitive:
             cmd.append("-i")
-        
+
         # Use -F for literal (fixed-string) search, not regex
         cmd.extend(["-F", pattern])
-        
+
         # Add file patterns if specified
         if include_pattern:
             cmd.extend(["--include", include_pattern])
         if exclude_pattern:
             cmd.extend(["--exclude", exclude_pattern])
-            
+
         # Exclude .git directory
         cmd.extend(["--exclude-dir", ".git"])
-        
+
         # Search recursively in repo root
         cmd.append(".")
 
@@ -400,17 +398,17 @@ class Repository:
                 timeout=30,  # 30 second timeout
             )
         except subprocess.TimeoutExpired:
-            raise RuntimeError(f"Grep search timed out after 30 seconds")
+            raise RuntimeError("Grep search timed out after 30 seconds")
         except FileNotFoundError:
             raise RuntimeError("grep command not found. Please ensure grep is installed and in PATH.")
 
         matches = []
         if result.returncode == 0:  # grep found matches
-            lines = result.stdout.strip().split('\n')
+            lines = result.stdout.strip().split("\n")
             for line in lines[:max_results]:  # Limit results
-                if ':' in line:
+                if ":" in line:
                     # Parse grep output: filename:line_number:line_content
-                    parts = line.split(':', 2)
+                    parts = line.split(":", 2)
                     if len(parts) >= 3:
                         file_path = parts[0]
                         # Clean up file path (remove ./ prefix)
@@ -421,12 +419,14 @@ class Repository:
                         except ValueError:
                             continue  # Skip malformed lines
                         line_content = parts[2]
-                        
-                        matches.append({
-                            "file": file_path,
-                            "line_number": line_number,
-                            "line_content": line_content,
-                        })
+
+                        matches.append(
+                            {
+                                "file": file_path,
+                                "line_number": line_number,
+                                "line_content": line_content,
+                            }
+                        )
         elif result.returncode == 1:
             # No matches found (normal grep behavior)
             pass
