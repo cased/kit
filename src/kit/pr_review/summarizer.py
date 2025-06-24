@@ -335,11 +335,13 @@ class PRSummarizer(PRReviewer):
                         print(f"Using existing repository at: {self.config.repo_path}")
                 else:
                     if not quiet:
-                        print("Cloning repository for analysis...")
+                        print("Preparing repository for analysis...")
 
                 repo_path = self.get_repo_for_analysis(owner, repo, pr_details)
 
                 # Run async analysis
+                if not quiet:
+                    print("Running analysis...")
                 summary = asyncio.run(self.analyze_pr_for_summary(repo_path, pr_details, files))
             else:
                 # Fallback to basic summary without full repo analysis
