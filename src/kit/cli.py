@@ -1244,6 +1244,8 @@ def grep_command(
     include: Optional[str] = typer.Option(None, "--include", help="Include files matching pattern (e.g., '*.py')."),
     exclude: Optional[str] = typer.Option(None, "--exclude", help="Exclude files matching pattern."),
     max_results: int = typer.Option(1000, "--max-results", "-n", help="Maximum number of results to return."),
+    directory: Optional[str] = typer.Option(None, "--directory", "-d", help="Limit search to specific directory."),
+    include_hidden: bool = typer.Option(False, "--include-hidden", help="Include hidden directories in search."),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
     ref: Optional[str] = typer.Option(
         None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
@@ -1251,9 +1253,13 @@ def grep_command(
 ):
     """Perform literal grep search on repository files.
 
+    By default, excludes common directories like node_modules, __pycache__, .git, 
+    build directories, and hidden directories for better performance.
+
     Examples:
         kit grep . "TODO" --ignore-case --include "*.py"
-        kit grep . "function main" --exclude "*.test.js"
+        kit grep . "function main" --exclude "*.test.js" --directory "src"
+        kit grep . "config" --include-hidden  # Search hidden directories too
     """
     from kit import Repository
 
@@ -1265,6 +1271,8 @@ def grep_command(
             include_pattern=include,
             exclude_pattern=exclude,
             max_results=max_results,
+            directory=directory,
+            include_hidden=include_hidden,
         )
 
         if output:
