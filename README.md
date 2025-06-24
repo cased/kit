@@ -68,7 +68,7 @@ print(f"Branch: {repo.current_branch}")
 # Read one file
 main_py = repo.get_file_content("src/main.py")
 
-# Read many files in one round-trip (NEW in 1.0.4)
+# Read many files in one round-trip
 contents = repo.get_file_content([
     "src/main.py",
     "src/utils/helper.py",
@@ -113,32 +113,14 @@ kit commit  # Analyze and commit with AI-generated message
 
 The CLI supports all major repository operations with Unix-friendly output for scripting and automation. See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehensive usage examples.
 
-### REST API (FastAPI)
-
-Once you run `kit serve` (or import `kit.api.app` in your own FastAPI server) you can fetch multiple files in **one HTTP call**:
-
-```bash
-# Register / open a repo – returns an ID
-curl -X POST localhost:8000/repository -d '{"path_or_url": "/path/to/repo"}' -H 'Content-Type: application/json'
-#=> {"id": "abc123"}
-
-# Fetch many files at once
-curl -X POST localhost:8000/repository/abc123/files \
-     -d '{"paths": ["src/main.py", "src/utils/helper.py"]}' \
-     -H 'Content-Type: application/json'
-#=> {
-#     "src/main.py": "print('hello')\n...",
-#     "src/utils/helper.py": "def helper(): ..."
-#   }
-```
-
 ## Key Toolkit Capabilities
 
 `kit` helps your apps and agents understand and interact with codebases, with components to build your own AI-powered developer tools.
 
 *   **Explore Code Structure:**
-    *   High-level view with `repo.get_file_tree()` to list all files and directories.
+    *   High-level view with `repo.get_file_tree()` to list all files and directories. You can also pass a subdirectory for a more limited scan.
     *   Dive down with `repo.extract_symbols()` to identify functions, classes, and other code constructs, either across the entire repository or within a single file.
+    *   Use the new (as of 1.1.0) and faster `repo.extract_symbols_incremental()` to get fast, cache-aware symbol extraction—best when when dealing with small changes to repositories.
 
 *   **Pinpoint Information:**
     *   Run regular expression searches across your codebase using `repo.search_text()`.
@@ -169,13 +151,6 @@ curl -X POST localhost:8000/repository/abc123/files \
     *   **REST API**: HTTP endpoints for web applications and microservices.
     *   **MCP Server**: Model Context Protocol integration for AI agents and development tools.
 
-*   **AI-Powered Code Review, Summaries & Commits:**
-    *   Automated PR review and summarization with `kit review` and `kit summarize` using **free local models (Ollama)** or cloud models (Claude, GPT-4).
-    *   Intelligent commit message generation with `kit commit` using repository context and best practices.
-    *   Repository cloning and comprehensive file analysis for deep code understanding.
-    *   Configurable review depth (quick, standard, thorough) and customizable analysis settings.
-    *   Seamless GitHub integration with automatic comment posting and PR workflow integration.
-    *   Cost transparency with real-time LLM token usage tracking and pricing information (free for Ollama).
 
 ## High-Performance Incremental Analysis
 
@@ -188,23 +163,6 @@ kit's incremental analysis system provides intelligent caching that dramatically
 - **Automatic git state detection**: Invalidates caches when you switch branches, commit, merge, or rebase
 - **LRU cache management**: Automatically manages memory usage with configurable cache size limits
 
-**How It Works:**
-```python
-# First analysis (builds cache)
-repo = Repository("/path/to/repo")
-symbols = repo.extract_symbols_incremental()  # Analyzes all files, caches results
-
-# Subsequent analyses (uses cache - much faster)
-symbols = repo.extract_symbols_incremental()  # Retrieves from cache if unchanged
-
-# When you modify just one file, only that file is re-analyzed
-# Other files remain cached, giving you the performance boost
-```
-
-**Smart Change Detection:**
-- When you modify a single file in a 1000-file repository, kit analyzes only that one file
-- Logs show exactly what's happening: "Analyzing 1 changed files (skipping 999 cached)"
-- Supports both repository-wide analysis and targeted file analysis
 
 **Manual Cache Management:**
 ```python
@@ -224,7 +182,6 @@ repo.clear_incremental_cache()
 The `kit` tool includes an MCP (Model Context Protocol) server that allows AI agents and other development tools to interact with a codebase programmatically.
 
 MCP support is currently in alpha. Add a stanza like this to your MCP tool:
-
 
 
 ```jsonc
