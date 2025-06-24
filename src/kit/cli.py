@@ -339,21 +339,26 @@ def file_content(
 def file_tree(
     path: str = typer.Argument(..., help="Path to the local repository."),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    subpath: Optional[str] = typer.Option(
+        None, "--path", "-p", help="Subdirectory path to show tree for (relative to repo root)."
+    ),
     ref: Optional[str] = typer.Option(
         None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
     ),
 ):
-    """Get the file tree structure of a repository."""
+    """Get the file tree structure of a repository or subdirectory."""
     from kit import Repository
 
     try:
         repo = Repository(path, ref=ref)
-        tree = repo.get_file_tree()
+        tree = repo.get_file_tree(subpath=subpath)
 
         if output:
             Path(output).write_text(json.dumps(tree, indent=2))
             typer.echo(f"File tree written to {output}")
         else:
+            if subpath:
+                typer.echo(f"File tree for {subpath}:")
             for file_info in tree:
                 indicator = "📁" if file_info.get("is_dir") else "📄"
                 size = f" ({file_info.get('size', 0)} bytes)" if not file_info.get("is_dir") else ""
@@ -1228,6 +1233,52 @@ def cache_command(
 
     except Exception as e:
         typer.secho(f"❌ Cache operation failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command("grep")
+def grep_command(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    pattern: str = typer.Argument(..., help="Literal string to search for."),
+    case_sensitive: bool = typer.Option(True, "--case-sensitive/--ignore-case", "-c/-i", help="Case sensitive search."),
+    include: Optional[str] = typer.Option(None, "--include", help="Include files matching pattern (e.g., '*.py')."),
+    exclude: Optional[str] = typer.Option(None, "--exclude", help="Exclude files matching pattern."),
+    max_results: int = typer.Option(1000, "--max-results", "-n", help="Maximum number of results to return."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
+):
+    """Perform literal grep search on repository files.
+
+    Examples:
+        kit grep . "TODO" --ignore-case --include "*.py"
+        kit grep . "function main" --exclude "*.test.js"
+    """
+    from kit import Repository
+
+    try:
+        repo = Repository(path, ref=ref)
+        matches = repo.grep(
+            pattern,
+            case_sensitive=case_sensitive,
+            include_pattern=include,
+            exclude_pattern=exclude,
+            max_results=max_results,
+        )
+
+        if output:
+            Path(output).write_text(json.dumps(matches, indent=2))
+            typer.echo(f"Grep results written to {output}")
+        else:
+            if not matches:
+                typer.echo(f"No matches found for '{pattern}'")
+            else:
+                typer.echo(f"Found {len(matches)} matches for '{pattern}':")
+                for match in matches:
+                    typer.echo(f"📄 {match['file']}:{match['line_number']}: {match['line_content'].strip()}")
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
 

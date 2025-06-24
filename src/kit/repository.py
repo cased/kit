@@ -282,15 +282,20 @@ class Repository:
                     pass
         return repo_path
 
-    def get_file_tree(self) -> List[Dict[str, Any]]:
+    def get_file_tree(self, subpath: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Returns the file tree of the repository.
+
+        Args:
+            subpath: Optional subdirectory path relative to repo root.
+                    If None, returns entire repo tree. If specified, returns
+                    tree starting from that subdirectory.
 
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the file tree.
         """
         self._ensure_git_state_valid()
-        return self.mapper.get_file_tree()
+        return self.mapper.get_file_tree(subpath=subpath)
 
     def extract_symbols(self, file_path: Optional[str] = None) -> List[Dict[str, Any]]:
         """
@@ -332,6 +337,104 @@ class Repository:
         """
         self._ensure_git_state_valid()
         return self.searcher.search_text(query, file_pattern)
+
+    def grep(
+        self,
+        pattern: str,
+        *,
+        case_sensitive: bool = True,
+        include_pattern: Optional[str] = None,
+        exclude_pattern: Optional[str] = None,
+        max_results: int = 1000,
+    ) -> List[Dict[str, Any]]:
+        """
+        Performs literal grep search on repository files using system grep.
+
+        Args:
+            pattern: The literal string to search for (not a regex).
+            case_sensitive: Whether the search should be case sensitive. Defaults to True.
+            include_pattern: Glob pattern for files to include (e.g. '*.py').
+            exclude_pattern: Glob pattern for files to exclude.
+            max_results: Maximum number of results to return. Defaults to 1000.
+
+        Returns:
+            List[Dict[str, Any]]: List of matches with file, line_number, line_content.
+
+        Example:
+            >>> repo.grep("TODO", case_sensitive=False, include_pattern="*.py")
+            [{"file": "main.py", "line_number": 42, "line_content": "# TODO: fix this"}]
+        """
+        import subprocess
+
+        self._ensure_git_state_valid()
+
+        # Build grep command
+        cmd = ["grep", "-r", "-n", "-H"]  # -r for recursive, -n for line numbers, -H for filenames
+
+        if not case_sensitive:
+            cmd.append("-i")
+
+        # Use -F for literal (fixed-string) search, not regex
+        cmd.extend(["-F", pattern])
+
+        # Add file patterns if specified
+        if include_pattern:
+            cmd.extend(["--include", include_pattern])
+        if exclude_pattern:
+            cmd.extend(["--exclude", exclude_pattern])
+
+        # Exclude .git directory
+        cmd.extend(["--exclude-dir", ".git"])
+
+        # Search recursively in repo root
+        cmd.append(".")
+
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=str(self.local_path),
+                capture_output=True,
+                text=True,
+                timeout=30,  # 30 second timeout
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("Grep search timed out after 30 seconds")
+        except FileNotFoundError:
+            raise RuntimeError("grep command not found. Please ensure grep is installed and in PATH.")
+
+        matches = []
+        if result.returncode == 0:  # grep found matches
+            lines = result.stdout.strip().split("\n")
+            for line in lines[:max_results]:  # Limit results
+                if ":" in line:
+                    # Parse grep output: filename:line_number:line_content
+                    parts = line.split(":", 2)
+                    if len(parts) >= 3:
+                        file_path = parts[0]
+                        # Clean up file path (remove ./ prefix)
+                        if file_path.startswith("./"):
+                            file_path = file_path[2:]
+                        try:
+                            line_number = int(parts[1])
+                        except ValueError:
+                            continue  # Skip malformed lines
+                        line_content = parts[2]
+
+                        matches.append(
+                            {
+                                "file": file_path,
+                                "line_number": line_number,
+                                "line_content": line_content,
+                            }
+                        )
+        elif result.returncode == 1:
+            # No matches found (normal grep behavior)
+            pass
+        else:
+            # Actual error occurred
+            raise RuntimeError(f"Grep failed with exit code {result.returncode}: {result.stderr}")
+
+        return matches
 
     def get_code_searcher(self) -> "CodeSearcher":
         """Return a CodeSearcher bound to this repository.
@@ -418,8 +521,10 @@ class Repository:
 
     def _get_single_file_content(self, file_path: str) -> str:
         """Reads and returns the content of a single file within the repository."""
+        from .utils import validate_relative_path
+
         self._ensure_git_state_valid()
-        full_path = self.local_path / file_path
+        full_path = validate_relative_path(self.local_path, file_path)
         if not full_path.is_file():
             raise FileNotFoundError(f"File not found in repository: {file_path}")
         try:
@@ -666,13 +771,15 @@ class Repository:
         Returns:
             The absolute path as a string.
         """
+        from .utils import validate_relative_path
+
         # Return a canonical absolute path for a file inside the repository.
         # We purposefully call `.resolve()` *after* joining with `self.local_path` so that
         # the repository root itself keeps its original symlink form (important for
         # tests that compare the root path), while individual file paths are resolved to
         # their real locations on disk. This yields stable, non-symlinked paths that
         # downstream tools (and tests) expect.
-        return str((self.local_path / relative_path).resolve())
+        return str(validate_relative_path(self.local_path, relative_path).resolve())
 
     def _check_git_state_changed(self) -> bool:
         """Check if the git state has changed since last check."""
@@ -768,8 +875,10 @@ class Repository:
                 ):
                     supported_files.append(file_path)
         else:
-            # Convert relative paths to absolute
-            supported_files = [self.local_path / fp for fp in file_paths]
+            # Convert relative paths to absolute with validation
+            from .utils import validate_relative_path
+
+            supported_files = [validate_relative_path(self.local_path, fp) for fp in file_paths]
 
         # Use incremental analyzer
         all_symbols = []

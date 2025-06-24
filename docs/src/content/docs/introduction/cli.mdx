@@ -66,22 +66,24 @@ kit file-tree <repository-path> [OPTIONS]
 ```
 
 **Options:**
-- `--format, -f <format>`: Output format (`tree`, `json`, `names`, `plain`)
-- `--pattern, -p <pattern>`: File pattern filter
+- `--path, -p <subpath>`: Subdirectory path to show tree for (relative to repo root)
 - `--output, -o <file>`: Save output to file
-- `--max-depth, -d <depth>`: Limit directory depth
 
 **Examples:**
 
 ```bash
-# Show repository structure
+# Show full repository structure
 kit file-tree /path/to/repo
 
-# Only Python files, limited depth
-kit file-tree /path/to/repo --pattern "*.py" --max-depth 3
+# Show structure for specific subdirectory
+kit file-tree /path/to/repo --path src
+kit file-tree /path/to/repo -p src/components
 
 # Export structure as JSON
-kit file-tree /path/to/repo --format json --output structure.json
+kit file-tree /path/to/repo --output structure.json
+
+# Analyze specific directory and export
+kit file-tree /path/to/repo --path src/api --output api-structure.json
 ```
 
 #### `kit search`
@@ -95,8 +97,6 @@ kit search <repository-path> <query> [OPTIONS]
 **Options:**
 - `--pattern, -p <pattern>`: File pattern filter
 - `--output, -o <file>`: Save output to file
-- `--context, -c <lines>`: Show context lines around matches
-- `--case-sensitive, -s`: Enable case-sensitive search
 
 **Examples:**
 
@@ -104,12 +104,48 @@ kit search <repository-path> <query> [OPTIONS]
 # Search for function definitions
 kit search /path/to/repo "def.*login"
 
-# Search in specific files with context
-kit search /path/to/repo "TODO" --pattern "*.py" --context 2
-
-# Case-sensitive search
-kit search /path/to/repo "ApiClient" --case-sensitive
+# Search in specific files
+kit search /path/to/repo "TODO" --pattern "*.py"
 ```
+
+#### `kit grep`
+
+Perform literal grep search on repository files using system grep.
+
+```bash
+kit grep <repository-path> <pattern> [OPTIONS]
+```
+
+**Options:**
+- `--case-sensitive/--ignore-case, -c/-i`: Case sensitive search (default: case-sensitive)
+- `--include <pattern>`: Include files matching glob pattern (e.g., '*.py')
+- `--exclude <pattern>`: Exclude files matching glob pattern
+- `--max-results, -n <count>`: Maximum number of results to return (default: 1000)
+- `--output, -o <file>`: Save output to JSON file
+
+**Examples:**
+
+```bash
+# Basic literal search
+kit grep /path/to/repo "TODO"
+
+# Case insensitive search
+kit grep /path/to/repo "function" --ignore-case
+
+# Search only Python files
+kit grep /path/to/repo "class" --include "*.py"
+
+# Exclude test files
+kit grep /path/to/repo "import" --exclude "*test*"
+
+# Limit results and save to file
+kit grep /path/to/repo "error" --max-results 50 --output errors.json
+
+# Complex filtering
+kit grep /path/to/repo "api_key" --include "*.py" --exclude "*test*" --ignore-case
+```
+
+**Note:** Requires system `grep` command to be available in PATH. For cross-platform regex search, use `kit search` instead.
 
 #### `kit usages`
 
@@ -665,6 +701,59 @@ time kit symbols $REPO_PATH > /dev/null
 kit cache stats $REPO_PATH
 ```
 
+### Focused Directory Analysis
+
+The new subpath and grep capabilities enable focused analysis of specific parts of large repositories:
+
+```bash
+#!/bin/bash
+REPO_PATH="/path/to/repo"
+FOCUS_DIR="src/api"
+
+# Analyze specific directory structure
+echo "📁 Analyzing directory structure for $FOCUS_DIR"
+kit file-tree $REPO_PATH --path $FOCUS_DIR
+
+# Find TODOs only in API code
+echo "🔍 Finding TODOs in API code"
+kit grep $REPO_PATH "TODO" --include "$FOCUS_DIR/*.py"
+
+# Find security-related code
+echo "🔒 Finding security patterns"
+kit grep $REPO_PATH "auth\|token\|password" --include "$FOCUS_DIR/*" --ignore-case
+
+# Export focused analysis
+kit file-tree $REPO_PATH --path $FOCUS_DIR --output api-structure.json
+kit grep $REPO_PATH "class.*API" --include "$FOCUS_DIR/*.py" --output api-classes.json
+```
+
+### Large Repository Optimization
+
+For large repositories, use subpath analysis to work efficiently:
+
+```bash
+#!/bin/bash
+REPO_PATH="/path/to/large-repo"
+
+# Instead of analyzing the entire repository
+# kit symbols $REPO_PATH  # This could be slow
+
+# Focus on specific components
+for component in "src/auth" "src/api" "src/models"; do
+  echo "Analyzing $component..."
+  
+  # Get component structure
+  kit file-tree $REPO_PATH --path "$component"
+  
+  # Find component-specific patterns
+  kit grep $REPO_PATH "class\|def\|import" --include "$component/*.py" --max-results 100
+  
+  # Extract symbols from component files only
+  # (Note: symbols command doesn't support subpath yet, but you can filter)
+  kit symbols $REPO_PATH --format json | jq ".[] | select(.file | startswith(\"$component\"))"
+done
+```
+
 ### AI-Powered Development
 
 ```bash
@@ -696,18 +785,16 @@ mkdir -p $OUTPUT_DIR
 # Generate comprehensive analysis (uses caching)
 kit export $REPO_PATH index $OUTPUT_DIR/repo-index.json
 
-# Find all TODO items
-kit search $REPO_PATH "TODO\|FIXME\|HACK" > $OUTPUT_DIR/todos.txt
+# Find all TODO items with grep (faster than search for literal strings)
+kit grep $REPO_PATH "TODO\|FIXME\|XXX" --ignore-case --output $OUTPUT_DIR/todos.json
 
-# Analyze function complexity (functions over 30 lines)
-kit symbols $REPO_PATH --format json | \
-  jq '.[] | select(.type=="function" and (.end_line - .start_line) > 30)' \
-  > $OUTPUT_DIR/complex-functions.json
-
-# Check cache performance
-kit cache stats $REPO_PATH
-
-echo "Analysis complete in $OUTPUT_DIR/"
+# Analyze specific areas that changed
+CHANGED_DIRS=$(git diff --name-only HEAD~1 | cut -d'/' -f1 | sort -u)
+for dir in $CHANGED_DIRS; do
+  echo "Analyzing changed directory: $dir"
+  kit file-tree $REPO_PATH --path "$dir" --output "$OUTPUT_DIR/${dir}-structure.json"
+  kit grep $REPO_PATH "test\|spec" --include "$dir/*" --output "$OUTPUT_DIR/${dir}-tests.json"
+done
 ```
 
 ### Documentation Generation

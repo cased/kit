@@ -31,7 +31,16 @@ class RepoMapper:
         return None
 
     def _should_ignore(self, file: Path) -> bool:
-        rel_path = str(file.relative_to(self.repo_path))
+        # Handle potential symlink resolution mismatches
+        try:
+            rel_path = str(file.relative_to(self.repo_path))
+        except ValueError:
+            # If direct relative_to fails (due to symlink resolution), try with resolved paths
+            try:
+                rel_path = str(file.resolve().relative_to(self.repo_path.resolve()))
+            except ValueError:
+                # If still failing, file is outside repo bounds - ignore it
+                return True
         # Always ignore .git and its contents
         if ".git" in file.parts:
             return True
@@ -53,41 +62,75 @@ class RepoMapper:
             sub_paths.append(str(PurePath(*pure_rel_path.parts[:i])))
         return sub_paths
 
-    def get_file_tree(self) -> List[Dict[str, Any]]:
+    def get_file_tree(self, subpath: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        Returns a list of dicts representing all files in the repo.
+        Returns a list of dicts representing files in the repo or a subdirectory.
         Each dict contains: path, size, mtime, is_file.
+
+        Args:
+            subpath: Optional subdirectory path relative to repo root.
+                    If None, returns entire repo tree. If specified, returns
+                    tree starting from that subdirectory.
         """
-        if self._file_tree is not None:
-            return self._file_tree
-        tree = []
-        tracked_tree_paths = set()
-        for path in self.repo_path.rglob("*"):
-            if path.is_dir() or self._should_ignore(path):
-                continue
-            file_path = str(path.relative_to(self.repo_path))
-            parent_path = str(path.parent.relative_to(self.repo_path))
-            for subpath in self._subpaths_for_path(parent_path):
-                if subpath not in tracked_tree_paths:
-                    tracked_tree_paths.add(subpath)
-                    tree.append(
-                        {
-                            "path": subpath,
-                            "is_dir": True,
-                            "name": PurePath(subpath).name,
-                            "size": 0,
-                        }
-                    )
-            tree.append(
-                {
-                    "path": file_path,
-                    "is_dir": False,
-                    "name": path.name,
-                    "size": path.stat().st_size,
-                }
-            )
-        self._file_tree = tree
-        return tree
+        # Don't use cache if subpath is specified (different from default behavior)
+        if subpath is not None or self._file_tree is None:
+            tree = []
+            tracked_tree_paths = set()
+
+            # Determine the starting directory
+            if subpath:
+                from .utils import validate_relative_path
+
+                start_dir = validate_relative_path(self.repo_path, subpath)
+                if not start_dir.exists() or not start_dir.is_dir():
+                    raise ValueError(f"Subpath '{subpath}' does not exist or is not a directory")
+            else:
+                start_dir = self.repo_path
+
+            for path in start_dir.rglob("*"):
+                if path.is_dir() or self._should_ignore(path):
+                    continue
+
+                # Calculate relative path from the starting directory
+                if subpath:
+                    # Path relative to the subpath
+                    rel_to_subpath = path.relative_to(start_dir)
+                    # Construct the full relative path from repo root
+                    file_path = str(Path(subpath) / rel_to_subpath)
+                else:
+                    file_path = str(path.relative_to(self.repo_path))
+
+                parent_path = str(Path(file_path).parent) if Path(file_path).parent != Path(".") else ""
+
+                # Add parent directories
+                if parent_path:
+                    for subdir in self._subpaths_for_path(parent_path):
+                        if subdir not in tracked_tree_paths:
+                            tracked_tree_paths.add(subdir)
+                            tree.append(
+                                {
+                                    "path": subdir,
+                                    "is_dir": True,
+                                    "name": PurePath(subdir).name,
+                                    "size": 0,
+                                }
+                            )
+
+                tree.append(
+                    {
+                        "path": file_path,
+                        "is_dir": False,
+                        "name": path.name,
+                        "size": path.stat().st_size,
+                    }
+                )
+
+            # Only cache if using default behavior (no subpath)
+            if subpath is None:
+                self._file_tree = tree
+            return tree
+
+        return self._file_tree
 
     def scan_repo(self) -> None:
         """
@@ -147,7 +190,9 @@ class RepoMapper:
                                  Returns an empty list if the file is ignored,
                                  not supported, or if an error occurs.
         """
-        abs_path = self.repo_path / file_path
+        from .utils import validate_relative_path
+
+        abs_path = validate_relative_path(self.repo_path, file_path)
         if self._should_ignore(abs_path):
             logging.debug(f"Ignoring file specified in extract_symbols: {file_path}")
             return []
