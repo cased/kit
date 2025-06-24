@@ -217,13 +217,14 @@ def test_grep_hidden_directory_exclusion():
         assert len(default_matches) == 1
         assert "src/main.py" in default_matches[0]["file"]
 
-        # Test including hidden directories
+        # Test including hidden directories (but .git still excluded by default)
         all_matches = repo.grep("function", include_hidden=True)
-        assert len(all_matches) == 4
+        assert len(all_matches) == 3  # .git is still excluded by smart exclusions
         files = {match["file"] for match in all_matches}
-        assert any(".git" in f for f in files)
         assert any(".vscode" in f for f in files)
         assert any(".github" in f for f in files)
+        assert "src/main.py" in files
+        # .git should still be excluded even with include_hidden=True
 
 
 def test_grep_smart_exclusions():

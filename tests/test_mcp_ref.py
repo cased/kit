@@ -218,3 +218,91 @@ class TestMCPRefParameter:
 
         assert isinstance(git_info, dict)
         assert "current_sha" in git_info
+
+    def test_grep_code_tool(self):
+        """Test grep_code tool via MCP."""
+        logic = KitServerLogic()
+
+        # Open repository
+        repo_id = logic.open_repository(".")
+
+        # Test basic grep
+        results = logic.grep_code(repo_id, "Repository")
+        assert isinstance(results, list)
+
+    def test_grep_code_with_parameters(self):
+        """Test grep_code tool with various parameters."""
+        logic = KitServerLogic()
+
+        # Open repository
+        repo_id = logic.open_repository(".")
+
+        # Test with case insensitive
+        results = logic.grep_code(repo_id, "repository", case_sensitive=False)
+        assert isinstance(results, list)
+
+        # Test with directory filter
+        results = logic.grep_code(repo_id, "import", directory="src")
+        assert isinstance(results, list)
+
+        # Test with file patterns
+        results = logic.grep_code(repo_id, "def", include_pattern="*.py", max_results=10, include_hidden=False)
+        assert isinstance(results, list)
+
+    def test_grep_code_invalid_directory(self):
+        """Test grep_code with invalid directory."""
+        from kit.mcp.server import INVALID_PARAMS, MCPError
+
+        logic = KitServerLogic()
+
+        # Open repository
+        repo_id = logic.open_repository(".")
+
+        # Test with nonexistent directory
+        with pytest.raises(MCPError) as exc_info:
+            logic.grep_code(repo_id, "test", directory="nonexistent")
+
+        assert exc_info.value.code == INVALID_PARAMS
+
+    def test_grep_params_model(self):
+        """Test GrepParams model."""
+        from kit.mcp.server import GrepParams
+
+        # Test basic params
+        params = GrepParams(repo_id="test-repo", pattern="TODO")
+        assert params.repo_id == "test-repo"
+        assert params.pattern == "TODO"
+        assert params.case_sensitive is True  # Default
+        assert params.include_hidden is False  # Default
+
+        # Test with all parameters
+        params = GrepParams(
+            repo_id="test-repo",
+            pattern="function",
+            case_sensitive=False,
+            include_pattern="*.py",
+            exclude_pattern="*test*",
+            max_results=50,
+            directory="src",
+            include_hidden=True,
+        )
+        assert params.case_sensitive is False
+        assert params.include_pattern == "*.py"
+        assert params.exclude_pattern == "*test*"
+        assert params.max_results == 50
+        assert params.directory == "src"
+        assert params.include_hidden is True
+
+    def test_tools_list_includes_grep(self):
+        """Test that tools list includes grep_code tool."""
+        logic = KitServerLogic()
+
+        tools = logic.list_tools()
+        tool_names = [tool.name for tool in tools]
+
+        assert "grep_code" in tool_names
+
+        # Find the grep tool and check its description
+        grep_tool = next(tool for tool in tools if tool.name == "grep_code")
+        assert "literal grep search" in grep_tool.description.lower()
+        assert "directory filtering" in grep_tool.description.lower()
