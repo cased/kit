@@ -518,6 +518,8 @@ class PRReviewer:
                         repo_path = self.get_repo_for_analysis(owner, repo, pr_details)
 
                         # Run async analysis
+                        if not quiet:
+                            print("Running analysis...")
                         analysis = asyncio.run(self.analyze_pr_with_kit(repo_path, pr_details, files))
 
                         # Validate review quality
@@ -557,14 +559,16 @@ class PRReviewer:
                 else:
                     # Standard cloning behavior
                     if not quiet:
-                        print("Cloning repository for analysis...")
+                        print("Preparing repository for analysis...")
                     with tempfile.TemporaryDirectory():
                         try:
                             repo_path = self.get_repo_for_analysis(owner, repo, pr_details)
                             if not quiet:
-                                print(f"Repository cloned to: {repo_path}")
+                                print(f"Using repository at: {repo_path}")
 
                             # Run async analysis
+                            if not quiet:
+                                print("Running analysis...")
                             analysis = asyncio.run(self.analyze_pr_with_kit(repo_path, pr_details, files))
 
                             # Validate review quality
