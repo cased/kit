@@ -1,10 +1,188 @@
 ---
-title: Repository API
+title: "Repository API"
+description: "Complete reference for Repository class methods and properties"
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+# Repository API
 
-This page details the methods and properties of the central `kit.Repository` class.
+The `Repository` class is the main entry point for analyzing code repositories with Kit.
+
+## Core Methods
+
+### `get_file_tree(subpath=None)`
+
+Returns the file tree structure of the repository.
+
+**Parameters:**
+- `subpath` (str, optional): Subdirectory path relative to repo root. If None, returns entire repo tree. If specified, returns tree starting from that subdirectory.
+
+**Returns:**
+- `List[Dict[str, Any]]`: List of file/directory objects with `path`, `is_dir`, `name`, and `size` fields.
+
+**Examples:**
+
+```python
+from kit import Repository
+
+repo = Repository("/path/to/repo")
+
+# Get full repository tree
+full_tree = repo.get_file_tree()
+
+# Get tree for specific subdirectory  
+src_tree = repo.get_file_tree(subpath="src")
+components_tree = repo.get_file_tree(subpath="src/components")
+```
+
+### `grep(pattern, *, case_sensitive=True, include_pattern=None, exclude_pattern=None, max_results=1000)`
+
+Performs literal grep search on repository files using system grep.
+
+**Parameters:**
+- `pattern` (str): The literal string to search for (not a regex)
+- `case_sensitive` (bool): Whether the search should be case sensitive. Defaults to True
+- `include_pattern` (str, optional): Glob pattern for files to include (e.g. '*.py')
+- `exclude_pattern` (str, optional): Glob pattern for files to exclude
+- `max_results` (int): Maximum number of results to return. Defaults to 1000
+
+**Returns:**
+- `List[Dict[str, Any]]`: List of matches with `file`, `line_number`, and `line_content` fields
+
+**Examples:**
+
+```python
+from kit import Repository
+
+repo = Repository("/path/to/repo")
+
+# Basic search
+matches = repo.grep("TODO")
+
+# Case insensitive search
+matches = repo.grep("function", case_sensitive=False)
+
+# Search only Python files
+matches = repo.grep("class", include_pattern="*.py")
+
+# Exclude test files
+matches = repo.grep("import", exclude_pattern="*test*")
+
+# Limit results
+matches = repo.grep("error", max_results=50)
+```
+
+**Note:** Requires system `grep` command to be available in PATH.
+
+### `extract_symbols(file_path=None)`
+
+Extracts symbols (functions, classes, etc.) from repository files.
+
+**Parameters:**
+- `file_path` (str, optional): Specific file to extract from. If None, extracts from all files.
+
+**Returns:**
+- `List[Dict[str, Any]]`: List of symbol objects with `name`, `type`, `start_line`, `end_line`, and `code` fields.
+
+### `search_text(query, file_pattern="*")`
+
+Searches for text patterns in repository files using Kit's built-in search.
+
+**Parameters:**
+- `query` (str): Text or regex pattern to search for
+- `file_pattern` (str): Glob pattern for files to search. Defaults to "*"
+
+**Returns:**
+- `List[Dict[str, Any]]`: List of search results
+
+### `get_file_content(file_path)`
+
+Reads and returns file content(s).
+
+**Parameters:**
+- `file_path` (str | List[str]): Single file path or list of file paths
+
+**Returns:**
+- `str | Dict[str, str]`: File content (single) or mapping of path → content (multiple)
+
+## Properties
+
+### `current_sha`
+Current git commit SHA (full).
+
+### `current_sha_short`  
+Current git commit SHA (short).
+
+### `current_branch`
+Current git branch name.
+
+### `remote_url`
+Git remote URL.
+
+### `is_dirty`
+Whether the working directory has uncommitted changes.
+
+## Utility Methods
+
+### `get_abs_path(relative_path)`
+Converts relative path to absolute path within repository.
+
+### `index()`
+Returns comprehensive repository index with file tree and symbols.
+
+### `write_symbols(file_path, symbols=None)`
+Writes symbols to JSON file.
+
+### `write_file_tree(file_path)`
+Writes file tree to JSON file.
+
+### `find_symbol_usages(symbol_name, symbol_type=None)`
+Finds all usages of a symbol across the repository.
+
+## Examples
+
+### Basic Repository Analysis
+
+```python
+from kit import Repository
+
+# Open repository
+repo = Repository("/path/to/project")
+
+# Get repository structure
+tree = repo.get_file_tree()
+print(f"Found {len(tree)} files and directories")
+
+# Extract all symbols
+symbols = repo.extract_symbols()
+print(f"Found {len(symbols)} symbols")
+
+# Search for TODOs
+todos = repo.grep("TODO", case_sensitive=False)
+print(f"Found {len(todos)} TODO items")
+```
+
+### Working with Subdirectories
+
+```python
+# Analyze only source code directory
+src_tree = repo.get_file_tree(subpath="src")
+src_symbols = repo.extract_symbols("src/main.py")
+
+# Search within specific directory
+api_todos = repo.grep("TODO", include_pattern="src/api/*.py")
+```
+
+### File Content Operations
+
+```python
+# Single file
+content = repo.get_file_content("README.md")
+
+# Multiple files
+contents = repo.get_file_content(["src/main.py", "src/utils.py"])
+for file_path, content in contents.items():
+    print(f"{file_path}: {len(content)} characters")
+```
 
 ## Initialization
 
@@ -21,29 +199,12 @@ local_repo = Repository("/path/to/your/local/project")
 # versioned_repo = Repository("https://github.com/user/repo.git", ref="v1.2.3")
 ```
 
-## Core Methods
-
-*   `index()`: Analyzes the repository.
-*   `get_file_tree()`: Returns the file tree structure.
-*   `get_file_content(file_path)`: Reads and returns the content of a specified file.
-*   `extract_symbols(path)`: Extracts code symbols.
-*   `extract_symbols_incremental()`: Extracts symbols with intelligent caching
-*   `search_semantic(query)`: Performs semantic search.
-*   `get_summarizer()`: Gets the code summarizer.
-
 ## Incremental Analysis Methods
 
 *   `extract_symbols_incremental()`: High-performance symbol extraction with caching.
 *   `get_incremental_stats()`: Get cache performance statistics.
 *   `cleanup_incremental_cache()`: Remove stale cache entries.
 *   `clear_incremental_cache()`: Clear all cached data.
-
-## Git Metadata Properties
-
-*   `current_sha`: Full commit SHA (40 characters)
-*   `current_sha_short`: Short commit SHA (7 characters)
-*   `current_branch`: Current branch name (None if detached HEAD)
-*   `remote_url`: Remote origin URL
 
 ## Creating a `Repository` Instance
 
@@ -375,31 +536,6 @@ Writes the full repository index (file tree and symbols) to a JSON file.
 
 ```python
 repository.write_index(file_path: str) -> None
-```
-
-**Parameters:**
-
-*   `file_path` (str): The path to the output JSON file.
-
-## `repository.write_symbols()`
-
-Writes extracted symbols to a JSON file.
-
-```python
-repository.write_symbols(file_path: str, symbols: Optional[list] = None) -> None
-```
-
-**Parameters:**
-
-*   `file_path` (str): The path to the output JSON file.
-*   `symbols` (Optional[list]): An optional list of symbol dictionaries to write. If `None`, writes all symbols extracted from the repository. Defaults to `None`.
-
-## `repository.write_file_tree()`
-
-Writes the repository file tree to a JSON file.
-
-```python
-repository.write_file_tree(file_path: str) -> None
 ```
 
 **Parameters:**
