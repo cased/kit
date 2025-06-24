@@ -72,12 +72,45 @@ Example:
 curl "$KIT_URL/repository/$ID/files/models/user.py"
 ```
 
-## 3  Search
+## 3  Search & Grep
 
+### Text Search (Regex)
 ```http
 GET /repository/{id}/search?q=<regex>&pattern=*.py
 ```
-Returns grep-style hits with file & line numbers.
+Returns regex-based search hits with file & line numbers.
+
+### Literal Grep Search  
+```http
+GET /repository/{id}/grep?pattern=<literal>&case_sensitive=true&include_pattern=*.py&exclude_pattern=*test*&max_results=1000&directory=src&include_hidden=false
+```
+Fast literal string search using system grep with smart directory exclusions.
+
+**Query Parameters:**
+- `pattern` (required): Literal string to search for
+- `case_sensitive` (default: true): Case sensitive search
+- `include_pattern`: Include files matching glob pattern (e.g., '*.py')
+- `exclude_pattern`: Exclude files matching glob pattern  
+- `max_results` (default: 1000): Maximum number of results
+- `directory`: Limit search to specific directory within repository
+- `include_hidden` (default: false): Include hidden directories in search
+
+**Default Exclusions:** Automatically excludes `node_modules`, `__pycache__`, `.git`, `dist`, `build`, `.venv`, and other common directories for better performance.
+
+**Examples:**
+```bash
+# Basic literal search
+curl "localhost:8000/repository/$ID/grep?pattern=TODO"
+
+# Case insensitive search in Python files only
+curl "localhost:8000/repository/$ID/grep?pattern=function&case_sensitive=false&include_pattern=*.py"
+
+# Search specific directory with custom limits
+curl "localhost:8000/repository/$ID/grep?pattern=class&directory=src/api&max_results=50"
+
+# Include hidden directories (search .github, .vscode, etc.)
+curl "localhost:8000/repository/$ID/grep?pattern=workflow&include_hidden=true"
+```
 
 ## 4  Symbols & usages
 
@@ -165,8 +198,11 @@ VERSION_ID=$(curl -sX POST localhost:8000/repository \
 # 2 Check git metadata
 curl "localhost:8000/repository/$ID/git-info"
 
-# 3 Find every file that mentions "KeyError"
+# 3 Find every file that mentions "KeyError" (regex search)
 curl "localhost:8000/repository/$ID/search?q=KeyError"
+
+# 3b Fast literal search for TODO comments in Python files
+curl "localhost:8000/repository/$ID/grep?pattern=TODO&include_pattern=*.py&case_sensitive=false"
 
 # 4 Show snippet
 curl "localhost:8000/repository/$ID/files/auth/session.py" | sed -n '80,95p'

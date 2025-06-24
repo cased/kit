@@ -112,6 +112,17 @@ class SearchParams(BaseModel):
     pattern: str = "*.py"
 
 
+class GrepParams(BaseModel):
+    repo_id: str
+    pattern: str
+    case_sensitive: bool = True
+    include_pattern: Optional[str] = None
+    exclude_pattern: Optional[str] = None
+    max_results: int = 1000
+    directory: Optional[str] = None
+    include_hidden: bool = False
+
+
 class GetFileContentParams(BaseModel):
     repo_id: str
     file_path: Union[str, List[str]]
@@ -193,6 +204,34 @@ class KitServerLogic:
             return repo.search_text(query, file_pattern=pattern)
         except Exception as e:
             raise MCPError(code=INVALID_PARAMS, message=f"Invalid search pattern: {e!s}")
+
+    def grep_code(
+        self,
+        repo_id: str,
+        pattern: str,
+        case_sensitive: bool = True,
+        include_pattern: Optional[str] = None,
+        exclude_pattern: Optional[str] = None,
+        max_results: int = 1000,
+        directory: Optional[str] = None,
+        include_hidden: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Perform literal grep search on repository files."""
+        repo = self.get_repo(repo_id)
+        try:
+            return repo.grep(
+                pattern,
+                case_sensitive=case_sensitive,
+                include_pattern=include_pattern,
+                exclude_pattern=exclude_pattern,
+                max_results=max_results,
+                directory=directory,
+                include_hidden=include_hidden,
+            )
+        except ValueError as e:
+            raise MCPError(code=INVALID_PARAMS, message=str(e))
+        except RuntimeError as e:
+            raise MCPError(code=INTERNAL_ERROR, message=str(e))
 
     def get_file_content(self, repo_id: str, file_path: Union[str, List[str]]) -> Union[str, Dict[str, str]]:
         repo = self.get_repo(repo_id)
@@ -374,6 +413,12 @@ class KitServerLogic:
                 name="search_code",
                 description="Search text in a repository",
                 inputSchema=SearchParams.model_json_schema(),
+                annotations=ro_ann,
+            ),
+            Tool(
+                name="grep_code",
+                description="Perform fast literal grep search on repository files with directory filtering and smart exclusions",
+                inputSchema=GrepParams.model_json_schema(),
                 annotations=ro_ann,
             ),
             Tool(
@@ -732,6 +777,19 @@ async def serve() -> None:
             elif name == "search_code":
                 search_args = SearchParams(**arguments)
                 results = logic.search_code(search_args.repo_id, search_args.query, search_args.pattern)
+                return [TextContent(type="text", text=json.dumps(results, indent=2))]
+            elif name == "grep_code":
+                grep_args = GrepParams(**arguments)
+                results = logic.grep_code(
+                    grep_args.repo_id,
+                    grep_args.pattern,
+                    grep_args.case_sensitive,
+                    grep_args.include_pattern,
+                    grep_args.exclude_pattern,
+                    grep_args.max_results,
+                    grep_args.directory,
+                    grep_args.include_hidden,
+                )
                 return [TextContent(type="text", text=json.dumps(results, indent=2))]
             elif name == "get_file_content":
                 gfc_args = GetFileContentParams(**arguments)

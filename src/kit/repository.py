@@ -390,11 +390,11 @@ class Repository:
         # Default directory exclusions for better performance and relevance
         default_exclude_dirs = [
             ".git",
-            "__pycache__", 
+            "__pycache__",
             ".pytest_cache",
             "node_modules",
             ".next",
-            "dist", 
+            "dist",
             "build",
             "target",  # Rust/Java
             ".venv",
@@ -407,7 +407,7 @@ class Repository:
             ".ruff_cache",
             ".cache",
             "vendor",  # Go/PHP
-            "deps",    # Elixir
+            "deps",  # Elixir
             "_build",  # Elixir/Erlang
         ]
 
@@ -418,10 +418,19 @@ class Repository:
         if not include_hidden:
             # Exclude common hidden directories (but not .git which is already excluded)
             hidden_exclude_dirs = [
-                ".github", ".gitlab", ".svn", ".hg", ".bzr",  # VCS directories
-                ".vscode", ".idea", ".atom", ".sublime-text-3",  # Editor directories  
-                ".docker", ".vagrant",  # Container/VM directories
-                ".terraform", ".ansible",  # Infrastructure directories
+                ".github",
+                ".gitlab",
+                ".svn",
+                ".hg",
+                ".bzr",  # VCS directories
+                ".vscode",
+                ".idea",
+                ".atom",
+                ".sublime-text-3",  # Editor directories
+                ".docker",
+                ".vagrant",  # Container/VM directories
+                ".terraform",
+                ".ansible",  # Infrastructure directories
             ]
             for exclude_dir in hidden_exclude_dirs:
                 cmd.extend(["--exclude-dir", exclude_dir])
@@ -430,6 +439,7 @@ class Repository:
         search_path = "."
         if directory:
             from .utils import validate_relative_path
+
             # Validate and resolve the directory path
             dir_path = validate_relative_path(self.local_path, directory)
             if not dir_path.is_dir():

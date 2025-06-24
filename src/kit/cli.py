@@ -1253,7 +1253,7 @@ def grep_command(
 ):
     """Perform literal grep search on repository files.
 
-    By default, excludes common directories like node_modules, __pycache__, .git, 
+    By default, excludes common directories like node_modules, __pycache__, .git,
     build directories, and hidden directories for better performance.
 
     Examples:
