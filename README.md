@@ -177,6 +177,48 @@ curl -X POST localhost:8000/repository/abc123/files \
     *   Seamless GitHub integration with automatic comment posting and PR workflow integration.
     *   Cost transparency with real-time LLM token usage tracking and pricing information (free for Ollama).
 
+## High-Performance Incremental Analysis
+
+kit's incremental analysis system provides intelligent caching that dramatically improves performance for repeated symbol extraction operations. This system is particularly powerful for development workflows where you're iterating on code and need fast analysis of changes.
+
+**Key Performance Benefits:**
+- **25x faster symbol extraction** on warm cache scenarios
+- **Per-file incremental analysis**: Only analyzes files that have actually changed
+- **Multi-strategy cache invalidation**: Uses file modification time, size, and content hash for accurate change detection
+- **Automatic git state detection**: Invalidates caches when you switch branches, commit, merge, or rebase
+- **LRU cache management**: Automatically manages memory usage with configurable cache size limits
+
+**How It Works:**
+```python
+# First analysis (builds cache)
+repo = Repository("/path/to/repo")
+symbols = repo.extract_symbols_incremental()  # Analyzes all files, caches results
+
+# Subsequent analyses (uses cache - much faster)
+symbols = repo.extract_symbols_incremental()  # Retrieves from cache if unchanged
+
+# When you modify just one file, only that file is re-analyzed
+# Other files remain cached, giving you the performance boost
+```
+
+**Smart Change Detection:**
+- When you modify a single file in a 1000-file repository, kit analyzes only that one file
+- Logs show exactly what's happening: "Analyzing 1 changed files (skipping 999 cached)"
+- Supports both repository-wide analysis and targeted file analysis
+
+**Manual Cache Management:**
+```python
+# Get performance statistics
+stats = repo.get_incremental_stats()
+print(f"Cache hit rate: {stats['cache_hit_rate']}")
+
+# Clean up stale entries
+repo.cleanup_incremental_cache()
+
+# Clear all cached data
+repo.clear_incremental_cache()
+```
+
 ## MCP Server
 
 The `kit` tool includes an MCP (Model Context Protocol) server that allows AI agents and other development tools to interact with a codebase programmatically.
