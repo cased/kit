@@ -521,8 +521,10 @@ class Repository:
 
     def _get_single_file_content(self, file_path: str) -> str:
         """Reads and returns the content of a single file within the repository."""
+        from .utils import validate_relative_path
+
         self._ensure_git_state_valid()
-        full_path = self.local_path / file_path
+        full_path = validate_relative_path(self.local_path, file_path)
         if not full_path.is_file():
             raise FileNotFoundError(f"File not found in repository: {file_path}")
         try:
@@ -769,13 +771,15 @@ class Repository:
         Returns:
             The absolute path as a string.
         """
+        from .utils import validate_relative_path
+
         # Return a canonical absolute path for a file inside the repository.
         # We purposefully call `.resolve()` *after* joining with `self.local_path` so that
         # the repository root itself keeps its original symlink form (important for
         # tests that compare the root path), while individual file paths are resolved to
         # their real locations on disk. This yields stable, non-symlinked paths that
         # downstream tools (and tests) expect.
-        return str((self.local_path / relative_path).resolve())
+        return str(validate_relative_path(self.local_path, relative_path).resolve())
 
     def _check_git_state_changed(self) -> bool:
         """Check if the git state has changed since last check."""
@@ -871,8 +875,10 @@ class Repository:
                 ):
                     supported_files.append(file_path)
         else:
-            # Convert relative paths to absolute
-            supported_files = [self.local_path / fp for fp in file_paths]
+            # Convert relative paths to absolute with validation
+            from .utils import validate_relative_path
+
+            supported_files = [validate_relative_path(self.local_path, fp) for fp in file_paths]
 
         # Use incremental analyzer
         all_symbols = []

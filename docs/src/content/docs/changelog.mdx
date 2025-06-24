@@ -10,6 +10,82 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0]
+
+### New Features
+
+- **Grep Command**: Fast literal text search across repository files
+  - New `kit grep` command with system grep integration
+  - Case-sensitive and case-insensitive search options
+  - File inclusion/exclusion patterns with glob support
+  - Configurable result limits and automatic .git directory exclusion
+  - 30-second timeout protection for large repositories
+
+- **File Tree Subpath Support**: Analyze specific directories within repositories
+  - New `--path` option for `kit file-tree` command enables directory-specific analysis
+  - Supports relative paths from repository root (e.g., `--path src/components`)
+  - Compatible with existing output formats and export functionality
+  - Enables focused analysis of large repository subdirectories
+
+### Improvements
+
+- **Path Validation**: Centralized path checking across all file operations
+  - Unified validation utility prevents path traversal in user-provided file paths
+  - Maintains compatibility with existing symlink handling on macOS
+  - Applied to Repository, RepoMapper, and ContextExtractor path operations
+  - Improved security without breaking existing functionality
+
+## [1.2.3]
+
+### Bug Fixes
+
+- **Duplicate TypeScript / TSX Symbols**: Resolved an issue where some symbols could be recorded twice in `symbols.json` depending on tree-sitter queries
+  - The `TreeSitterSymbolExtractor` now removes duplicate symbols based on `(name, type, start_line, end_line)`
+  - Added dedicated regression test suite covering TypeScript and TSX symbol deduplication
+  - Coverage: `tests/test_typescript_duplicate_symbols.py`, `tests/test_tsx_duplicate_symbols.py`
+
+### Improvements
+
+- **Optional Dependencies**: Made `tiktoken` dependency optional in `summaries.py` to reduce installation requirements
+- **Dependency Management**: Relaxed FastAPI version constraints for better compatibility
+- **Development Dependencies**: Moved linters and type checking dependencies to development group
+
+## [1.2.2]
+
+### Enhanced Features
+
+- **C++ Language Support**: Added comprehensive C++ symbol extraction with tree-sitter
+  - Support for classes, functions, structs, enums, namespaces, and templates
+  - Dedicated tree-sitter query patterns for C++ language constructs
+  - Full integration with existing symbol extraction pipeline
+
+- **Kotlin Language Support**: Initial Kotlin language integration with tree-sitter
+  - Classes, functions, objects, interfaces, and enum support
+  - Kotlin-specific language patterns and symbol detection
+  - Comprehensive test coverage for Kotlin symbol extraction
+
+## [1.2.0]
+
+### Enhanced Repository Cache Management
+
+- **Automatic Cache Cleanup**: Repository now accepts optional `cache_ttl_hours` argument for automatic cleanup
+  - Environment variable support via `KIT_TMP_REPO_TTL_HOURS`
+  - Automatically deletes cached repository clones older than TTL
+  - One-shot purge per Python process using `functools.lru_cache`
+  - Fallback to previous behavior when TTL is unset
+
+### Improvements
+
+- **Enhanced Logging**: Debug logging for invalid TTL values and cleanup warnings
+- **Cache Management**: Improved error handling for cache cleanup operations
+- **Documentation**: Updated API documentation and README with cache management details
+
+### Tests
+
+- Added comprehensive test coverage in `tests/test_cache_cleanup.py`
+- TTL parsing validation and error handling tests
+- Cache cleanup logic verification
+
 ## [1.1.0]
 
 ### Major Features
@@ -270,28 +346,6 @@ Kit 1.0.0 represents the first stable release of the code intelligence toolkit, 
 - Better diff parsing and analysis
 - Enhanced file prioritization algorithms for reviews
 - Improved cost breakdown reporting
-
-## [1.2.0]
-
-### Enhanced Repository Cache Management
-
-- **Tmp-repo auto-cleanup**: `Repository` now accepts an optional `cache_ttl_hours` argument (or the environment variable `KIT_TMP_REPO_TTL_HOURS`).  When set, Kit will automatically delete cached clones in `/tmp/kit-repo-cache` that are older than the TTL the first time any process clones a remote repository.
-  - One-shot purge per Python process (memoised with `functools.lru_cache`).
-  - Detailed README and API docs updates.
-  - Fallback to previous behavior when unset.
-- **Logging Improvements**: Debug log emitted for invalid `KIT_TMP_REPO_TTL_HOURS` values; warnings emitted if a cached repo cannot be removed during cleanup (permissions, etc.).
-
-### Tests
-
-- Added `tests/test_cache_cleanup.py` covering TTL parsing, invalid env handling, and actual cleanup logic.
-
-## [1.2.3]
-
-### Bug Fixes
-
-- **Duplicate TypeScript / TSX Symbols**: Resolved an issue where some symbols could be recorded twice in `symbols.json` depending on tree-sitter queries. 
-  - The `TreeSitterSymbolExtractor` now removes duplicate symbols based on `(name, type, start_line, end_line)` and a dedicated regression test suite was added.
-  - Coverage: `tests/test_typescript_duplicate_symbols.py`, `tests/test_tsx_duplicate_symbols.py`.
 
 ## Links
 

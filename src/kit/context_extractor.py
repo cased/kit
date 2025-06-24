@@ -20,8 +20,10 @@ class ContextExtractor:
         """
         Chunk file into blocks of at most max_lines lines.
         """
+        from .utils import validate_relative_path
+
         chunks: List[str] = []
-        with open(self.repo_path / file_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(validate_relative_path(self.repo_path, file_path), "r", encoding="utf-8", errors="ignore") as f:
             lines: List[str] = []
             for i, line in enumerate(f, 1):
                 lines.append(line)
@@ -33,8 +35,10 @@ class ContextExtractor:
         return chunks
 
     def chunk_file_by_symbols(self, file_path: str) -> List[Dict[str, Any]]:
+        from .utils import validate_relative_path
+
         ext = Path(file_path).suffix.lower()
-        abs_path = self.repo_path / file_path
+        abs_path = validate_relative_path(self.repo_path, file_path)
         try:
             with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
                 code = f.read()
@@ -49,8 +53,10 @@ class ContextExtractor:
         Extracts the function/class (or code block) containing the given line.
         Returns a dict with type, name, and code.
         """
+        from .utils import validate_relative_path
+
         ext = Path(file_path).suffix.lower()
-        abs_path = self.repo_path / file_path
+        abs_path = validate_relative_path(self.repo_path, file_path)
         try:
             with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
                 all_lines = f.readlines()

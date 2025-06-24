@@ -31,7 +31,16 @@ class RepoMapper:
         return None
 
     def _should_ignore(self, file: Path) -> bool:
-        rel_path = str(file.relative_to(self.repo_path))
+        # Handle potential symlink resolution mismatches
+        try:
+            rel_path = str(file.relative_to(self.repo_path))
+        except ValueError:
+            # If direct relative_to fails (due to symlink resolution), try with resolved paths
+            try:
+                rel_path = str(file.resolve().relative_to(self.repo_path.resolve()))
+            except ValueError:
+                # If still failing, file is outside repo bounds - ignore it
+                return True
         # Always ignore .git and its contents
         if ".git" in file.parts:
             return True
@@ -70,7 +79,9 @@ class RepoMapper:
 
             # Determine the starting directory
             if subpath:
-                start_dir = self.repo_path / subpath
+                from .utils import validate_relative_path
+
+                start_dir = validate_relative_path(self.repo_path, subpath)
                 if not start_dir.exists() or not start_dir.is_dir():
                     raise ValueError(f"Subpath '{subpath}' does not exist or is not a directory")
             else:
@@ -179,7 +190,9 @@ class RepoMapper:
                                  Returns an empty list if the file is ignored,
                                  not supported, or if an error occurs.
         """
-        abs_path = self.repo_path / file_path
+        from .utils import validate_relative_path
+
+        abs_path = validate_relative_path(self.repo_path, file_path)
         if self._should_ignore(abs_path):
             logging.debug(f"Ignoring file specified in extract_symbols: {file_path}")
             return []
