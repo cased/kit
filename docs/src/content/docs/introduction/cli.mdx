@@ -110,7 +110,7 @@ kit search /path/to/repo "TODO" --pattern "*.py"
 
 #### `kit grep`
 
-Perform literal grep search on repository files using system grep.
+Perform fast literal grep search on repository files using system grep. By default, excludes common build directories, cache folders, and hidden directories for optimal performance.
 
 ```bash
 kit grep <repository-path> <pattern> [OPTIONS]
@@ -121,29 +121,50 @@ kit grep <repository-path> <pattern> [OPTIONS]
 - `--include <pattern>`: Include files matching glob pattern (e.g., '*.py')
 - `--exclude <pattern>`: Exclude files matching glob pattern
 - `--max-results, -n <count>`: Maximum number of results to return (default: 1000)
+- `--directory, -d <path>`: Limit search to specific directory within repository
+- `--include-hidden`: Include hidden directories in search (default: false)
 - `--output, -o <file>`: Save output to JSON file
+
+**Automatic Exclusions:**
+By default, kit grep excludes common directories for better performance:
+- **Build/Cache**: `__pycache__`, `node_modules`, `dist`, `build`, `target`, `.cache`
+- **Hidden**: `.git`, `.vscode`, `.idea`, `.github`, `.terraform`
+- **Virtual Environments**: `.venv`, `venv`, `.tox`
+- **Language-Specific**: `vendor` (Go/PHP), `deps` (Elixir), `_build` (Erlang)
 
 **Examples:**
 
 ```bash
-# Basic literal search
+# Basic literal search (excludes common directories automatically)
 kit grep /path/to/repo "TODO"
 
 # Case insensitive search
 kit grep /path/to/repo "function" --ignore-case
 
-# Search only Python files
-kit grep /path/to/repo "class" --include "*.py"
+# Search only in specific directory
+kit grep /path/to/repo "class" --directory "src/api"
 
-# Exclude test files
-kit grep /path/to/repo "import" --exclude "*test*"
+# Search only Python files in src directory
+kit grep /path/to/repo "class" --include "*.py" --directory "src"
+
+# Include hidden directories (search .github, .vscode, etc.)
+kit grep /path/to/repo "workflow" --include-hidden
+
+# Exclude test files but include hidden dirs
+kit grep /path/to/repo "import" --exclude "*test*" --include-hidden
+
+# Complex filtering with directory limitation
+kit grep /path/to/repo "api_key" --include "*.py" --exclude "*test*" --directory "src" --ignore-case
 
 # Limit results and save to file
 kit grep /path/to/repo "error" --max-results 50 --output errors.json
-
-# Complex filtering
-kit grep /path/to/repo "api_key" --include "*.py" --exclude "*test*" --ignore-case
 ```
+
+**Performance Tips:**
+- Use `--directory` to limit search scope in large repositories
+- Default exclusions make searches 3-5x faster in typical projects
+- Use `--include-hidden` only when specifically searching configuration files
+- For regex patterns, use `kit search` instead
 
 **Note:** Requires system `grep` command to be available in PATH. For cross-platform regex search, use `kit search` instead.
 

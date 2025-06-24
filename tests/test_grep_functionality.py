@@ -143,3 +143,133 @@ def test_grep_literal_search():
         line_contents = [match["line_content"] for match in matches]
         assert any(".*" in content for content in line_contents)
         assert any("literal.dot" in content for content in line_contents)
+
+
+def test_grep_directory_filtering():
+    """Test directory parameter for limiting search scope."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        repo_path = Path(temp_dir)
+
+        # Create directory structure
+        (repo_path / "src").mkdir()
+        (repo_path / "tests").mkdir()
+        (repo_path / "docs").mkdir()
+
+        # Create files with same content in different directories
+        (repo_path / "main.py").write_text("def main(): pass")
+        (repo_path / "src" / "api.py").write_text("def api_function(): pass")
+        (repo_path / "src" / "utils.py").write_text("def helper_function(): pass")
+        (repo_path / "tests" / "test_api.py").write_text("def test_function(): pass")
+        (repo_path / "docs" / "guide.py").write_text("def example_function(): pass")
+
+        repo = Repository(str(repo_path))
+
+        # Test searching entire repository
+        all_matches = repo.grep("def")
+        assert len(all_matches) == 5
+
+        # Test searching only src directory
+        src_matches = repo.grep("def", directory="src")
+        assert len(src_matches) == 2
+        files = {match["file"] for match in src_matches}
+        assert all(f.startswith("src/") for f in files)
+
+        # Test searching only tests directory
+        test_matches = repo.grep("def", directory="tests")
+        assert len(test_matches) == 1
+        assert test_matches[0]["file"] == "tests/test_api.py"
+
+
+def test_grep_invalid_directory():
+    """Test error handling for invalid directory parameter."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        repo_path = Path(temp_dir)
+        (repo_path / "test.py").write_text("hello")
+
+        repo = Repository(str(repo_path))
+
+        # Test non-existent directory
+        with pytest.raises(ValueError, match="Directory not found in repository"):
+            repo.grep("hello", directory="nonexistent")
+
+
+def test_grep_hidden_directory_exclusion():
+    """Test hidden directory exclusion behavior."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        repo_path = Path(temp_dir)
+
+        # Create hidden directories
+        (repo_path / ".git").mkdir()
+        (repo_path / ".vscode").mkdir()
+        (repo_path / ".github").mkdir()
+        (repo_path / "src").mkdir()
+
+        # Create files in both visible and hidden directories
+        (repo_path / "src" / "main.py").write_text("function test_visible()")
+        (repo_path / ".git" / "config").write_text("function test_git()")
+        (repo_path / ".vscode" / "settings.json").write_text("function test_vscode()")
+        (repo_path / ".github" / "workflow.yml").write_text("function test_github()")
+
+        repo = Repository(str(repo_path))
+
+        # Test default behavior (exclude hidden directories)
+        default_matches = repo.grep("function", include_hidden=False)
+        assert len(default_matches) == 1
+        assert "src/main.py" in default_matches[0]["file"]
+
+        # Test including hidden directories (but .git still excluded by default)
+        all_matches = repo.grep("function", include_hidden=True)
+        assert len(all_matches) == 3  # .git is still excluded by smart exclusions
+        files = {match["file"] for match in all_matches}
+        assert any(".vscode" in f for f in files)
+        assert any(".github" in f for f in files)
+        assert "src/main.py" in files
+        # .git should still be excluded even with include_hidden=True
+
+
+def test_grep_smart_exclusions():
+    """Test that common directories are automatically excluded."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        repo_path = Path(temp_dir)
+
+        # Create commonly excluded directories
+        for dirname in ["node_modules", "__pycache__", "dist", "build", ".venv", "target"]:
+            (repo_path / dirname).mkdir()
+            (repo_path / dirname / "test.txt").write_text("function excluded()")
+
+        # Create regular source file
+        (repo_path / "src.py").write_text("function included()")
+
+        repo = Repository(str(repo_path))
+
+        # Should only find the file in regular directory
+        matches = repo.grep("function")
+        assert len(matches) == 1
+        assert matches[0]["file"] == "src.py"
+
+
+def test_grep_directory_and_patterns_combined():
+    """Test combining directory filtering with include/exclude patterns."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        repo_path = Path(temp_dir)
+
+        # Create directory structure
+        (repo_path / "src").mkdir()
+        (repo_path / "tests").mkdir()
+
+        # Create files
+        (repo_path / "src" / "api.py").write_text("class ApiClient: pass")
+        (repo_path / "src" / "utils.js").write_text("class UtilsHelper { }")
+        (repo_path / "tests" / "test_api.py").write_text("class TestApi: pass")
+
+        repo = Repository(str(repo_path))
+
+        # Search only Python files in src directory
+        matches = repo.grep("class", directory="src", include_pattern="*.py")
+        assert len(matches) == 1
+        assert matches[0]["file"] == "src/api.py"
+
+        # Search excluding Python files in src directory
+        matches = repo.grep("class", directory="src", exclude_pattern="*.py")
+        assert len(matches) == 1
+        assert matches[0]["file"] == "src/utils.js"

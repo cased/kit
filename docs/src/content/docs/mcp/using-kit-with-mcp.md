@@ -28,6 +28,7 @@ Currently, `kit` exposes the following functionalities via MCP tools:
 *   `get_file_tree`: Retrieves the file and directory structure of the open repository.
 *   `get_file_content`: Reads the content of a specific file.
 *   `search_code`: Performs text-based search across repository files.
+*   `grep_code`: Fast literal string search with directory filtering and smart exclusions.
 *   `extract_symbols`: Extracts functions, classes, and other symbols from a file.
 *   `find_symbol_usages`: Finds where a specific symbol is used across the repository.
 *   `get_code_summary`: Provides AI-generated summaries for files, functions, or classes.

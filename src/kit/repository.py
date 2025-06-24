@@ -346,6 +346,8 @@ class Repository:
         include_pattern: Optional[str] = None,
         exclude_pattern: Optional[str] = None,
         max_results: int = 1000,
+        directory: Optional[str] = None,
+        include_hidden: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Performs literal grep search on repository files using system grep.
@@ -356,13 +358,15 @@ class Repository:
             include_pattern: Glob pattern for files to include (e.g. '*.py').
             exclude_pattern: Glob pattern for files to exclude.
             max_results: Maximum number of results to return. Defaults to 1000.
+            directory: Limit search to specific directory within repository (e.g. 'src', 'lib/utils').
+            include_hidden: Whether to search hidden directories (starting with '.'). Defaults to False.
 
         Returns:
             List[Dict[str, Any]]: List of matches with file, line_number, line_content.
 
         Example:
-            >>> repo.grep("TODO", case_sensitive=False, include_pattern="*.py")
-            [{"file": "main.py", "line_number": 42, "line_content": "# TODO: fix this"}]
+            >>> repo.grep("TODO", case_sensitive=False, include_pattern="*.py", directory="src")
+            [{"file": "src/main.py", "line_number": 42, "line_content": "# TODO: fix this"}]
         """
         import subprocess
 
@@ -383,11 +387,67 @@ class Repository:
         if exclude_pattern:
             cmd.extend(["--exclude", exclude_pattern])
 
-        # Exclude .git directory
-        cmd.extend(["--exclude-dir", ".git"])
+        # Default directory exclusions for better performance and relevance
+        default_exclude_dirs = [
+            ".git",
+            "__pycache__",
+            ".pytest_cache",
+            "node_modules",
+            ".next",
+            "dist",
+            "build",
+            "target",  # Rust/Java
+            ".venv",
+            "venv",
+            ".env",
+            ".tox",
+            "coverage",
+            ".coverage",
+            ".mypy_cache",
+            ".ruff_cache",
+            ".cache",
+            "vendor",  # Go/PHP
+            "deps",  # Elixir
+            "_build",  # Elixir/Erlang
+        ]
 
-        # Search recursively in repo root
-        cmd.append(".")
+        for exclude_dir in default_exclude_dirs:
+            cmd.extend(["--exclude-dir", exclude_dir])
+
+        # Exclude hidden directories unless explicitly included
+        if not include_hidden:
+            # Exclude common hidden directories (but not .git which is already excluded)
+            hidden_exclude_dirs = [
+                ".github",
+                ".gitlab",
+                ".svn",
+                ".hg",
+                ".bzr",  # VCS directories
+                ".vscode",
+                ".idea",
+                ".atom",
+                ".sublime-text-3",  # Editor directories
+                ".docker",
+                ".vagrant",  # Container/VM directories
+                ".terraform",
+                ".ansible",  # Infrastructure directories
+            ]
+            for exclude_dir in hidden_exclude_dirs:
+                cmd.extend(["--exclude-dir", exclude_dir])
+
+        # Determine search directory
+        search_path = "."
+        if directory:
+            from .utils import validate_relative_path
+
+            # Validate and resolve the directory path
+            dir_path = validate_relative_path(self.local_path, directory)
+            if not dir_path.is_dir():
+                raise ValueError(f"Directory not found in repository: {directory}")
+            search_path = directory
+
+        # Search recursively in specified directory
+        cmd.append(search_path)
 
         try:
             result = subprocess.run(

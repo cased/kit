@@ -172,6 +172,80 @@ class TestAPIRefParameter:
         response = requests.get(f"{test_server}/repository/nonexistent/git-info")
         assert response.status_code == 404
 
+    def test_grep_endpoint(self, test_server):
+        """Test the grep endpoint."""
+        # Create repository
+        response = requests.post(f"{test_server}/repository", json={"path_or_url": "."})
+        assert response.status_code == 201
+        repo_id = response.json()["id"]
+
+        # Test basic grep
+        response = requests.get(f"{test_server}/repository/{repo_id}/grep", params={"pattern": "Repository"})
+        assert response.status_code == 200
+
+        grep_results = response.json()
+        assert isinstance(grep_results, list)
+
+    def test_grep_with_parameters(self, test_server):
+        """Test grep endpoint with various parameters."""
+        # Create repository
+        response = requests.post(f"{test_server}/repository", json={"path_or_url": "."})
+        assert response.status_code == 201
+        repo_id = response.json()["id"]
+
+        # Test grep with case insensitive
+        response = requests.get(
+            f"{test_server}/repository/{repo_id}/grep", params={"pattern": "repository", "case_sensitive": False}
+        )
+        assert response.status_code == 200
+
+        # Test grep with file pattern
+        response = requests.get(
+            f"{test_server}/repository/{repo_id}/grep",
+            params={"pattern": "def", "include_pattern": "*.py", "max_results": 10},
+        )
+        assert response.status_code == 200
+
+        # Test grep with directory filter
+        response = requests.get(
+            f"{test_server}/repository/{repo_id}/grep", params={"pattern": "import", "directory": "src"}
+        )
+        assert response.status_code == 200
+
+    def test_grep_invalid_directory(self, test_server):
+        """Test grep with invalid directory parameter."""
+        # Create repository
+        response = requests.post(f"{test_server}/repository", json={"path_or_url": "."})
+        assert response.status_code == 201
+        repo_id = response.json()["id"]
+
+        # Test grep with nonexistent directory
+        response = requests.get(
+            f"{test_server}/repository/{repo_id}/grep", params={"pattern": "test", "directory": "nonexistent"}
+        )
+        assert response.status_code == 400  # Should return bad request
+
+    def test_grep_vs_search_difference(self, test_server):
+        """Test that grep and search endpoints behave differently."""
+        # Create repository
+        response = requests.post(f"{test_server}/repository", json={"path_or_url": "."})
+        assert response.status_code == 201
+        repo_id = response.json()["id"]
+
+        # Test search (regex-based)
+        search_response = requests.get(f"{test_server}/repository/{repo_id}/search", params={"q": "def.*:"})
+        assert search_response.status_code == 200
+
+        # Test grep (literal)
+        grep_response = requests.get(f"{test_server}/repository/{repo_id}/grep", params={"pattern": "def.*:"})
+        assert grep_response.status_code == 200
+
+        # Results may be different since one is regex and one is literal
+        search_results = search_response.json()
+        grep_results = grep_response.json()
+        assert isinstance(search_results, list)
+        assert isinstance(grep_results, list)
+
     def test_repository_cleanup(self, test_server):
         """Test repository deletion with ref."""
         # Create repository with ref

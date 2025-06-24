@@ -552,6 +552,186 @@ class TestIndexCommand:
             Path(output_file).unlink(missing_ok=True)
 
 
+class TestGrepCommand:
+    """Tests for the grep command."""
+
+    @pytest.fixture
+    def mock_grep_results(self):
+        """Mock grep results."""
+        return [
+            {"file": "src/main.py", "line_number": 5, "line_content": "def main(): # TODO: implement"},
+            {"file": "src/utils.py", "line_number": 10, "line_content": "    # TODO: add logging"},
+        ]
+
+    def test_grep_basic_success(self, runner, mock_repo, mock_grep_results):
+        """Test basic grep command success."""
+        mock_repo.grep.return_value = mock_grep_results
+
+        result = runner.invoke(app, ["grep", "/test/path", "TODO"])
+
+        assert result.exit_code == 0
+        assert "Found 2 matches for 'TODO':" in result.stdout
+        assert "📄 src/main.py:5: def main(): # TODO: implement" in result.stdout
+        assert "📄 src/utils.py:10: # TODO: add logging" in result.stdout
+        mock_repo.grep.assert_called_once_with(
+            "TODO",
+            case_sensitive=True,
+            include_pattern=None,
+            exclude_pattern=None,
+            max_results=1000,
+            directory=None,
+            include_hidden=False,
+        )
+
+    def test_grep_case_insensitive(self, runner, mock_repo, mock_grep_results):
+        """Test grep command with case insensitive flag."""
+        mock_repo.grep.return_value = mock_grep_results
+
+        result = runner.invoke(app, ["grep", "/test/path", "todo", "--ignore-case"])
+
+        assert result.exit_code == 0
+        mock_repo.grep.assert_called_once_with(
+            "todo",
+            case_sensitive=False,
+            include_pattern=None,
+            exclude_pattern=None,
+            max_results=1000,
+            directory=None,
+            include_hidden=False,
+        )
+
+    def test_grep_with_directory_filter(self, runner, mock_repo, mock_grep_results):
+        """Test grep command with directory filtering."""
+        mock_repo.grep.return_value = mock_grep_results
+
+        result = runner.invoke(app, ["grep", "/test/path", "function", "--directory", "src"])
+
+        assert result.exit_code == 0
+        mock_repo.grep.assert_called_once_with(
+            "function",
+            case_sensitive=True,
+            include_pattern=None,
+            exclude_pattern=None,
+            max_results=1000,
+            directory="src",
+            include_hidden=False,
+        )
+
+    def test_grep_with_include_hidden(self, runner, mock_repo, mock_grep_results):
+        """Test grep command with include hidden directories."""
+        mock_repo.grep.return_value = mock_grep_results
+
+        result = runner.invoke(app, ["grep", "/test/path", "config", "--include-hidden"])
+
+        assert result.exit_code == 0
+        mock_repo.grep.assert_called_once_with(
+            "config",
+            case_sensitive=True,
+            include_pattern=None,
+            exclude_pattern=None,
+            max_results=1000,
+            directory=None,
+            include_hidden=True,
+        )
+
+    def test_grep_with_file_patterns(self, runner, mock_repo, mock_grep_results):
+        """Test grep command with include/exclude patterns."""
+        mock_repo.grep.return_value = mock_grep_results
+
+        result = runner.invoke(
+            app, ["grep", "/test/path", "class", "--include", "*.py", "--exclude", "*test*", "--max-results", "50"]
+        )
+
+        assert result.exit_code == 0
+        mock_repo.grep.assert_called_once_with(
+            "class",
+            case_sensitive=True,
+            include_pattern="*.py",
+            exclude_pattern="*test*",
+            max_results=50,
+            directory=None,
+            include_hidden=False,
+        )
+
+    def test_grep_combined_options(self, runner, mock_repo, mock_grep_results):
+        """Test grep command with multiple options combined."""
+        mock_repo.grep.return_value = mock_grep_results
+
+        result = runner.invoke(
+            app,
+            [
+                "grep",
+                "/test/path",
+                "function",
+                "--ignore-case",
+                "--directory",
+                "src/api",
+                "--include",
+                "*.py",
+                "--include-hidden",
+                "--max-results",
+                "25",
+            ],
+        )
+
+        assert result.exit_code == 0
+        mock_repo.grep.assert_called_once_with(
+            "function",
+            case_sensitive=False,
+            include_pattern="*.py",
+            exclude_pattern=None,
+            max_results=25,
+            directory="src/api",
+            include_hidden=True,
+        )
+
+    def test_grep_no_results(self, runner, mock_repo):
+        """Test grep command with no matches found."""
+        mock_repo.grep.return_value = []
+
+        result = runner.invoke(app, ["grep", "/test/path", "nonexistent"])
+
+        assert result.exit_code == 0
+        assert "No matches found for 'nonexistent'" in result.stdout
+
+    def test_grep_json_output(self, runner, mock_repo, mock_grep_results):
+        """Test grep command with JSON output."""
+        mock_repo.grep.return_value = mock_grep_results
+
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
+            output_file = f.name
+
+        try:
+            result = runner.invoke(app, ["grep", "/test/path", "TODO", "--output", output_file])
+
+            assert result.exit_code == 0
+            assert f"Grep results written to {output_file}" in result.stdout
+
+            with open(output_file, "r") as f:
+                saved_data = json.load(f)
+            assert saved_data == mock_grep_results
+        finally:
+            Path(output_file).unlink(missing_ok=True)
+
+    def test_grep_repository_error(self, runner, mock_repo):
+        """Test grep command with Repository error."""
+        mock_repo.grep.side_effect = ValueError("Directory not found")
+
+        result = runner.invoke(app, ["grep", "/test/path", "test", "--directory", "nonexistent"])
+
+        assert result.exit_code == 1
+        assert "Error: Directory not found" in result.stdout
+
+    def test_grep_runtime_error(self, runner, mock_repo):
+        """Test grep command with runtime error (e.g., grep not found)."""
+        mock_repo.grep.side_effect = RuntimeError("grep command not found")
+
+        result = runner.invoke(app, ["grep", "/test/path", "test"])
+
+        assert result.exit_code == 1
+        assert "Error: grep command not found" in result.stdout
+
+
 class TestServeCommand:
     """Tests for the serve command."""
 

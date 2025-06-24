@@ -69,6 +69,39 @@ def search_text(repo_id: str, q: str, pattern: str = "*.py"):
     return repo.search_text(q, file_pattern=pattern)
 
 
+@app.get("/repository/{repo_id}/grep")
+def grep_text(
+    repo_id: str,
+    pattern: str,
+    case_sensitive: bool = True,
+    include_pattern: str | None = None,
+    exclude_pattern: str | None = None,
+    max_results: int = 1000,
+    directory: str | None = None,
+    include_hidden: bool = False,
+):
+    """Perform literal grep search on repository files."""
+    try:
+        repo = registry.get_repo(repo_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Repo not found")
+
+    try:
+        return repo.grep(
+            pattern,
+            case_sensitive=case_sensitive,
+            include_pattern=include_pattern,
+            exclude_pattern=exclude_pattern,
+            max_results=max_results,
+            directory=directory,
+            include_hidden=include_hidden,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.delete("/repository/{repo_id}", status_code=204)
 def delete_repo(repo_id: str):
     """Remove a repository from the registry and evict its cache entry."""
