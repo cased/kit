@@ -32,8 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Path Validation**: Centralized path checking across all file operations
   - Unified validation utility prevents path traversal in user-provided file paths
   - Maintains compatibility with existing symlink handling on macOS
-  - Applied to Repository, RepoMapper, and ContextExtractor path operations
-  - Improved security without breaking existing functionality
 
 ## [1.2.3]
 
@@ -42,7 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Duplicate TypeScript / TSX Symbols**: Resolved an issue where some symbols could be recorded twice in `symbols.json` depending on tree-sitter queries
   - The `TreeSitterSymbolExtractor` now removes duplicate symbols based on `(name, type, start_line, end_line)`
   - Added dedicated regression test suite covering TypeScript and TSX symbol deduplication
-  - Coverage: `tests/test_typescript_duplicate_symbols.py`, `tests/test_tsx_duplicate_symbols.py`
 
 ### Improvements
 
