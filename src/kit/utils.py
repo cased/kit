@@ -57,7 +57,10 @@ def parse_git_url(url: str) -> Optional[tuple[str, str]]:
             parts = url.split(":")
             if len(parts) >= 2:
                 path = parts[1].replace(".git", "")
-                return tuple(path.split("/")) if "/" in path else None
+                if "/" in path:
+                    path_parts = path.split("/")
+                    if len(path_parts) >= 2:
+                        return path_parts[0], path_parts[1]
         elif url.startswith("https://"):
             # https://github.com/owner/repo.git or https://github.com/owner/repo
             parts = url.replace("https://github.com/", "").replace(".git", "").split("/")
