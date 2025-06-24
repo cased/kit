@@ -28,6 +28,62 @@ Real-world performance improvements on the kit repository (60k+ symbols, 7,606 f
 The incremental analysis system is automatically integrated with git state detection, ensuring cache invalidation when switching branches or commits.
 </Aside>
 
+## Efficient Change Detection
+
+**Key Insight**: Kit only analyzes files that have actually changed, avoiding expensive re-analysis of unchanged files.
+
+When you call `extract_symbols_incremental()`, Kit performs these steps:
+
+1. **File Discovery**: One-time walk to find all supported files (`.py`, `.js`, `.ts`, etc.)
+2. **Change Detection**: For each file, quickly check if it changed using mtime, size, and content hash
+3. **Selective Analysis**: Only analyze changed files using tree-sitter
+4. **Cache Retrieval**: Return cached results instantly for unchanged files
+
+### Real-World Impact
+
+If you have 1,000 files in your repository and only 1 file changes:
+
+```
+Analyzing 1 changed files (skipping 999 cached)
+```
+
+This selective approach is the core reason for Kit's dramatic performance improvements - it avoids redundant work entirely.
+
+### Behind the Scenes
+
+The `analyze_changed_files()` method demonstrates this filtering:
+
+```python
+def analyze_changed_files(self, file_paths):
+    results = {}
+    changed_files = []
+    
+    # Filter to only changed files
+    for file_path in file_paths:
+        if self.cache.is_file_changed(file_path):
+            changed_files.append(file_path)
+        else:
+            # Use cached results instantly
+            cached_symbols = self.cache.get_cached_symbols(file_path)
+            if cached_symbols:
+                results[str(file_path)] = cached_symbols
+                self._stats["cache_hits"] += 1
+    
+    logger.info(f"Analyzing {len(changed_files)} changed files "
+                f"(skipping {len(file_paths) - len(changed_files)} cached)")
+    
+    # Only analyze the changed files
+    for file_path in changed_files:
+        symbols = self.analyze_file(file_path)
+        results[str(file_path)] = symbols
+        
+    return results
+```
+
+<Aside type="note">
+This is fundamentally different from traditional approaches that re-parse all files on every analysis. Kit's incremental system scales to large codebases because analysis time is proportional to changes, not repository size.
+</Aside>
+
 ## Quick Start
 
 ### Basic Usage
@@ -121,7 +177,7 @@ cache = FileAnalysisCache(
 
 ### Batch Analysis
 
-Analyze multiple files efficiently:
+Analyze multiple files efficiently with automatic change filtering:
 
 ```python
 from pathlib import Path
@@ -129,13 +185,20 @@ from pathlib import Path
 # Get incremental analyzer
 analyzer = repo.incremental_analyzer
 
-# Analyze specific files
-files = [Path("src/main.py"), Path("src/utils.py")]
+# Analyze specific files - only changed ones will be processed
+files = [Path("src/main.py"), Path("src/utils.py"), Path("src/models.py")]
 results = analyzer.analyze_changed_files(files)
 
+# Results contain symbols for all files, but only changed files were analyzed
 for file_path, symbols in results.items():
     print(f"{file_path}: {len(symbols)} symbols")
 ```
+
+The `analyze_changed_files()` method automatically:
+- ✅ Filters input files to only analyze those that changed
+- ✅ Returns cached results for unchanged files  
+- ✅ Logs exactly how many files were skipped vs. analyzed
+- ✅ Maintains the same output format regardless of cache hits/misses
 
 ### Performance Tracking
 
