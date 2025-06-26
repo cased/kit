@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from typing import Dict, List
 
 from fastapi import FastAPI, HTTPException
@@ -27,9 +28,73 @@ class FilePathsIn(BaseModel):
 @app.post("/repository", status_code=201)
 def open_repo(body: RepoIn):
     """Register a repository path/URL and return its deterministic ID."""
-    repo_id = registry.add(body.path_or_url, body.ref)
-    _ = registry.get_repo(repo_id)
-    return {"id": repo_id}
+    try:
+        repo_id = registry.add(body.path_or_url, body.ref)
+        _ = registry.get_repo(repo_id)
+        return {"id": repo_id}
+    except subprocess.CalledProcessError as e:
+        # Git/clone specific errors - handle first to catch git failures
+        git_error_msg = str(e)
+        
+        # Check if this is a git clone command that failed
+        if (hasattr(e, 'cmd') and e.cmd and 
+            isinstance(e.cmd, list) and len(e.cmd) > 2 and
+            e.cmd[0] == 'git' and e.cmd[1] == 'clone'):
+            
+            # Git clone failed - common reasons:
+            if e.returncode == 128:  # Git error code for general errors
+                # Extract repo URL from command for context
+                repo_url = None
+                if len(e.cmd) >= 4:
+                    repo_url = e.cmd[3]  # Usually the 4th argument
+                
+                if repo_url and ('github.com' in repo_url or 'gitlab.com' in repo_url):
+                    raise HTTPException(status_code=404, detail=f"Repository not found: {repo_url}")
+                else:
+                    raise HTTPException(status_code=404, detail=f"Repository not found or inaccessible")
+            else:
+                raise HTTPException(status_code=500, detail=f"Git clone failed: {git_error_msg}")
+        else:
+            # Other git commands
+            raise HTTPException(status_code=500, detail=f"Git operation failed: {git_error_msg}")
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Repository path not found: {e!s}")
+    except ValueError as e:
+        # Git ref errors, invalid paths, etc.
+        raise HTTPException(status_code=400, detail=f"Invalid repository configuration: {e!s}")
+    except Exception as e:
+        # Clone failures, network issues, permission errors, etc.
+        error_msg = str(e)
+
+        # For subprocess errors, try to extract stderr if available
+        if hasattr(e, "stderr") and e.stderr:
+            error_msg = e.stderr
+        elif hasattr(e, "output") and e.output:
+            error_msg = e.output
+
+        # Check for common git/repository errors in the error message
+        error_lower = error_msg.lower()
+        if (
+            "not found" in error_lower
+            or "repository not found" in error_lower
+            or "remote: repository not found" in error_msg
+            or "fatal: repository" in error_msg
+            or "does not exist" in error_lower
+        ) and ("github.com" in error_msg or "gitlab.com" in error_msg or "git" in error_lower):
+            raise HTTPException(status_code=404, detail=f"Repository not found: {error_msg}")
+        elif "permission denied" in error_lower or "access denied" in error_lower:
+            raise HTTPException(status_code=403, detail=f"Access denied: {error_msg}")
+        elif (
+            "timeout" in error_lower
+            or "network" in error_lower
+            or "connection" in error_lower
+            or "resolve" in error_lower
+        ):
+            raise HTTPException(status_code=503, detail=f"Network error: {error_msg}")
+        elif "authentication failed" in error_lower or "invalid credentials" in error_lower:
+            raise HTTPException(status_code=401, detail=f"Authentication failed: {error_msg}")
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to initialize repository: {error_msg}")
 
 
 @app.get("/repository/{repo_id}/file-tree")
