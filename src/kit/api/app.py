@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from typing import Dict, List
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -12,7 +14,29 @@ from kit.summaries import LLMError, SymbolNotFoundError
 
 from .registry import registry
 
+# Set up logging
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="kit API", version="0.1.0")
+
+
+def sanitize_url(url: str) -> str:
+    """Remove credentials from URL for safe display in error messages."""
+    try:
+        parsed = urlparse(url)
+        if parsed.username or parsed.password:
+            # Reconstruct URL without credentials
+            sanitized = f"{parsed.scheme}://{parsed.hostname}"
+            if parsed.port:
+                sanitized += f":{parsed.port}"
+            sanitized += parsed.path
+            if parsed.query:
+                sanitized += f"?{parsed.query}"
+            return sanitized
+        return url
+    except Exception:
+        # If parsing fails, return a generic message
+        return "[sanitized repository URL]"
 
 
 class RepoIn(BaseModel):
@@ -31,41 +55,121 @@ def open_repo(body: RepoIn):
     try:
         repo_id = registry.add(body.path_or_url, body.ref)
         _ = registry.get_repo(repo_id)
+        logger.info(f"Repository opened successfully: {sanitize_url(body.path_or_url)}")
         return {"id": repo_id}
     except subprocess.CalledProcessError as e:
         # Git command failures (clone, checkout, etc.)
         error_msg = str(e)
 
+        # Log full details for debugging (internal only)
+        logger.warning(
+            f"Git command failed: {error_msg}",
+            extra={
+                "repo_url": body.path_or_url,
+                "ref": body.ref,
+                "return_code": e.returncode,
+                "event_type": "git_command_failure",
+            },
+        )
+
         # For git clone failures (exit code 128 is common for "not found")
         if e.returncode == 128 and "clone" in error_msg:
             # Extract URL from error message if possible, otherwise use generic message
             if body.path_or_url.startswith(("http://", "https://")):
-                raise HTTPException(status_code=404, detail=f"Repository not found: {body.path_or_url}")
+                logger.info(
+                    f"Repository not found: {sanitize_url(body.path_or_url)}",
+                    extra={"event_type": "repository_not_found", "repo_url_sanitized": sanitize_url(body.path_or_url)},
+                )
+                raise HTTPException(status_code=404, detail=f"Repository not found: {sanitize_url(body.path_or_url)}")
             else:
+                logger.info(
+                    f"Local repository not found: {body.path_or_url}",
+                    extra={"event_type": "local_repository_not_found"},
+                )
                 raise HTTPException(status_code=404, detail="Repository not found or inaccessible")
         else:
             raise HTTPException(status_code=500, detail=f"Git operation failed: {error_msg}")
     except FileNotFoundError as e:
+        logger.warning(f"File not found: {body.path_or_url}", extra={"event_type": "file_not_found", "error": str(e)})
         raise HTTPException(status_code=404, detail=f"Repository path not found: {e!s}")
     except ValueError as e:
         # Git ref errors, invalid paths, etc.
+        logger.warning(
+            f"Invalid repository configuration: {body.path_or_url}",
+            extra={"event_type": "invalid_configuration", "ref": body.ref, "error": str(e)},
+        )
         raise HTTPException(status_code=400, detail=f"Invalid repository configuration: {e!s}")
     except Exception as e:
         # All other failures - keep it simple
         error_msg = str(e)
-
-        # Simple string-based detection for common cases
         error_lower = error_msg.lower()
-        if "repository not found" in error_lower or "not found" in error_lower:
-            raise HTTPException(status_code=404, detail=f"Repository not found: {error_msg}")
-        elif "permission denied" in error_lower or "access denied" in error_lower:
-            raise HTTPException(status_code=403, detail=f"Access denied: {error_msg}")
+
+        # Log with appropriate level based on error type
+        if "permission denied" in error_lower or "access denied" in error_lower:
+            logger.warning(
+                "Access denied for repository",
+                extra={
+                    "event_type": "access_denied",
+                    "repo_url_sanitized": sanitize_url(body.path_or_url)
+                    if body.path_or_url.startswith(("http://", "https://"))
+                    else body.path_or_url,
+                    "error": error_msg,
+                },
+            )
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access denied: {sanitize_url(body.path_or_url) if body.path_or_url.startswith(('http://', 'https://')) else 'repository'}",
+            )
         elif "authentication failed" in error_lower or "invalid credentials" in error_lower:
-            raise HTTPException(status_code=401, detail=f"Authentication failed: {error_msg}")
+            logger.warning(
+                "Authentication failed for repository",
+                extra={
+                    "event_type": "authentication_failed",
+                    "repo_url_sanitized": sanitize_url(body.path_or_url)
+                    if body.path_or_url.startswith(("http://", "https://"))
+                    else body.path_or_url,
+                    "error": error_msg,
+                },
+            )
+            raise HTTPException(status_code=401, detail="Authentication failed")
         elif "timeout" in error_lower or "network" in error_lower or "connection" in error_lower:
-            raise HTTPException(status_code=503, detail=f"Network error: {error_msg}")
+            logger.warning(
+                "Network error for repository",
+                extra={
+                    "event_type": "network_error",
+                    "repo_url_sanitized": sanitize_url(body.path_or_url)
+                    if body.path_or_url.startswith(("http://", "https://"))
+                    else body.path_or_url,
+                    "error": error_msg,
+                },
+            )
+            raise HTTPException(status_code=503, detail="Network error accessing repository")
+        elif "repository not found" in error_lower or "not found" in error_lower:
+            logger.info(
+                "Repository not found",
+                extra={
+                    "event_type": "repository_not_found",
+                    "repo_url_sanitized": sanitize_url(body.path_or_url)
+                    if body.path_or_url.startswith(("http://", "https://"))
+                    else body.path_or_url,
+                },
+            )
+            raise HTTPException(
+                status_code=404,
+                detail=f"Repository not found: {sanitize_url(body.path_or_url) if body.path_or_url.startswith(('http://', 'https://')) else body.path_or_url}",
+            )
         else:
-            raise HTTPException(status_code=500, detail=f"Failed to initialize repository: {error_msg}")
+            logger.error(
+                "Unexpected error initializing repository",
+                extra={
+                    "event_type": "unexpected_error",
+                    "repo_url_sanitized": sanitize_url(body.path_or_url)
+                    if body.path_or_url.startswith(("http://", "https://"))
+                    else body.path_or_url,
+                    "error": error_msg,
+                },
+            )
+            raise HTTPException(status_code=500, detail="Failed to initialize repository")
 
 
 @app.get("/repository/{repo_id}/file-tree")
