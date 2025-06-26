@@ -253,7 +253,19 @@ class Repository:
         if token:
             # Create a temporary ask-pass helper that echoes the token once
             askpass_script = tempfile.NamedTemporaryFile("w", delete=False)
-            askpass_script.write('#!/bin/sh\necho "%s"\n' % token)
+            # Git may invoke the askpass helper twice: once for username and once for password.
+            # If we simply echo the token for both prompts, Git treats the *username* as the token and
+            # then fails with a 404 / authentication error. Instead we need to supply:
+            #   username -> "x-access-token"   (GitHub recommended)
+            #   password -> "$token"            (the actual PAT or installation token)
+            askpass_script.write(
+                "#!/bin/sh\n"
+                'case "$1" in\n'
+                '  *Username*) echo "x-access-token" ;;\n'
+                '  *Password*) echo "%s" ;;\n'
+                '  *) echo "" ;;\n'
+                "esac\n" % token
+            )
             askpass_script.flush()
             os.chmod(askpass_script.name, 0o700)
             env["GIT_ASKPASS"] = askpass_script.name
