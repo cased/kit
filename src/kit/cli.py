@@ -34,6 +34,7 @@ def main(
     • [cyan]commit[/]     - Generate intelligent commit messages
 
     [bold green]📊 Analysis Commands:[/]
+    • [cyan]dependencies[/] - Analyze & visualize code dependencies
     • [cyan]symbols[/]    - Extract functions, classes, etc.
     • [cyan]search[/]     - Find patterns across codebase
     • [cyan]file-tree[/]  - Repository structure overview
@@ -43,6 +44,64 @@ def main(
     • [cyan]export[/]     - Export data to JSON files
     """
     pass
+
+
+@app.command("cache")
+def cache_command(
+    action: str = typer.Argument(..., help="Action: status, cleanup, clear, stats"),
+    repo_path: str = typer.Option(".", "--repo", "-r", help="Repository path"),
+):
+    """🗄️ Manage incremental analysis cache."""
+    from kit.repository import Repository
+
+    try:
+        repo = Repository(repo_path)
+
+        if action == "status":
+            stats = repo.get_incremental_stats()
+            if stats.get("status") == "not_initialized":
+                typer.echo("📭 Incremental cache not initialized")
+            else:
+                typer.echo("📊 Incremental Cache Status:")
+                typer.echo(f"   Cached files: {stats.get('cached_files', 0)}")
+                typer.echo(f"   Total symbols: {stats.get('total_symbols', 0)}")
+                typer.echo(f"   Cache size: {stats.get('cache_size_mb', 0):.2f} MB")
+                typer.echo(f"   Cache hit rate: {stats.get('cache_hit_rate', '0%')}")
+                typer.echo(f"   Files analyzed: {stats.get('files_analyzed', 0)}")
+                typer.echo(f"   Cache directory: {stats.get('cache_dir', 'N/A')}")
+
+        elif action == "cleanup":
+            repo.cleanup_incremental_cache()
+            typer.echo("✅ Cleaned up stale cache entries")
+
+        elif action == "clear":
+            repo.clear_incremental_cache()
+            typer.echo("✅ Cleared incremental cache")
+
+        elif action == "stats":
+            # Run a quick analysis to generate stats
+            typer.echo("🔍 Analyzing repository for cache statistics...")
+            symbols = repo.extract_symbols_incremental()
+            stats = repo.get_incremental_stats()
+
+            typer.echo("📈 Analysis Performance:")
+            typer.echo(f"   Total symbols found: {len(symbols)}")
+            typer.echo(f"   Files analyzed: {stats.get('files_analyzed', 0)}")
+            typer.echo(f"   Cache hits: {stats.get('cache_hits', 0)}")
+            typer.echo(f"   Cache misses: {stats.get('cache_misses', 0)}")
+            typer.echo(f"   Hit rate: {stats.get('cache_hit_rate', '0%')}")
+            typer.echo(f"   Average analysis time: {stats.get('avg_analysis_time', 0):.4f}s per file")
+
+            # Finalize to save cache
+            repo.finalize_analysis()
+
+        else:
+            typer.secho(f"❌ Unknown action: {action}. Use: status, cleanup, clear, stats", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.secho(f"❌ Cache operation failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 @app.command("chunk-lines")
@@ -244,6 +303,216 @@ def extract_context(
         raise typer.Exit(code=1)
 
 
+@app.command("dependencies")
+def analyze_dependencies(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    language: str = typer.Option(..., "--language", "-l", help="Language to analyze: python, terraform"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to file instead of stdout."),
+    format: str = typer.Option("json", "--format", "-f", help="Output format: json, dot, graphml, adjacency"),
+    visualize: bool = typer.Option(False, "--visualize", "-v", help="Generate visualization (requires Graphviz)"),
+    viz_format: str = typer.Option("png", "--viz-format", help="Visualization format: png, svg, pdf"),
+    cycles: bool = typer.Option(False, "--cycles", "-c", help="Show only circular dependencies"),
+    llm_context: bool = typer.Option(False, "--llm-context", help="Generate LLM-friendly context description"),
+    module: Optional[str] = typer.Option(None, "--module", "-m", help="Analyze specific module/resource"),
+    include_indirect: bool = typer.Option(
+        False, "--include-indirect", "-i", help="Include indirect dependencies (for module analysis)"
+    ),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
+):
+    """Analyze and visualize code dependencies within a repository.
+
+    Supports Python and Terraform dependency analysis with features including:
+    • Dependency graph generation and export
+    • Circular dependency detection
+    • Module-specific analysis
+    • Visualization generation
+    • LLM-friendly context generation
+
+    Examples:
+        kit dependencies . --language python --format dot --output deps.dot
+        kit dependencies . --language terraform --cycles --visualize
+        kit dependencies . --language python --module kit.repository --include-indirect
+        kit dependencies . --language python --llm-context --output context.md
+    """
+    from kit import Repository
+
+    try:
+        repo = Repository(path, ref=ref)
+
+        # Validate language
+        supported_languages = ["python", "terraform"]
+        if language.lower() not in supported_languages:
+            typer.secho(
+                f"❌ Unsupported language: {language}. Supported: {', '.join(supported_languages)}",
+                fg=typer.colors.RED,
+            )
+            raise typer.Exit(code=1)
+
+        # Get the appropriate analyzer
+        analyzer = repo.get_dependency_analyzer(language.lower())
+
+        # Build the dependency graph
+        typer.echo(f"🔍 Analyzing {language} dependencies...")
+        graph = analyzer.build_dependency_graph()
+        typer.echo(f"📊 Found {len(graph)} components in the dependency graph")
+
+        # Handle different modes of operation
+        if cycles:
+            # Show only cycles
+            detected_cycles = analyzer.find_cycles()
+            if detected_cycles:
+                typer.echo(f"🔄 Found {len(detected_cycles)} circular dependencies:")
+                for i, cycle in enumerate(detected_cycles, 1):
+                    cycle_str = " → ".join(cycle) + f" → {cycle[0]}"
+                    typer.echo(f"  {i}. {cycle_str}")
+
+                if output:
+                    cycles_data = {
+                        "cycles_count": len(detected_cycles),
+                        "cycles": [
+                            {"cycle_number": i, "components": cycle, "cycle_path": " → ".join(cycle) + f" → {cycle[0]}"}
+                            for i, cycle in enumerate(detected_cycles, 1)
+                        ],
+                    }
+                    Path(output).write_text(json.dumps(cycles_data, indent=2))
+                    typer.echo(f"💾 Cycles data written to {output}")
+            else:
+                typer.echo("✅ No circular dependencies found!")
+                if output:
+                    Path(output).write_text(json.dumps({"cycles_count": 0, "cycles": []}, indent=2))
+                    typer.echo(f"💾 Cycles data written to {output}")
+
+        elif module:
+            # Analyze specific module/resource
+            typer.echo(f"🔍 Analyzing dependencies for: {module}")
+
+            if module not in graph:
+                typer.secho(f"❌ Module/resource '{module}' not found in dependency graph", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            # Get dependencies and dependents using the correct methods for each analyzer type
+            if language.lower() == "python":
+                # Use the Python-specific methods
+                if hasattr(analyzer, "get_module_dependencies") and hasattr(analyzer, "get_dependents"):
+                    dependencies = analyzer.get_module_dependencies(module, include_indirect=include_indirect)  # type: ignore
+                    dependents = analyzer.get_dependents(module, include_indirect=include_indirect)  # type: ignore
+                else:
+                    typer.secho("❌ Python dependency analyzer methods not available", fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
+            else:  # terraform
+                # Use the Terraform-specific methods
+                if hasattr(analyzer, "get_resource_dependencies") and hasattr(analyzer, "get_dependents"):
+                    dependencies = analyzer.get_resource_dependencies(module, include_indirect=include_indirect)  # type: ignore
+                    dependents = analyzer.get_dependents(module, include_indirect=include_indirect)  # type: ignore
+                else:
+                    typer.secho("❌ Terraform dependency analyzer methods not available", fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
+
+            dep_type = "All" if include_indirect else "Direct"
+            typer.echo(f"📥 {dep_type} dependencies ({len(dependencies)}):")
+            for dep in sorted(dependencies):
+                dep_info = graph.get(dep, {})
+                dep_category = dep_info.get("type", "unknown")
+                typer.echo(f"  • {dep} ({dep_category})")
+
+            typer.echo(f"📤 {dep_type} dependents ({len(dependents)}):")
+            for dep in sorted(dependents):
+                dep_info = graph.get(dep, {})
+                dep_category = dep_info.get("type", "unknown")
+                typer.echo(f"  • {dep} ({dep_category})")
+
+            if output:
+                module_data = {
+                    "module": module,
+                    "language": language.lower(),
+                    "include_indirect": include_indirect,
+                    "dependencies": {
+                        "count": len(dependencies),
+                        "items": [
+                            {"name": dep, "type": graph.get(dep, {}).get("type", "unknown")}
+                            for dep in sorted(dependencies)
+                        ],
+                    },
+                    "dependents": {
+                        "count": len(dependents),
+                        "items": [
+                            {"name": dep, "type": graph.get(dep, {}).get("type", "unknown")}
+                            for dep in sorted(dependents)
+                        ],
+                    },
+                }
+                Path(output).write_text(json.dumps(module_data, indent=2))
+                typer.echo(f"💾 Module analysis written to {output}")
+
+        elif llm_context:
+            # Generate LLM-friendly context
+            typer.echo("🤖 Generating LLM-friendly context...")
+            context = analyzer.generate_llm_context(
+                output_format="markdown" if output and output.endswith(".md") else "text"
+            )
+
+            if output:
+                Path(output).write_text(context)
+                typer.echo(f"💾 LLM context written to {output}")
+            else:
+                typer.echo("\n" + "=" * 60)
+                typer.echo("LLM CONTEXT")
+                typer.echo("=" * 60)
+                typer.echo(context)
+
+        else:
+            # Export dependency graph
+            if output:
+                result = analyzer.export_dependency_graph(output_format=format, output_path=output)
+                typer.echo(f"💾 Dependency graph exported to {output} ({format} format)")
+            else:
+                # Output to stdout
+                result = analyzer.export_dependency_graph(output_format=format, output_path=None)
+                typer.echo(result)
+
+            # Show summary
+            internal_count = len([k for k, v in graph.items() if v.get("type") == "internal"])
+            external_count = len([k for k, v in graph.items() if v.get("type") != "internal"])
+            typer.echo(f"📈 Summary: {internal_count} internal, {external_count} external dependencies")
+
+            # Check for cycles
+            detected_cycles = analyzer.find_cycles()
+            if detected_cycles:
+                typer.echo(f"⚠️  Warning: {len(detected_cycles)} circular dependencies detected")
+                typer.echo("💡 Run with --cycles to see details")
+
+        # Generate visualization if requested
+        if visualize:
+            if not output:
+                # Default visualization filename
+                viz_output = f"dependencies_visualization.{viz_format}"
+            else:
+                # Use output filename but change extension
+                base_name = Path(output).stem
+                viz_output = f"{base_name}_visualization.{viz_format}"
+
+            typer.echo(f"🎨 Generating visualization ({viz_format})...")
+            try:
+                viz_path = analyzer.visualize_dependencies(
+                    output_path=viz_output.replace(f".{viz_format}", ""), format=viz_format
+                )
+                typer.echo(f"🖼️  Visualization saved to {viz_path}")
+            except Exception as e:
+                typer.secho(f"⚠️  Visualization failed: {e}", fg=typer.colors.YELLOW)
+                typer.echo(
+                    "💡 Make sure Graphviz is installed: brew install graphviz (macOS) or apt-get install graphviz (Linux)"
+                )
+
+    except ValueError as e:
+        typer.secho(f"❌ Configuration error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.secho(f"❌ Dependency analysis failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 @app.command("export")
 def export_data(
     path: str = typer.Argument(..., help="Path to the local repository."),
@@ -412,6 +681,60 @@ def git_info(
             if not any(git_data.values()):
                 typer.echo("Not a git repository or no git metadata available.")
 
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command("grep")
+def grep_command(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    pattern: str = typer.Argument(..., help="Literal string to search for."),
+    case_sensitive: bool = typer.Option(True, "--case-sensitive/--ignore-case", "-c/-i", help="Case sensitive search."),
+    include: Optional[str] = typer.Option(None, "--include", help="Include files matching pattern (e.g., '*.py')."),
+    exclude: Optional[str] = typer.Option(None, "--exclude", help="Exclude files matching pattern."),
+    max_results: int = typer.Option(1000, "--max-results", "-n", help="Maximum number of results to return."),
+    directory: Optional[str] = typer.Option(None, "--directory", "-d", help="Limit search to specific directory."),
+    include_hidden: bool = typer.Option(False, "--include-hidden", help="Include hidden directories in search."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
+):
+    """Perform literal grep search on repository files.
+
+    By default, excludes common directories like node_modules, __pycache__, .git,
+    build directories, and hidden directories for better performance.
+
+    Examples:
+        kit grep . "TODO" --ignore-case --include "*.py"
+        kit grep . "function main" --exclude "*.test.js" --directory "src"
+        kit grep . "config" --include-hidden  # Search hidden directories too
+    """
+    from kit import Repository
+
+    try:
+        repo = Repository(path, ref=ref)
+        matches = repo.grep(
+            pattern,
+            case_sensitive=case_sensitive,
+            include_pattern=include,
+            exclude_pattern=exclude,
+            max_results=max_results,
+            directory=directory,
+            include_hidden=include_hidden,
+        )
+
+        if output:
+            Path(output).write_text(json.dumps(matches, indent=2))
+            typer.echo(f"Grep results written to {output}")
+        else:
+            if not matches:
+                typer.echo(f"No matches found for '{pattern}'")
+            else:
+                typer.echo(f"Found {len(matches)} matches for '{pattern}':")
+                for match in matches:
+                    typer.echo(f"📄 {match['file']}:{match['line_number']}: {match['line_content'].strip()}")
     except Exception as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
@@ -1173,118 +1496,6 @@ def find_symbol_usages(
                     typer.echo(f"{file_rel}:{line}: {context}")
             else:
                 typer.echo(f"No usages found for symbol '{symbol_name}'.")
-    except Exception as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
-@app.command("cache")
-def cache_command(
-    action: str = typer.Argument(..., help="Action: status, cleanup, clear, stats"),
-    repo_path: str = typer.Option(".", "--repo", "-r", help="Repository path"),
-):
-    """🗄️ Manage incremental analysis cache."""
-    from kit.repository import Repository
-
-    try:
-        repo = Repository(repo_path)
-
-        if action == "status":
-            stats = repo.get_incremental_stats()
-            if stats.get("status") == "not_initialized":
-                typer.echo("📭 Incremental cache not initialized")
-            else:
-                typer.echo("📊 Incremental Cache Status:")
-                typer.echo(f"   Cached files: {stats.get('cached_files', 0)}")
-                typer.echo(f"   Total symbols: {stats.get('total_symbols', 0)}")
-                typer.echo(f"   Cache size: {stats.get('cache_size_mb', 0):.2f} MB")
-                typer.echo(f"   Cache hit rate: {stats.get('cache_hit_rate', '0%')}")
-                typer.echo(f"   Files analyzed: {stats.get('files_analyzed', 0)}")
-                typer.echo(f"   Cache directory: {stats.get('cache_dir', 'N/A')}")
-
-        elif action == "cleanup":
-            repo.cleanup_incremental_cache()
-            typer.echo("✅ Cleaned up stale cache entries")
-
-        elif action == "clear":
-            repo.clear_incremental_cache()
-            typer.echo("✅ Cleared incremental cache")
-
-        elif action == "stats":
-            # Run a quick analysis to generate stats
-            typer.echo("🔍 Analyzing repository for cache statistics...")
-            symbols = repo.extract_symbols_incremental()
-            stats = repo.get_incremental_stats()
-
-            typer.echo("📈 Analysis Performance:")
-            typer.echo(f"   Total symbols found: {len(symbols)}")
-            typer.echo(f"   Files analyzed: {stats.get('files_analyzed', 0)}")
-            typer.echo(f"   Cache hits: {stats.get('cache_hits', 0)}")
-            typer.echo(f"   Cache misses: {stats.get('cache_misses', 0)}")
-            typer.echo(f"   Hit rate: {stats.get('cache_hit_rate', '0%')}")
-            typer.echo(f"   Average analysis time: {stats.get('avg_analysis_time', 0):.4f}s per file")
-
-            # Finalize to save cache
-            repo.finalize_analysis()
-
-        else:
-            typer.secho(f"❌ Unknown action: {action}. Use: status, cleanup, clear, stats", fg=typer.colors.RED)
-            raise typer.Exit(code=1)
-
-    except Exception as e:
-        typer.secho(f"❌ Cache operation failed: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
-@app.command("grep")
-def grep_command(
-    path: str = typer.Argument(..., help="Path to the local repository."),
-    pattern: str = typer.Argument(..., help="Literal string to search for."),
-    case_sensitive: bool = typer.Option(True, "--case-sensitive/--ignore-case", "-c/-i", help="Case sensitive search."),
-    include: Optional[str] = typer.Option(None, "--include", help="Include files matching pattern (e.g., '*.py')."),
-    exclude: Optional[str] = typer.Option(None, "--exclude", help="Exclude files matching pattern."),
-    max_results: int = typer.Option(1000, "--max-results", "-n", help="Maximum number of results to return."),
-    directory: Optional[str] = typer.Option(None, "--directory", "-d", help="Limit search to specific directory."),
-    include_hidden: bool = typer.Option(False, "--include-hidden", help="Include hidden directories in search."),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
-    ref: Optional[str] = typer.Option(
-        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
-    ),
-):
-    """Perform literal grep search on repository files.
-
-    By default, excludes common directories like node_modules, __pycache__, .git,
-    build directories, and hidden directories for better performance.
-
-    Examples:
-        kit grep . "TODO" --ignore-case --include "*.py"
-        kit grep . "function main" --exclude "*.test.js" --directory "src"
-        kit grep . "config" --include-hidden  # Search hidden directories too
-    """
-    from kit import Repository
-
-    try:
-        repo = Repository(path, ref=ref)
-        matches = repo.grep(
-            pattern,
-            case_sensitive=case_sensitive,
-            include_pattern=include,
-            exclude_pattern=exclude,
-            max_results=max_results,
-            directory=directory,
-            include_hidden=include_hidden,
-        )
-
-        if output:
-            Path(output).write_text(json.dumps(matches, indent=2))
-            typer.echo(f"Grep results written to {output}")
-        else:
-            if not matches:
-                typer.echo(f"No matches found for '{pattern}'")
-            else:
-                typer.echo(f"Found {len(matches)} matches for '{pattern}':")
-                for match in matches:
-                    typer.echo(f"📄 {match['file']}:{match['line_number']}: {match['line_content'].strip()}")
     except Exception as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)

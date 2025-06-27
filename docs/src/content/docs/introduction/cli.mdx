@@ -168,6 +168,65 @@ kit grep /path/to/repo "error" --max-results 50 --output errors.json
 
 **Note:** Requires system `grep` command to be available in PATH. For cross-platform regex search, use `kit search` instead.
 
+#### `kit dependencies`
+
+Analyze and visualize code dependencies within a repository. Supports Python and Terraform dependency analysis with features including dependency graph generation, circular dependency detection, module-specific analysis, and visualization generation.
+
+```bash
+kit dependencies <repository-path> --language <language> [OPTIONS]
+```
+
+**Options:**
+- `--language, -l <language>`: Language to analyze (required: `python`, `terraform`)
+- `--output, -o <file>`: Output to file instead of stdout
+- `--format, -f <format>`: Output format (`json`, `dot`, `graphml`, `adjacency`)
+- `--visualize, -v`: Generate visualization (requires Graphviz)
+- `--viz-format <format>`: Visualization format (`png`, `svg`, `pdf`)
+- `--cycles, -c`: Show only circular dependencies
+- `--llm-context`: Generate LLM-friendly context description
+- `--module, -m <name>`: Analyze specific module/resource
+- `--include-indirect, -i`: Include indirect dependencies (for module analysis)
+
+**Examples:**
+
+```bash
+# Analyze Python dependencies with JSON output
+kit dependencies /path/to/repo --language python
+
+# Generate DOT format for Graphviz
+kit dependencies /path/to/repo --language python --format dot --output deps.dot
+
+# Create visualization directly
+kit dependencies /path/to/repo --language terraform --visualize --viz-format svg
+
+# Check for circular dependencies
+kit dependencies /path/to/repo --language python --cycles
+
+# Analyze specific Python module
+kit dependencies /path/to/repo --language python --module "myproject.auth" --include-indirect
+
+# Generate LLM context for AI analysis
+kit dependencies /path/to/repo --language python --llm-context --output context.md
+
+# Terraform infrastructure analysis
+kit dependencies /path/to/repo --language terraform --format graphml --output infrastructure.graphml
+
+# Combined analysis with visualization
+kit dependencies /path/to/repo --language python --cycles --visualize --output analysis.json
+```
+
+**Sample Output:**
+```
+🔍 Analyzing python dependencies...
+📊 Found 127 components in the dependency graph
+📈 Summary: 45 internal, 82 external dependencies
+✅ No circular dependencies found!
+```
+
+**Visualization Requirements:**
+- Install Graphviz: `brew install graphviz` (macOS) or `apt-get install graphviz` (Linux)
+- Supports PNG, SVG, and PDF output formats
+
 #### `kit usages`
 
 Find all usages of a specific symbol across the repository.
