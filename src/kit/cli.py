@@ -392,13 +392,23 @@ def analyze_dependencies(
                 typer.secho(f"❌ Module/resource '{module}' not found in dependency graph", fg=typer.colors.RED)
                 raise typer.Exit(code=1)
 
-            # Get dependencies and dependents
+            # Get dependencies and dependents using the correct methods for each analyzer type
             if language.lower() == "python":
-                dependencies = analyzer.get_module_dependencies(module, include_indirect=include_indirect)
-                dependents = analyzer.get_dependents(module, include_indirect=include_indirect)
+                # Use the Python-specific methods
+                if hasattr(analyzer, "get_module_dependencies") and hasattr(analyzer, "get_dependents"):
+                    dependencies = analyzer.get_module_dependencies(module, include_indirect=include_indirect)  # type: ignore
+                    dependents = analyzer.get_dependents(module, include_indirect=include_indirect)  # type: ignore
+                else:
+                    typer.secho("❌ Python dependency analyzer methods not available", fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
             else:  # terraform
-                dependencies = analyzer.get_resource_dependencies(module, include_indirect=include_indirect)
-                dependents = analyzer.get_dependents(module, include_indirect=include_indirect)
+                # Use the Terraform-specific methods
+                if hasattr(analyzer, "get_resource_dependencies") and hasattr(analyzer, "get_dependents"):
+                    dependencies = analyzer.get_resource_dependencies(module, include_indirect=include_indirect)  # type: ignore
+                    dependents = analyzer.get_dependents(module, include_indirect=include_indirect)  # type: ignore
+                else:
+                    typer.secho("❌ Terraform dependency analyzer methods not available", fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
 
             dep_type = "All" if include_indirect else "Direct"
             typer.echo(f"📥 {dep_type} dependencies ({len(dependencies)}):")
