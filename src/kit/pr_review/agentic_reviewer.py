@@ -1061,6 +1061,622 @@ Keep it focused and valuable. Begin your analysis.
         except Exception:
             return "dev"
 
+    async def _call_llm_agentic(self, prompt: str) -> str:
+        """Call LLM for agentic analysis without tool calling."""
+        if self.config.llm.provider == LLMProvider.ANTHROPIC:
+            return await self._analyze_with_anthropic_simple(prompt)
+        elif self.config.llm.provider == LLMProvider.GOOGLE:
+            return await self._analyze_with_google_simple(prompt)
+        elif self.config.llm.provider == LLMProvider.OLLAMA:
+            return await self._analyze_with_ollama_simple(prompt)
+        else:
+            return await self._analyze_with_openai_simple(prompt)
+
+    async def _analyze_with_anthropic_simple(self, prompt: str) -> str:
+        """Simple Anthropic analysis without tools."""
+        try:
+            import anthropic
+        except ImportError:
+            raise RuntimeError("anthropic package not installed. Run: pip install anthropic")
+
+        if not self._llm_client:
+            self._llm_client = anthropic.Anthropic(api_key=self.config.llm.api_key)
+
+        try:
+            response = self._llm_client.messages.create(
+                model=self.config.llm.model,
+                max_tokens=self.config.llm.max_tokens,
+                temperature=self.config.llm.temperature,
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+            # Track cost
+            input_tokens, output_tokens = self.cost_tracker.extract_anthropic_usage(response)
+            self.cost_tracker.track_llm_usage(
+                self.config.llm.provider, self.config.llm.model, input_tokens, output_tokens
+            )
+
+            # Extract text from the response content
+            text_content = ""
+            for content_block in response.content:
+                if hasattr(content_block, "text"):
+                    text_content += content_block.text
+
+            return text_content if text_content else "No text content in response"
+
+        except Exception as e:
+            return f"Error during LLM analysis: {e}"
+
+    async def _analyze_with_google_simple(self, prompt: str) -> str:
+        """Simple Google analysis without tools."""
+        try:
+            import google.genai as genai
+            from google.genai import types
+        except ImportError:
+            raise RuntimeError("google-genai package not installed. Run: pip install google-genai")
+
+        if not self._llm_client:
+            self._llm_client = genai.Client(api_key=self.config.llm.api_key)
+
+        try:
+            response = self._llm_client.models.generate_content(
+                model=self.config.llm.model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=self.config.llm.temperature,
+                    max_output_tokens=self.config.llm.max_tokens,
+                ),
+            )
+
+            # Track cost
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
+                output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
+                self.cost_tracker.track_llm_usage(
+                    self.config.llm.provider, self.config.llm.model, input_tokens, output_tokens
+                )
+
+            result_text = response.text
+            return result_text if result_text is not None else "No response content from Google Gemini"
+
+        except Exception as e:
+            return f"Error during LLM analysis: {e}"
+
+    async def _analyze_with_openai_simple(self, prompt: str) -> str:
+        """Simple OpenAI analysis without tools."""
+        try:
+            import openai
+        except ImportError:
+            raise RuntimeError("openai package not installed. Run: pip install openai")
+
+        if not self._llm_client:
+            if self.config.llm.api_base_url:
+                self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key, base_url=self.config.llm.api_base_url)
+            else:
+                self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key)
+
+        try:
+            response = self._llm_client.chat.completions.create(
+                model=self.config.llm.model,
+                max_tokens=self.config.llm.max_tokens,
+                temperature=self.config.llm.temperature,
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+            # Track cost
+            input_tokens, output_tokens = self.cost_tracker.extract_openai_usage(response)
+            self.cost_tracker.track_llm_usage(
+                self.config.llm.provider, self.config.llm.model, input_tokens, output_tokens
+            )
+
+            content = response.choices[0].message.content
+            return content if content is not None else "No response content"
+
+        except Exception as e:
+            return f"Error during LLM analysis: {e}"
+
+    async def _analyze_with_ollama_simple(self, prompt: str) -> str:
+        """Simple Ollama analysis without tools."""
+        import asyncio
+
+        try:
+            import requests
+        except ImportError:
+            raise RuntimeError("requests package not installed. Run: pip install requests")
+
+        if not self._llm_client:
+            # Create Ollama client
+            class OllamaClient:
+                def __init__(self, base_url: str, model: str):
+                    self.base_url = base_url
+                    self.model = model
+                    self.session = requests.Session()
+
+                def generate(self, prompt: str, **kwargs) -> str:
+                    """Generate text using Ollama's API."""
+                    url = f"{self.base_url}/api/generate"
+                    data = {"model": self.model, "prompt": prompt, "stream": False, **kwargs}
+                    response = self.session.post(url, json=data)
+                    response.raise_for_status()
+                    return response.json().get("response", "")
+
+            self._llm_client = OllamaClient(
+                self.config.llm.api_base_url or "http://localhost:11434", self.config.llm.model
+            )
+
+        try:
+            response = await asyncio.to_thread(
+                self._llm_client.generate,
+                prompt,
+                temperature=self.config.llm.temperature,
+                num_predict=self.config.llm.max_tokens,
+            )
+
+            # Track usage (free but good for statistics)
+            estimated_input_tokens = len(prompt) // 4
+            estimated_output_tokens = len(response) // 4
+            self.cost_tracker.track_llm_usage(
+                self.config.llm.provider, self.config.llm.model, estimated_input_tokens, estimated_output_tokens
+            )
+
+            return response if response else "No response content from Ollama"
+
+        except Exception as e:
+            return f"Error during LLM analysis: {e}"
+
+    def review_local_diff_agentic(self, diff_spec: str, repo_path: str = ".") -> str:
+        """Review local branch changes using agentic multi-turn analysis."""
+        try:
+            # Validate we're in a git repository
+            import subprocess
+            from pathlib import Path
+
+            git_dir = Path(repo_path) / ".git"
+            if not git_dir.exists():
+                raise RuntimeError("Not a git repository. Local diff review requires a git repository.")
+
+            # Check if quiet mode is enabled (for plain output)
+            quiet = self.config.quiet
+
+            if not quiet:
+                max_turns = getattr(self.config, "agentic_max_turns", 15)
+                print(
+                    f"🤖 Reviewing local changes: {diff_spec} [AGENTIC MODE - {self.config.llm.model}, max turns: {max_turns}]"
+                )
+
+            # Get the diff using git
+            try:
+                result = subprocess.run(
+                    ["git", "diff", diff_spec], cwd=repo_path, capture_output=True, text=True, check=True
+                )
+                diff_content = result.stdout
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(f"Failed to get git diff for '{diff_spec}': {e.stderr or str(e)}")
+
+            if not diff_content.strip():
+                return "No changes found in the specified diff range."
+
+            # Get list of changed files
+            try:
+                result = subprocess.run(
+                    ["git", "diff", "--name-only", diff_spec], cwd=repo_path, capture_output=True, text=True, check=True
+                )
+                changed_files = [f.strip() for f in result.stdout.splitlines() if f.strip()]
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(f"Failed to get changed files for '{diff_spec}': {e.stderr or str(e)}")
+
+            if not quiet:
+                print(f"Changed files: {len(changed_files)}")
+                for file in changed_files[:5]:  # Show first 5 files
+                    print(f"  {file}")
+                if len(changed_files) > 5:
+                    print(f"  ... and {len(changed_files) - 5} more")
+
+            # Parse the diff to get file change information
+            from .diff_parser import DiffParser
+
+            parsed_diff = DiffParser.parse_diff(diff_content)
+
+            # Create mock file objects similar to PR files for analysis
+            mock_files = []
+            for filename in changed_files:
+                # Get file stats
+                try:
+                    stats_result = subprocess.run(
+                        ["git", "diff", "--numstat", diff_spec, "--", filename],
+                        cwd=repo_path,
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    if stats_result.stdout.strip():
+                        parts = stats_result.stdout.strip().split("\t")
+                        additions = int(parts[0]) if parts[0] != "-" else 0
+                        deletions = int(parts[1]) if parts[1] != "-" else 0
+                    else:
+                        additions, deletions = 0, 0
+                except (subprocess.CalledProcessError, ValueError, IndexError):
+                    additions, deletions = 0, 0
+
+                mock_files.append(
+                    {
+                        "filename": filename,
+                        "status": "modified",  # Could be enhanced to detect new/deleted files
+                        "additions": additions,
+                        "deletions": deletions,
+                        "changes": additions + deletions,
+                    }
+                )
+
+            # Create mock PR details for analysis
+            try:
+                # Get commit messages in the range for context
+                log_result = subprocess.run(
+                    ["git", "log", "--oneline", diff_spec], cwd=repo_path, capture_output=True, text=True, check=True
+                )
+                commits = log_result.stdout.strip().split("\n") if log_result.stdout.strip() else []
+
+                # Get current branch name
+                branch_result = subprocess.run(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                    cwd=repo_path,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                branch_result.stdout.strip()
+
+                # Extract base and head from diff_spec
+                if ".." in diff_spec:
+                    base_ref, head_ref = diff_spec.split("..", 1)
+                else:
+                    base_ref = f"{diff_spec}~1"
+                    head_ref = diff_spec
+
+            except subprocess.CalledProcessError:
+                commits = []
+                base_ref, head_ref = "base", "head"
+
+            # Create a title from commit messages or diff spec
+            if commits:
+                title = commits[0] if len(commits) == 1 else f"Changes in {diff_spec} ({len(commits)} commits)"
+            else:
+                title = f"Local changes: {diff_spec}"
+
+            mock_pr_details = {
+                "title": title,
+                "user": {"login": "local-user"},
+                "base": {"ref": base_ref},
+                "head": {"ref": head_ref, "sha": head_ref},
+                "number": 0,  # No PR number for local diff
+            }
+
+            if not quiet:
+                print(f"Title: {title}")
+                print(f"Base: {base_ref} -> Head: {head_ref}")
+
+            # Perform agentic analysis
+            if len(mock_files) > 0 and self.config.analysis_depth.value != "quick":
+                # Use the specified repo path or current directory
+                analysis_repo_path = repo_path
+
+                if not quiet:
+                    print("Running agentic analysis...")
+
+                try:
+                    analysis = asyncio.run(
+                        self.analyze_local_diff_agentic_turns(
+                            analysis_repo_path, mock_pr_details, mock_files, diff_content, parsed_diff
+                        )
+                    )
+
+                    # Validate review quality
+                    try:
+                        changed_files_list = [f["filename"] for f in mock_files]
+                        from .validator import validate_review_quality
+
+                        validation = validate_review_quality(analysis, diff_content, changed_files_list)
+
+                        if not quiet:
+                            print(f"📊 Review Quality Score: {validation.score:.2f}/1.0")
+                            if validation.issues:
+                                print(f"⚠️  Quality Issues: {', '.join(validation.issues)}")
+                            print(f"📈 Metrics: {validation.metrics}")
+
+                        # Auto-fix wrong line numbers if any
+                        if validation.metrics.get("line_reference_errors", 0) > 0:
+                            from .line_ref_fixer import LineRefFixer
+
+                            analysis, fixes = LineRefFixer.fix_comment(analysis, diff_content)
+                            if fixes and not quiet:
+                                print(
+                                    f"🔧 Auto-fixed {len(fixes) // (2 if any(f[1] != f[2] for f in fixes) else 1)} line reference(s)"
+                                )
+
+                    except Exception as e:
+                        if not quiet:
+                            print(f"⚠️  Could not validate review quality: {e}")
+
+                    review_comment = self._generate_local_diff_comment(mock_pr_details, mock_files, analysis, diff_spec)
+
+                except Exception as e:
+                    if not quiet:
+                        print(f"Agentic analysis failed: {e}")
+                    # Fall back to basic analysis
+                    basic_analysis = f"Agentic analysis failed ({e!s}). Reviewing based on git diff only.\n\nFiles changed: {len(mock_files)} files with {sum(f['additions'] for f in mock_files)} additions and {sum(f['deletions'] for f in mock_files)} deletions."
+                    review_comment = self._generate_local_diff_comment(
+                        mock_pr_details, mock_files, basic_analysis, diff_spec
+                    )
+            else:
+                # Basic analysis for quick mode or no files
+                basic_analysis = f"Quick analysis mode.\n\nFiles changed: {len(mock_files)} files with {sum(f['additions'] for f in mock_files)} additions and {sum(f['deletions'] for f in mock_files)} deletions."
+                review_comment = self._generate_local_diff_comment(
+                    mock_pr_details, mock_files, basic_analysis, diff_spec
+                )
+
+            # Display cost summary
+            if not quiet:
+                print(self.cost_tracker.get_cost_summary())
+
+            return review_comment
+
+        except Exception as e:
+            raise RuntimeError(f"Agentic local diff review failed: {e}")
+
+    async def analyze_local_diff_agentic_turns(
+        self,
+        repo_path: str,
+        mock_pr_details: Dict[str, Any],
+        files: List[Dict[str, Any]],
+        diff_content: str,
+        parsed_diff: Dict[str, Any],
+    ) -> str:
+        """Analyze local diff using agentic multi-turn analysis."""
+        from kit import Repository
+
+        # Create kit Repository instance
+        repo = Repository(repo_path)
+
+        # Generate line number context from parsed diff
+        from .diff_parser import DiffParser
+
+        line_number_context = DiffParser.generate_line_number_context(parsed_diff)
+
+        # Prioritize files for analysis
+        from .file_prioritizer import FilePrioritizer
+
+        priority_files, skipped_count = FilePrioritizer.smart_priority(files, max_files=10)
+
+        # Get symbol analysis for each file
+        file_analysis: Dict[str, Dict[str, Any]] = {}
+
+        for file_data in priority_files:
+            file_path = file_data["filename"]
+            try:
+                # Get symbols from the file
+                file_symbols = repo.extract_symbols(file_path)
+
+                # Get symbol usage counts
+                symbol_usages = {}
+                for symbol in file_symbols[:5]:  # Limit to top 5 symbols
+                    try:
+                        usages = repo.find_symbol_usages(symbol["name"])
+                        symbol_usages[symbol["name"]] = len(usages)
+                    except Exception:
+                        symbol_usages[symbol["name"]] = 0
+
+                file_analysis[file_path] = {
+                    "changes": f"{file_data['additions']}+, {file_data['deletions']}-",
+                    "symbols": file_symbols[:5],
+                    "symbol_usages": symbol_usages,
+                }
+
+            except Exception:
+                file_analysis[file_path] = {
+                    "changes": f"{file_data['additions']}+, {file_data['deletions']}-",
+                    "symbols": [],
+                    "symbol_usages": {},
+                }
+
+        # Get dependency analysis for the repository
+        try:
+            dependency_analyzer = repo.get_dependency_analyzer()
+            dependency_context = dependency_analyzer.generate_llm_context()
+        except Exception as e:
+            dependency_context = f"Dependency analysis unavailable: {e}"
+
+        # Get repository context
+        try:
+            file_tree = repo.get_file_tree()
+            total_files = len([f for f in file_tree if not f.get("is_dir", True)])
+            total_dirs = len([f for f in file_tree if f.get("is_dir", False)])
+            repo_summary = f"{total_files} files in {total_dirs} directories"
+        except Exception:
+            repo_summary = "Repository structure unavailable"
+
+        # Generate analysis summary
+        analysis_summary = FilePrioritizer.get_analysis_summary(files, priority_files)
+
+        # Create enhanced analysis prompt for agentic mode
+        base_prompt = f"""You are an expert code reviewer conducting a thorough analysis of local git changes. This is an agentic multi-turn review - you will have multiple opportunities to refine your analysis.
+
+**Local Changes Information:**
+- Diff: {mock_pr_details["base"]["ref"]}..{mock_pr_details["head"]["ref"]}
+- Title: {mock_pr_details["title"]}
+- Files: {len(files)} changed
+
+**Repository Context:**
+- Structure: {repo_summary}
+- Dependencies: {dependency_context}
+
+{analysis_summary}
+
+{line_number_context}"""
+
+        # Add custom context from profile if available
+        if self.config.profile_context:
+            base_prompt += f"""
+
+**Custom Review Guidelines:**
+{self.config.profile_context}"""
+
+        base_prompt += f"""
+
+**Diff:**
+```diff
+{diff_content}
+```
+
+**Symbol Analysis:**"""
+
+        for file_path, file_data in file_analysis.items():
+            base_prompt += f"""
+{file_path} ({file_data["changes"]}) - {len(file_data["symbols"])} symbols
+{chr(10).join([f"- {name}: used in {count} places" for name, count in file_data["symbol_usages"].items()]) if file_data["symbol_usages"] else "- No widespread usage"}"""
+
+        # Run agentic analysis with multiple turns
+        max_turns = getattr(self.config, "agentic_max_turns", 15)
+        quiet = self.config.quiet
+
+        if not quiet:
+            print(f"🔄 Starting agentic analysis with up to {max_turns} turns...")
+
+        conversation_history = []
+
+        # Initial analysis turn
+        initial_prompt = (
+            base_prompt
+            + """
+
+**Initial Analysis Request:**
+Conduct an initial comprehensive code review focusing on:
+
+1. **High-Impact Issues**: Security vulnerabilities, breaking changes, data integrity concerns
+2. **Architecture & Design**: Code structure, design patterns, maintainability
+3. **Performance & Efficiency**: Algorithm complexity, resource usage, bottlenecks
+4. **Code Quality**: Readability, best practices, potential bugs
+
+Provide specific findings with file:line references where applicable.
+
+**Response Format:**
+## Initial Findings
+
+### High Priority Issues
+[List critical issues that need immediate attention]
+
+### Architecture & Design Analysis
+[Evaluate design decisions and patterns]
+
+### Performance Considerations
+[Identify performance implications]
+
+### Code Quality Assessment
+[General code quality observations]
+
+### Questions for Deeper Analysis
+[Areas that need further investigation in subsequent turns]
+"""
+        )
+
+        conversation_history.append({"role": "user", "content": initial_prompt})
+
+        # Get initial response
+        initial_response = await self._call_llm_agentic(conversation_history[-1]["content"])
+        conversation_history.append({"role": "assistant", "content": initial_response})
+
+        if not quiet:
+            print(f"✅ Turn 1/{max_turns} completed")
+
+        # Continue with follow-up turns
+        for turn in range(2, max_turns + 1):
+            # Create follow-up prompt based on previous response
+            follow_up_prompt = f"""Continue your analysis from the previous turn. Now focus on:
+
+**Turn {turn} Deep Dive:**
+- Investigate the questions you raised in your previous analysis
+- Look for edge cases and error handling gaps
+- Examine cross-file dependencies and impact
+- Consider testing implications
+- Evaluate documentation needs
+
+Build upon your previous findings and provide additional insights. Reference specific code sections when possible.
+
+**Previous Analysis Summary:**
+{initial_response if turn == 2 else conversation_history[-1]["content"]}
+"""
+
+            conversation_history.append({"role": "user", "content": follow_up_prompt})
+
+            # Get follow-up response
+            follow_up_response = await self._call_llm_agentic(conversation_history[-1]["content"])
+            conversation_history.append({"role": "assistant", "content": follow_up_response})
+
+            if not quiet:
+                print(f"✅ Turn {turn}/{max_turns} completed")
+
+            # Check if analysis seems complete (optional early termination)
+            if turn >= 3 and len(follow_up_response) < 500:  # Short response might indicate completion
+                if not quiet:
+                    print(f"🎯 Analysis appears complete after {turn} turns")
+                break
+
+        # Synthesize final review from all turns
+        synthesis_prompt = """Based on all the analysis turns above, synthesize a comprehensive final code review.
+
+**Final Review Requirements:**
+1. Consolidate all findings into clear, actionable recommendations
+2. Prioritize issues by severity (High/Medium/Low)
+3. Provide specific file:line references for all issues
+4. Include implementation suggestions where appropriate
+5. Ensure no duplicate findings from multiple turns
+
+**Final Review Format:**
+
+## Priority Issues
+- [High/Medium/Low priority] findings with file:line references
+
+## Summary
+- What these changes accomplish
+- Key architectural implications
+- Overall assessment
+
+## Detailed Recommendations
+- Specific, actionable feedback organized by category
+- Implementation suggestions
+- Cross-codebase impact considerations
+
+**Guidelines:** Be comprehensive but concise. Focus on the most valuable insights from your multi-turn analysis."""
+
+        conversation_history.append({"role": "user", "content": synthesis_prompt})
+        final_analysis = await self._call_llm_agentic(synthesis_prompt)
+
+        if not quiet:
+            print("🎯 Final synthesis completed")
+
+        # Apply priority filtering if requested
+        from .priority_filter import filter_review_by_priority
+
+        priority_filter = self.config.priority_filter
+        filtered_analysis = filter_review_by_priority(final_analysis, priority_filter, self.config.max_review_size_mb)
+
+        return filtered_analysis
+
+    def _generate_local_diff_comment(
+        self, mock_pr_details: Dict[str, Any], files: List[Dict[str, Any]], analysis: str, diff_spec: str
+    ) -> str:
+        """Generate an intelligent review comment for local diff analysis."""
+        max_turns = getattr(self.config, "agentic_max_turns", 15)
+        comment = f"""## 🤖 Kit AI Code Review - Local Changes (Agentic)
+
+**Diff:** `{diff_spec}`
+
+{analysis}
+
+---
+*Generated by [cased kit](https://github.com/cased/kit) v{self._get_kit_version()} • Mode: agentic-local-diff (max turns: {max_turns}) • Model: {self.config.llm.model}*
+"""
+        return comment
+
 
 async def retry_with_backoff(func, max_retries=3, base_delay=1.0, max_delay=60.0):
     """Retry function with exponential backoff for API rate limiting."""

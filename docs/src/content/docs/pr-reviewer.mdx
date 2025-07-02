@@ -36,25 +36,78 @@ export KIT_GOOGLE_API_KEY="AIzaSy-your_google_key"
 # 4. Review any GitHub PR
 kit review https://github.com/owner/repo/pull/123
 
-# 5. Test without posting (dry run with full formatting)
+# 5. Review local changes before creating PRs
+kit review --local-diff main..feature-branch
+
+# 6. Test without posting (dry run with full formatting)
 kit review --dry-run https://github.com/owner/repo/pull/123
 
-# 6. Use custom context profiles for organization standards
+# 7. Use custom context profiles for organization standards
 kit review --profile company-standards https://github.com/owner/repo/pull/123
 
-# 7. Focus on specific priority levels
+# 8. Focus on specific priority levels
 kit review --priority=high,medium https://github.com/owner/repo/pull/123
 
-# 8. Quick PR summaries for triage (5-10x cheaper)
+# 9. Quick PR summaries for triage (5-10x cheaper)
 kit summarize https://github.com/owner/repo/pull/123
 
-# 9. Add summary to PR description for team visibility
+# 10. Add summary to PR description for team visibility
 kit summarize --update-pr-body https://github.com/owner/repo/pull/123
 ```
 
 <Aside type="tip">
 **Just want the PR reviewer?** The base `pip install cased-kit` gives you everything needed for PR reviews without heavy ML dependencies like PyTorch. If you need semantic search features later, install with `pip install cased-kit[ml]`.
 </Aside>
+
+## Local Branch Reviews
+
+Review your changes **before creating PRs** with kit's local diff analysis. Get the same repository intelligence and AI analysis on local branches, uncommitted changes, or any git diff.
+
+```bash
+# Review branch changes before creating PR
+kit review --local-diff main..feature-branch
+
+# Review recent commits
+kit review --local-diff HEAD~3..HEAD
+
+# Review uncommitted changes
+kit review --local-diff HEAD
+
+# Pipe directly to Claude Code for implementation
+kit review --local-diff main..feature-branch | \
+  claude "implement these code review suggestions"
+
+# Use agentic mode for complex local changes
+kit review --local-diff main..feature-branch --agentic --agentic-turns 10
+
+# Focus on high-priority issues only
+kit review --local-diff HEAD~5..HEAD --priority=high
+```
+
+### Local Diff Features
+
+- **Same Repository Intelligence**: Full symbol extraction, dependency analysis, and cross-file impact
+- **Plain Output by Default**: Perfect for piping to other tools (use `--dry-run` for formatted preview)
+- **All Analysis Modes**: Standard and agentic analysis both supported
+- **Compatible Options**: Works with `--priority`, `--profile`, `--model`, and all other options
+- **No Posting**: Local diffs never post to GitHub - always local analysis only
+
+### Perfect for Development Workflow
+
+```bash
+# 1. Work on feature branch
+git checkout -b new-feature
+
+# 2. Make changes and get AI review
+kit review --local-diff main..new-feature
+
+# 3. Address feedback, then create PR
+git push origin new-feature
+gh pr create
+
+# 4. Get final AI review on the actual PR
+kit review https://github.com/owner/repo/pull/123
+```
 
 ## 💰 Transparent Pricing
 

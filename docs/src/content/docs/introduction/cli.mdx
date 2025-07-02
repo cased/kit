@@ -521,13 +521,15 @@ kit serve --port 3000
 
 #### `kit review`
 
-AI-powered GitHub pull request reviewer that provides comprehensive code analysis with full repository context. The reviewer clones repositories, analyzes symbol relationships, and generates intelligent reviews using Claude or GPT-4.
+AI-powered GitHub pull request reviewer that provides comprehensive code analysis with full repository context. The reviewer clones repositories, analyzes symbol relationships, and generates intelligent reviews using Claude or GPT-4. Supports local branch comparisons for reviewing changes before creating PRs.
 
 ```bash
 kit review <pr-url> [OPTIONS]
+kit review --local-diff <diff-spec> [OPTIONS]
 ```
 
 **Options:**
+- `--local-diff, -l <diff-spec>`: Local branch comparison (e.g., 'main..feature-branch' or 'HEAD~1..HEAD')
 - `--plain, -p`: Output raw review content for piping (no formatting)
 - `--dry-run, -n`: Generate review without posting to GitHub (shows formatted preview)
 - `--model, -m <model>`: Override LLM model for this review
@@ -539,30 +541,51 @@ kit review <pr-url> [OPTIONS]
 **Examples:**
 
 ```bash
-# Review and post comment
+# Review GitHub PR and post comment
 kit review https://github.com/owner/repo/pull/123
+
+# Review local branch changes before creating PR
+kit review --local-diff main..feature-branch
+
+# Review recent commits
+kit review --local-diff HEAD~3..HEAD
+
+# Review uncommitted changes (working directory vs HEAD)
+kit review --local-diff HEAD
 
 # Dry run (formatted preview without posting)
 kit review --dry-run https://github.com/owner/repo/pull/123
+kit review --local-diff main..feature-branch --dry-run
 
 # Clean output for piping to other tools
 kit review --plain https://github.com/owner/repo/pull/123
-kit review -p https://github.com/owner/repo/pull/123
+kit review --local-diff main..feature-branch  # defaults to plain output
 
 # Override model for specific review
 kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
-kit review -m claude-3-5-haiku-20241022 https://github.com/owner/repo/pull/123
+kit review --local-diff main..feature-branch -m claude-3-5-haiku-20241022
 
-# Pipe to Claude Code for implementation
-kit review -p https://github.com/owner/repo/pull/123 | \
+# Pipe local review to Claude Code for implementation
+kit review --local-diff main..feature-branch | \
   claude "Implement these code review suggestions"
 
-# Use agentic mode for complex PRs
-kit review --agentic --agentic-turns 15 https://github.com/owner/repo/pull/123
+# Use agentic mode for complex changes
+kit review --local-diff main..feature-branch --agentic --agentic-turns 15
+
+# Focus on high-priority issues only
+kit review --local-diff HEAD~5..HEAD --priority=high
 
 # Initialize configuration
 kit review --init-config
 ```
+
+**Local Diff Features:**
+- **Branch Comparisons**: Compare any two git refs (`base..head`)
+- **Commit Ranges**: Review multiple commits (`HEAD~3..HEAD`)
+- **Full Repository Analysis**: Uses kit's symbol extraction and dependency analysis
+- **Plain Output by Default**: Local diffs default to plain output (use `--dry-run` for formatted preview)
+- **Agentic Analysis**: Multi-turn analysis for complex local changes
+- **Priority Filtering**: Focus on high/medium/low priority issues
 
 #### Quick Setup
 
@@ -896,101 +919,3 @@ for symbol in $(kit symbols $REPO_PATH --format names | head -10); do
   kit usages $REPO_PATH "$symbol" --output "$DOCS_DIR/usage-$symbol.json"
 done
 ```
-
-### Migration Analysis
-
-```bash
-#!/bin/bash
-OLD_REPO="/path/to/old/repo"
-NEW_REPO="/path/to/new/repo"
-
-# Compare symbol counts (both use caching)
-echo "Old repo symbols:"
-kit symbols $OLD_REPO --format names | wc -l
-
-echo "New repo symbols:"  
-kit symbols $NEW_REPO --format names | wc -l
-
-# Find deprecated patterns
-kit search $OLD_REPO "deprecated\|legacy" --pattern "*.py" > deprecated-code.txt
-
-# Export both for detailed comparison
-kit export $OLD_REPO symbols old-symbols.json
-kit export $NEW_REPO symbols new-symbols.json
-```
-
-### CI/CD Integration
-
-```yaml
-# .github/workflows/code-analysis.yml
-name: Code Analysis
-on: [push, pull_request]
-
-jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Install kit
-        run: pip install cased-kit
-        
-      - name: Analyze codebase
-        run: |
-          # Generate repository analysis (uses incremental caching)
-          kit export . index analysis.json
-          
-          # Check for complexity issues
-          COMPLEX_FUNCTIONS=$(kit symbols . --format json | jq '[.[] | select(.type=="function" and (.end_line - .start_line) > 50)] | length')
-          
-          if [ $COMPLEX_FUNCTIONS -gt 10 ]; then
-            echo "Warning: $COMPLEX_FUNCTIONS functions are longer than 50 lines"
-          fi
-          
-          # Find security-related patterns
-          kit search . "password\|secret\|key" --pattern "*.py" > security-review.txt
-          
-          # Show cache performance
-          kit cache stats .
-          
-      - name: Upload analysis
-        uses: actions/upload-artifact@v3
-        with:
-          name: code-analysis
-          path: |
-            analysis.json
-            security-review.txt
-```
-
-## Best Practices
-
-### Performance
-
-- Use incremental analysis (`kit symbols`) for repeated operations - 25-36x faster
-- Use `--format names` for large repositories when you only need symbol names
-- Leverage file patterns (`--pattern`) to limit search scope
-- Monitor cache performance with `kit cache stats`
-
-### Caching
-
-- Use `kit cache cleanup` periodically to remove stale entries
-- Monitor cache size with `kit cache status`
-- Clear cache (`kit cache clear`) if switching between very different git states frequently
-
-### AI Workflows
-
-- Use `--dry-run` to preview AI-generated content before posting
-- Combine `kit commit` with `kit summarize` for complete AI-powered development workflow
-- Use `--plain` output for piping to other AI tools
-
-### Scripting
-
-- Always check command exit codes (`$?`) in scripts
-- Use `--output` to save data persistently rather than relying on stdout capture
-- Combine with `jq`, `grep`, `sort`, and other Unix tools for powerful analysis
-
-### Integration
-
-- Export JSON data for integration with external tools and databases
-- Use the CLI in CI/CD pipelines for automated code quality checks
-- Combine with language servers and IDEs for enhanced development workflows

@@ -765,7 +765,12 @@ def index(
 @app.command("review")
 def review_pr(
     init_config: bool = typer.Option(False, "--init-config", help="Create a default configuration file and exit"),
-    pr_url: str = typer.Argument("", help="GitHub PR URL (https://github.com/owner/repo/pull/123)"),
+    pr_url: str = typer.Argument(
+        "", help="GitHub PR URL (https://github.com/owner/repo/pull/123) or leave empty for local review"
+    ),
+    local_diff: Optional[str] = typer.Option(
+        None, "--local-diff", "-l", help="Local branch comparison (e.g., 'main..feature-branch' or 'HEAD~1..HEAD')"
+    ),
     config: Optional[str] = typer.Option(
         None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
     ),
@@ -796,7 +801,7 @@ def review_pr(
         None, "--repo-path", help="Path to existing repository (skips cloning, uses current state)"
     ),
 ):
-    """Review a GitHub PR using kit's repository intelligence and AI analysis."""
+    """Review a GitHub PR or local branch changes using kit's repository intelligence and AI analysis."""
     from kit.pr_review.config import ReviewConfig
     from kit.pr_review.reviewer import PRReviewer
 
@@ -823,15 +828,25 @@ def review_pr(
             )
             typer.echo("3. Update the config file with your actual tokens")
             typer.echo("\n💡 Then try: kit review --dry-run https://github.com/owner/repo/pull/123")
+            typer.echo("💡 Or try: kit review --local-diff main..feature-branch --dry-run")
             return
         except Exception as e:
             typer.secho(f"❌ Failed to create config: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
 
-    if not pr_url:
-        typer.secho("❌ PR URL is required", fg=typer.colors.RED)
-        typer.echo("\n💡 Example: kit review https://github.com/owner/repo/pull/123")
+    # Validate input - either pr_url or local_diff must be provided
+    if not pr_url and not local_diff:
+        typer.secho("❌ Either PR URL or --local-diff is required", fg=typer.colors.RED)
+        typer.echo("\n💡 Examples:")
+        typer.echo("   kit review https://github.com/owner/repo/pull/123")
+        typer.echo("   kit review --local-diff main..feature-branch")
+        typer.echo("   kit review --local-diff HEAD~1..HEAD")
         typer.echo("💡 Or run: kit review --help")
+        raise typer.Exit(code=1)
+
+    if pr_url and local_diff:
+        typer.secho("❌ Cannot specify both PR URL and --local-diff", fg=typer.colors.RED)
+        typer.echo("💡 Use either a GitHub PR URL or --local-diff for local branch comparison")
         raise typer.Exit(code=1)
 
     try:
@@ -901,7 +916,7 @@ def review_pr(
 
             review_config.llm.model = model
             if not plain:  # Only show this message if not in plain mode
-                typer.echo(f"🎛️  Overriding model to: {model}")
+                typer.echo(f"🎛️  Using model: {model}")
 
         # Validate model exists
         from kit.pr_review.cost_tracker import CostTracker
@@ -927,6 +942,21 @@ def review_pr(
             # Set quiet mode to suppress all status output
             review_config.quiet = True
 
+        # For local diff, default to plain mode since there's no posting action
+        # but allow --dry-run to show formatted preview for readability
+        if local_diff:
+            review_config.post_as_comment = False  # Never post for local diff
+            if not dry_run and not plain:
+                # Default local diff to plain mode
+                plain = True
+                review_config.quiet = True
+                if not review_config.quiet:
+                    typer.echo("💡 Local diff defaulting to plain output (use --dry-run for formatted preview)")
+        else:
+            # For PR reviews, show the dry run message
+            if dry_run and not plain:
+                typer.echo("🔍 Dry run mode - will not post comments")
+
         # Configure agentic settings if requested
         if agentic:
             review_config.agentic_max_turns = agentic_turns
@@ -947,10 +977,16 @@ def review_pr(
             from kit.pr_review.agentic_reviewer import AgenticPRReviewer
 
             agentic_reviewer = AgenticPRReviewer(review_config)
-            comment = agentic_reviewer.review_pr_agentic(pr_url)
+            if local_diff:
+                comment = agentic_reviewer.review_local_diff_agentic(local_diff, repo_path or ".")
+            else:
+                comment = agentic_reviewer.review_pr_agentic(pr_url)
         else:
             standard_reviewer = PRReviewer(review_config)
-            comment = standard_reviewer.review_pr(pr_url)
+            if local_diff:
+                comment = standard_reviewer.review_local_diff(local_diff, repo_path or ".")
+            else:
+                comment = standard_reviewer.review_pr(pr_url)
 
         # Handle output based on mode
         if plain:
@@ -964,8 +1000,11 @@ def review_pr(
             typer.echo(comment)
             typer.echo("=" * 60)
         else:
-            # Normal mode: post comment and show success
-            typer.echo("✅ Review completed and comment posted!")
+            # Normal mode: post comment and show success (for PR) or just show success (for local)
+            if local_diff:
+                typer.echo("✅ Local review completed!")
+            else:
+                typer.echo("✅ Review completed and comment posted!")
 
     except ValueError as e:
         typer.secho(f"❌ Configuration error: {e}", fg=typer.colors.RED)
