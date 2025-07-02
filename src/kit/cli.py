@@ -37,6 +37,7 @@ def main(
     • [cyan]dependencies[/] - Analyze & visualize code dependencies
     • [cyan]symbols[/]    - Extract functions, classes, etc.
     • [cyan]search[/]     - Find patterns across codebase
+    • [cyan]search-semantic[/] - AI-powered semantic code search
     • [cyan]file-tree[/]  - Repository structure overview
 
     [bold magenta]🔧 Utility Commands:[/]
@@ -1498,6 +1499,137 @@ def find_symbol_usages(
                 typer.echo(f"No usages found for symbol '{symbol_name}'.")
     except Exception as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command("search-semantic")
+def search_semantic(
+    path: str = typer.Argument(..., help="Path to the local repository."),
+    query: str = typer.Argument(..., help="Natural language query to search for."),
+    top_k: int = typer.Option(5, "--top-k", "-k", help="Maximum number of results to return."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file instead of stdout."),
+    embedding_model: str = typer.Option(
+        "all-MiniLM-L6-v2", "--embedding-model", "-e", help="SentenceTransformers model name for embeddings."
+    ),
+    chunk_by: str = typer.Option("symbols", "--chunk-by", "-c", help="Chunking strategy: 'symbols' or 'lines'."),
+    build_index: bool = typer.Option(True, "--build-index/--no-build-index", help="Build/rebuild the vector index."),
+    persist_dir: Optional[str] = typer.Option(None, "--persist-dir", "-p", help="Directory to persist vector index."),
+    ref: Optional[str] = typer.Option(
+        None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
+    ),
+):
+    """Perform semantic search using vector embeddings and natural language queries.
+
+    This command uses vector embeddings to find code based on meaning rather than just keywords.
+    It requires the 'sentence-transformers' package for embedding generation.
+
+    Examples:
+        kit search-semantic . "authentication logic"
+        kit search-semantic . "error handling patterns" --top-k 10
+        kit search-semantic . "database connection" --chunk-by lines
+        kit search-semantic . "user registration" --embedding-model all-mpnet-base-v2
+    """
+    from kit import Repository
+
+    try:
+        # Import sentence-transformers with helpful error message
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            typer.secho("❌ The 'sentence-transformers' package is required for semantic search.", fg=typer.colors.RED)
+            typer.echo("💡 Install it with: pip install sentence-transformers")
+            typer.echo("💡 Or install kit with semantic search support: pip install 'cased-kit[embeddings]'")
+            raise typer.Exit(code=1)
+
+        # Validate chunk_by parameter
+        if chunk_by not in ["symbols", "lines"]:
+            typer.secho(f"❌ Invalid chunk_by value: {chunk_by}. Use 'symbols' or 'lines'.", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+        # Initialize repository
+        repo = Repository(path, ref=ref)
+
+        # Load embedding model
+        typer.echo(f"🔍 Loading embedding model: {embedding_model}")
+        try:
+            model = SentenceTransformer(embedding_model)
+        except Exception as e:
+            typer.secho(f"❌ Failed to load embedding model '{embedding_model}': {e}", fg=typer.colors.RED)
+            typer.echo("💡 Popular models: all-MiniLM-L6-v2, all-mpnet-base-v2, paraphrase-MiniLM-L6-v2")
+            raise typer.Exit(code=1)
+
+        # Create embedding function
+        def embed_fn(texts):
+            if isinstance(texts, str):
+                # Single string input - return single embedding
+                return model.encode(texts).tolist()
+            else:
+                # List of strings - return list of embeddings
+                return model.encode(texts).tolist()
+
+        # Get or create vector searcher
+        typer.echo("🧠 Initializing vector searcher...")
+        try:
+            vector_searcher = repo.get_vector_searcher(embed_fn=embed_fn, persist_dir=persist_dir)
+        except Exception as e:
+            typer.secho(f"❌ Failed to initialize vector searcher: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+        # Build index if requested
+        if build_index:
+            typer.echo(f"📚 Building vector index (chunking by {chunk_by})...")
+            try:
+                vector_searcher.build_index(chunk_by=chunk_by)
+                typer.echo("✅ Vector index built successfully")
+            except Exception as e:
+                typer.secho(f"❌ Failed to build vector index: {e}", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+        # Perform semantic search
+        typer.echo(f"🔎 Searching for: '{query}'")
+        try:
+            results = repo.search_semantic(query, top_k=top_k, embed_fn=embed_fn)
+        except Exception as e:
+            typer.secho(f"❌ Semantic search failed: {e}", fg=typer.colors.RED)
+            # Try to provide helpful error message
+            if "collection" in str(e).lower():
+                typer.echo("💡 The vector index might not exist. Try with --build-index")
+            raise typer.Exit(code=1)
+
+        # Output results
+        if output:
+            Path(output).write_text(json.dumps(results, indent=2))
+            typer.echo(f"📄 Semantic search results written to {output}")
+        else:
+            if not results:
+                typer.echo(f"❌ No semantic matches found for '{query}'")
+                typer.echo("💡 Try building the index with --build-index or using different keywords")
+            else:
+                typer.echo(f"📋 Found {len(results)} semantic matches:")
+                for i, result in enumerate(results, 1):
+                    file_path = result.get("file", "Unknown file")
+                    name = result.get("name", "")
+                    symbol_type = result.get("type", "")
+                    score = result.get("score", 0)
+
+                    # Format the result display
+                    if name and symbol_type:
+                        typer.echo(f"{i}. 📄 {file_path} - {symbol_type} '{name}' (score: {score:.3f})")
+                    else:
+                        typer.echo(f"{i}. 📄 {file_path} (score: {score:.3f})")
+
+                    # Show a snippet of the code if available
+                    code = result.get("code", "")
+                    if code:
+                        # Show first 100 characters of code, cleaned up
+                        code_snippet = code.strip().replace("\n", " ")[:100]
+                        if len(code_snippet) == 100:
+                            code_snippet += "..."
+                        typer.echo(f"   {code_snippet}")
+                    typer.echo()
+
+    except Exception as e:
+        typer.secho(f"❌ Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
 

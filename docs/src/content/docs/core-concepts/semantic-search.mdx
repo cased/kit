@@ -282,9 +282,25 @@ def safe_semantic_search(repo_path: str, query: str, top_k: int = 5):
         return repo.search_text(query)
 ```
 
+## CLI Support
+
+Semantic search is now available via the `kit search-semantic` command:
+
+```bash
+# Basic semantic search
+kit search-semantic /path/to/repo "authentication logic"
+
+# Advanced options
+kit search-semantic /path/to/repo "error handling patterns" \
+  --top-k 10 \
+  --embedding-model all-mpnet-base-v2 \
+  --chunk-by symbols
+```
+
+See the [CLI documentation](/introduction/cli#kit-search-semantic) for complete usage details.
+
 ## Limitations & Future Plans
 
-* **CLI support**: The CLI (`kit search` / `kit serve`) currently performs **text** search only. A semantic variant is planned.
 * **Language support**: Works with any language that kit can parse, but quality depends on symbol extraction
 * **Index management**: Future versions may include index cleanup, optimization, and migration tools
 
