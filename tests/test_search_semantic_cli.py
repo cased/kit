@@ -3,7 +3,7 @@
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -39,7 +39,7 @@ class LoginManager:
     '''Manages user login sessions.'''
     def __init__(self):
         self.active_sessions = {}
-    
+
     def login(self, user):
         '''Create a login session for user.'''
         session_id = generate_session_id()
@@ -66,7 +66,7 @@ class ShoppingCart:
     def __init__(self):
         self.items = []
         self.total = 0.0
-    
+
     def add_item(self, item, price):
         '''Add an item to the shopping cart.'''
         self.items.append({'item': item, 'price': price})
@@ -114,7 +114,7 @@ class TestSearchSemanticCommand:
     def test_help_message(self, runner):
         """Test that search-semantic shows proper help message."""
         result = runner.invoke(app, ["search-semantic", "--help"])
-        
+
         assert result.exit_code == 0
         assert "Perform semantic search using vector embeddings" in result.output
         assert "natural language queries" in result.output
@@ -127,7 +127,7 @@ class TestSearchSemanticCommand:
         # Missing query
         result = runner.invoke(app, ["search-semantic", "."])
         assert result.exit_code == 2  # Typer error for missing required argument
-        
+
         # Missing path
         result = runner.invoke(app, ["search-semantic"])
         assert result.exit_code == 2  # Typer error for missing required argument
@@ -136,7 +136,7 @@ class TestSearchSemanticCommand:
         """Test error message when sentence-transformers is not installed."""
         with patch("kit.cli.SentenceTransformer", side_effect=ImportError()):
             result = runner.invoke(app, ["search-semantic", ".", "test query"])
-            
+
             assert result.exit_code == 1
             assert "sentence-transformers' package is required" in result.output
             assert "pip install sentence-transformers" in result.output
@@ -145,7 +145,7 @@ class TestSearchSemanticCommand:
         """Test error handling for invalid chunk-by parameter."""
         with patch("kit.cli.SentenceTransformer"):
             result = runner.invoke(app, ["search-semantic", ".", "test", "--chunk-by", "invalid"])
-            
+
             assert result.exit_code == 1
             assert "Invalid chunk_by value: invalid" in result.output
             assert "Use 'symbols' or 'lines'" in result.output
@@ -155,9 +155,9 @@ class TestSearchSemanticCommand:
     def test_embedding_model_loading_failure(self, mock_repo_class, mock_st, runner):
         """Test error handling when embedding model fails to load."""
         mock_st.side_effect = Exception("Model loading failed")
-        
+
         result = runner.invoke(app, ["search-semantic", ".", "test query"])
-        
+
         assert result.exit_code == 1
         assert "Failed to load embedding model" in result.output
         assert "Popular models:" in result.output
@@ -169,14 +169,14 @@ class TestSearchSemanticCommand:
         # Mock successful model loading
         mock_model = Mock()
         mock_st.return_value = mock_model
-        
+
         # Mock repository with failing vector searcher
         mock_repo = Mock()
         mock_repo.get_vector_searcher.side_effect = Exception("Vector searcher failed")
         mock_repo_class.return_value = mock_repo
-        
+
         result = runner.invoke(app, ["search-semantic", ".", "test query"])
-        
+
         assert result.exit_code == 1
         assert "Failed to initialize vector searcher" in result.output
 
@@ -187,17 +187,17 @@ class TestSearchSemanticCommand:
         # Mock successful model loading
         mock_model = Mock()
         mock_st.return_value = mock_model
-        
+
         # Mock repository and vector searcher
         mock_searcher = Mock()
         mock_searcher.build_index.side_effect = Exception("Index building failed")
-        
+
         mock_repo = Mock()
         mock_repo.get_vector_searcher.return_value = mock_searcher
         mock_repo_class.return_value = mock_repo
-        
+
         result = runner.invoke(app, ["search-semantic", ".", "test query"])
-        
+
         assert result.exit_code == 1
         assert "Failed to build vector index" in result.output
 
@@ -208,17 +208,17 @@ class TestSearchSemanticCommand:
         # Mock successful model loading and setup
         mock_model = Mock()
         mock_st.return_value = mock_model
-        
+
         mock_searcher = Mock()
         mock_searcher.build_index.return_value = None
-        
+
         mock_repo = Mock()
         mock_repo.get_vector_searcher.return_value = mock_searcher
         mock_repo.search_semantic.side_effect = Exception("collection not found")
         mock_repo_class.return_value = mock_repo
-        
+
         result = runner.invoke(app, ["search-semantic", ".", "test query"])
-        
+
         assert result.exit_code == 1
         assert "Semantic search failed" in result.output
         assert "try with --build-index" in result.output
@@ -231,7 +231,7 @@ class TestSearchSemanticCommand:
         mock_model = Mock()
         mock_model.encode.return_value = Mock()
         mock_st.return_value = mock_model
-        
+
         # Mock search results
         mock_results = [
             {
@@ -239,28 +239,28 @@ class TestSearchSemanticCommand:
                 "name": "authenticate_user",
                 "type": "function",
                 "score": 0.85,
-                "code": "def authenticate_user(username, password):\n    '''Authenticate a user'''\n    return True"
+                "code": "def authenticate_user(username, password):\n    '''Authenticate a user'''\n    return True",
             },
             {
                 "file": "auth.py",
                 "name": "LoginManager",
                 "type": "class",
                 "score": 0.73,
-                "code": "class LoginManager:\n    '''Manages user login sessions'''\n    pass"
-            }
+                "code": "class LoginManager:\n    '''Manages user login sessions'''\n    pass",
+            },
         ]
-        
+
         # Mock repository and components
         mock_searcher = Mock()
         mock_searcher.build_index.return_value = None
-        
+
         mock_repo = Mock()
         mock_repo.get_vector_searcher.return_value = mock_searcher
         mock_repo.search_semantic.return_value = mock_results
         mock_repo_class.return_value = mock_repo
-        
+
         result = runner.invoke(app, ["search-semantic", ".", "user authentication"])
-        
+
         assert result.exit_code == 0
         assert "Loading embedding model: all-MiniLM-L6-v2" in result.output
         assert "Initializing vector searcher" in result.output
@@ -281,18 +281,18 @@ class TestSearchSemanticCommand:
         mock_model = Mock()
         mock_model.encode.return_value = Mock()
         mock_st.return_value = mock_model
-        
+
         # Mock empty search results
         mock_searcher = Mock()
         mock_searcher.build_index.return_value = None
-        
+
         mock_repo = Mock()
         mock_repo.get_vector_searcher.return_value = mock_searcher
         mock_repo.search_semantic.return_value = []
         mock_repo_class.return_value = mock_repo
-        
+
         result = runner.invoke(app, ["search-semantic", ".", "nonexistent functionality"])
-        
+
         assert result.exit_code == 0
         assert "No semantic matches found" in result.output
         assert "Try building the index with --build-index" in result.output
@@ -305,28 +305,37 @@ class TestSearchSemanticCommand:
         mock_model = Mock()
         mock_model.encode.return_value = Mock()
         mock_st.return_value = mock_model
-        
+
         mock_searcher = Mock()
         mock_repo = Mock()
         mock_repo.get_vector_searcher.return_value = mock_searcher
         mock_repo.search_semantic.return_value = []
         mock_repo_class.return_value = mock_repo
-        
-        result = runner.invoke(app, [
-            "search-semantic", ".", "test query",
-            "--top-k", "10",
-            "--embedding-model", "all-mpnet-base-v2",
-            "--chunk-by", "lines",
-            "--no-build-index",
-            "--persist-dir", "/custom/path"
-        ])
-        
+
+        result = runner.invoke(
+            app,
+            [
+                "search-semantic",
+                ".",
+                "test query",
+                "--top-k",
+                "10",
+                "--embedding-model",
+                "all-mpnet-base-v2",
+                "--chunk-by",
+                "lines",
+                "--no-build-index",
+                "--persist-dir",
+                "/custom/path",
+            ],
+        )
+
         assert result.exit_code == 0
         assert "Loading embedding model: all-mpnet-base-v2" in result.output
-        
+
         # Verify that build_index was not called due to --no-build-index
         mock_searcher.build_index.assert_not_called()
-        
+
         # Verify search was called with correct top_k
         mock_repo.search_semantic.assert_called_once()
         args, kwargs = mock_repo.search_semantic.call_args
@@ -340,27 +349,24 @@ class TestSearchSemanticCommand:
         mock_model = Mock()
         mock_model.encode.return_value = Mock()
         mock_st.return_value = mock_model
-        
+
         mock_results = [{"file": "test.py", "name": "test_func", "score": 0.9}]
-        
+
         mock_searcher = Mock()
         mock_repo = Mock()
         mock_repo.get_vector_searcher.return_value = mock_searcher
         mock_repo.search_semantic.return_value = mock_results
         mock_repo_class.return_value = mock_repo
-        
+
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
-        
+
         try:
-            result = runner.invoke(app, [
-                "search-semantic", ".", "test query",
-                "--output", output_file
-            ])
-            
+            result = runner.invoke(app, ["search-semantic", ".", "test query", "--output", output_file])
+
             assert result.exit_code == 0
             assert f"Semantic search results written to {output_file}" in result.output
-            
+
             # Verify JSON file content
             with open(output_file, "r") as f:
                 data = json.load(f)
@@ -376,27 +382,21 @@ class TestSearchSemanticCommand:
         mock_model = Mock()
         mock_model.encode.return_value = Mock()
         mock_st.return_value = mock_model
-        
+
         # Mock result with long code
         long_code = "def very_long_function_name():\n    '''This is a very long function that should be truncated in the display'''\n    # Some implementation here\n    return result"
         mock_results = [
-            {
-                "file": "test.py",
-                "name": "very_long_function_name",
-                "type": "function",
-                "score": 0.9,
-                "code": long_code
-            }
+            {"file": "test.py", "name": "very_long_function_name", "type": "function", "score": 0.9, "code": long_code}
         ]
-        
+
         mock_searcher = Mock()
         mock_repo = Mock()
         mock_repo.get_vector_searcher.return_value = mock_searcher
         mock_repo.search_semantic.return_value = mock_results
         mock_repo_class.return_value = mock_repo
-        
+
         result = runner.invoke(app, ["search-semantic", ".", "test query"])
-        
+
         assert result.exit_code == 0
         assert "very_long_function_name" in result.output
         # Code should be truncated at 100 characters
@@ -409,18 +409,15 @@ class TestSearchSemanticCommand:
         # Mock successful setup
         mock_model = Mock()
         mock_st.return_value = mock_model
-        
+
         mock_searcher = Mock()
         mock_repo = Mock()
         mock_repo.get_vector_searcher.return_value = mock_searcher
         mock_repo.search_semantic.return_value = []
         mock_repo_class.return_value = mock_repo
-        
-        result = runner.invoke(app, [
-            "search-semantic", ".", "test query",
-            "--ref", "main"
-        ])
-        
+
+        result = runner.invoke(app, ["search-semantic", ".", "test query", "--ref", "main"])
+
         assert result.exit_code == 0
         # Verify Repository was called with ref parameter
         mock_repo_class.assert_called_once_with(".", ref="main")
@@ -429,20 +426,15 @@ class TestSearchSemanticCommand:
 class TestSearchSemanticIntegration:
     """Integration tests for search-semantic command."""
 
-    @pytest.mark.skipif(
-        True, reason="Requires sentence-transformers installation and is slow"
-    )
+    @pytest.mark.skipif(True, reason="Requires sentence-transformers installation and is slow")
     def test_real_semantic_search(self, temp_repo):
         """Test semantic search with real sentence-transformers (skipped by default)."""
         runner = CliRunner()
-        
+
         # This test requires actual sentence-transformers
         # Skip by default to avoid slow test runs
-        result = runner.invoke(app, [
-            "search-semantic", temp_repo, "user authentication",
-            "--top-k", "3"
-        ])
-        
+        result = runner.invoke(app, ["search-semantic", temp_repo, "user authentication", "--top-k", "3"])
+
         # If sentence-transformers is available, this should work
         if "sentence-transformers' package is required" not in result.output:
             assert result.exit_code == 0
@@ -451,36 +443,34 @@ class TestSearchSemanticIntegration:
     def test_integration_with_mocked_transformers(self, temp_repo):
         """Test integration with mocked sentence-transformers."""
         runner = CliRunner()
-        
+
         # Mock the SentenceTransformer at the module level
         with patch("kit.cli.SentenceTransformer") as mock_st:
             # Mock successful model and encoding
             mock_model = Mock()
             mock_model.encode.return_value = [0.1] * 384  # Typical embedding size
             mock_st.return_value = mock_model
-            
+
             # Also need to mock the repository and vector searcher
             with patch("kit.Repository") as mock_repo_class:
                 mock_searcher = Mock()
                 mock_searcher.build_index.return_value = None
-                
+
                 mock_repo = Mock()
                 mock_repo.get_vector_searcher.return_value = mock_searcher
                 mock_repo.search_semantic.return_value = [
                     {
                         "file": "auth.py",
                         "name": "authenticate_user",
-                        "type": "function", 
+                        "type": "function",
                         "score": 0.9,
-                        "code": "def authenticate_user(): pass"
+                        "code": "def authenticate_user(): pass",
                     }
                 ]
                 mock_repo_class.return_value = mock_repo
-                
-                result = runner.invoke(app, [
-                    "search-semantic", temp_repo, "authentication"
-                ])
-                
+
+                result = runner.invoke(app, ["search-semantic", temp_repo, "authentication"])
+
                 assert result.exit_code == 0
                 assert "Found 1 semantic matches" in result.output
                 assert "authenticate_user" in result.output
@@ -493,10 +483,10 @@ class TestSearchSemanticErrorScenarios:
     def test_repository_initialization_error(self, mock_st, runner):
         """Test error when Repository initialization fails."""
         mock_st.return_value = Mock()
-        
+
         with patch("kit.Repository", side_effect=Exception("Repo error")):
             result = runner.invoke(app, ["search-semantic", ".", "test"])
-            
+
             assert result.exit_code == 1
             assert "Error: Repo error" in result.output
 
@@ -507,19 +497,16 @@ class TestSearchSemanticErrorScenarios:
         # Mock successful setup
         mock_model = Mock()
         mock_st.return_value = mock_model
-        
+
         mock_searcher = Mock()
         mock_repo = Mock()
         mock_repo.get_vector_searcher.return_value = mock_searcher
         mock_repo.search_semantic.return_value = []
         mock_repo_class.return_value = mock_repo
-        
+
         # Try to write to a directory that doesn't exist
-        result = runner.invoke(app, [
-            "search-semantic", ".", "test",
-            "--output", "/nonexistent/dir/output.json"
-        ])
-        
+        result = runner.invoke(app, ["search-semantic", ".", "test", "--output", "/nonexistent/dir/output.json"])
+
         assert result.exit_code == 1
         assert "Error:" in result.output
 
@@ -529,21 +516,17 @@ class TestSearchSemanticErrorScenarios:
         """Test that persist_dir parameter is passed correctly."""
         mock_model = Mock()
         mock_st.return_value = mock_model
-        
+
         mock_searcher = Mock()
         mock_repo = Mock()
         mock_repo.get_vector_searcher.return_value = mock_searcher
         mock_repo.search_semantic.return_value = []
         mock_repo_class.return_value = mock_repo
-        
-        result = runner.invoke(app, [
-            "search-semantic", ".", "test",
-            "--persist-dir", "/custom/persist/path"
-        ])
-        
+
+        result = runner.invoke(app, ["search-semantic", ".", "test", "--persist-dir", "/custom/persist/path"])
+
         assert result.exit_code == 0
         # Verify get_vector_searcher was called with persist_dir
         mock_repo.get_vector_searcher.assert_called_once_with(
-            embed_fn=mock_model.encode,
-            persist_dir="/custom/persist/path"
-        ) 
+            embed_fn=mock_model.encode, persist_dir="/custom/persist/path"
+        )
