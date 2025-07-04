@@ -108,6 +108,61 @@ kit search /path/to/repo "def.*login"
 kit search /path/to/repo "TODO" --pattern "*.py"
 ```
 
+#### `kit search-semantic`
+
+AI-powered semantic search using vector embeddings to find code by meaning rather than keywords. Requires `sentence-transformers` package.
+
+```bash
+kit search-semantic <repository-path> <query> [OPTIONS]
+```
+
+**Options:**
+- `--top-k, -k <count>`: Maximum number of results to return (default: 5)
+- `--output, -o <file>`: Save output to JSON file
+- `--embedding-model, -e <model>`: SentenceTransformers model name (default: all-MiniLM-L6-v2)
+- `--chunk-by, -c <strategy>`: Chunking strategy: 'symbols' or 'lines' (default: symbols)
+- `--build-index/--no-build-index`: Build/rebuild vector index (default: true)
+- `--persist-dir, -p <dir>`: Directory to persist vector index
+
+**Examples:**
+
+```bash
+# Find authentication-related code
+kit search-semantic /path/to/repo "authentication logic"
+
+# Search for error handling patterns
+kit search-semantic /path/to/repo "error handling patterns" --top-k 10
+
+# Use line-based chunking for better granularity
+kit search-semantic /path/to/repo "database connection" --chunk-by lines
+
+# Use a different embedding model
+kit search-semantic /path/to/repo "user registration" --embedding-model all-mpnet-base-v2
+
+# Export results to JSON
+kit search-semantic /path/to/repo "API endpoints" --output semantic-results.json
+
+# Search without rebuilding index (if already built)
+kit search-semantic /path/to/repo "payment processing" --no-build-index
+```
+
+**Setup Requirements:**
+
+```bash
+# Install sentence-transformers for semantic search
+pip install sentence-transformers
+
+# Or install kit with semantic search support
+pip install 'cased-kit[embeddings]'
+```
+
+**Popular Embedding Models:**
+- `all-MiniLM-L6-v2`: Lightweight, fast (default)
+- `all-mpnet-base-v2`: Better quality, larger model
+- `paraphrase-MiniLM-L6-v2`: Good for paraphrase detection
+
+**Note:** First run will download the embedding model and build the vector index, which may take time depending on repository size.
+
 #### `kit grep`
 
 Perform fast literal grep search on repository files using system grep. By default, excludes common build directories, cache folders, and hidden directories for optimal performance.
@@ -834,6 +889,41 @@ for component in "src/auth" "src/api" "src/models"; do
 done
 ```
 
+### Semantic Code Discovery
+
+Use semantic search to understand unfamiliar codebases or find implementation patterns:
+
+```bash
+#!/bin/bash
+REPO_PATH="/path/to/unfamiliar/repo"
+
+# First-time setup (builds vector index)
+echo "🔍 Building semantic index..."
+kit search-semantic $REPO_PATH "test setup" --top-k 1 > /dev/null
+
+echo "🧠 Exploring codebase with semantic search..."
+
+# Understand architecture patterns
+kit search-semantic $REPO_PATH "authentication flow" --top-k 3
+kit search-semantic $REPO_PATH "database connection setup" --top-k 3
+
+# Find implementation examples
+kit search-semantic $REPO_PATH "error handling patterns" --top-k 5
+kit search-semantic $REPO_PATH "retry logic with backoff" --top-k 3
+
+# Discover testing approaches
+kit search-semantic $REPO_PATH "unit test examples" --top-k 5
+kit search-semantic $REPO_PATH "mocking external services" --top-k 3
+
+# Find configuration patterns
+kit search-semantic $REPO_PATH "environment variable configuration" --top-k 3
+kit search-semantic $REPO_PATH "logging setup" --top-k 3
+
+# Export findings for team review
+kit search-semantic $REPO_PATH "API endpoint implementation" --output api-patterns.json
+kit search-semantic $REPO_PATH "data validation logic" --output validation-patterns.json
+```
+
 ### AI-Powered Development
 
 ```bash
@@ -982,6 +1072,14 @@ jobs:
 - Use `--dry-run` to preview AI-generated content before posting
 - Combine `kit commit` with `kit summarize` for complete AI-powered development workflow
 - Use `--plain` output for piping to other AI tools
+
+### Semantic Search
+
+- Use `symbols` chunking for better semantic boundaries (default)
+- Try different embedding models for different use cases: lightweight (`all-MiniLM-L6-v2`) vs. quality (`all-mpnet-base-v2`)
+- Build index once, reuse with `--no-build-index` for faster subsequent searches
+- Use natural language queries that describe what you're looking for conceptually
+- Combine with text search (`kit search`) for comprehensive code discovery
 
 ### Scripting
 
