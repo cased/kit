@@ -4,7 +4,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -83,7 +83,15 @@ llm:
 
                             result = runner.invoke(
                                 app,
-                                ["review", "--local-diff", "main..feature", "--config", str(config_file.name), "--repo-path", str(tmpdir)],
+                                [
+                                    "review",
+                                    "--local-diff",
+                                    "main..feature",
+                                    "--config",
+                                    str(config_file.name),
+                                    "--repo-path",
+                                    str(tmpdir),
+                                ],
                             )
 
                             assert result.exit_code == 0
@@ -252,6 +260,7 @@ index abc123..def456 100644
         async def mock_analysis_with_filter(*args, **kwargs):
             # Simulate the analysis calling the filter
             from kit.pr_review.priority_filter import filter_review_by_priority
+
             analysis = "Full analysis with high priority issues"
             return filter_review_by_priority(analysis, ["high"], self.config.max_review_size_mb)
 
@@ -346,13 +355,14 @@ class TestLocalDiffAgenticReviewer:
 
         # Create async mock for LLM calls
         call_count = 0
+
         async def mock_llm_agentic(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             responses = ["Initial analysis", "Second turn analysis", "Final synthesis"]
             return responses[min(call_count - 1, len(responses) - 1)]
 
-        with patch.object(self.reviewer, "_call_llm_agentic", side_effect=mock_llm_agentic) as mock_llm:
+        with patch.object(self.reviewer, "_call_llm_agentic", side_effect=mock_llm_agentic):
             result = self.reviewer.review_local_diff_agentic("main..feature", "/fake/repo")
 
             # Should have multiple calls for turns
@@ -377,7 +387,14 @@ class TestLocalDiffIntegration:
                     with patch("pathlib.Path.exists", return_value=True):
                         result = runner.invoke(
                             app,
-                            ["review", "--local-diff", "main..feature", "--model", "claude-3-5-haiku-20241022", "--init-config"],
+                            [
+                                "review",
+                                "--local-diff",
+                                "main..feature",
+                                "--model",
+                                "claude-3-5-haiku-20241022",
+                                "--init-config",
+                            ],
                         )
 
                         assert result.exit_code == 0
@@ -555,7 +572,7 @@ class TestLocalDiffEdgeCases:
 
     @patch("kit.Repository")  # Mock at the kit module level
     @patch("subprocess.run")
-    @patch("pathlib.Path.exists")  
+    @patch("pathlib.Path.exists")
     def test_large_diff_handling(self, mock_exists, mock_subprocess, mock_repo_class):
         """Test handling of large diffs."""
         mock_exists.return_value = True
