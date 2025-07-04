@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from kit import Repository
+from kit.pr_review.local_diff_provider import LocalDiffProvider
 
 from .cache import RepoCache
 from .config import LLMProvider, ReviewConfig
@@ -17,7 +18,6 @@ from .diff_parser import DiffParser, FileDiff
 from .file_prioritizer import FilePrioritizer
 from .priority_filter import filter_review_by_priority
 from .validator import validate_review_quality
-from kit.pr_review.local_diff_provider import LocalDiffProvider
 
 
 class PRReviewer:
