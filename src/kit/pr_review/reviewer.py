@@ -541,7 +541,7 @@ class PRReviewer:
                                 analysis, fixes = LineRefFixer.fix_comment(analysis, pr_diff)
                                 if fixes and not quiet:
                                     print(
-                                        f"🔧 Auto-fixed {len(fixes) // (2 if any(f[1] != f[2] for f in fixes) else 1)} line reference(s)"
+                                        f"🔧 Auto-fixed {len(fixes) // 2 if any(f[1] != f[2] for f in fixes) else len(fixes)} line reference(s)"
                                     )
 
                         except Exception as e:
@@ -590,7 +590,7 @@ class PRReviewer:
                                     analysis, fixes = LineRefFixer.fix_comment(analysis, pr_diff)
                                     if fixes and not quiet:
                                         print(
-                                            f"🔧 Auto-fixed {len(fixes) // (2 if any(f[1] != f[2] for f in fixes) else 1)} line reference(s)"
+                                            f"🔧 Auto-fixed {len(fixes) // 2 if any(f[1] != f[2] for f in fixes) else len(fixes)} line reference(s)"
                                         )
 
                             except Exception as e:
@@ -767,7 +767,7 @@ class PRReviewer:
                     text=True,
                     check=True,
                 )
-                branch_result.stdout.strip()
+                current_branch = branch_result.stdout.strip()
 
                 # Extract base and head from diff_spec
                 if ".." in diff_spec:
@@ -778,6 +778,7 @@ class PRReviewer:
 
             except subprocess.CalledProcessError:
                 commits = []
+                current_branch = "unknown"
                 base_ref, head_ref = "base", "head"
 
             # Create a title from commit messages or diff spec
@@ -815,7 +816,7 @@ class PRReviewer:
 
                     # Validate review quality
                     try:
-                        changed_files_list = [f["filename"] for f in mock_files]
+                        changed_files_list = [f.get("filename", "") for f in mock_files]
                         from .validator import validate_review_quality
 
                         validation = validate_review_quality(analysis, diff_content, changed_files_list)
@@ -833,7 +834,7 @@ class PRReviewer:
                             analysis, fixes = LineRefFixer.fix_comment(analysis, diff_content)
                             if fixes and not quiet:
                                 print(
-                                    f"🔧 Auto-fixed {len(fixes) // (2 if any(f[1] != f[2] for f in fixes) else 1)} line reference(s)"
+                                    f"🔧 Auto-fixed {len(fixes) // 2 if any(f[1] != f[2] for f in fixes) else len(fixes)} line reference(s)"
                                 )
 
                     except Exception as e:
