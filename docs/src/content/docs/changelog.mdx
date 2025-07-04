@@ -10,6 +10,17 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2025-07-01
+
+### New Features
+
+- **Local Branch Review Support**: Review local changes before creating PRs
+  - New `--local-diff` option for `kit review` command enables local branch comparisons  
+  - Support for any git diff specification (`main..feature-branch`, `HEAD~3..HEAD`)
+  - Plain output by default (perfect for piping to CLI tools like Claude Code)
+  - Compatible with all existing options: `--agentic`, `--priority`, `--profile`, `--model`
+  - Both standard and agentic analysis modes supported for complex local changes
+
 ## [1.4.0] - 2025-06-27
 
 ### New Features
