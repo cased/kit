@@ -17,6 +17,7 @@ from .diff_parser import DiffParser, FileDiff
 from .file_prioritizer import FilePrioritizer
 from .priority_filter import filter_review_by_priority
 from .validator import validate_review_quality
+from kit.pr_review.local_diff_provider import LocalDiffProvider
 
 
 class PRReviewer:
@@ -674,7 +675,6 @@ class PRReviewer:
         """Review local branch changes using git diff."""
         try:
             # Validate we're in a git repository
-            import subprocess
             from pathlib import Path
 
             git_dir = Path(repo_path) / ".git"
@@ -687,26 +687,14 @@ class PRReviewer:
             if not quiet:
                 print(f"🛠️ Reviewing local changes: {diff_spec} [STANDARD MODE - {self.config.llm.model}]")
 
-            # Get the diff using git
-            try:
-                result = subprocess.run(
-                    ["git", "diff", diff_spec], cwd=repo_path, capture_output=True, text=True, check=True
-                )
-                diff_content = result.stdout
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"Failed to get git diff for '{diff_spec}': {e.stderr or str(e)}")
+            # Use LocalDiffProvider for git operations
+            diff_provider = LocalDiffProvider(repo_path)
+            diff_content = diff_provider.get_diff(diff_spec)
 
             if not diff_content.strip():
                 return "No changes found in the specified diff range."
 
-            # Get list of changed files
-            try:
-                result = subprocess.run(
-                    ["git", "diff", "--name-only", diff_spec], cwd=repo_path, capture_output=True, text=True, check=True
-                )
-                changed_files = [f.strip() for f in result.stdout.splitlines() if f.strip()]
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"Failed to get changed files for '{diff_spec}': {e.stderr or str(e)}")
+            changed_files = diff_provider.get_changed_files(diff_spec)
 
             if not quiet:
                 print(f"Changed files: {len(changed_files)}")
@@ -720,84 +708,13 @@ class PRReviewer:
 
             parsed_diff = DiffParser.parse_diff(diff_content)
 
-            # Create mock file objects similar to PR files for analysis
-            mock_files = []
-            for filename in changed_files:
-                # Get file stats
-                try:
-                    stats_result = subprocess.run(
-                        ["git", "diff", "--numstat", diff_spec, "--", filename],
-                        cwd=repo_path,
-                        capture_output=True,
-                        text=True,
-                        check=True,
-                    )
-                    if stats_result.stdout.strip():
-                        parts = stats_result.stdout.strip().split("\t")
-                        additions = int(parts[0]) if parts[0] != "-" else 0
-                        deletions = int(parts[1]) if parts[1] != "-" else 0
-                    else:
-                        additions, deletions = 0, 0
-                except (subprocess.CalledProcessError, ValueError, IndexError):
-                    additions, deletions = 0, 0
-
-                mock_files.append(
-                    {
-                        "filename": filename,
-                        "status": "modified",  # Could be enhanced to detect new/deleted files
-                        "additions": additions,
-                        "deletions": deletions,
-                        "changes": additions + deletions,
-                    }
-                )
-
-            # Create mock PR details for analysis
-            try:
-                # Get commit messages in the range for context
-                log_result = subprocess.run(
-                    ["git", "log", "--oneline", diff_spec], cwd=repo_path, capture_output=True, text=True, check=True
-                )
-                commits = log_result.stdout.strip().split("\n") if log_result.stdout.strip() else []
-
-                # Get current branch name
-                branch_result = subprocess.run(
-                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                    cwd=repo_path,
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                current_branch = branch_result.stdout.strip()
-
-                # Extract base and head from diff_spec
-                if ".." in diff_spec:
-                    base_ref, head_ref = diff_spec.split("..", 1)
-                else:
-                    base_ref = f"{diff_spec}~1"
-                    head_ref = diff_spec
-
-            except subprocess.CalledProcessError:
-                commits = []
-                current_branch = "unknown"
-                base_ref, head_ref = "base", "head"
-
-            # Create a title from commit messages or diff spec
-            if commits:
-                title = commits[0] if len(commits) == 1 else f"Changes in {diff_spec} ({len(commits)} commits)"
-            else:
-                title = f"Local changes: {diff_spec}"
-
-            mock_pr_details = {
-                "title": title,
-                "user": {"login": "local-user"},
-                "base": {"ref": base_ref},
-                "head": {"ref": head_ref, "sha": head_ref},
-                "number": 0,  # No PR number for local diff
-            }
+            # Create mock data for analysis
+            mock_files = diff_provider.get_mock_files(diff_spec, changed_files)
+            mock_pr_details = diff_provider.get_mock_pr_details(diff_spec)
 
             if not quiet:
-                print(f"Title: {title}")
-                print(f"Base: {base_ref} -> Head: {head_ref}")
+                print(f"Title: {mock_pr_details['title']}")
+                print(f"Base: {mock_pr_details['base']['ref']} -> Head: {mock_pr_details['head']['ref']}")
 
             # Perform repository analysis if enabled
             if len(mock_files) > 0 and self.config.analysis_depth.value != "quick" and self.config.clone_for_analysis:
@@ -816,7 +733,7 @@ class PRReviewer:
 
                     # Validate review quality
                     try:
-                        changed_files_list = [f.get("filename", "") for f in mock_files]
+                        changed_files_list = [f["filename"] for f in mock_files]
                         from .validator import validate_review_quality
 
                         validation = validate_review_quality(analysis, diff_content, changed_files_list)
