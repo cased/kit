@@ -1296,7 +1296,7 @@ Keep it focused and valuable. Begin your analysis.
 
                     # Validate review quality
                     try:
-                        changed_files_list = [f.get("filename", "") for f in mock_files]
+                        changed_files_list: List[str] = [str(f.get("filename", "")) for f in mock_files]
                         from .validator import validate_review_quality
 
                         validation = validate_review_quality(analysis, diff_content, changed_files_list)
@@ -1313,8 +1313,10 @@ Keep it focused and valuable. Begin your analysis.
 
                             analysis, fixes = LineRefFixer.fix_comment(analysis, diff_content)
                             if fixes and not quiet:
+                                is_different = [f[1] != f[2] for f in fixes]
+                                divisor = 2 if any(is_different) else 1
                                 print(
-                                    f"🔧 Auto-fixed {len(fixes) // 2 if any(f[1] != f[2] for f in fixes) else len(fixes)} line reference(s)"
+                                    f"🔧 Auto-fixed {len(fixes) // divisor} line reference(s)"
                                 )
 
                     except Exception as e:
