@@ -1315,9 +1315,7 @@ Keep it focused and valuable. Begin your analysis.
                             if fixes and not quiet:
                                 is_different = [f[1] != f[2] for f in fixes]
                                 divisor = 2 if any(is_different) else 1
-                                print(
-                                    f"🔧 Auto-fixed {len(fixes) // divisor} line reference(s)"
-                                )
+                                print(f"🔧 Auto-fixed {len(fixes) // divisor} line reference(s)")
 
                     except Exception as e:
                         if not quiet:

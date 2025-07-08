@@ -39,7 +39,7 @@ class LocalDiffProvider:
         self._validate_diff_spec(diff_spec)
         try:
             result = subprocess.run(
-                ["git", "diff", diff_spec], cwd=self.repo_path, capture_output=True, text=True, check=True
+                ["git", "diff", shlex.quote(diff_spec)], cwd=self.repo_path, capture_output=True, text=True, check=True
             )
             return result.stdout
         except subprocess.CalledProcessError as e:
@@ -50,7 +50,7 @@ class LocalDiffProvider:
         self._validate_diff_spec(diff_spec)
         try:
             result = subprocess.run(
-                ["git", "diff", "--name-only", diff_spec],
+                ["git", "diff", "--name-only", shlex.quote(diff_spec)],
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
@@ -69,7 +69,11 @@ class LocalDiffProvider:
             # it's a good heuristic for generating a title for a mock PR review.
             # Using a more structured format like %H would give us only the hash, which is less descriptive.
             log_result = subprocess.run(
-                ["git", "log", "--oneline", diff_spec], cwd=self.repo_path, capture_output=True, text=True, check=True
+                ["git", "log", "--oneline", shlex.quote(diff_spec)],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True,
+                check=True,
             )
             commits = log_result.stdout.strip().split("\n") if log_result.stdout.strip() else []
 
@@ -111,7 +115,7 @@ class LocalDiffProvider:
         for filename in changed_files:
             try:
                 stats_result = subprocess.run(
-                    ["git", "diff", "--numstat", diff_spec, "--", filename],
+                    ["git", "diff", "--numstat", shlex.quote(diff_spec), "--", shlex.quote(filename)],
                     cwd=self.repo_path,
                     capture_output=True,
                     text=True,

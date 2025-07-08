@@ -700,6 +700,7 @@ class PRReviewer:
 
             # Use LocalDiffProvider for git operations
             from kit.pr_review.local_diff_provider import LocalDiffProvider
+
             diff_provider = LocalDiffProvider(repo_path)
             diff_content: str = diff_provider.get_diff(diff_spec)
 
@@ -764,9 +765,7 @@ class PRReviewer:
                             if fixes and not quiet:
                                 is_different = [f[1] != f[2] for f in fixes]
                                 divisor = 2 if any(is_different) else 1
-                                print(
-                                    f"🔧 Auto-fixed {len(fixes) // divisor} line reference(s)"
-                                )
+                                print(f"🔧 Auto-fixed {len(fixes) // divisor} line reference(s)")
 
                     except Exception as e:
                         if not quiet:
@@ -815,11 +814,10 @@ class PRReviewer:
         owner, repo_name = mock_pr_details["base"]["repo"]["owner"]["login"], mock_pr_details["base"]["repo"]["name"]
         pr_number = mock_pr_details["number"]
         try:
-            pr_diff = self.get_pr_diff(owner, repo_name, pr_number)  # cached
-            diff_files = self.get_parsed_diff(owner, repo_name, pr_number)
-        except Exception as e:
-            pr_diff = f"Error retrieving diff: {e}"
-            diff_files = {}
+            self.get_pr_diff(owner, repo_name, pr_number)  # cached
+            self.get_parsed_diff(owner, repo_name, pr_number)
+        except Exception:
+            pass
 
         # Parse diff for accurate line number mapping
         line_number_context = DiffParser.generate_line_number_context(parsed_diff)
