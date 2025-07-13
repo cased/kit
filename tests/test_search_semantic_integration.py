@@ -698,8 +698,9 @@ class TestSemanticSearchIntegration:
         assert result.returncode == 0
         # Strip ANSI escape codes for cleaner matching
         import re
-        clean_output = re.sub(r'\x1b\[[0-9;]*m', '', result.stdout).lower()
-        
+
+        clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout).lower()
+
         assert "semantic search" in clean_output
         assert "vector embeddings" in clean_output
         # Check for the option in various formats (could be --top-k or -k)

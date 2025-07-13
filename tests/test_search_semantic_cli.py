@@ -127,8 +127,9 @@ class TestSearchSemanticCommand:
         assert result.exit_code == 0
         # Strip ANSI escape codes for cleaner matching
         import re
-        clean_output = re.sub(r'\x1b\[[0-9;]*m', '', result.output)
-        
+
+        clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+
         assert "Perform semantic search using vector embeddings" in clean_output
         assert "natural language queries" in clean_output
         # Check for the option in various formats (could be --top-k or -k)
