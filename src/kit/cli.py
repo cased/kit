@@ -1547,7 +1547,11 @@ def search_semantic(
             raise typer.Exit(code=1)
 
         # Initialize repository
-        repo = Repository(path, ref=ref)
+        try:
+            repo = Repository(path, ref=ref)
+        except Exception as e:
+            typer.secho(f"❌ Error: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
 
         # Load embedding model
         typer.echo(f"🔍 Loading embedding model: {embedding_model}")

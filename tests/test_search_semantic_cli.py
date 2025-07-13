@@ -134,7 +134,7 @@ class TestSearchSemanticCommand:
 
     def test_sentence_transformers_not_installed(self, runner):
         """Test error message when sentence-transformers is not installed."""
-        with patch("kit.cli.SentenceTransformer", side_effect=ImportError()):
+        with patch("sentence_transformers.SentenceTransformer", side_effect=ImportError()):
             result = runner.invoke(app, ["search-semantic", ".", "test query"])
 
             assert result.exit_code == 1
@@ -143,14 +143,14 @@ class TestSearchSemanticCommand:
 
     def test_invalid_chunk_by_parameter(self, runner):
         """Test error handling for invalid chunk-by parameter."""
-        with patch("kit.cli.SentenceTransformer"):
+        with patch("sentence_transformers.SentenceTransformer"):
             result = runner.invoke(app, ["search-semantic", ".", "test", "--chunk-by", "invalid"])
 
             assert result.exit_code == 1
             assert "Invalid chunk_by value: invalid" in result.output
             assert "Use 'symbols' or 'lines'" in result.output
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_embedding_model_loading_failure(self, mock_repo_class, mock_st, runner):
         """Test error handling when embedding model fails to load."""
@@ -162,7 +162,7 @@ class TestSearchSemanticCommand:
         assert "Failed to load embedding model" in result.output
         assert "Popular models:" in result.output
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_vector_searcher_initialization_failure(self, mock_repo_class, mock_st, runner):
         """Test error handling when vector searcher fails to initialize."""
@@ -180,7 +180,7 @@ class TestSearchSemanticCommand:
         assert result.exit_code == 1
         assert "Failed to initialize vector searcher" in result.output
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_index_building_failure(self, mock_repo_class, mock_st, runner):
         """Test error handling when index building fails."""
@@ -201,7 +201,7 @@ class TestSearchSemanticCommand:
         assert result.exit_code == 1
         assert "Failed to build vector index" in result.output
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_search_failure(self, mock_repo_class, mock_st, runner):
         """Test error handling when semantic search fails."""
@@ -223,7 +223,7 @@ class TestSearchSemanticCommand:
         assert "Semantic search failed" in result.output
         assert "try with --build-index" in result.output
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_successful_search_with_results(self, mock_repo_class, mock_st, runner):
         """Test successful semantic search with results."""
@@ -273,7 +273,7 @@ class TestSearchSemanticCommand:
         assert "auth.py - class 'LoginManager'" in result.output
         assert "score: 0.730" in result.output
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_successful_search_no_results(self, mock_repo_class, mock_st, runner):
         """Test successful semantic search with no results."""
@@ -297,7 +297,7 @@ class TestSearchSemanticCommand:
         assert "No semantic matches found" in result.output
         assert "Try building the index with --build-index" in result.output
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_custom_parameters(self, mock_repo_class, mock_st, runner):
         """Test search with custom parameters."""
@@ -341,7 +341,7 @@ class TestSearchSemanticCommand:
         args, kwargs = mock_repo.search_semantic.call_args
         assert args[1] == 10  # top_k parameter
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_json_output(self, mock_repo_class, mock_st, runner):
         """Test semantic search with JSON output to file."""
@@ -374,7 +374,7 @@ class TestSearchSemanticCommand:
         finally:
             Path(output_file).unlink(missing_ok=True)
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_code_snippet_display(self, mock_repo_class, mock_st, runner):
         """Test that code snippets are properly displayed."""
@@ -402,7 +402,7 @@ class TestSearchSemanticCommand:
         # Code should be truncated at 100 characters
         assert "..." in result.output
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_git_ref_parameter(self, mock_repo_class, mock_st, runner):
         """Test search with git ref parameter."""
@@ -445,7 +445,7 @@ class TestSearchSemanticIntegration:
         runner = CliRunner()
 
         # Mock the SentenceTransformer at the module level
-        with patch("kit.cli.SentenceTransformer") as mock_st:
+        with patch("sentence_transformers.SentenceTransformer") as mock_st:
             # Mock successful model and encoding
             mock_model = Mock()
             mock_model.encode.return_value = [0.1] * 384  # Typical embedding size
@@ -477,20 +477,18 @@ class TestSearchSemanticIntegration:
 
 
 class TestSearchSemanticErrorScenarios:
-    """Test various error scenarios for search-semantic."""
+    """Test error scenarios for semantic search."""
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     def test_repository_initialization_error(self, mock_st, runner):
-        """Test error when Repository initialization fails."""
-        mock_st.return_value = Mock()
-
-        with patch("kit.Repository", side_effect=Exception("Repo error")):
-            result = runner.invoke(app, ["search-semantic", ".", "test"])
+        """Test handling of repository initialization errors."""
+        with patch("kit.Repository", side_effect=Exception("Repository not found")):
+            result = runner.invoke(app, ["search-semantic", "/invalid/path", "test query"])
 
             assert result.exit_code == 1
-            assert "Error: Repo error" in result.output
+            assert "Repository not found" in result.output
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_file_write_permission_error(self, mock_repo_class, mock_st, runner):
         """Test error when output file cannot be written."""
@@ -510,7 +508,7 @@ class TestSearchSemanticErrorScenarios:
         assert result.exit_code == 1
         assert "Error:" in result.output
 
-    @patch("kit.cli.SentenceTransformer")
+    @patch("sentence_transformers.SentenceTransformer")
     @patch("kit.Repository")
     def test_persist_dir_parameter(self, mock_repo_class, mock_st, runner):
         """Test that persist_dir parameter is passed correctly."""
