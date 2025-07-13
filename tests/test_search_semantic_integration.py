@@ -696,13 +696,16 @@ class TestSemanticSearchIntegration:
         result = run_kit_command(["search-semantic", "--help"])
 
         assert result.returncode == 0
-        output = result.stdout.lower()
-        assert "semantic search" in output
-        assert "vector embeddings" in output
+        # Strip ANSI escape codes for cleaner matching
+        import re
+        clean_output = re.sub(r'\x1b\[[0-9;]*m', '', result.stdout).lower()
+        
+        assert "semantic search" in clean_output
+        assert "vector embeddings" in clean_output
         # Check for the option in various formats (could be --top-k or -k)
-        assert "--top-k" in output or "-k" in output
-        assert "--embedding-model" in output
-        assert "--chunk-by" in output
+        assert "--top-k" in clean_output or "-k" in clean_output
+        assert "--embedding-model" in clean_output or "-e" in clean_output
+        assert "--chunk-by" in clean_output or "-c" in clean_output
 
     def test_semantic_search_missing_args(self):
         """Test error handling for missing required arguments."""

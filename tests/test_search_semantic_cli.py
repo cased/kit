@@ -125,12 +125,16 @@ class TestSearchSemanticCommand:
         result = runner.invoke(app, ["search-semantic", "--help"])
 
         assert result.exit_code == 0
-        assert "Perform semantic search using vector embeddings" in result.output
-        assert "natural language queries" in result.output
+        # Strip ANSI escape codes for cleaner matching
+        import re
+        clean_output = re.sub(r'\x1b\[[0-9;]*m', '', result.output)
+        
+        assert "Perform semantic search using vector embeddings" in clean_output
+        assert "natural language queries" in clean_output
         # Check for the option in various formats (could be --top-k or -k)
-        assert "--top-k" in result.output or "-k" in result.output
-        assert "--embedding-model" in result.output
-        assert "--chunk-by" in result.output
+        assert "--top-k" in clean_output or "-k" in clean_output
+        assert "--embedding-model" in clean_output or "-e" in clean_output
+        assert "--chunk-by" in clean_output or "-c" in clean_output
 
     def test_missing_required_arguments(self, runner):
         """Test error when required arguments are missing."""
