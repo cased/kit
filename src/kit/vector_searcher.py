@@ -109,7 +109,13 @@ class VectorSearcher:
     def __init__(self, repo, embed_fn, backend: Optional[VectorDBBackend] = None, persist_dir: Optional[str] = None):
         self.repo = repo
         self.embed_fn = embed_fn  # Function: str -> List[float]
-        self.persist_dir = persist_dir or os.path.join(".kit", "vector_db")
+        # Make persist_dir relative to repo path if not absolute
+        if persist_dir is None:
+            self.persist_dir = os.path.join(str(self.repo.local_path), ".kit", "vector_db")
+        elif os.path.isabs(persist_dir):
+            self.persist_dir = persist_dir
+        else:
+            self.persist_dir = os.path.join(str(self.repo.local_path), persist_dir)
         self.backend = backend or ChromaDBBackend(self.persist_dir)
         self.chunk_metadatas: List[Dict[str, Any]] = []
         self.chunk_embeddings: List[List[float]] = []
