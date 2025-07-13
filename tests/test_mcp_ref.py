@@ -29,7 +29,17 @@ def temp_git_repo():
         subprocess.run(["git", "add", "."], cwd=temp_dir, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=temp_dir, check=True, capture_output=True)
 
-        # Create a branch
+        # Get the current branch name (could be master or main)
+        result = subprocess.run(
+            ["git", "branch", "--show-current"], cwd=temp_dir, check=True, capture_output=True, text=True
+        )
+        default_branch = result.stdout.strip()
+
+        # Create main branch if it doesn't exist
+        if default_branch != "main":
+            subprocess.run(["git", "checkout", "-b", "main"], cwd=temp_dir, check=True, capture_output=True)
+
+        # Create a test branch
         subprocess.run(["git", "branch", "test-branch"], cwd=temp_dir, check=True, capture_output=True)
 
         yield temp_dir
