@@ -121,17 +121,23 @@ kit search-semantic <repository-path> <query> [OPTIONS]
 - `--output, -o <file>`: Save output to JSON file
 - `--embedding-model, -e <model>`: SentenceTransformers model name (default: all-MiniLM-L6-v2)
 - `--chunk-by, -c <strategy>`: Chunking strategy: 'symbols' or 'lines' (default: symbols)
-- `--build-index/--no-build-index`: Build/rebuild vector index (default: true)
+- `--build-index/--no-build-index`: Force rebuild of vector index (default: false)
 - `--persist-dir, -p <dir>`: Directory to persist vector index
-- `--format, -f <format>`: Output format: 'table', 'json', or 'plain' (default: table)
+- `--format, -f <format>`: Output format: 'table', 'json', or 'plain' (default: json)
+
+**Index Management:**
+The vector index is automatically built on first use and persisted for subsequent searches. Use `--build-index` to force a rebuild when the codebase changes significantly.
 
 **Examples:**
 
 ```bash
-# Find authentication-related code
+# Find authentication-related code (builds index on first run)
 kit search-semantic /path/to/repo "authentication logic"
 
-# Search for error handling patterns
+# Force rebuild index after major code changes
+kit search-semantic /path/to/repo "new feature" --build-index
+
+# Search for error handling patterns (uses existing index)
 kit search-semantic /path/to/repo "error handling patterns" --top-k 10
 
 # Use line-based chunking for better granularity

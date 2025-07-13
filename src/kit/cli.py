@@ -1512,9 +1512,9 @@ def search_semantic(
         "all-MiniLM-L6-v2", "--embedding-model", "-e", help="SentenceTransformers model name for embeddings."
     ),
     chunk_by: str = typer.Option("symbols", "--chunk-by", "-c", help="Chunking strategy: 'symbols' or 'lines'."),
-    build_index: bool = typer.Option(True, "--build-index/--no-build-index", help="Build/rebuild the vector index."),
+    build_index: bool = typer.Option(False, "--build-index/--no-build-index", help="Force rebuild of vector index (default: false)."),
     persist_dir: Optional[str] = typer.Option(None, "--persist-dir", "-p", help="Directory to persist vector index."),
-    format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, plain"),
+    format: str = typer.Option("json", "--format", "-f", help="Output format: table, json, plain"),
     ref: Optional[str] = typer.Option(
         None, "--ref", help="Git ref (SHA, tag, or branch) to checkout for remote repositories."
     ),
@@ -1554,12 +1554,12 @@ def search_semantic(
             if format == "plain":
                 typer.echo(f"Error: {e}")
             else:
-                typer.secho(f"❌ Error: {e}", fg=typer.colors.RED)
+                typer.secho(f"Error: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
 
         # Load embedding model
         if format not in ["plain", "json"]:
-            typer.echo(f"🔍 Loading embedding model: {embedding_model}")
+            typer.echo(f"Loading embedding model: {embedding_model}")
         try:
             model = SentenceTransformer(embedding_model)
         except Exception as e:
@@ -1567,8 +1567,8 @@ def search_semantic(
                 typer.echo(f"Failed to load embedding model '{embedding_model}': {e}")
                 typer.echo("Popular models: all-MiniLM-L6-v2, all-mpnet-base-v2, paraphrase-MiniLM-L6-v2")
             else:
-                typer.secho(f"❌ Failed to load embedding model '{embedding_model}': {e}", fg=typer.colors.RED)
-                typer.echo("💡 Popular models: all-MiniLM-L6-v2, all-mpnet-base-v2, paraphrase-MiniLM-L6-v2")
+                typer.secho(f"Failed to load embedding model '{embedding_model}': {e}", fg=typer.colors.RED)
+                typer.echo("Popular models: all-MiniLM-L6-v2, all-mpnet-base-v2, paraphrase-MiniLM-L6-v2")
             raise typer.Exit(code=1)
 
         # Create embedding function
@@ -1582,34 +1582,46 @@ def search_semantic(
 
         # Get or create vector searcher
         if format not in ["plain", "json"]:
-            typer.echo("🧠 Initializing vector searcher...")
+            typer.echo("Initializing vector searcher...")
         try:
             vector_searcher = repo.get_vector_searcher(embed_fn=embed_fn, persist_dir=persist_dir)
         except Exception as e:
             if format == "plain":
                 typer.echo(f"Failed to initialize vector searcher: {e}")
             else:
-                typer.secho(f"❌ Failed to initialize vector searcher: {e}", fg=typer.colors.RED)
+                typer.secho(f"Failed to initialize vector searcher: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
 
-        # Build index if requested
-        if build_index:
+        # Check if index exists
+        try:
+            index_exists = vector_searcher.backend.count() > 0
+        except Exception:
+            index_exists = False
+
+        # Build index if requested or if it doesn't exist
+        if build_index or not index_exists:
             if format not in ["plain", "json"]:
-                typer.echo(f"📚 Building vector index (chunking by {chunk_by})...")
+                if build_index:
+                    typer.echo(f"Rebuilding vector index (chunking by {chunk_by})...")
+                else:
+                    typer.echo(f"Building vector index for the first time (chunking by {chunk_by})...")
             try:
                 vector_searcher.build_index(chunk_by=chunk_by)
                 if format not in ["plain", "json"]:
-                    typer.echo("✅ Vector index built successfully")
+                    typer.echo("Vector index built successfully")
             except Exception as e:
                 if format == "plain":
                     typer.echo(f"Failed to build vector index: {e}")
                 else:
-                    typer.secho(f"❌ Failed to build vector index: {e}", fg=typer.colors.RED)
+                    typer.secho(f"Failed to build vector index: {e}", fg=typer.colors.RED)
                 raise typer.Exit(code=1)
+        else:
+            if format not in ["plain", "json"]:
+                typer.echo("Using existing vector index")
 
         # Perform semantic search
         if format not in ["plain", "json"]:
-            typer.echo(f"🔎 Searching for: '{query}'")
+            typer.echo(f"Searching for: '{query}'")
         try:
             results = repo.search_semantic(query, top_k=top_k, embed_fn=embed_fn)
         except Exception as e:
@@ -1618,10 +1630,10 @@ def search_semantic(
                 if "collection" in str(e).lower():
                     typer.echo("The vector index might not exist. Try with --build-index")
             else:
-                typer.secho(f"❌ Semantic search failed: {e}", fg=typer.colors.RED)
+                typer.secho(f"Semantic search failed: {e}", fg=typer.colors.RED)
                 # Try to provide helpful error message
                 if "collection" in str(e).lower():
-                    typer.echo("💡 The vector index might not exist. Try with --build-index")
+                    typer.echo("The vector index might not exist. Try with --build-index")
             raise typer.Exit(code=1)
 
         # Output results
@@ -1630,15 +1642,15 @@ def search_semantic(
             if format == "plain":
                 typer.echo(f"Semantic search results written to {output}")
             else:
-                typer.echo(f"📄 Semantic search results written to {output}")
+                typer.echo(f"Semantic search results written to {output}")
         else:
             if not results:
                 if format == "plain":
                     typer.echo(f"No semantic matches found for '{query}'")
                     typer.echo("Try building the index with --build-index or using different keywords")
                 else:
-                    typer.echo(f"❌ No semantic matches found for '{query}'")
-                    typer.echo("💡 Try building the index with --build-index or using different keywords")
+                    typer.echo(f"No semantic matches found for '{query}'")
+                    typer.echo("Try building the index with --build-index or using different keywords")
             else:
                 if format == "json":
                     typer.echo(json.dumps(results, indent=2))
@@ -1647,8 +1659,8 @@ def search_semantic(
                         file_path = result.get("file", "Unknown file")
                         score = result.get("score", 0)
                         typer.echo(f"{file_path}:{score:.3f}")
-                else:  # table format (default)
-                    typer.echo(f"📋 Found {len(results)} semantic matches:")
+                else:  # table format
+                    typer.echo(f"Found {len(results)} semantic matches:")
                     for i, result in enumerate(results, 1):
                         file_path = result.get("file", "Unknown file")
                         name = result.get("name", "")
@@ -1657,9 +1669,9 @@ def search_semantic(
 
                         # Format the result display
                         if name and symbol_type:
-                            typer.echo(f"{i}. 📄 {file_path} - {symbol_type} '{name}' (score: {score:.3f})")
+                            typer.echo(f"{i}. {file_path} - {symbol_type} '{name}' (score: {score:.3f})")
                         else:
-                            typer.echo(f"{i}. 📄 {file_path} (score: {score:.3f})")
+                            typer.echo(f"{i}. {file_path} (score: {score:.3f})")
 
                         # Show a snippet of the code if available
                         code = result.get("code", "")
