@@ -1,5 +1,8 @@
 """Tests for MCP server with ref parameter and git metadata support."""
 
+import subprocess
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -7,15 +10,38 @@ import pytest
 from kit.mcp.server import KitServerLogic
 
 
+@pytest.fixture
+def temp_git_repo():
+    """Create a temporary git repository for testing."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Initialize git repo
+        subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
+        
+        # Create some files
+        test_file = Path(temp_dir) / "test.py"
+        test_file.write_text("def hello(): pass\nclass TestClass: pass")
+        
+        # Make initial commit
+        subprocess.run(["git", "add", "."], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=temp_dir, check=True, capture_output=True)
+        
+        # Create a branch
+        subprocess.run(["git", "branch", "test-branch"], cwd=temp_dir, check=True, capture_output=True)
+        
+        yield temp_dir
+
+
 class TestMCPRefParameter:
     """Test MCP server with ref parameter support."""
 
-    def test_open_repository_with_ref(self):
+    def test_open_repository_with_ref(self, temp_git_repo):
         """Test opening repository with ref parameter via MCP."""
         logic = KitServerLogic()
 
         # Test opening repository with ref
-        repo_id = logic.open_repository(".", ref="main")
+        repo_id = logic.open_repository(temp_git_repo, ref="main")
         assert isinstance(repo_id, str)
         assert len(repo_id) > 0
 
@@ -63,17 +89,17 @@ class TestMCPRefParameter:
         assert git_info["current_sha_short"] is not None
         assert len(git_info["current_sha_short"]) == 7  # Short SHA
 
-    def test_get_git_info_with_ref(self):
-        """Test getting git info for repository opened with ref."""
+    def test_get_git_info_with_ref(self, temp_git_repo):
+        """Test getting git info for repository opened with ref via MCP."""
         logic = KitServerLogic()
 
         # Open repository with ref
-        repo_id = logic.open_repository(".", ref="main")
+        repo_id = logic.open_repository(temp_git_repo, ref="main")
 
         # Get git info
-        git_info = logic.get_git_info(repo_id)
-
-        assert git_info["current_sha"] is not None
+        result = logic.get_git_info(repo_id)
+        assert result["current_sha"] is not None
+        assert result["current_branch"] == "main"
 
     def test_get_git_info_nonexistent_repo(self):
         """Test getting git info for nonexistent repository."""
@@ -82,54 +108,55 @@ class TestMCPRefParameter:
         with pytest.raises(Exception):  # Should raise some kind of error
             logic.get_git_info("nonexistent-repo-id")
 
-    def test_file_tree_with_ref(self):
-        """Test getting file tree for repository with ref."""
+    def test_file_tree_with_ref(self, temp_git_repo):
+        """Test getting file tree for repository opened with ref."""
         logic = KitServerLogic()
 
         # Open repository with ref
-        repo_id = logic.open_repository(".", ref="main")
+        repo_id = logic.open_repository(temp_git_repo, ref="main")
 
         # Get file tree
-        file_tree = logic.get_file_tree(repo_id)
+        result = logic.get_file_tree(repo_id)
+        assert isinstance(result, list)
+        assert len(result) > 0
+        # Should contain test.py
+        assert any(item["name"] == "test.py" for item in result)
 
-        assert isinstance(file_tree, list)
-        assert len(file_tree) > 0
-
-    def test_extract_symbols_with_ref(self):
-        """Test extracting symbols for repository with ref."""
+    def test_extract_symbols_with_ref(self, temp_git_repo):
+        """Test extracting symbols from repository opened with ref."""
         logic = KitServerLogic()
 
         # Open repository with ref
-        repo_id = logic.open_repository(".", ref="main")
+        repo_id = logic.open_repository(temp_git_repo, ref="main")
 
         # Extract symbols
-        symbols = logic.extract_symbols(repo_id, "src/kit/repository.py")
+        result = logic.extract_symbols(repo_id, "test.py")
+        assert isinstance(result, list)
+        # Should find at least the hello function
+        assert any(s["name"] == "hello" for s in result)
 
-        assert isinstance(symbols, list)
-
-    def test_search_code_with_ref(self):
-        """Test searching code for repository with ref."""
+    def test_search_code_with_ref(self, temp_git_repo):
+        """Test searching code in repository opened with ref."""
         logic = KitServerLogic()
 
         # Open repository with ref
-        repo_id = logic.open_repository(".", ref="main")
+        repo_id = logic.open_repository(temp_git_repo, ref="main")
 
-        # Search code
-        results = logic.search_code(repo_id, "Repository")
+        # Search for code
+        result = logic.search_code(repo_id, "hello")
+        assert isinstance(result, list)
+        assert len(result) > 0
 
-        assert isinstance(results, list)
-
-    def test_find_symbol_usages_with_ref(self):
-        """Test finding symbol usages for repository with ref."""
+    def test_find_symbol_usages_with_ref(self, temp_git_repo):
+        """Test finding symbol usages in repository opened with ref."""
         logic = KitServerLogic()
 
         # Open repository with ref
-        repo_id = logic.open_repository(".", ref="main")
+        repo_id = logic.open_repository(temp_git_repo, ref="main")
 
-        # Find symbol usages
-        usages = logic.find_symbol_usages(repo_id, "Repository")
-
-        assert isinstance(usages, list)
+        # Find usages
+        result = logic.find_symbol_usages(repo_id, "hello")
+        assert isinstance(result, list)
 
     def test_tools_list_includes_git_info(self):
         """Test that tools list includes get_git_info tool."""
@@ -173,18 +200,20 @@ class TestMCPRefParameter:
 
         assert exc_info.value.code == INVALID_PARAMS
 
-    def test_multiple_repositories_with_different_refs(self):
+    def test_multiple_repositories_with_different_refs(self, temp_git_repo):
         """Test opening multiple repositories with different refs."""
         logic = KitServerLogic()
 
         # Open repository without ref
-        repo_id1 = logic.open_repository(".")
+        repo_id1 = logic.open_repository(temp_git_repo)
 
         # Open repository with ref
-        repo_id2 = logic.open_repository(".", ref="main")
+        repo_id2 = logic.open_repository(temp_git_repo, ref="main")
 
-        # Should be different repository instances
+        # Verify different IDs
         assert repo_id1 != repo_id2
+
+        # Verify different refs
         assert logic._repos[repo_id1].ref is None
         assert logic._repos[repo_id2].ref == "main"
 
