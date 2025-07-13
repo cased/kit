@@ -1541,7 +1541,7 @@ def search_semantic(
         except ImportError:
             typer.secho("❌ The 'sentence-transformers' package is required for semantic search.", fg=typer.colors.RED)
             typer.echo("💡 Install it with: pip install sentence-transformers")
-            typer.echo("💡 Or install kit with semantic search support: pip install 'cased-kit[embeddings]'")
+            typer.echo("💡 Or install kit with semantic search support: pip install 'cased-kit[ml]'")
             raise typer.Exit(code=1)
 
         # Validate chunk_by parameter

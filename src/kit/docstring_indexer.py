@@ -173,7 +173,7 @@ class DocstringIndexer:
             except ImportError:
                 raise ImportError(
                     "The 'sentence-transformers' library is required to use the default embedding function. "
-                    "Please install it (e.g., 'pip install kit[default-embeddings]' or 'pip install sentence-transformers') "
+                    "Please install it (e.g., 'pip install cased-kit[ml]' or 'pip install sentence-transformers') "
                     "or provide a custom 'embed_fn' to DocstringIndexer."
                 )
             except Exception as e:
