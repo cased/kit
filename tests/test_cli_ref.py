@@ -23,20 +23,22 @@ def temp_git_repo():
     with tempfile.TemporaryDirectory() as temp_dir:
         # Initialize git repo
         subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+        )
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
-        
+
         # Create some files
         test_file = Path(temp_dir) / "test.py"
         test_file.write_text("def hello(): pass")
-        
+
         # Make initial commit
         subprocess.run(["git", "add", "."], cwd=temp_dir, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=temp_dir, check=True, capture_output=True)
-        
+
         # Create a branch
         subprocess.run(["git", "branch", "test-branch"], cwd=temp_dir, check=True, capture_output=True)
-        
+
         yield temp_dir
 
 

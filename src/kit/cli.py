@@ -1512,7 +1512,9 @@ def search_semantic(
         "all-MiniLM-L6-v2", "--embedding-model", "-e", help="SentenceTransformers model name for embeddings."
     ),
     chunk_by: str = typer.Option("symbols", "--chunk-by", "-c", help="Chunking strategy: 'symbols' or 'lines'."),
-    build_index: bool = typer.Option(False, "--build-index/--no-build-index", help="Force rebuild of vector index (default: false)."),
+    build_index: bool = typer.Option(
+        False, "--build-index/--no-build-index", help="Force rebuild of vector index (default: false)."
+    ),
     persist_dir: Optional[str] = typer.Option(None, "--persist-dir", "-p", help="Directory to persist vector index."),
     format: str = typer.Option("json", "--format", "-f", help="Output format: table, json, plain"),
     ref: Optional[str] = typer.Option(
