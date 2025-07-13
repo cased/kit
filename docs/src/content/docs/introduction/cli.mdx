@@ -153,7 +153,9 @@ kit search-semantic /path/to/repo "payment processing" --no-build-index
 pip install sentence-transformers
 
 # Or install kit with semantic search support
-pip install 'cased-kit[embeddings]'
+pip install 'cased-kit[ml]'  # minimal extras for semantic search
+# Or install kit with all optional extras
+pip install 'cased-kit[all]'  
 ```
 
 **Popular Embedding Models:**
