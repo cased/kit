@@ -9,7 +9,8 @@ import pytest
 
 # Check if sentence-transformers is available
 try:
-    import sentence_transformers
+    import sentence_transformers  # noqa: F401
+
     HAS_SENTENCE_TRANSFORMERS = True
 except ImportError:
     HAS_SENTENCE_TRANSFORMERS = False
@@ -699,7 +700,7 @@ class TestSemanticSearchIntegration:
         assert "semantic search" in output
         assert "vector embeddings" in output
         # Check for the option in various formats (could be --top-k or -k)
-        assert ("--top-k" in output or "-k" in output)
+        assert "--top-k" in output or "-k" in output
         assert "--embedding-model" in output
         assert "--chunk-by" in output
 

@@ -4,7 +4,7 @@ import json
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -13,7 +13,8 @@ from kit.cli import app
 
 # Check if sentence-transformers is available
 try:
-    import sentence_transformers
+    import sentence_transformers  # noqa: F401
+
     HAS_SENTENCE_TRANSFORMERS = True
 except ImportError:
     HAS_SENTENCE_TRANSFORMERS = False
@@ -127,7 +128,7 @@ class TestSearchSemanticCommand:
         assert "Perform semantic search using vector embeddings" in result.output
         assert "natural language queries" in result.output
         # Check for the option in various formats (could be --top-k or -k)
-        assert ("--top-k" in result.output or "-k" in result.output)
+        assert "--top-k" in result.output or "-k" in result.output
         assert "--embedding-model" in result.output
         assert "--chunk-by" in result.output
 
@@ -144,11 +145,10 @@ class TestSearchSemanticCommand:
     def test_sentence_transformers_not_installed(self, runner):
         """Test error message when sentence-transformers is not installed."""
         # Mock the import to fail
-        import sys
         original_modules = sys.modules.copy()
-        if 'sentence_transformers' in sys.modules:
-            del sys.modules['sentence_transformers']
-        
+        if "sentence_transformers" in sys.modules:
+            del sys.modules["sentence_transformers"]
+
         try:
             result = runner.invoke(app, ["search-semantic", ".", "test query"])
 
