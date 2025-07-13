@@ -123,6 +123,7 @@ kit search-semantic <repository-path> <query> [OPTIONS]
 - `--chunk-by, -c <strategy>`: Chunking strategy: 'symbols' or 'lines' (default: symbols)
 - `--build-index/--no-build-index`: Build/rebuild vector index (default: true)
 - `--persist-dir, -p <dir>`: Directory to persist vector index
+- `--format, -f <format>`: Output format: 'table', 'json', or 'plain' (default: table)
 
 **Examples:**
 
@@ -144,6 +145,12 @@ kit search-semantic /path/to/repo "API endpoints" --output semantic-results.json
 
 # Search without rebuilding index (if already built)
 kit search-semantic /path/to/repo "payment processing" --no-build-index
+
+# Get plain output for piping to other tools
+kit search-semantic /path/to/repo "error handling" --format plain | head -5
+
+# Get JSON output for programmatic processing
+kit search-semantic /path/to/repo "database queries" --format json | jq '.[] | .file'
 ```
 
 **Setup Requirements:**
