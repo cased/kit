@@ -836,8 +836,8 @@ def review_pr(
         raise typer.Exit(code=1)
 
     try:
-        # Load configuration with profile support
-        review_config = ReviewConfig.from_file(config, profile, repo_path=repo_path)
+        # Load configuration with profile support and model hint
+        review_config = ReviewConfig.from_file(config, profile, repo_path=repo_path, model_hint=model)
 
         # Show profile info if one is being used
         if profile and not plain:

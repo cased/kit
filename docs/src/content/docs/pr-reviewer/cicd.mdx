@@ -31,10 +31,16 @@ jobs:
       contents: read
     
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Include history for better analysis if you wish
+      
       - name: AI Code Review
         run: |
           pip install cased-kit
-          kit review ${{ github.event.pull_request.html_url }}
+          kit review --repo-path . ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -56,10 +62,16 @@ jobs:
       contents: read
     
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
       - name: AI Code Review
         run: |
           pip install cased-kit
-          kit review --profile company-standards ${{ github.event.pull_request.html_url }}
+          kit review --profile company-standards --repo-path . ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -85,11 +97,17 @@ jobs:
       contents: read
     
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
       - name: AI Code Review
         run: |
           pip install cased-kit
           # Use completely free local AI
-          kit review --model qwen2.5-coder:latest ${{ github.event.pull_request.html_url }}
+          kit review --model qwen2.5-coder:latest --repo-path . ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # No LLM API keys needed - Ollama is free!
@@ -113,11 +131,17 @@ jobs:
       contents: read
     
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
       - name: Budget AI Review
         run: |
           pip install cased-kit
           # Configure for ultra-low cost
-          kit review --model gpt-4.1-nano ${{ github.event.pull_request.html_url }}
+          kit review --model gpt-4.1-nano --repo-path . ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KIT_OPENAI_TOKEN: ${{ secrets.OPENAI_API_KEY }}
@@ -447,7 +471,11 @@ jobs:
 
 Use `--repo-path` in CI/CD environments to optimize performance and handle special cases:
 
-#### Pre-Cloned Repository Workflow
+#### Pre-Cloned Repository Workflow (Recommended for GitHub Actions)
+
+<Aside type="caution">
+**Authentication Note**: When using GitHub Actions, always checkout the repository first and use `--repo-path .` instead of letting kit clone. This ensures proper authentication and avoids token permission issues.
+</Aside>
 
 ```yaml
 name: Optimized Review with Pre-Cloned Repo
@@ -466,13 +494,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for comprehensive analysis
+          # Use the built-in GITHUB_TOKEN for authentication
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Full history for comprehensive analysis
+          fetch-depth: 0
           
       - name: AI Review with Local Repository
         run: |
           pip install cased-kit
           
           # Use the checked-out repository directly
+          # This avoids authentication issues and is faster
           kit review --repo-path . ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -480,7 +512,35 @@ jobs:
 ```
 
 <Aside type="tip">
-**Performance Benefit**: Using `--repo-path .` with a pre-checkout saves 30-90 seconds per review by skipping the clone step, especially valuable for large repositories or high-volume workflows.
+**Benefits of using `--repo-path .`:**
+1. **No authentication issues**: Uses GitHub Actions' built-in checkout authentication
+2. **30-90 seconds faster**: Skips the clone step entirely
+3. **More control**: Configure checkout options (submodules, LFS, etc.)
+4. **Works with private repos**: No need to pass tokens to kit's cloning logic
+</Aside>
+
+#### When Kit Clones Automatically
+
+If you don't use `--repo-path`, kit will attempt to clone the repository automatically. This requires proper token permissions:
+
+```yaml
+# Only use this approach if you need kit to handle cloning
+# (not recommended for GitHub Actions)
+steps:
+  - name: AI Review (with auto-clone)
+    run: |
+      pip install cased-kit
+      
+      # Kit will clone the repo - requires token with repo scope
+      kit review ${{ github.event.pull_request.html_url }}
+    env:
+      # Token must have 'repo' scope for private repositories
+      KIT_GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      KIT_ANTHROPIC_TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+<Aside type="warning">
+**Note**: The default `GITHUB_TOKEN` in Actions may not have sufficient permissions for kit to clone private repositories. Use the pre-cloned approach above to avoid this issue.
 </Aside>
 
 ## Cost Monitoring
