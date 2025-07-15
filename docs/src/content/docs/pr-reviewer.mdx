@@ -29,12 +29,16 @@ kit review --init-config
 
 # 3. Set API keys
 export KIT_GITHUB_TOKEN="ghp_your_token"
-export KIT_ANTHROPIC_TOKEN="sk-ant-your_key"
-export KIT_OPENAI_TOKEN="sk-openai-your_key"
-export KIT_GOOGLE_API_KEY="AIzaSy-your_google_key"
+export KIT_ANTHROPIC_TOKEN="sk-ant-your_key"  # For Anthropic (default)
+export KIT_OPENAI_TOKEN="sk-openai-your_key"  # For OpenAI
+export KIT_GOOGLE_API_KEY="AIzaSy-your_google_key"  # For Google
 
 # 4. Review any GitHub PR
 kit review https://github.com/owner/repo/pull/123
+
+# 4b. For OpenAI users: specify provider
+kit review --model gpt-4.1 https://github.com/owner/repo/pull/123
+# Or edit ~/.kit/review-config.yaml to set: llm.provider: openai
 
 # 5. Test without posting (dry run with full formatting)
 kit review --dry-run https://github.com/owner/repo/pull/123

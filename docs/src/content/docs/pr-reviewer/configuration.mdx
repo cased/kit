@@ -249,6 +249,23 @@ review:
   max_files: 50
 ```
 
+### Minimal Configuration
+
+```yaml
+# ~/.kit/review-config.yaml
+github:
+  token: ghp_your_token_here
+
+llm:
+  # IMPORTANT: Specify your provider (defaults to 'anthropic' if not set)
+  provider: openai  # or 'anthropic', 'google', 'ollama'
+  api_key: sk-your_api_key_here
+```
+
+<Aside type="caution">
+**Provider Required**: If you're using OpenAI, Google, or Ollama, you MUST set the `provider` field. Kit defaults to Anthropic if no provider is specified.
+</Aside>
+
 ## Priority Filtering Configuration
 
 ### Default Priority Settings
