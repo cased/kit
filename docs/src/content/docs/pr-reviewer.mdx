@@ -53,6 +53,10 @@ kit summarize --update-pr-body https://github.com/owner/repo/pull/123
 ```
 
 <Aside type="tip">
+**GitHub Actions Users**: When running in CI/CD, checkout the repository first and use `kit review --repo-path .` to avoid authentication issues. See our [CI/CD guide](/pr-reviewer/cicd) for details.
+</Aside>
+
+<Aside type="tip">
 **Just want the PR reviewer?** The base `pip install cased-kit` gives you everything needed for PR reviews without heavy ML dependencies like PyTorch. If you need semantic search features later, install with `pip install cased-kit[ml]`.
 </Aside>
 
