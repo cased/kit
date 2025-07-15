@@ -719,7 +719,7 @@ class TestReviewIntegration:
             assert "Using profile: company-standards" in result.output
 
             # Verify config was loaded with profile
-            mock_config_from_file.assert_called_once_with(None, "company-standards", repo_path=None)
+            mock_config_from_file.assert_called_once_with(None, "company-standards", repo_path=None, model_hint=None)
 
     def test_profile_context_injection_standard_reviewer(self):
         """Test that profile context is injected into standard reviewer prompt."""
