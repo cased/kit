@@ -162,7 +162,11 @@ class ReviewConfig:
 
     @classmethod
     def from_file(
-        cls, config_path: Optional[str] = None, profile: Optional[str] = None, repo_path: Optional[str] = None
+        cls,
+        config_path: Optional[str] = None,
+        profile: Optional[str] = None,
+        repo_path: Optional[str] = None,
+        model_hint: Optional[str] = None,
     ) -> "ReviewConfig":
         """Load configuration from file or environment variables.
 
@@ -170,6 +174,7 @@ class ReviewConfig:
             config_path: Path to config file
             profile: Profile name to load custom context from
             repo_path: Path to existing repository to use for analysis
+            model_hint: Model name to help auto-detect provider
         """
         if config_path is None:
             config_path = os.path.expanduser("~/.kit/review-config.yaml")
@@ -201,8 +206,20 @@ class ReviewConfig:
         )
 
         # LLM configuration
-        llm_data = config_data.get("llm", {})
-        provider_str = llm_data.get("provider") or os.getenv("LLM_PROVIDER", "anthropic")
+        llm_data = config_data.get("llm", {}) or {}  # Handle None or empty llm section
+
+        # Try to detect provider from model hint first
+        detected_provider = None
+        if model_hint:
+            detected_provider = _detect_provider_from_model(model_hint)
+
+        # Get provider from config, environment, detected, or default
+        provider_str = (
+            llm_data.get("provider")
+            or os.getenv("LLM_PROVIDER")
+            or (detected_provider.value if detected_provider else None)
+            or "anthropic"
+        )
 
         try:
             provider = LLMProvider(provider_str)
@@ -239,10 +256,19 @@ class ReviewConfig:
 
         # Ollama doesn't require API keys, so skip validation for it
         if not api_key and provider != LLMProvider.OLLAMA:
-            raise ValueError(
-                f"LLM API key required. Set {api_key_env} environment variable or "
-                f"add 'llm.api_key' to ~/.kit/review-config.yaml"
-            )
+            # Provide a more helpful error message based on the provider
+            if provider == LLMProvider.ANTHROPIC and not (config_data.get("llm") or {}).get("provider"):
+                # User didn't specify a provider, defaulted to Anthropic
+                raise ValueError(
+                    f"LLM API key required. To use Anthropic (default), set {api_key_env} environment variable. "
+                    f"To use a different provider, set 'llm.provider' to 'openai', 'google', or 'ollama' in ~/.kit/review-config.yaml"
+                )
+            else:
+                # User explicitly chose this provider
+                raise ValueError(
+                    f"LLM API key required for {provider.value}. Set {api_key_env} environment variable or "
+                    f"add 'llm.api_key' to ~/.kit/review-config.yaml"
+                )
 
         llm_config = LLMConfig(
             provider=provider,

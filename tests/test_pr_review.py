@@ -13,6 +13,7 @@ from kit.pr_review.config import (
     LLMConfig,
     LLMProvider,
     ReviewConfig,
+    _detect_provider_from_model,
 )
 from kit.pr_review.cost_tracker import CostBreakdown, CostTracker
 from kit.pr_review.reviewer import PRReviewer
@@ -20,6 +21,118 @@ from kit.pr_review.validator import (
     ValidationResult,
     validate_review_quality,
 )
+
+
+def test_detect_provider_from_model():
+    """Test provider detection from model names."""
+    # OpenAI models
+    assert _detect_provider_from_model("gpt-4") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("gpt-4.1") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("gpt-4o") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("gpt-4.1-nano") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("gpt-3.5-turbo") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("o1-preview") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("text-davinci-003") == LLMProvider.OPENAI
+
+    # Anthropic models
+    assert _detect_provider_from_model("claude-3-opus") == LLMProvider.ANTHROPIC
+    assert _detect_provider_from_model("claude-3-5-sonnet") == LLMProvider.ANTHROPIC
+    assert _detect_provider_from_model("claude-sonnet-4-20250514") == LLMProvider.ANTHROPIC
+    assert _detect_provider_from_model("claude-2.1") == LLMProvider.ANTHROPIC
+    assert _detect_provider_from_model("claude-instant") == LLMProvider.ANTHROPIC
+
+    # Google models
+    assert _detect_provider_from_model("gemini-1.5-pro") == LLMProvider.GOOGLE
+    assert _detect_provider_from_model("gemini-1.5-flash") == LLMProvider.GOOGLE
+    assert _detect_provider_from_model("gemini-2.5-flash") == LLMProvider.GOOGLE
+    assert _detect_provider_from_model("gemini-pro") == LLMProvider.GOOGLE
+
+    # Ollama models
+    assert _detect_provider_from_model("llama2") == LLMProvider.OLLAMA
+    assert _detect_provider_from_model("llama3") == LLMProvider.OLLAMA
+    assert _detect_provider_from_model("qwen2.5-coder") == LLMProvider.OLLAMA
+    assert _detect_provider_from_model("codellama") == LLMProvider.OLLAMA
+    assert _detect_provider_from_model("mistral") == LLMProvider.OLLAMA
+    assert _detect_provider_from_model("deepseek-coder") == LLMProvider.OLLAMA
+
+    # Models with provider prefixes
+    assert _detect_provider_from_model("openrouter/gpt-4") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("together/claude-3-5-sonnet") == LLMProvider.ANTHROPIC
+    assert _detect_provider_from_model("vertex_ai/gemini-pro") == LLMProvider.GOOGLE
+
+    # Unknown models
+    assert _detect_provider_from_model("unknown-model-xyz") is None
+    assert _detect_provider_from_model("") is None
+
+
+def test_config_loading_with_model_hint():
+    """Test ReviewConfig.from_file with model_hint parameter."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = Path(tmpdir) / "test-config.yaml"
+
+        # Create a minimal config without provider
+        config_data = {
+            "github": {"token": "ghp_test"},
+            "llm": {},  # No provider specified
+        }
+        with open(config_path, "w") as f:
+            yaml.dump(config_data, f)
+
+        # Test 1: Without model hint and no Anthropic key - should fail
+        with patch.dict(os.environ, {"KIT_OPENAI_TOKEN": "sk-test-openai", "KIT_GITHUB_TOKEN": "ghp-test"}, clear=True):
+            with pytest.raises(ValueError, match="To use Anthropic.*default.*set.*ANTHROPIC"):
+                ReviewConfig.from_file(str(config_path))
+
+        # Test 2: With OpenAI model hint - should succeed
+        with patch.dict(os.environ, {"KIT_OPENAI_TOKEN": "sk-test-openai", "KIT_GITHUB_TOKEN": "ghp-test"}, clear=True):
+            config = ReviewConfig.from_file(str(config_path), model_hint="gpt-4.1")
+            assert config.llm.provider == LLMProvider.OPENAI
+            assert config.llm.api_key == "sk-test-openai"
+            assert config.llm.model == "gpt-4.1-2025-04-14"  # Default OpenAI model
+
+        # Test 3: With Google model hint - should succeed with Google key
+        with patch.dict(
+            os.environ, {"KIT_GOOGLE_API_KEY": "AIza-test-google", "KIT_GITHUB_TOKEN": "ghp-test"}, clear=True
+        ):
+            config = ReviewConfig.from_file(str(config_path), model_hint="gemini-1.5-flash")
+            assert config.llm.provider == LLMProvider.GOOGLE
+            assert config.llm.api_key == "AIza-test-google"
+            assert config.llm.model == "gemini-2.5-flash"  # Default Google model
+
+        # Test 4: With Ollama model hint - should succeed without API key
+        with patch.dict(os.environ, {"KIT_GITHUB_TOKEN": "ghp-test"}, clear=True):
+            config = ReviewConfig.from_file(str(config_path), model_hint="qwen2.5-coder")
+            assert config.llm.provider == LLMProvider.OLLAMA
+            assert config.llm.api_key == "ollama"  # Placeholder for Ollama
+            assert config.llm.model == "qwen2.5-coder:latest"  # Default Ollama model
+
+
+def test_config_loading_provider_precedence():
+    """Test provider selection precedence: config > env > model_hint > default."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Test 1: Config provider takes precedence over model hint
+        config_path = Path(tmpdir) / "config-with-provider.yaml"
+        config_data = {"github": {"token": "ghp_test"}, "llm": {"provider": "anthropic", "api_key": "sk-ant-test"}}
+        with open(config_path, "w") as f:
+            yaml.dump(config_data, f)
+
+        config = ReviewConfig.from_file(str(config_path), model_hint="gpt-4")
+        assert config.llm.provider == LLMProvider.ANTHROPIC  # Config wins
+
+        # Test 2: Env provider takes precedence over model hint
+        config_path2 = Path(tmpdir) / "config-no-provider.yaml"
+        config_data2 = {"github": {"token": "ghp_test"}, "llm": {"api_key": "sk-test"}}
+        with open(config_path2, "w") as f:
+            yaml.dump(config_data2, f)
+
+        with patch.dict(os.environ, {"LLM_PROVIDER": "google"}):
+            config = ReviewConfig.from_file(str(config_path2), model_hint="gpt-4")
+            assert config.llm.provider == LLMProvider.GOOGLE  # Env wins
+
+        # Test 3: Model hint used when no config or env provider
+        with patch.dict(os.environ, {"KIT_OPENAI_TOKEN": "sk-test"}, clear=True):
+            config = ReviewConfig.from_file(str(config_path2), model_hint="gpt-4")
+            assert config.llm.provider == LLMProvider.OPENAI  # Model hint wins
 
 
 def test_pr_url_parsing():
