@@ -9,6 +9,7 @@ npm install @cased/kit
 ```
 
 **Prerequisites:**
+
 - Node.js 16+
 - Kit CLI installed (`pip install cased-kit`)
 
@@ -17,11 +18,11 @@ npm install @cased/kit
 ### Basic Setup
 
 ```typescript
-import { Kit } from '@cased/kit';
+import { Kit } from "@cased/kit";
 
 const kit = new Kit({
-  kitPath: 'kit',  // Path to kit executable (optional)
-  cwd: process.cwd(),  // Working directory (optional)
+  kitPath: "kit", // Path to kit executable (optional)
+  cwd: process.cwd(), // Working directory (optional)
 });
 ```
 
@@ -29,37 +30,37 @@ const kit = new Kit({
 
 ```typescript
 // Create a repository instance
-const repo = kit.repository('/path/to/repo');
+const repo = kit.repository("/path/to/repo");
 
 // Get file tree
 const files = await repo.fileTree();
 
 // Extract symbols from a file
-const symbols = await repo.symbols('src/main.ts');
+const symbols = await repo.symbols("src/main.ts");
 
 // Search for code
-const results = await repo.search('function authenticate');
+const results = await repo.search("function authenticate");
 
 // Find symbol usages
-const usages = await repo.usages('authenticate');
+const usages = await repo.usages("authenticate");
 
 // Get dependencies
-const deps = await repo.dependencies('src/main.ts');
+const deps = await repo.dependencies("src/main.ts");
 ```
 
 ### Semantic Search
 
 ```typescript
 // Perform semantic search
-const results = await repo.searchSemantic('authentication logic', {
+const results = await repo.searchSemantic("authentication logic", {
   topK: 10,
-  embeddingModel: 'all-MiniLM-L6-v2',
-  chunkBy: 'symbols',
-  buildIndex: true,  // Build index on first run
+  embeddingModel: "all-MiniLM-L6-v2",
+  chunkBy: "symbols",
+  buildIndex: true, // Build index on first run
 });
 
 // Results include score and content
-results.forEach(result => {
+results.forEach((result) => {
   console.log(`${result.file} (score: ${result.score})`);
   console.log(result.content);
 });
@@ -69,13 +70,13 @@ results.forEach(result => {
 
 ```typescript
 // Review a pull request
-const review = await kit.reviewPR('https://github.com/owner/repo/pull/123', {
+const review = await kit.reviewPR("https://github.com/owner/repo/pull/123", {
   githubToken: process.env.GITHUB_TOKEN,
-  llmProvider: 'anthropic',
-  model: 'claude-3-sonnet-20240229',
+  llmProvider: "anthropic",
+  model: "claude-3-sonnet-20240229",
   apiKey: process.env.ANTHROPIC_API_KEY,
-  priorities: ['high', 'medium'],
-  postAsComment: false,  // Don't post to GitHub
+  priorities: ["high", "medium"],
+  postAsComment: false, // Don't post to GitHub
 });
 
 console.log(review);
@@ -85,22 +86,22 @@ console.log(review);
 
 ```typescript
 // Work with a specific branch/tag/commit
-const repo = kit.repository('/path/to/repo', 'feature-branch');
+const repo = kit.repository("/path/to/repo", "feature-branch");
 
 // All operations will use this ref
-const symbols = await repo.symbols('main.py');
+const symbols = await repo.symbols("main.py");
 const tree = await repo.fileTree();
 ```
 
 ### Error Handling
 
 ```typescript
-import { KitError } from '@cased/kit';
+import { KitError } from "@cased/kit";
 
 try {
-  const symbols = await repo.symbols('nonexistent.ts');
+  const symbols = await repo.symbols("nonexistent.ts");
 } catch (error) {
-  if (error instanceof Error && 'code' in error) {
+  if (error instanceof Error && "code" in error) {
     const kitError = error as KitError;
     console.error(`Kit error: ${kitError.message}`);
     console.error(`Exit code: ${kitError.exitCode}`);
@@ -122,6 +123,7 @@ new Kit(options?: KitOptions)
 ```
 
 **Options:**
+
 - `kitPath?: string` - Path to kit executable (default: 'kit')
 - `pythonPath?: string` - Path to Python executable (default: 'python3')
 - `cwd?: string` - Working directory (default: process.cwd())
@@ -192,6 +194,7 @@ interface SemanticSearchResult {
 ### Option Types
 
 See `types.ts` for complete option interfaces including:
+
 - `SymbolOptions`
 - `SearchOptions`
 - `SemanticSearchOptions`
@@ -204,7 +207,7 @@ See `types.ts` for complete option interfaces including:
 ### Analyze a Repository
 
 ```typescript
-import { Kit } from '@cased/kit';
+import { Kit } from "@cased/kit";
 
 async function analyzeRepo(repoPath: string) {
   const kit = new Kit();
@@ -212,13 +215,13 @@ async function analyzeRepo(repoPath: string) {
 
   // Get overview
   const files = await repo.fileTree();
-  console.log(`Total files: ${files.filter(f => !f.is_dir).length}`);
+  console.log(`Total files: ${files.filter((f) => !f.is_dir).length}`);
 
   // Find all classes
-  const pythonFiles = files.filter(f => f.path.endsWith('.py'));
-  
+  const pythonFiles = files.filter((f) => f.path.endsWith(".py"));
+
   for (const file of pythonFiles) {
-    const symbols = await repo.symbols(file.path, { type: 'class' });
+    const symbols = await repo.symbols(file.path, { type: "class" });
     console.log(`${file.path}: ${symbols.length} classes`);
   }
 }
@@ -230,14 +233,14 @@ async function analyzeRepo(repoPath: string) {
 async function buildDependencyGraph(repoPath: string) {
   const kit = new Kit();
   const repo = kit.repository(repoPath);
-  
-  const entryPoint = 'src/main.ts';
+
+  const entryPoint = "src/main.ts";
   const deps = await repo.dependencies(entryPoint, {
-    direction: 'imports',
+    direction: "imports",
     transitive: true,
-    format: 'json'
+    format: "json",
   });
-  
+
   console.log(JSON.stringify(deps, null, 2));
 }
 ```
@@ -260,4 +263,4 @@ npm run lint
 
 ## License
 
-MIT - see LICENSE file for details. 
+MIT - see LICENSE file for details.

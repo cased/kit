@@ -18,6 +18,19 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Install dependencies
         run: uv sync
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install JS dependencies
+        run: npm ci --prefix clients/typescript
+
+      - name: Lint & Type Check (TypeScript)
+        run: scripts/format-ts.sh --fix
+
+      - name: Run JS Tests
+        run: npm test --prefix clients/typescript
       - name: Lint and Type Check
         run: |
           # Run mypy type checking

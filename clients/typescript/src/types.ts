@@ -46,10 +46,10 @@ export interface SemanticSearchResult {
 
 export interface PRReviewOptions {
   githubToken?: string;
-  llmProvider?: 'openai' | 'anthropic' | 'google' | 'ollama';
+  llmProvider?: "openai" | "anthropic" | "google" | "ollama";
   model?: string;
   apiKey?: string;
-  priorities?: ('high' | 'medium' | 'low')[];
+  priorities?: ("high" | "medium" | "low")[];
   postAsComment?: boolean;
   cloneForAnalysis?: boolean;
   repoPath?: string;
@@ -57,7 +57,7 @@ export interface PRReviewOptions {
 
 export interface ExportOptions {
   output?: string;
-  format?: 'json' | 'yaml';
+  format?: "json" | "yaml";
   includeDependencies?: boolean;
   includeUsages?: boolean;
 }
@@ -72,30 +72,30 @@ export interface SemanticSearchOptions {
   topK?: number;
   output?: string;
   embeddingModel?: string;
-  chunkBy?: 'symbols' | 'lines';
+  chunkBy?: "symbols" | "lines";
   buildIndex?: boolean;
   persistDir?: string;
-  format?: 'table' | 'json' | 'plain';
+  format?: "table" | "json" | "plain";
   ref?: string;
 }
 
 export interface SymbolOptions {
-  format?: 'tree' | 'json' | 'names';
+  format?: "tree" | "json" | "names";
   type?: string;
   ref?: string;
 }
 
 export interface UsagesOptions {
-  format?: 'table' | 'json';
+  format?: "table" | "json";
   includeTests?: boolean;
   ref?: string;
 }
 
 export interface DependenciesOptions {
-  direction?: 'imports' | 'imported-by' | 'both';
+  direction?: "imports" | "imported-by" | "both";
   transitive?: boolean;
   maxDepth?: number;
-  format?: 'tree' | 'json' | 'dot';
+  format?: "tree" | "json" | "dot";
   ref?: string;
 }
 
@@ -110,4 +110,4 @@ export interface GitInfo {
   currentBranch: string;
   remoteUrl?: string;
   isDirty: boolean;
-} 
+}

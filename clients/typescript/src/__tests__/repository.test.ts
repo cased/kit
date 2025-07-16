@@ -1,122 +1,134 @@
-import { spawn } from 'child_process';
-import { Kit, Repository } from '../kit';
+import { spawn } from "child_process";
+import { Kit, Repository } from "../kit";
 
-jest.mock('child_process');
+jest.mock("child_process");
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
 
 // Helper to create mock child process
-function createMockProcess(stdout: string, stderr: string = '', exitCode: number = 0) {
+function createMockProcess(
+  stdout: string,
+  stderr: string = "",
+  exitCode: number = 0,
+) {
   const mockProcess = {
     stdout: {
       on: jest.fn((event, handler) => {
-        if (event === 'data') {
+        if (event === "data") {
           handler(Buffer.from(stdout));
         }
       }),
     },
     stderr: {
       on: jest.fn((event, handler) => {
-        if (event === 'data' && stderr) {
+        if (event === "data" && stderr) {
           handler(Buffer.from(stderr));
         }
       }),
     },
     on: jest.fn((event, handler) => {
-      if (event === 'close') {
+      if (event === "close") {
         handler(exitCode);
       }
     }),
   };
-  
+
   return mockProcess;
 }
 
-describe('Repository', () => {
+describe("Repository", () => {
   let kit: Kit;
   let repo: Repository;
 
   beforeEach(() => {
     kit = new Kit();
-    repo = kit.repository('/test/repo', 'main');
+    repo = kit.repository("/test/repo", "main");
     jest.clearAllMocks();
   });
 
-  describe('symbols', () => {
-    it('should get symbols with repo path prepended', async () => {
+  describe("symbols", () => {
+    it("should get symbols with repo path prepended", async () => {
       const mockOutput = JSON.stringify([
-        { name: 'test_function', type: 'function', line: 5 },
+        { name: "test_function", type: "function", line: 5 },
       ]);
-      
-      mockSpawn.mockReturnValue(createMockProcess(mockOutput) as any);
-      
-      const symbols = await repo.symbols('src/main.py');
-      
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'kit',
-        ['symbols', '/test/repo/src/main.py', '--format', 'json', '--ref', 'main'],
-        expect.any(Object)
-      );
-      expect(symbols[0].name).toBe('test_function');
-    });
-  });
 
-  describe('fileTree', () => {
-    it('should get file tree for the repository', async () => {
-      const mockOutput = JSON.stringify([
-        { path: 'README.md', is_dir: false },
-      ]);
-      
       mockSpawn.mockReturnValue(createMockProcess(mockOutput) as any);
-      
-      const files = await repo.fileTree();
-      
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'kit',
-        ['file-tree', '/test/repo', '--ref', 'main'],
-        expect.any(Object)
-      );
-    });
-  });
 
-  describe('searchSemantic', () => {
-    it('should perform semantic search in the repository', async () => {
-      const mockOutput = JSON.stringify([
-        { file: 'test.py', score: 0.9, content: 'test content' },
-      ]);
-      
-      mockSpawn.mockReturnValue(createMockProcess(mockOutput) as any);
-      
-      const results = await repo.searchSemantic('query', { topK: 5 });
-      
+      const symbols = await repo.symbols("src/main.py");
+
       expect(mockSpawn).toHaveBeenCalledWith(
-        'kit',
+        "kit",
         [
-          'search-semantic',
-          '/test/repo',
-          'query',
-          '--top-k', '5',
-          '--ref', 'main',
-          '--format', 'json',
+          "symbols",
+          "/test/repo/src/main.py",
+          "--format",
+          "json",
+          "--ref",
+          "main",
         ],
-        expect.any(Object)
+        expect.any(Object),
+      );
+      expect(symbols[0].name).toBe("test_function");
+    });
+  });
+
+  describe("fileTree", () => {
+    it("should get file tree for the repository", async () => {
+      const mockOutput = JSON.stringify([{ path: "README.md", is_dir: false }]);
+
+      mockSpawn.mockReturnValue(createMockProcess(mockOutput) as any);
+
+      const files = await repo.fileTree();
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        "kit",
+        ["file-tree", "/test/repo", "--ref", "main"],
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("searchSemantic", () => {
+    it("should perform semantic search in the repository", async () => {
+      const mockOutput = JSON.stringify([
+        { file: "test.py", score: 0.9, content: "test content" },
+      ]);
+
+      mockSpawn.mockReturnValue(createMockProcess(mockOutput) as any);
+
+      const results = await repo.searchSemantic("query", { topK: 5 });
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        "kit",
+        [
+          "search-semantic",
+          "/test/repo",
+          "query",
+          "--top-k",
+          "5",
+          "--ref",
+          "main",
+          "--format",
+          "json",
+        ],
+        expect.any(Object),
       );
       expect(results[0].score).toBe(0.9);
     });
   });
 
-  describe('without ref', () => {
-    it('should work without a ref parameter', async () => {
-      const repoNoRef = kit.repository('/test/repo');
-      mockSpawn.mockReturnValue(createMockProcess('[]') as any);
-      
-      await repoNoRef.symbols('test.py');
-      
+  describe("without ref", () => {
+    it("should work without a ref parameter", async () => {
+      const repoNoRef = kit.repository("/test/repo");
+      mockSpawn.mockReturnValue(createMockProcess("[]") as any);
+
+      await repoNoRef.symbols("test.py");
+
       expect(mockSpawn).toHaveBeenCalledWith(
-        'kit',
-        ['symbols', '/test/repo/test.py', '--format', 'json'],
-        expect.any(Object)
+        "kit",
+        ["symbols", "/test/repo/test.py", "--format", "json"],
+        expect.any(Object),
       );
       // Note: no --ref parameter
     });
   });
-}); 
+});

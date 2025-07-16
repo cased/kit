@@ -1,2 +1,2 @@
-export { Kit, Repository } from './kit';
-export * from './types'; 
+export { Kit, Repository } from "./kit";
+export * from "./types";
