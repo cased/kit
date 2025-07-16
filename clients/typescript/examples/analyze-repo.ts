@@ -1,4 +1,4 @@
-import { Kit } from "@cased/kit";
+import { Kit } from "@runcased/kit";
 
 async function main() {
   // Initialize Kit

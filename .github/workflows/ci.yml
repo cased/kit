@@ -29,8 +29,8 @@ jobs:
       - name: Install kit CLI (editable)
         run: uv pip install -e .
 
-      - name: Lint & Type Check (TypeScript)
-        run: scripts/format-ts.sh --fix
+      - name: Lint & Type Check (Python + TypeScript)
+        run: scripts/format.sh --fix
 
       - name: Run JS Tests
         run: npm test --prefix clients/typescript

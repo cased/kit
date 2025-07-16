@@ -6,7 +6,10 @@ jest.mock("child_process");
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
 
 jest.mock("fs");
-const mockFs = fs as unknown as { readFileSync: jest.Mock; unlinkSync: jest.Mock };
+const mockFs = fs as unknown as {
+  readFileSync: jest.Mock;
+  unlinkSync: jest.Mock;
+};
 
 // Helper to create mock child process
 function createMockProcess(
@@ -84,7 +87,7 @@ describe("Repository", () => {
       mockSpawn.mockReturnValue(createMockProcess("File tree written") as any);
       mockFs.readFileSync.mockReturnValue(mockOutput);
 
-      const files = await repo.fileTree();
+      const _files = await repo.fileTree();
 
       expect(mockSpawn).toHaveBeenCalledWith(
         "kit",
@@ -98,6 +101,7 @@ describe("Repository", () => {
         ],
         expect.any(Object),
       );
+      expect(_files.length).toBeGreaterThanOrEqual(0);
     });
   });
 

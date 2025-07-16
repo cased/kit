@@ -1,24 +1,54 @@
 # Kit TypeScript Client
 
-TypeScript/Node.js wrapper for the Cased Kit CLI. This library provides a type-safe interface to Kit's code analysis capabilities.
+TypeScript/Node.js wrapper for the Cased **Kit** CLI. This library lets you call Kit’s powerful code-analysis features from JavaScript or TypeScript with first-class typings.
 
 ## Installation
 
 ```bash
-npm install @cased/kit
+# 1) Install the TypeScript wrapper
+npm install @runcased/kit              # or pnpm add / yarn add
+
+# 2) Install the Kit CLI itself (Python)
+uv pip install cased-kit               # or pipx install cased-kit; or any other python way
 ```
 
-**Prerequisites:**
+> The TS wrapper shells out to the `kit` executable, so the Python package must be on **$PATH** in the same environment where Node runs (local dev, Docker image, CI runner, etc.).
 
-- Node.js 16+
-- Kit CLI installed (`pip install cased-kit`)
+**Requirements**
 
-## Usage
+- Node 16 or newer
+- Python 3.10+ with `cased-kit` installed
+
+## Quick Start
+
+```typescript
+import { Kit } from "@runcased/kit";
+
+const kit = new Kit(); // uses `kit` from $PATH
+const repo = kit.repository("./"); // current repo
+
+(async () => {
+  const info = await repo.gitInfo();
+  console.log(info);
+
+  const files = await repo.fileTree(); // structured file list
+  console.log(`Repo has ${files.length} entries`);
+})();
+```
+
+## Wrapper Highlights
+
+- **Type-safe** – full `.d.ts` bundled, generics for options & results.
+- **Same API shape as Python** – methods map 1-to-1 to CLI commands.
+- **Repository helper** – `kit.repository(path)` returns convenience wrapper so you don’t repeat the path/ref.
+- **No native deps** – only uses Node’s `child_process` to invoke CLI.
+
+The remainder of this README contains advanced usage & API reference.
 
 ### Basic Setup
 
 ```typescript
-import { Kit } from "@cased/kit";
+import { Kit } from "@runcased/kit";
 
 const kit = new Kit({
   kitPath: "kit", // Path to kit executable (optional)
@@ -73,7 +103,7 @@ results.forEach((result) => {
 const review = await kit.reviewPR("https://github.com/owner/repo/pull/123", {
   githubToken: process.env.GITHUB_TOKEN,
   llmProvider: "anthropic",
-  model: "claude-3-sonnet-20240229",
+  model: "claude-4-sonnet",
   apiKey: process.env.ANTHROPIC_API_KEY,
   priorities: ["high", "medium"],
   postAsComment: false, // Don't post to GitHub
@@ -96,7 +126,7 @@ const tree = await repo.fileTree();
 ### Error Handling
 
 ```typescript
-import { KitError } from "@cased/kit";
+import { KitError } from "@runcased/kit";
 
 try {
   const symbols = await repo.symbols("nonexistent.ts");
@@ -207,7 +237,7 @@ See `types.ts` for complete option interfaces including:
 ### Analyze a Repository
 
 ```typescript
-import { Kit } from "@cased/kit";
+import { Kit } from "@runcased/kit";
 
 async function analyzeRepo(repoPath: string) {
   const kit = new Kit();

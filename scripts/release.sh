@@ -35,6 +35,22 @@ if [ "${PYPROJECT_VERSION}" != "${VERSION}" ]; then
     exit 1
 fi
 
+# After version check for pyproject, add TS version check
+# 2b. Check TS client package.json version
+TS_PACKAGE_JSON="clients/typescript/package.json"
+if [ -f "${TS_PACKAGE_JSON}" ]; then
+    TS_VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "${TS_PACKAGE_JSON}" | head -n1 | awk -F '"' '{print $4}')
+    if [ "${TS_VERSION}" != "${VERSION}" ]; then
+        echo "Error: Version mismatch in TypeScript client!"
+        echo "  Provided version: ${VERSION}"
+        echo "  Version in ${TS_PACKAGE_JSON}: ${TS_VERSION}"
+        echo "Please update TypeScript package.json to match before releasing."
+        exit 1
+    fi
+else
+    echo "Warning: TypeScript package.json not found; skipping TS version check."
+fi
+
 # 3. Check for uncommitted changes
 if ! git diff-index --quiet HEAD --; then
     echo "Error: You have uncommitted changes."
@@ -166,6 +182,28 @@ else
     echo ""
     echo "GitHub CLI ('gh') not found. Skipping GitHub Release creation."
     echo "To enable automatic GitHub Release creation, install the GitHub CLI: https://cli.github.com/"
+fi
+
+# Later after PyPI publish, insert TS publish step
+# --- Publish TypeScript package to npm ---
+if [ -f "${TS_PACKAGE_JSON}" ]; then
+  echo ""; echo "Publishing TypeScript client to npm..."
+  if [ -z "${NPM_TOKEN}" ]; then
+    echo "NPM_TOKEN environment variable not set. Skipping npm publish."
+  else
+    cd clients/typescript
+    npm ci
+    npm run build
+    # Check if this version already exists
+    if npm view @runcased/kit@${VERSION} >/dev/null 2>&1; then
+      echo "@runcased/kit@${VERSION} already exists on npm. Skipping publish."
+    else
+      echo "Publishing @runcased/kit@${VERSION}…"
+      echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+      npm publish --access public
+    fi
+    cd ../../
+  fi
 fi
 
 echo ""

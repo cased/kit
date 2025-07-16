@@ -1,6 +1,5 @@
 import { spawn } from "child_process";
-import { Kit, Repository } from "../kit";
-import { KitError } from "../types";
+import { Kit } from "../kit";
 import fs from "fs";
 
 // Mock child_process

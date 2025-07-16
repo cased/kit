@@ -148,6 +148,7 @@ The CLI supports all major repository operations with Unix-friendly output for s
 *   **Multiple Access Methods:**
     *   **Python API**: Direct integration for building applications and scripts.
     *   **Command Line Interface**: 11+ commands for shell scripting, CI/CD, and automation workflows.
+    *   **TypeScript / Node Client**: `npm install @runcased/kit` for type-safe wrapper that shells out to the same CLI.
     *   **REST API**: HTTP endpoints for web applications and microservices.
     *   **MCP Server**: Model Context Protocol integration for AI agents and development tools.
 

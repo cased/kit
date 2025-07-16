@@ -15,6 +15,21 @@ import {
   DependenciesOptions,
   GitInfo,
 } from "./types";
+import os from "os";
+import path from "path";
+
+class KitCommandError extends Error implements KitError {
+  code: string;
+  exitCode: number;
+  stderr: string;
+  constructor(message: string, exitCode: number, stderr: string) {
+    super(message);
+    this.name = "KitCommandError";
+    this.code = "KIT_COMMAND_FAILED";
+    this.exitCode = exitCode;
+    this.stderr = stderr;
+  }
+}
 
 export class Kit {
   private options: Required<KitOptions>;
@@ -55,11 +70,13 @@ export class Kit {
         if (code === 0) {
           resolve(stdout);
         } else {
-          const error = new Error(`Kit command failed: ${stderr}`) as KitError;
-          error.code = "KIT_COMMAND_FAILED";
-          error.exitCode = code || 1;
-          error.stderr = stderr;
-          reject(error);
+          reject(
+            new KitCommandError(
+              `Kit command failed: ${stderr}`,
+              code || 1,
+              stderr,
+            ),
+          );
         }
       });
 
@@ -102,11 +119,11 @@ export class Kit {
   /**
    * Get file tree structure
    */
-  async fileTree(path: string = ".", ref?: string): Promise<FileNode[]> {
-    const args = ["file-tree", path];
+  async fileTree(repoPath: string = ".", ref?: string): Promise<FileNode[]> {
+    const args = ["file-tree", repoPath];
 
     // Create a temporary file for JSON output
-    const tmpFile = `/tmp/kit-file-tree-${Date.now()}.json`;
+    const tmpFile = path.join(os.tmpdir(), `kit-file-tree-${Date.now()}.json`);
 
     args.push("--output", tmpFile);
     if (ref) args.push("--ref", ref);
@@ -116,14 +133,11 @@ export class Kit {
       // Read the JSON from the temp file
       const fs = require("fs");
       const jsonData = fs.readFileSync(tmpFile, "utf8");
-      fs.unlinkSync(tmpFile); // Clean up
       return JSON.parse(jsonData);
-    } catch (error) {
-      // Clean up temp file on error
+    } finally {
       try {
         require("fs").unlinkSync(tmpFile);
       } catch {}
-      throw error;
     }
   }
 

@@ -9,9 +9,15 @@ maybeDescribe("Kit TypeScript wrapper – integration", () => {
     const repoRoot = path.resolve(__dirname, "../../../../");
 
     // Build the TypeScript client (dist/) – quiet if already built
-    execSync("npm run build", { cwd: path.join(repoRoot, "clients/typescript"), stdio: "inherit" });
+    execSync("npm run build", {
+      cwd: path.join(repoRoot, "clients/typescript"),
+      stdio: "inherit",
+    });
 
     // Run the manual wrapper test script; will throw if non-zero exit
-    execSync("node clients/typescript/test-wrapper.js", { cwd: repoRoot, stdio: "inherit" });
+    execSync("node clients/typescript/test-wrapper.js", {
+      cwd: repoRoot,
+      stdio: "inherit",
+    });
   }, 300_000); // allow up to 5 min in CI
-}); 
+});
