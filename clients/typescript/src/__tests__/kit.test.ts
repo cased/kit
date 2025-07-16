@@ -1,10 +1,18 @@
 import { spawn } from "child_process";
 import { Kit, Repository } from "../kit";
 import { KitError } from "../types";
+import fs from "fs";
 
 // Mock child_process
 jest.mock("child_process");
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+
+// Mock fs
+jest.mock("fs");
+const mockFs = fs as unknown as {
+  readFileSync: jest.Mock;
+  unlinkSync: jest.Mock;
+};
 
 // Helper to create mock child process
 function createMockProcess(
@@ -43,6 +51,8 @@ describe("Kit", () => {
   beforeEach(() => {
     kit = new Kit();
     jest.clearAllMocks();
+    mockFs.readFileSync.mockReset();
+    mockFs.unlinkSync.mockReset();
   });
 
   describe("constructor", () => {
@@ -126,13 +136,14 @@ describe("Kit", () => {
         { path: "src/main.py", is_dir: false, size: 1234 },
       ]);
 
-      mockSpawn.mockReturnValue(createMockProcess(mockOutput) as any);
+      mockSpawn.mockReturnValue(createMockProcess("File tree written") as any);
+      mockFs.readFileSync.mockReturnValue(mockOutput);
 
       const files = await kit.fileTree();
 
       expect(mockSpawn).toHaveBeenCalledWith(
         "kit",
-        ["file-tree"],
+        ["file-tree", ".", "--output", expect.stringMatching(/kit-file-tree-/)],
         expect.any(Object),
       );
       expect(files).toHaveLength(2);
@@ -142,12 +153,20 @@ describe("Kit", () => {
 
     it("should accept path and ref", async () => {
       mockSpawn.mockReturnValue(createMockProcess("[]") as any);
+      mockFs.readFileSync.mockReturnValue("[]");
 
       await kit.fileTree("/repo", "feature-branch");
 
       expect(mockSpawn).toHaveBeenCalledWith(
         "kit",
-        ["file-tree", "/repo", "--ref", "feature-branch"],
+        [
+          "file-tree",
+          "/repo",
+          "--output",
+          expect.stringMatching(/kit-file-tree-/),
+          "--ref",
+          "feature-branch",
+        ],
         expect.any(Object),
       );
     });

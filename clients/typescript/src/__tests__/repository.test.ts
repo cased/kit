@@ -1,8 +1,12 @@
 import { spawn } from "child_process";
 import { Kit, Repository } from "../kit";
+import fs from "fs";
 
 jest.mock("child_process");
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+
+jest.mock("fs");
+const mockFs = fs as unknown as { readFileSync: jest.Mock; unlinkSync: jest.Mock };
 
 // Helper to create mock child process
 function createMockProcess(
@@ -43,6 +47,8 @@ describe("Repository", () => {
     kit = new Kit();
     repo = kit.repository("/test/repo", "main");
     jest.clearAllMocks();
+    mockFs.readFileSync.mockReset();
+    mockFs.unlinkSync.mockReset();
   });
 
   describe("symbols", () => {
@@ -75,13 +81,21 @@ describe("Repository", () => {
     it("should get file tree for the repository", async () => {
       const mockOutput = JSON.stringify([{ path: "README.md", is_dir: false }]);
 
-      mockSpawn.mockReturnValue(createMockProcess(mockOutput) as any);
+      mockSpawn.mockReturnValue(createMockProcess("File tree written") as any);
+      mockFs.readFileSync.mockReturnValue(mockOutput);
 
       const files = await repo.fileTree();
 
       expect(mockSpawn).toHaveBeenCalledWith(
         "kit",
-        ["file-tree", "/test/repo", "--ref", "main"],
+        [
+          "file-tree",
+          "/test/repo",
+          "--output",
+          expect.stringMatching(/kit-file-tree-/),
+          "--ref",
+          "main",
+        ],
         expect.any(Object),
       );
     });

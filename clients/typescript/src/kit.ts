@@ -102,13 +102,12 @@ export class Kit {
   /**
    * Get file tree structure
    */
-  async fileTree(path?: string, ref?: string): Promise<FileNode[]> {
-    const args = ["file-tree"];
+  async fileTree(path: string = ".", ref?: string): Promise<FileNode[]> {
+    const args = ["file-tree", path];
 
     // Create a temporary file for JSON output
     const tmpFile = `/tmp/kit-file-tree-${Date.now()}.json`;
 
-    if (path) args.push(path);
     args.push("--output", tmpFile);
     if (ref) args.push("--ref", ref);
 

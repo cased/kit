@@ -26,6 +26,9 @@ jobs:
       - name: Install JS dependencies
         run: npm ci --prefix clients/typescript
 
+      - name: Install kit CLI (editable)
+        run: uv pip install -e .
+
       - name: Lint & Type Check (TypeScript)
         run: scripts/format-ts.sh --fix
 
