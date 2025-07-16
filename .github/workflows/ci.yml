@@ -24,7 +24,12 @@ jobs:
           node-version: '20'
 
       - name: Install JS dependencies
-        run: npm ci --prefix clients/typescript
+        run: |
+          if [ -f clients/typescript/package-lock.json ]; then
+            npm ci --prefix clients/typescript
+          else
+            npm install --prefix clients/typescript
+          fi
 
       - name: Install kit CLI (editable)
         run: uv pip install -e .
