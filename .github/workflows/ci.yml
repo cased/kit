@@ -26,8 +26,9 @@ jobs:
       - name: Install JS dependencies (TypeScript client)
         working-directory: clients/typescript
         run: |
+          echo "Listing client dir contents:" && ls -la
           if [ -f package-lock.json ]; then
-            npm ci
+            npm ci || npm install
           else
             npm install
           fi
