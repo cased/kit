@@ -62,7 +62,8 @@ test_repo*
 
 # Test results and matrix testing artifacts
 test-results/
-*.json
+# Ignore JSON artifacts only in test-results folder
+test-results/*.json
 
 # Pycharm
 .idea/
