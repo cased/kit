@@ -18,6 +18,29 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Install dependencies
         run: uv sync
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install JS dependencies (TypeScript client)
+        working-directory: clients/typescript
+        run: |
+          echo "Listing client dir contents:" && ls -la
+          if [ -f package-lock.json ]; then
+            npm ci || npm install
+          else
+            npm install
+          fi
+
+      - name: Install kit CLI (editable)
+        run: uv pip install -e .
+
+      - name: Lint & Type Check (Python + TypeScript)
+        run: scripts/format.sh --fix
+
+      - name: Run JS Tests
+        run: npm test --prefix clients/typescript
       - name: Lint and Type Check
         run: |
           # Run mypy type checking
