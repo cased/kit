@@ -10,6 +10,53 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2025-07-16
+
+### Major Features
+
+- **TypeScript / Node.js Client**
+  - New published package `@runcased/kit` provides a type-safe wrapper around the Kit CLI for JS/TS projects.
+  - Repository helper, semantic search, PR review and every CLI command exposed via the same API shape.
+  - Added build, lint, type-check and Prettier integration; full Jest test-suite + integration test.
+
+### Tooling & CI
+
+- Unified `scripts/format.sh` now formats *both* Python (Ruff) **and** TypeScript (Prettier, ESLint, `tsc`).
+- GitHub Actions workflow upgraded:
+  - Node setup, JS deps install, shared formatter, and TS test jobs.
+  - Release script publishes Python package to PyPI **and** TS client to npm in one shot (`scripts/release.sh`).
+
+---
+
+## [1.6.0] - 2025-07-02
+
+### Improvements
+
+- **Documentation Overhaul**
+  - Added advanced dependency-analysis tutorial, PR reviewer CI guides, and detailed changelog pages.
+  - Improved quick-start sections and clarified token/env-var usage.
+- **Quality & Testing**
+  - Large expansion of unit/integration test suite (‐80 → 120 tests).
+  - Better line-number validation tests for PR reviewer and diff parser.
+
+---
+
+## [1.5.0] - 2025-07-01
+
+### New Features
+
+- **Semantic Search CLI**
+  - `kit search-semantic` command delivers vector-based natural-language code search.
+  - Supports on-the-fly or persisted embedding indexes, chunking by symbols or lines, configurable models.
+  - Python API surface `Repository.search_semantic()` added.
+
+### Enhancements
+
+- Faster vector-index build via batched embedding calls.
+- Early incremental support helpers for Chroma backend.
+
+---
+
 ## [1.4.0] - 2025-06-27
 
 ### New Features
