@@ -23,12 +23,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install JS dependencies
+      - name: Install JS dependencies (TypeScript client)
+        working-directory: clients/typescript
         run: |
-          if [ -f clients/typescript/package-lock.json ]; then
-            npm ci --prefix clients/typescript
+          if [ -f package-lock.json ]; then
+            npm ci
           else
-            npm install --prefix clients/typescript
+            npm install
           fi
 
       - name: Install kit CLI (editable)
