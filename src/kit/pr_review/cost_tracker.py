@@ -1,9 +1,16 @@
 """Cost tracking for PR review operations."""
 
+import logging
+import time
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import ClassVar, Dict, Optional
 
+import requests
+
 from .config import LLMProvider
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -28,140 +35,139 @@ class CostBreakdown:
 class CostTracker:
     """Tracks costs for PR review operations."""
 
-    # Default pricing (as of May 2025) - can be overridden in config
-    DEFAULT_PRICING: ClassVar[Dict] = {
+    # Cache pricing data for 24 hours
+    CACHE_TTL_SECONDS = 86400
+    HELICONE_API_URL = "https://helicone.ai/api/llm-costs"
+
+    # Minimal fallback pricing for when API is unavailable
+    FALLBACK_PRICING: ClassVar[Dict] = {
         LLMProvider.ANTHROPIC: {
-            "claude-opus-4-20250514": {
-                "input_per_million": 15.00,  # $15.00 per million input tokens
-                "output_per_million": 75.00,  # $75.00 per million output tokens
-            },
-            "claude-sonnet-4-20250514": {
-                "input_per_million": 3.00,  # $3.00 per million input tokens
-                "output_per_million": 15.00,  # $15.00 per million output tokens
-            },
-            "claude-3-5-sonnet-20241022": {
-                "input_per_million": 3.00,  # $3.00 per million input tokens
-                "output_per_million": 15.00,  # $15.00 per million output tokens
-            },
-            "claude-3-5-sonnet-latest": {
-                "input_per_million": 3.00,  # $3.00 per million input tokens
-                "output_per_million": 15.00,  # $15.00 per million output tokens
-            },
-            "claude-3-5-haiku-20241022": {
-                "input_per_million": 0.80,  # $0.80 per million input tokens
-                "output_per_million": 4.00,  # $4.00 per million output tokens
-            },
-            "claude-3-5-haiku-latest": {
-                "input_per_million": 0.80,  # $0.80 per million input tokens
-                "output_per_million": 4.00,  # $4.00 per million output tokens
-            },
+            "_default": {"input_per_million": 3.00, "output_per_million": 15.00},
         },
         LLMProvider.OPENAI: {
-            "gpt-4.1": {
-                "input_per_million": 2.00,  # $2.00 per million input tokens
-                "output_per_million": 8.00,  # $8.00 per million output tokens
-            },
-            "gpt-4.1-mini": {
-                "input_per_million": 0.40,  # $0.40 per million input tokens
-                "output_per_million": 1.60,  # $1.60 per million output tokens
-            },
-            "gpt-4.1-nano": {
-                "input_per_million": 0.10,  # $0.10 per million input tokens
-                "output_per_million": 0.40,  # $0.40 per million output tokens
-            },
-            "gpt-4o": {
-                "input_per_million": 2.50,  # $2.50 per million input tokens
-                "output_per_million": 10.00,  # $10.00 per million output tokens
-            },
-            "gpt-4o-mini": {
-                "input_per_million": 0.15,  # $0.15 per million input tokens
-                "output_per_million": 0.60,  # $0.60 per million output tokens
-            },
-            "gpt-4-turbo": {
-                "input_per_million": 10.00,  # $10.00 per million input tokens
-                "output_per_million": 30.00,  # $30.00 per million output tokens
-            },
+            "_default": {"input_per_million": 2.50, "output_per_million": 10.00},
         },
         LLMProvider.GOOGLE: {
-            # Gemini pricing from https://ai.google.dev/gemini-api/docs/pricing
-            "gemini-2.5-flash": {
-                "input_per_million": 0.15,  # $0.15 per million input tokens
-                "output_per_million": 0.60,  # $0.60 per million output tokens (non-thinking)
-            },
-            "gemini-2.5-flash-preview": {
-                "input_per_million": 0.15,  # $0.15 per million input tokens
-                "output_per_million": 0.60,  # $0.60 per million output tokens (non-thinking)
-            },
-            "gemini-2.5-pro": {
-                "input_per_million": 2.50,  # $2.50 per million input tokens (>200k tokens)
-                "output_per_million": 15.00,  # $15.00 per million output tokens (>200k tokens)
-            },
-            "gemini-2.5-pro-preview": {
-                "input_per_million": 2.50,  # $2.50 per million input tokens (>200k tokens)
-                "output_per_million": 15.00,  # $15.00 per million output tokens (>200k tokens)
-            },
-            "gemini-2.0-flash": {
-                "input_per_million": 0.15,  # Estimated based on Flash pricing pattern
-                "output_per_million": 0.60,  # Estimated based on Flash pricing pattern
-            },
-            "gemini-2.0-flash-lite": {
-                "input_per_million": 0.075,  # Estimated - lite version should be cheaper
-                "output_per_million": 0.30,  # Estimated - lite version should be cheaper
-            },
-            "gemini-1.5-flash": {
-                "input_per_million": 0.15,  # $0.15 per million input tokens (>128k tokens)
-                "output_per_million": 0.60,  # $0.60 per million output tokens (>128k tokens)
-            },
-            "gemini-1.5-flash-8b": {
-                "input_per_million": 0.075,  # $0.075 per million input tokens (>128k tokens)
-                "output_per_million": 0.30,  # $0.30 per million output tokens (>128k tokens)
-            },
-            "gemini-1.5-pro": {
-                "input_per_million": 2.50,  # $2.50 per million input tokens (>128k tokens)
-                "output_per_million": 10.00,  # $10.00 per million output tokens (>128k tokens)
-            },
-            # Legacy naming patterns
-            "gemini-1.5-pro-latest": {
-                "input_per_million": 2.50,  # Same as gemini-1.5-pro
-                "output_per_million": 10.00,  # Same as gemini-1.5-pro
-            },
-            "gemini-1.5-flash-latest": {
-                "input_per_million": 0.15,  # Same as gemini-1.5-flash
-                "output_per_million": 0.60,  # Same as gemini-1.5-flash
-            },
+            "_default": {"input_per_million": 0.50, "output_per_million": 1.50},
         },
         LLMProvider.OLLAMA: {
-            # Ollama is completely free - all models cost $0
-            # Latest popular models from ollama.com/library
-            "qwen2.5-coder:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "deepseek-r1:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "codellama:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "llama3.3:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "devstral:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "gemma3:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "qwen3:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "phi4:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            # Legacy popular models
-            "llama3.2:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "llama3.1:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "llama3:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "mistral:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "deepseek-coder:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "qwen2.5:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            "gemma2:latest": {"input_per_million": 0.00, "output_per_million": 0.00},
-            # Default fallback for any Ollama model
             "_default": {"input_per_million": 0.00, "output_per_million": 0.00},
         },
     }
 
     def __init__(self, custom_pricing: Optional[Dict] = None):
         """Initialize cost tracker with optional custom pricing."""
-        self.pricing = custom_pricing or self.DEFAULT_PRICING
+        self.custom_pricing = custom_pricing
         self.reset()
 
     def reset(self):
         """Reset cost tracking for a new review."""
         self.breakdown = CostBreakdown()
+
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def _fetch_pricing_with_cache(cache_key: str) -> Dict:
+        """Fetch pricing from Helicone API with caching.
+
+        The cache_key is just the current hour to ensure we refresh hourly.
+        """
+        try:
+            logger.info("Fetching latest pricing from Helicone API...")
+            response = requests.get(CostTracker.HELICONE_API_URL, timeout=5)
+            response.raise_for_status()
+
+            data = response.json()
+
+            # Convert Helicone format to Kit format
+            pricing = {
+                LLMProvider.ANTHROPIC: {},
+                LLMProvider.OPENAI: {},
+                LLMProvider.GOOGLE: {},
+                LLMProvider.OLLAMA: {"_default": {"input_per_million": 0.00, "output_per_million": 0.00}},
+            }
+
+            for model_data in data.get("data", []):
+                provider_name = model_data.get("provider", "").upper()
+                model_name = model_data.get("model", "")
+                input_cost = model_data.get("input_cost_per_1m", 0.0)
+                output_cost = model_data.get("output_cost_per_1m", 0.0)
+
+                # Map Helicone providers to Kit providers
+                provider_map = {
+                    "OPENAI": LLMProvider.OPENAI,
+                    "ANTHROPIC": LLMProvider.ANTHROPIC,
+                    "GOOGLE": LLMProvider.GOOGLE,
+                    "GOOGLEVERTEXAI": LLMProvider.GOOGLE,
+                    "OLLAMA": LLMProvider.OLLAMA,
+                }
+
+                if provider_name in provider_map:
+                    kit_provider = provider_map[provider_name]
+                    # Handle model name normalization
+                    normalized_model = CostTracker._normalize_model_name(model_name, kit_provider)
+                    pricing[kit_provider][normalized_model] = {
+                        "input_per_million": input_cost,
+                        "output_per_million": output_cost,
+                    }
+
+            logger.info(f"Successfully fetched pricing for {sum(len(p) for p in pricing.values())} models")
+            return pricing
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch pricing from Helicone API: {e}")
+            logger.warning("Using fallback pricing")
+            return CostTracker.FALLBACK_PRICING
+
+    @staticmethod
+    def _normalize_model_name(model_name: str, provider: LLMProvider) -> str:
+        """Normalize model names from Helicone to match Kit's naming."""
+        # Handle special cases and normalization
+        if provider == LLMProvider.ANTHROPIC:
+            # Convert Helicone's claude names to Kit's format
+            if "claude-3-opus" in model_name:
+                return "claude-opus-4-20250514"  # Map to Kit's naming
+            elif "claude-3.5-sonnet" in model_name or "claude-3-5-sonnet" in model_name:
+                if "20241022" in model_name:
+                    return "claude-3-5-sonnet-20241022"
+                return "claude-sonnet-4-20250514"
+            elif "claude-3.5-haiku" in model_name or "claude-3-5-haiku" in model_name:
+                if "20241022" in model_name:
+                    return "claude-3-5-haiku-20241022"
+                return "claude-3-5-haiku-latest"
+            elif "claude-2" in model_name:
+                return "claude-2"
+
+        elif provider == LLMProvider.OPENAI:
+            # Normalize OpenAI model names
+            if model_name == "gpt-4":
+                return "gpt-4.1"
+            elif model_name == "gpt-4-1106-preview":
+                return "gpt-4-turbo"
+            elif model_name.startswith("gpt-3.5"):
+                return "gpt-3.5-turbo"
+            # Keep specific model names as is
+            elif model_name in ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"]:
+                return model_name
+
+        elif provider == LLMProvider.GOOGLE:
+            # Normalize Gemini model names
+            if "gemini-pro" in model_name and "1.0" in model_name:
+                return "gemini-1.0-pro"
+            elif "gemini-pro" in model_name and "1.5" in model_name:
+                return "gemini-1.5-pro"
+            # Keep other Google model names mostly as-is
+            return model_name
+
+        return model_name
+
+    def _get_current_pricing(self) -> Dict:
+        """Get current pricing, using cache or fetching from API."""
+        if self.custom_pricing:
+            return self.custom_pricing
+
+        # Use current hour as cache key (refreshes hourly)
+        cache_key = str(int(time.time() / 3600))
+        return self._fetch_pricing_with_cache(cache_key)
 
     def track_llm_usage(self, provider: LLMProvider, model: str, input_tokens: int, output_tokens: int):
         """Track LLM API usage and calculate costs."""
@@ -171,26 +177,37 @@ class CostTracker:
         # Strip prefix from model name for pricing lookup
         stripped_model = self._strip_model_prefix(model)
 
+        # Get current pricing
+        current_pricing = self._get_current_pricing()
+
         # Get pricing for this provider/model
-        if provider in self.pricing and stripped_model in self.pricing[provider]:
-            pricing = self.pricing[provider][stripped_model]
+        if provider in current_pricing and stripped_model in current_pricing[provider]:
+            pricing = current_pricing[provider][stripped_model]
             input_cost = (input_tokens / 1_000_000) * pricing["input_per_million"]
             output_cost = (output_tokens / 1_000_000) * pricing["output_per_million"]
 
             self.breakdown.llm_cost_usd += input_cost + output_cost
         elif provider == LLMProvider.OLLAMA:
             # All Ollama models are free - use default $0.00 pricing
-            if provider in self.pricing and "_default" in self.pricing[provider]:
-                pricing = self.pricing[provider]["_default"]
+            if provider in current_pricing and "_default" in current_pricing[provider]:
+                pricing = current_pricing[provider]["_default"]
                 self.breakdown.llm_cost_usd += 0.00  # Always free
             else:
                 self.breakdown.llm_cost_usd += 0.00  # Fallback - still free
         else:
-            # Unknown model - use a reasonable estimate and warn
-            print(f"⚠️  Unknown pricing for {provider.value}/{stripped_model}, using estimates")
-            print("   Update pricing in ~/.kit/review-config.yaml or check current rates")
-            self.breakdown.llm_cost_usd += (input_tokens / 1_000_000) * 3.0
-            self.breakdown.llm_cost_usd += (output_tokens / 1_000_000) * 15.0
+            # Try the default pricing for the provider first
+            if provider in current_pricing and "_default" in current_pricing[provider]:
+                pricing = current_pricing[provider]["_default"]
+                input_cost = (input_tokens / 1_000_000) * pricing["input_per_million"]
+                output_cost = (output_tokens / 1_000_000) * pricing["output_per_million"]
+                self.breakdown.llm_cost_usd += input_cost + output_cost
+                logger.info(f"Using default pricing for {provider.value}/{stripped_model}")
+            else:
+                # Unknown model - use a reasonable estimate and warn
+                logger.warning(f"Unknown pricing for {provider.value}/{stripped_model}, using estimates")
+                logger.warning("Check if Helicone API has pricing for this model")
+                self.breakdown.llm_cost_usd += (input_tokens / 1_000_000) * 3.0
+                self.breakdown.llm_cost_usd += (output_tokens / 1_000_000) * 15.0
 
         # Store the original model name with prefix for reference
         self.breakdown.model_used = model
@@ -226,19 +243,19 @@ class CostTracker:
             # Fallback if usage info not available
             return 0, 0
 
-    @classmethod
-    def get_available_models(cls) -> Dict[str, list[str]]:
+    def get_available_models(self) -> Dict[str, list[str]]:
         """Get all available models organized by provider."""
         available = {}
-        for provider, models in cls.DEFAULT_PRICING.items():
+        current_pricing = self._get_current_pricing()
+        for provider, models in current_pricing.items():
             available[provider.value] = list(models.keys())
         return available
 
-    @classmethod
-    def get_all_model_names(cls) -> list[str]:
+    def get_all_model_names(self) -> list[str]:
         """Get a flat list of all available model names."""
         all_models = []
-        for provider_models in cls.DEFAULT_PRICING.values():
+        current_pricing = self._get_current_pricing()
+        for provider_models in current_pricing.values():
             all_models.extend(provider_models.keys())
         return sorted(all_models)
 
@@ -263,13 +280,17 @@ class CostTracker:
 
         Supports prefixed model names like 'vertex_ai/claude-sonnet-4-20250514'.
         """
+        # Create a temporary instance to get current pricing
+        temp_tracker = cls()
+        all_models = temp_tracker.get_all_model_names()
+
         # Try exact match first
-        if model_name in cls.get_all_model_names():
+        if model_name in all_models:
             return True
 
         # Try with prefix stripped
         stripped_model = cls._strip_model_prefix(model_name)
-        if stripped_model in cls.get_all_model_names():
+        if stripped_model in all_models:
             return True
 
         # Special case for Ollama - any model is valid since it's local
@@ -282,7 +303,9 @@ class CostTracker:
     @classmethod
     def get_model_suggestions(cls, invalid_model: str) -> list[str]:
         """Get model suggestions for an invalid model name."""
-        all_models = cls.get_all_model_names()
+        # Create a temporary instance to get current pricing
+        temp_tracker = cls()
+        all_models = temp_tracker.get_all_model_names()
         suggestions = []
 
         # Strip prefix for comparison

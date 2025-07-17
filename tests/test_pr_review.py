@@ -164,7 +164,12 @@ def test_pr_url_parsing():
 
 def test_cost_tracker_anthropic():
     """Test cost tracking for Anthropic models."""
-    tracker = CostTracker()
+    # Mock pricing data for consistent testing
+    mock_pricing = {
+        LLMProvider.ANTHROPIC: {"claude-3-5-sonnet-20241022": {"input_per_million": 3.00, "output_per_million": 15.00}}
+    }
+
+    tracker = CostTracker(custom_pricing=mock_pricing)
 
     # Test Claude 3.5 Sonnet pricing
     tracker.track_llm_usage(LLMProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", 1000, 500)
@@ -178,7 +183,10 @@ def test_cost_tracker_anthropic():
 
 def test_cost_tracker_openai():
     """Test cost tracking for OpenAI models."""
-    tracker = CostTracker()
+    # Mock pricing data for consistent testing
+    mock_pricing = {LLMProvider.OPENAI: {"gpt-4o": {"input_per_million": 2.50, "output_per_million": 10.00}}}
+
+    tracker = CostTracker(custom_pricing=mock_pricing)
 
     # Test GPT-4o pricing
     tracker.track_llm_usage(LLMProvider.OPENAI, "gpt-4o", 2000, 800)
@@ -193,13 +201,13 @@ def test_cost_tracker_unknown_model():
     """Test cost tracking for unknown models uses estimates."""
     tracker = CostTracker()
 
-    with patch("builtins.print") as mock_print:
+    with patch("kit.pr_review.cost_tracker.logger.warning") as mock_warning:
         tracker.track_llm_usage(LLMProvider.ANTHROPIC, "unknown-model", 1000, 500)
 
-        # Should print warning
-        mock_print.assert_called()
-        warning_call = str(mock_print.call_args_list[0])
-        assert "Unknown pricing" in warning_call
+        # Should log warning
+        mock_warning.assert_called()
+        warning_calls = [str(call) for call in mock_warning.call_args_list]
+        assert any("Unknown pricing" in str(call) for call in warning_calls)
 
         # Should use fallback pricing
         expected_cost = (1000 / 1_000_000) * 3.0 + (500 / 1_000_000) * 15.0
@@ -283,7 +291,13 @@ def test_model_prefix_detection():
 
 def test_cost_tracking_with_prefixed_models():
     """Test cost tracking with prefixed model names."""
-    tracker = CostTracker()
+    # Mock pricing data for consistent testing
+    mock_pricing = {
+        LLMProvider.OPENAI: {"gpt-4o": {"input_per_million": 2.50, "output_per_million": 10.00}},
+        LLMProvider.ANTHROPIC: {"claude-3-5-sonnet-20241022": {"input_per_million": 3.00, "output_per_million": 15.00}},
+    }
+
+    tracker = CostTracker(custom_pricing=mock_pricing)
 
     # Test OpenRouter model that maps to known pricing
     # Should extract base model and use its pricing
@@ -297,10 +311,7 @@ def test_cost_tracking_with_prefixed_models():
     tracker.reset()
 
     # Test Together AI model with Anthropic base model
-    # Since "together/anthropic/claude-3-5-sonnet-20241022" doesn't match
-    # the exact pricing key, it will use fallback pricing
-    with patch("builtins.print"):  # Suppress warning output
-        tracker.track_llm_usage(LLMProvider.ANTHROPIC, "together/claude-3-5-sonnet-20241022", 800, 400)
+    tracker.track_llm_usage(LLMProvider.ANTHROPIC, "together/claude-3-5-sonnet-20241022", 800, 400)
 
     # Should extract claude-3-5-sonnet-20241022 and use its pricing
     expected_cost = (800 / 1_000_000) * 3.00 + (400 / 1_000_000) * 15.00
@@ -309,19 +320,22 @@ def test_cost_tracking_with_prefixed_models():
 
 def test_cost_tracking_unknown_prefixed_models():
     """Test cost tracking for unknown prefixed models."""
-    tracker = CostTracker()
+    # Only provide default pricing for OpenAI
+    mock_pricing = {LLMProvider.OPENAI: {"_default": {"input_per_million": 2.50, "output_per_million": 10.00}}}
 
-    with patch("builtins.print") as mock_print:
+    tracker = CostTracker(custom_pricing=mock_pricing)
+
+    with patch("kit.pr_review.cost_tracker.logger.info") as mock_info:
         # Test completely unknown prefixed model
         tracker.track_llm_usage(LLMProvider.OPENAI, "newprovider/unknown/model-v1", 1000, 500)
 
-        # Should print warning about unknown pricing
-        mock_print.assert_called()
-        warning_call = str(mock_print.call_args_list[0])
-        assert "Unknown pricing" in warning_call
+        # Should log info about using default pricing
+        mock_info.assert_called()
+        info_calls = [str(call) for call in mock_info.call_args_list]
+        assert any("Using default pricing" in str(call) for call in info_calls)
 
-        # Should use fallback pricing for OpenAI provider
-        expected_cost = (1000 / 1_000_000) * 3.0 + (500 / 1_000_000) * 15.0
+        # Should use default pricing for OpenAI provider
+        expected_cost = (1000 / 1_000_000) * 2.50 + (500 / 1_000_000) * 10.00
         assert abs(tracker.breakdown.llm_cost_usd - expected_cost) < 0.0001
 
 
@@ -476,16 +490,22 @@ def test_provider_prefix_detection():
 
 def test_cost_tracking_edge_cases_with_prefixes():
     """Test edge cases in cost tracking with prefixed models."""
-    tracker = CostTracker()
+    # Mock pricing data for known models only
+    mock_pricing = {
+        LLMProvider.OPENAI: {"gpt-4o": {"input_per_million": 2.50, "output_per_million": 10.00}},
+        LLMProvider.ANTHROPIC: {"_default": {"input_per_million": 3.00, "output_per_million": 15.00}},
+    }
+
+    tracker = CostTracker(custom_pricing=mock_pricing)
 
     # Test model with provider prefix but unknown base model
-    with patch("builtins.print") as mock_print:
+    with patch("kit.pr_review.cost_tracker.logger.info") as mock_info:
         tracker.track_llm_usage(LLMProvider.ANTHROPIC, "openrouter/unknown/mystery-model-v1", 1000, 500)
 
-        # Should warn about unknown pricing
-        mock_print.assert_called()
+        # Should log info about using default pricing
+        mock_info.assert_called()
 
-        # Should use fallback pricing
+        # Should use default pricing
         expected_cost = (1000 / 1_000_000) * 3.0 + (500 / 1_000_000) * 15.0
         assert abs(tracker.breakdown.llm_cost_usd - expected_cost) < 0.0001
 
