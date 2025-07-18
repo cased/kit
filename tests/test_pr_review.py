@@ -164,7 +164,12 @@ def test_pr_url_parsing():
 
 def test_cost_tracker_anthropic():
     """Test cost tracking for Anthropic models."""
-    tracker = CostTracker()
+    # Mock pricing data for consistent testing
+    mock_pricing = {
+        LLMProvider.ANTHROPIC: {"claude-3-5-sonnet-20241022": {"input_per_million": 3.00, "output_per_million": 15.00}}
+    }
+
+    tracker = CostTracker(custom_pricing=mock_pricing)
 
     # Test Claude 3.5 Sonnet pricing
     tracker.track_llm_usage(LLMProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", 1000, 500)
@@ -178,7 +183,10 @@ def test_cost_tracker_anthropic():
 
 def test_cost_tracker_openai():
     """Test cost tracking for OpenAI models."""
-    tracker = CostTracker()
+    # Mock pricing data for consistent testing
+    mock_pricing = {LLMProvider.OPENAI: {"gpt-4o": {"input_per_million": 2.50, "output_per_million": 10.00}}}
+
+    tracker = CostTracker(custom_pricing=mock_pricing)
 
     # Test GPT-4o pricing
     tracker.track_llm_usage(LLMProvider.OPENAI, "gpt-4o", 2000, 800)
@@ -193,13 +201,13 @@ def test_cost_tracker_unknown_model():
     """Test cost tracking for unknown models uses estimates."""
     tracker = CostTracker()
 
-    with patch("builtins.print") as mock_print:
+    with patch("kit.pr_review.cost_tracker.logger.warning") as mock_warning:
         tracker.track_llm_usage(LLMProvider.ANTHROPIC, "unknown-model", 1000, 500)
 
-        # Should print warning
-        mock_print.assert_called()
-        warning_call = str(mock_print.call_args_list[0])
-        assert "Unknown pricing" in warning_call
+        # Should log warning
+        mock_warning.assert_called()
+        warning_calls = [str(call) for call in mock_warning.call_args_list]
+        assert any("Unknown pricing" in str(call) for call in warning_calls)
 
         # Should use fallback pricing
         expected_cost = (1000 / 1_000_000) * 3.0 + (500 / 1_000_000) * 15.0
@@ -283,7 +291,13 @@ def test_model_prefix_detection():
 
 def test_cost_tracking_with_prefixed_models():
     """Test cost tracking with prefixed model names."""
-    tracker = CostTracker()
+    # Mock pricing data for consistent testing
+    mock_pricing = {
+        LLMProvider.OPENAI: {"gpt-4o": {"input_per_million": 2.50, "output_per_million": 10.00}},
+        LLMProvider.ANTHROPIC: {"claude-3-5-sonnet-20241022": {"input_per_million": 3.00, "output_per_million": 15.00}},
+    }
+
+    tracker = CostTracker(custom_pricing=mock_pricing)
 
     # Test OpenRouter model that maps to known pricing
     # Should extract base model and use its pricing
@@ -297,10 +311,7 @@ def test_cost_tracking_with_prefixed_models():
     tracker.reset()
 
     # Test Together AI model with Anthropic base model
-    # Since "together/anthropic/claude-3-5-sonnet-20241022" doesn't match
-    # the exact pricing key, it will use fallback pricing
-    with patch("builtins.print"):  # Suppress warning output
-        tracker.track_llm_usage(LLMProvider.ANTHROPIC, "together/claude-3-5-sonnet-20241022", 800, 400)
+    tracker.track_llm_usage(LLMProvider.ANTHROPIC, "together/claude-3-5-sonnet-20241022", 800, 400)
 
     # Should extract claude-3-5-sonnet-20241022 and use its pricing
     expected_cost = (800 / 1_000_000) * 3.00 + (400 / 1_000_000) * 15.00
@@ -309,19 +320,22 @@ def test_cost_tracking_with_prefixed_models():
 
 def test_cost_tracking_unknown_prefixed_models():
     """Test cost tracking for unknown prefixed models."""
-    tracker = CostTracker()
+    # Only provide default pricing for OpenAI
+    mock_pricing = {LLMProvider.OPENAI: {"_default": {"input_per_million": 2.50, "output_per_million": 10.00}}}
 
-    with patch("builtins.print") as mock_print:
+    tracker = CostTracker(custom_pricing=mock_pricing)
+
+    with patch("kit.pr_review.cost_tracker.logger.info") as mock_info:
         # Test completely unknown prefixed model
         tracker.track_llm_usage(LLMProvider.OPENAI, "newprovider/unknown/model-v1", 1000, 500)
 
-        # Should print warning about unknown pricing
-        mock_print.assert_called()
-        warning_call = str(mock_print.call_args_list[0])
-        assert "Unknown pricing" in warning_call
+        # Should log info about using default pricing
+        mock_info.assert_called()
+        info_calls = [str(call) for call in mock_info.call_args_list]
+        assert any("Using default pricing" in str(call) for call in info_calls)
 
-        # Should use fallback pricing for OpenAI provider
-        expected_cost = (1000 / 1_000_000) * 3.0 + (500 / 1_000_000) * 15.0
+        # Should use default pricing for OpenAI provider
+        expected_cost = (1000 / 1_000_000) * 2.50 + (500 / 1_000_000) * 10.00
         assert abs(tracker.breakdown.llm_cost_usd - expected_cost) < 0.0001
 
 
@@ -476,16 +490,22 @@ def test_provider_prefix_detection():
 
 def test_cost_tracking_edge_cases_with_prefixes():
     """Test edge cases in cost tracking with prefixed models."""
-    tracker = CostTracker()
+    # Mock pricing data for known models only
+    mock_pricing = {
+        LLMProvider.OPENAI: {"gpt-4o": {"input_per_million": 2.50, "output_per_million": 10.00}},
+        LLMProvider.ANTHROPIC: {"_default": {"input_per_million": 3.00, "output_per_million": 15.00}},
+    }
+
+    tracker = CostTracker(custom_pricing=mock_pricing)
 
     # Test model with provider prefix but unknown base model
-    with patch("builtins.print") as mock_print:
+    with patch("kit.pr_review.cost_tracker.logger.info") as mock_info:
         tracker.track_llm_usage(LLMProvider.ANTHROPIC, "openrouter/unknown/mystery-model-v1", 1000, 500)
 
-        # Should warn about unknown pricing
-        mock_print.assert_called()
+        # Should log info about using default pricing
+        mock_info.assert_called()
 
-        # Should use fallback pricing
+        # Should use default pricing
         expected_cost = (1000 / 1_000_000) * 3.0 + (500 / 1_000_000) * 15.0
         assert abs(tracker.breakdown.llm_cost_usd - expected_cost) < 0.0001
 
@@ -971,7 +991,7 @@ def test_model_validation_functions():
     """Test the model validation utility functions."""
     from kit.pr_review.cost_tracker import CostTracker
 
-    # Test valid models
+    # Test valid models (class methods still work)
     assert CostTracker.is_valid_model("gpt-4.1-nano")
     assert CostTracker.is_valid_model("claude-3-5-sonnet-20241022")
 
@@ -979,28 +999,26 @@ def test_model_validation_functions():
     assert not CostTracker.is_valid_model("gpt4.nope")
     assert not CostTracker.is_valid_model("invalid-model")
 
+    # Create instance for instance methods
+    tracker = CostTracker()
+
     # Test getting all models
-    all_models = CostTracker.get_all_model_names()
-    assert "gpt-4.1-nano" in all_models
-    assert "gpt-4.1" in all_models
-    assert "claude-3-5-sonnet-20241022" in all_models
-    assert len(all_models) > 5  # Should have multiple models
+    all_models = tracker.get_all_model_names()
+    # With dynamic pricing, we can't guarantee specific models, but should have some
+    assert len(all_models) > 0
 
     # Test getting models by provider
-    available = CostTracker.get_available_models()
+    available = tracker.get_available_models()
     assert "anthropic" in available
     assert "openai" in available
-    assert "gpt-4.1-nano" in available["openai"]
-    assert "claude-3-5-sonnet-20241022" in available["anthropic"]
+    # Can't guarantee specific models with dynamic pricing
+    assert len(available["openai"]) > 0
+    assert len(available["anthropic"]) > 0
 
-    # Test suggestions for invalid models
+    # Test suggestions for invalid models (class method)
     suggestions = CostTracker.get_model_suggestions("gpt4")
     assert len(suggestions) > 0
-    assert any("gpt-4" in s for s in suggestions)
-
-    suggestions = CostTracker.get_model_suggestions("claude")
-    assert len(suggestions) > 0
-    assert any("claude" in s for s in suggestions)
+    # Can't guarantee specific suggestions with dynamic pricing
 
 
 def test_cli_model_validation():
@@ -1396,3 +1414,65 @@ class TestExistingRepoPath:
                     # Check that the existing repo path was mentioned
                     repo_path_calls = [call for call in mock_print.call_args_list if "/existing/repo" in str(call)]
                     assert len(repo_path_calls) > 0
+
+
+def test_helicone_api_integration():
+    """Test Helicone API integration for dynamic pricing."""
+    from unittest.mock import MagicMock, patch
+
+    from kit.pr_review.cost_tracker import CostTracker
+
+    # Mock successful API response
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "data": [
+            {"provider": "OPENAI", "model": "gpt-4o", "input_cost_per_1m": 5.0, "output_cost_per_1m": 15.0},
+            {
+                "provider": "ANTHROPIC",
+                "model": "claude-3-5-sonnet-20241022",
+                "input_cost_per_1m": 3.0,
+                "output_cost_per_1m": 15.0,
+            },
+        ]
+    }
+    mock_response.raise_for_status = MagicMock()
+
+    with patch("requests.get", return_value=mock_response):
+        tracker = CostTracker()
+        pricing = tracker._get_current_pricing()
+
+        # Verify pricing was fetched and normalized
+        assert LLMProvider.OPENAI in pricing
+        assert LLMProvider.ANTHROPIC in pricing
+        assert "gpt-4o" in pricing[LLMProvider.OPENAI]
+        assert "claude-3-5-sonnet-20241022" in pricing[LLMProvider.ANTHROPIC]
+
+        # Test cost calculation with fetched pricing
+        tracker.track_llm_usage(LLMProvider.OPENAI, "gpt-4o", 1000, 1000)
+        expected_cost = (1000 / 1_000_000) * 5.0 + (1000 / 1_000_000) * 15.0
+        assert abs(tracker.breakdown.llm_cost_usd - expected_cost) < 0.0001
+
+
+def test_helicone_api_fallback():
+    """Test fallback when Helicone API is unavailable."""
+    from unittest.mock import patch
+
+    from kit.pr_review.cost_tracker import CostTracker
+
+    # Clear the cache first
+    CostTracker._fetch_pricing_with_cache.cache_clear()
+
+    # Mock API failure
+    with patch("requests.get", side_effect=Exception("Connection error")):
+        with patch("kit.pr_review.cost_tracker.logger.warning") as mock_warning:
+            tracker = CostTracker()
+            pricing = tracker._get_current_pricing()
+
+            # Should warn about failure
+            assert mock_warning.call_count > 0
+
+            # Should return fallback pricing
+            assert pricing == CostTracker.FALLBACK_PRICING
+
+    # Clear cache again to avoid affecting other tests
+    CostTracker._fetch_pricing_with_cache.cache_clear()

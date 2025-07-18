@@ -26,6 +26,14 @@ kit review --dry-run https://github.com/owner/repo/pull/123
 
 Kit provides **exceptional value** with transparent pricing. Based on real-world testing:
 
+### **Dynamic Pricing via Helicone API**
+
+Kit now fetches real-time pricing data from [Helicone's API](https://www.helicone.ai/llm-cost), ensuring:
+- **Always Current**: No more outdated pricing - automatically updates hourly
+- **300+ Models**: Access pricing for models across all major providers
+- **Zero Configuration**: Works out of the box with no setup required
+- **Graceful Fallback**: Uses minimal defaults if API is unavailable
+
 ### **Actual Cost Data (Typical 3-6 file PR)**
 
 | Mode | Typical Cost Range | Speed | Use Case |
