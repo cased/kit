@@ -991,7 +991,7 @@ def test_model_validation_functions():
     """Test the model validation utility functions."""
     from kit.pr_review.cost_tracker import CostTracker
 
-    # Test valid models
+    # Test valid models (class methods still work)
     assert CostTracker.is_valid_model("gpt-4.1-nano")
     assert CostTracker.is_valid_model("claude-3-5-sonnet-20241022")
 
@@ -999,28 +999,26 @@ def test_model_validation_functions():
     assert not CostTracker.is_valid_model("gpt4.nope")
     assert not CostTracker.is_valid_model("invalid-model")
 
+    # Create instance for instance methods
+    tracker = CostTracker()
+
     # Test getting all models
-    all_models = CostTracker.get_all_model_names()
-    assert "gpt-4.1-nano" in all_models
-    assert "gpt-4.1" in all_models
-    assert "claude-3-5-sonnet-20241022" in all_models
-    assert len(all_models) > 5  # Should have multiple models
+    all_models = tracker.get_all_model_names()
+    # With dynamic pricing, we can't guarantee specific models, but should have some
+    assert len(all_models) > 0
 
     # Test getting models by provider
-    available = CostTracker.get_available_models()
+    available = tracker.get_available_models()
     assert "anthropic" in available
     assert "openai" in available
-    assert "gpt-4.1-nano" in available["openai"]
-    assert "claude-3-5-sonnet-20241022" in available["anthropic"]
+    # Can't guarantee specific models with dynamic pricing
+    assert len(available["openai"]) > 0
+    assert len(available["anthropic"]) > 0
 
-    # Test suggestions for invalid models
+    # Test suggestions for invalid models (class method)
     suggestions = CostTracker.get_model_suggestions("gpt4")
     assert len(suggestions) > 0
-    assert any("gpt-4" in s for s in suggestions)
-
-    suggestions = CostTracker.get_model_suggestions("claude")
-    assert len(suggestions) > 0
-    assert any("claude" in s for s in suggestions)
+    # Can't guarantee specific suggestions with dynamic pricing
 
 
 def test_cli_model_validation():
@@ -1416,3 +1414,65 @@ class TestExistingRepoPath:
                     # Check that the existing repo path was mentioned
                     repo_path_calls = [call for call in mock_print.call_args_list if "/existing/repo" in str(call)]
                     assert len(repo_path_calls) > 0
+
+
+def test_helicone_api_integration():
+    """Test Helicone API integration for dynamic pricing."""
+    from unittest.mock import MagicMock, patch
+
+    from kit.pr_review.cost_tracker import CostTracker
+
+    # Mock successful API response
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "data": [
+            {"provider": "OPENAI", "model": "gpt-4o", "input_cost_per_1m": 5.0, "output_cost_per_1m": 15.0},
+            {
+                "provider": "ANTHROPIC",
+                "model": "claude-3-5-sonnet-20241022",
+                "input_cost_per_1m": 3.0,
+                "output_cost_per_1m": 15.0,
+            },
+        ]
+    }
+    mock_response.raise_for_status = MagicMock()
+
+    with patch("requests.get", return_value=mock_response):
+        tracker = CostTracker()
+        pricing = tracker._get_current_pricing()
+
+        # Verify pricing was fetched and normalized
+        assert LLMProvider.OPENAI in pricing
+        assert LLMProvider.ANTHROPIC in pricing
+        assert "gpt-4o" in pricing[LLMProvider.OPENAI]
+        assert "claude-3-5-sonnet-20241022" in pricing[LLMProvider.ANTHROPIC]
+
+        # Test cost calculation with fetched pricing
+        tracker.track_llm_usage(LLMProvider.OPENAI, "gpt-4o", 1000, 1000)
+        expected_cost = (1000 / 1_000_000) * 5.0 + (1000 / 1_000_000) * 15.0
+        assert abs(tracker.breakdown.llm_cost_usd - expected_cost) < 0.0001
+
+
+def test_helicone_api_fallback():
+    """Test fallback when Helicone API is unavailable."""
+    from unittest.mock import patch
+
+    from kit.pr_review.cost_tracker import CostTracker
+
+    # Clear the cache first
+    CostTracker._fetch_pricing_with_cache.cache_clear()
+
+    # Mock API failure
+    with patch("requests.get", side_effect=Exception("Connection error")):
+        with patch("kit.pr_review.cost_tracker.logger.warning") as mock_warning:
+            tracker = CostTracker()
+            pricing = tracker._get_current_pricing()
+
+            # Should warn about failure
+            assert mock_warning.call_count > 0
+
+            # Should return fallback pricing
+            assert pricing == CostTracker.FALLBACK_PRICING
+
+    # Clear cache again to avoid affecting other tests
+    CostTracker._fetch_pricing_with_cache.cache_clear()
