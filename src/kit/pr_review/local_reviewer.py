@@ -4,7 +4,7 @@ import asyncio
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 
@@ -34,12 +34,12 @@ class LocalChange:
 class LocalDiffReviewer:
     """Reviews local git diffs without requiring a GitHub PR."""
 
-    def __init__(self, config: ReviewConfig, repo_path: Optional[Path] = None):
+    def __init__(self, config: ReviewConfig, repo_path: Optional[Union[Path, str]] = None):
         self.config = config
         self.repo_path = Path(repo_path) if repo_path else Path.cwd()
         self.cost_tracker = CostTracker(config.custom_pricing)
-        self._llm_client = None
-        self._ollama_session = None
+        self._llm_client: Optional[Any] = None
+        self._ollama_session: Optional[requests.Session] = None
 
     def __enter__(self):
         """Context manager entry."""
@@ -269,7 +269,7 @@ class LocalDiffReviewer:
                 symbol_name = symbol.get("name", "")
                 # Get usages if available
                 try:
-                    usages = repo.get_symbol_usages(symbol_name) if symbol_name else []
+                    usages = repo.find_symbol_usages(symbol_name) if symbol_name else []
                     usage_count = len(usages)
                 except Exception as e:
                     print(f"Error getting symbol usages: {e}")
@@ -323,13 +323,13 @@ Changed symbols and their usage counts:
             context += f"- {symbol['type']} {symbol['name']} in {symbol['file']}:{symbol['line']} (used {symbol['usage_count']} times)\n"
 
         # Add the diff
-        context += f"\n\nDiff to review ({len(prioritized_files['selected_files'])} files selected from {len(change.files)} total):\n\n"
+        context += f"\n\nDiff to review ({len(selected_files)} files selected from {len(change.files)} total):\n\n"
 
         # Parse diff and add file patches
         parser = DiffParser()
         parsed_diff = parser.parse_diff(change.diff)
 
-        selected_filenames = {f["filename"] for f in prioritized_files["selected_files"]}
+        selected_filenames = {f["filename"] for f in selected_files}
 
         for filename, file_diff in parsed_diff.items():
             if filename in selected_filenames:
@@ -375,7 +375,7 @@ Focus on practical, actionable feedback. Be concise but specific.
             response = await self._analyze_with_openai_enhanced(prompt)
 
         # Return empty usage dict, as tokens are tracked directly in each provider method
-        usage = {}
+        usage: Dict[str, int] = {}
 
         return response, usage
 
@@ -399,7 +399,8 @@ Focus on practical, actionable feedback. Be concise but specific.
 
             # Track cost
             input_tokens, output_tokens = self.cost_tracker.extract_anthropic_usage(response)
-            self.cost_tracker.track_llm_usage(LLMProvider.ANTHROPIC, self.config.llm_model, input_tokens, output_tokens)
+            model = self.config.llm_model or self.config.llm.model
+            self.cost_tracker.track_llm_usage(LLMProvider.ANTHROPIC, model, input_tokens, output_tokens)
 
             # Extract text from the response content
             text_content = ""
@@ -435,7 +436,8 @@ Focus on practical, actionable feedback. Be concise but specific.
 
             # Track cost
             input_tokens, output_tokens = self.cost_tracker.extract_openai_usage(response)
-            self.cost_tracker.track_llm_usage(LLMProvider.OPENAI, self.config.llm_model, input_tokens, output_tokens)
+            model = self.config.llm_model or self.config.llm.model
+            self.cost_tracker.track_llm_usage(LLMProvider.OPENAI, model, input_tokens, output_tokens)
 
             content = response.choices[0].message.content
             return content if content is not None else "No response content"
@@ -468,15 +470,17 @@ Focus on practical, actionable feedback. Be concise but specific.
             if hasattr(response, "usage_metadata") and response.usage_metadata:
                 input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
                 output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
+                model = self.config.llm_model or self.config.llm.model
                 self.cost_tracker.track_llm_usage(
-                    LLMProvider.GOOGLE, self.config.llm_model, input_tokens, output_tokens
+                    LLMProvider.GOOGLE, model, input_tokens, output_tokens
                 )
             else:
                 # Fallback: estimate tokens based on character count
                 estimated_input_tokens = len(enhanced_prompt) // 4
                 estimated_output_tokens = len(str(response.text)) // 4 if response.text else 0
+                model = self.config.llm_model or self.config.llm.model
                 self.cost_tracker.track_llm_usage(
-                    LLMProvider.GOOGLE, self.config.llm_model, estimated_input_tokens, estimated_output_tokens
+                    LLMProvider.GOOGLE, model, estimated_input_tokens, estimated_output_tokens
                 )
 
             # Ensure we always return a string
@@ -507,8 +511,11 @@ Focus on practical, actionable feedback. Be concise but specific.
             if not self._ollama_session:
                 self._ollama_session = requests.Session()
 
+            model = self.config.llm_model or self.config.llm.model
+            session = self._ollama_session
+            assert session is not None  # Type guard for mypy
             self._llm_client = OllamaClient(
-                self.config.llm_api_base_url or "http://localhost:11434", self.config.llm_model, self._ollama_session
+                self.config.llm_api_base_url or "http://localhost:11434", model, session
             )
 
         try:
@@ -523,8 +530,9 @@ Focus on practical, actionable feedback. Be concise but specific.
             # For consistency, we'll estimate tokens (very rough)
             estimated_input_tokens = len(enhanced_prompt) // 4
             estimated_output_tokens = len(response) // 4
+            model = self.config.llm_model or self.config.llm.model
             self.cost_tracker.track_llm_usage(
-                LLMProvider.OLLAMA, self.config.llm_model, estimated_input_tokens, estimated_output_tokens
+                LLMProvider.OLLAMA, model, estimated_input_tokens, estimated_output_tokens
             )
 
             return response if response else "No response content from Ollama"
