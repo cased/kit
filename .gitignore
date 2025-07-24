@@ -67,3 +67,5 @@ test-results/*.json
 
 # Pycharm
 .idea/
+
+.claude

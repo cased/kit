@@ -1,0 +1,559 @@
+"""Local diff reviewer for reviewing changes without GitHub PRs."""
+
+import asyncio
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import requests
+
+from ..repository import Repository
+from .config import LLMProvider, ReviewConfig
+from .cost_tracker import CostTracker
+from .diff_parser import DiffParser
+from .file_prioritizer import FilePrioritizer
+from .priority_filter import filter_review_by_priority
+from .validator import validate_review_quality
+
+
+@dataclass
+class LocalChange:
+    """Represents a local git change."""
+
+    base_ref: str
+    head_ref: str
+    title: str
+    description: str
+    author: str
+    repo_path: Path
+    diff: str
+    files: List[Dict[str, Any]]
+
+
+class LocalDiffReviewer:
+    """Reviews local git diffs without requiring a GitHub PR."""
+
+    def __init__(self, config: ReviewConfig, repo_path: Optional[Path] = None):
+        self.config = config
+        self.repo_path = Path(repo_path) if repo_path else Path.cwd()
+        self.cost_tracker = CostTracker(config.custom_pricing)
+        self._llm_client = None
+
+    def _run_git_command(self, *args: str) -> Tuple[str, int]:
+        """Run a git command and return output and exit code."""
+        result = subprocess.run(["git", *list(args)], cwd=self.repo_path, capture_output=True, text=True)
+        return result.stdout.strip(), result.returncode
+
+    def _parse_diff_spec(self, diff_spec: str) -> Tuple[str, str]:
+        """Parse diff specification like 'main..feature' or 'HEAD~3'."""
+        if diff_spec == "--staged":
+            return "HEAD", "staged"
+        elif ".." in diff_spec:
+            parts = diff_spec.split("..", 1)
+            return parts[0], parts[1]
+        else:
+            # Single ref means compare with HEAD
+            return diff_spec, "HEAD"
+
+    def _get_commit_info(self, ref: str) -> Dict[str, str]:
+        """Get commit information for a given ref."""
+        if ref == "staged":
+            return {
+                "hash": "staged",
+                "author": self._run_git_command("config", "user.name")[0],
+                "date": "now",
+                "subject": "Staged changes",
+                "body": "",
+            }
+
+        # Get commit info
+        format_str = "%H%n%an%n%ad%n%s%n%b"
+        output, code = self._run_git_command("show", "-s", f"--format={format_str}", ref)
+
+        if code != 0:
+            raise ValueError(f"Invalid git ref: {ref}")
+
+        lines = output.split("\n")
+        return {
+            "hash": lines[0] if len(lines) > 0 else "",
+            "author": lines[1] if len(lines) > 1 else "",
+            "date": lines[2] if len(lines) > 2 else "",
+            "subject": lines[3] if len(lines) > 3 else "",
+            "body": "\n".join(lines[4:]) if len(lines) > 4 else "",
+        }
+
+    def _get_diff(self, base_ref: str, head_ref: str) -> str:
+        """Get diff between two refs."""
+        if head_ref == "staged":
+            # Get staged changes
+            diff, code = self._run_git_command("diff", "--cached")
+        else:
+            diff, code = self._run_git_command("diff", f"{base_ref}..{head_ref}")
+
+        if code != 0:
+            raise ValueError(f"Failed to get diff between {base_ref} and {head_ref}")
+
+        return diff
+
+    def _get_changed_files(self, base_ref: str, head_ref: str) -> List[Dict[str, Any]]:
+        """Get list of changed files between two refs."""
+        if head_ref == "staged":
+            output, code = self._run_git_command("diff", "--cached", "--name-status")
+        else:
+            output, code = self._run_git_command("diff", "--name-status", f"{base_ref}..{head_ref}")
+
+        if code != 0:
+            return []
+
+        files = []
+        for line in output.split("\n"):
+            if not line:
+                continue
+
+            parts = line.split("\t", 1)
+            if len(parts) != 2:
+                continue
+
+            status_code, filename = parts
+            status_map = {"A": "added", "M": "modified", "D": "deleted", "R": "renamed", "C": "copied"}
+
+            status = status_map.get(status_code[0], "modified")
+
+            # Get line stats
+            if head_ref == "staged":
+                stats_output, _ = self._run_git_command("diff", "--cached", "--numstat", filename)
+            else:
+                stats_output, _ = self._run_git_command("diff", "--numstat", f"{base_ref}..{head_ref}", "--", filename)
+
+            additions = 0
+            deletions = 0
+            if stats_output:
+                stats_parts = stats_output.split("\t")
+                if len(stats_parts) >= 2:
+                    try:
+                        additions = int(stats_parts[0])
+                        deletions = int(stats_parts[1])
+                    except ValueError:
+                        pass
+
+            files.append(
+                {
+                    "filename": filename,
+                    "status": status,
+                    "additions": additions,
+                    "deletions": deletions,
+                    "changes": additions + deletions,
+                }
+            )
+
+        return files
+
+    def _prepare_local_change(self, diff_spec: str) -> LocalChange:
+        """Prepare LocalChange object from diff specification."""
+        base_ref, head_ref = self._parse_diff_spec(diff_spec)
+
+        # Get commit info
+        self._get_commit_info(base_ref)
+        head_info = self._get_commit_info(head_ref)
+
+        # Get diff and files
+        diff = self._get_diff(base_ref, head_ref)
+        files = self._get_changed_files(base_ref, head_ref)
+
+        # Construct title and description
+        if head_ref == "staged":
+            title = "Review staged changes"
+            description = "Changes currently staged for commit"
+        else:
+            title = head_info["subject"]
+            description = head_info["body"]
+
+        return LocalChange(
+            base_ref=base_ref,
+            head_ref=head_ref,
+            title=title,
+            description=description,
+            author=head_info["author"],
+            repo_path=self.repo_path,
+            diff=diff,
+            files=files,
+        )
+
+    async def _analyze_with_kit(self, change: LocalChange) -> Dict[str, Any]:
+        """Analyze repository using kit's Repository class."""
+        repo = Repository(str(self.repo_path))
+
+        # Get all symbols
+        all_symbols = repo.extract_symbols()
+
+        # Parse the diff to get changed symbols
+        parser = DiffParser()
+        parser.parse_diff(change.diff)
+
+        changed_files = {f["filename"] for f in change.files}
+
+        # Find symbols in changed files
+        symbols_in_changed_files = []
+        for symbol in all_symbols:
+            if symbol.get("file_path") in changed_files:
+                symbol_name = symbol.get("name", "")
+                # Get usages if available
+                try:
+                    usages = repo.get_symbol_usages(symbol_name) if symbol_name else []
+                    usage_count = len(usages)
+                except Exception as e:
+                    print(f"Error getting symbol usages: {e}")
+                    usage_count = 0
+
+                symbols_in_changed_files.append(
+                    {
+                        "name": symbol_name,
+                        "type": symbol.get("type", "unknown"),
+                        "file": symbol.get("file_path", ""),
+                        "line": symbol.get("line_number", 0),
+                        "usage_count": usage_count,
+                    }
+                )
+
+        # Get repository structure
+        structure = repo.get_file_tree()
+
+        return {
+            "symbols": symbols_in_changed_files,
+            "structure": structure,
+            "total_files": len(structure),
+            "changed_files": len(changed_files),
+        }
+
+    def _generate_review_prompt(self, change: LocalChange, analysis: Dict[str, Any]) -> str:
+        """Generate prompt for LLM review."""
+        # Prioritize files
+        prioritizer = FilePrioritizer()
+        selected_files, total_files = prioritizer.smart_priority(change.files, max_files=self.config.max_files)
+        prioritized_files = {"selected_files": selected_files, "total_files": total_files}
+
+        # Build context about the change
+        context = f"""You are reviewing a local git diff.
+
+Repository: {change.repo_path.name}
+Base: {change.base_ref}
+Head: {change.head_ref}
+Author: {change.author}
+
+Title: {change.title}
+Description: {change.description}
+
+Repository contains {analysis["total_files"]} files total.
+This change modifies {analysis["changed_files"]} files.
+
+Changed symbols and their usage counts:
+"""
+
+        for symbol in analysis["symbols"][:20]:  # Limit to top 20 symbols
+            context += f"- {symbol['type']} {symbol['name']} in {symbol['file']}:{symbol['line']} (used {symbol['usage_count']} times)\n"
+
+        # Add the diff
+        context += f"\n\nDiff to review ({len(prioritized_files['selected_files'])} files selected from {len(change.files)} total):\n\n"
+
+        # Parse diff and add file patches
+        parser = DiffParser()
+        parsed_diff = parser.parse_diff(change.diff)
+
+        selected_filenames = {f["filename"] for f in prioritized_files["selected_files"]}
+
+        for filename, file_diff in parsed_diff.items():
+            if filename in selected_filenames:
+                context += f"File: {filename}\n"
+                context += "=" * 80 + "\n"
+
+                for hunk in file_diff.hunks:
+                    context += f"@@ -{hunk.old_start},{hunk.old_count} +{hunk.new_start},{hunk.new_count} @@\n"
+                    for line in hunk.lines:
+                        # Lines are already formatted with +/- prefixes
+                        context += line
+                        if not line.endswith("\n"):
+                            context += "\n"
+                    context += "\n"
+
+        # Add review instructions
+        context += """
+
+Please review this code diff and provide feedback organized by priority:
+- HIGH priority: Critical issues (bugs, security vulnerabilities, data loss risks)
+- MEDIUM priority: Important issues (performance problems, maintainability concerns, best practice violations)
+- LOW priority: Minor issues (style improvements, optional optimizations)
+
+For each issue, specify the exact file and line number where applicable.
+Format: `filename:line_number`
+
+Focus on practical, actionable feedback. Be concise but specific.
+"""
+
+        return context
+
+    async def _get_llm_review(self, prompt: str) -> Tuple[str, Dict[str, int]]:
+        """Get review from LLM."""
+        # Call the appropriate provider's method
+        # llm_provider is already a string (not an enum)
+        if self.config.llm_provider == "anthropic":
+            response = await self._analyze_with_anthropic_enhanced(prompt)
+        elif self.config.llm_provider == "google":
+            response = await self._analyze_with_google_enhanced(prompt)
+        elif self.config.llm_provider == "ollama":
+            response = await self._analyze_with_ollama_enhanced(prompt)
+        else:  # OpenAI
+            response = await self._analyze_with_openai_enhanced(prompt)
+
+        # Return empty usage dict, as tokens are tracked directly in each provider method
+        usage = {}
+
+        return response, usage
+
+    async def _analyze_with_anthropic_enhanced(self, enhanced_prompt: str) -> str:
+        """Analyze using Anthropic with enhanced kit context."""
+        try:
+            import anthropic
+        except ImportError:
+            raise ValueError("Anthropic library not installed. Install with: pip install anthropic")
+
+        if not self._llm_client:
+            self._llm_client = anthropic.Anthropic(api_key=self.config.llm_api_key)
+
+        try:
+            response = self._llm_client.messages.create(
+                model=self.config.llm_model,
+                max_tokens=self.config.llm_max_tokens,
+                temperature=self.config.llm_temperature,
+                messages=[{"role": "user", "content": enhanced_prompt}],
+            )
+
+            # Track cost
+            input_tokens, output_tokens = self.cost_tracker.extract_anthropic_usage(response)
+            self.cost_tracker.track_llm_usage(LLMProvider.ANTHROPIC, self.config.llm_model, input_tokens, output_tokens)
+
+            # Extract text from the response content
+            text_content = ""
+            for content_block in response.content:
+                if hasattr(content_block, "text"):
+                    text_content += content_block.text
+
+            return text_content if text_content else "No text content in response"
+        except Exception as e:
+            return f"Error during enhanced LLM analysis: {e}"
+
+    async def _analyze_with_openai_enhanced(self, enhanced_prompt: str) -> str:
+        """Analyze using OpenAI with enhanced kit context."""
+        try:
+            import openai
+        except ImportError:
+            raise ValueError("OpenAI library not installed. Install with: pip install openai")
+
+        if not self._llm_client:
+            # Support custom OpenAI compatible providers via api_base_url
+            if self.config.llm_api_base_url:
+                self._llm_client = openai.OpenAI(api_key=self.config.llm_api_key, base_url=self.config.llm_api_base_url)
+            else:
+                self._llm_client = openai.OpenAI(api_key=self.config.llm_api_key)
+
+        try:
+            response = self._llm_client.chat.completions.create(
+                model=self.config.llm_model,
+                max_tokens=self.config.llm_max_tokens,
+                temperature=self.config.llm_temperature,
+                messages=[{"role": "user", "content": enhanced_prompt}],
+            )
+
+            # Track cost
+            input_tokens, output_tokens = self.cost_tracker.extract_openai_usage(response)
+            self.cost_tracker.track_llm_usage(LLMProvider.OPENAI, self.config.llm_model, input_tokens, output_tokens)
+
+            content = response.choices[0].message.content
+            return content if content is not None else "No response content"
+        except Exception as e:
+            return f"Error during enhanced LLM analysis: {e}"
+
+    async def _analyze_with_google_enhanced(self, enhanced_prompt: str) -> str:
+        """Analyze using Google with enhanced kit context."""
+        try:
+            import google.genai as genai
+            from google.genai import types
+        except ImportError:
+            raise ValueError("Google AI library not installed. Install with: pip install google-genai")
+
+        if not self._llm_client:
+            self._llm_client = genai.Client(api_key=self.config.llm_api_key)
+
+        try:
+            # Use the correct API format for the new google-genai SDK
+            response = self._llm_client.models.generate_content(
+                model=self.config.llm_model,
+                contents=enhanced_prompt,
+                config=types.GenerateContentConfig(
+                    temperature=self.config.llm_temperature,
+                    max_output_tokens=self.config.llm_max_tokens,
+                ),
+            )
+
+            # Track cost using accurate token counts from the response
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
+                output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
+                self.cost_tracker.track_llm_usage(
+                    LLMProvider.GOOGLE, self.config.llm_model, input_tokens, output_tokens
+                )
+            else:
+                # Fallback: estimate tokens based on character count
+                estimated_input_tokens = len(enhanced_prompt) // 4
+                estimated_output_tokens = len(str(response.text)) // 4 if response.text else 0
+                self.cost_tracker.track_llm_usage(
+                    LLMProvider.GOOGLE, self.config.llm_model, estimated_input_tokens, estimated_output_tokens
+                )
+
+            # Ensure we always return a string
+            result_text = response.text
+            return result_text if result_text else "No response from Google AI"
+        except Exception as e:
+            return f"Error during enhanced LLM analysis: {e}"
+
+    async def _analyze_with_ollama_enhanced(self, enhanced_prompt: str) -> str:
+        """Analyze using Ollama with enhanced kit context."""
+        if not self._llm_client:
+            # Create Ollama client
+            class OllamaClient:
+                def __init__(self, base_url: str, model: str):
+                    self.base_url = base_url
+                    self.model = model
+                    self.session = requests.Session()
+
+                def generate(self, prompt: str, **kwargs) -> str:
+                    """Generate text using Ollama's API."""
+                    url = f"{self.base_url}/api/generate"
+                    data = {"model": self.model, "prompt": prompt, "stream": False, **kwargs}
+                    response = self.session.post(url, json=data)
+                    response.raise_for_status()
+                    return response.json().get("response", "")
+
+            self._llm_client = OllamaClient(
+                self.config.llm_api_base_url or "http://localhost:11434", self.config.llm_model
+            )
+
+        try:
+            response = await asyncio.to_thread(
+                self._llm_client.generate,
+                enhanced_prompt,
+                temperature=self.config.llm_temperature,
+                num_predict=self.config.llm_max_tokens,
+            )
+
+            # Ollama is free, so no cost tracking needed, but we can track usage
+            # For consistency, we'll estimate tokens (very rough)
+            estimated_input_tokens = len(enhanced_prompt) // 4
+            estimated_output_tokens = len(response) // 4
+            self.cost_tracker.track_llm_usage(
+                LLMProvider.OLLAMA, self.config.llm_model, estimated_input_tokens, estimated_output_tokens
+            )
+
+            return response if response else "No response content from Ollama"
+        except Exception as e:
+            return f"Error during enhanced Ollama analysis: {e}"
+
+    def _format_review_output(self, review_text: str, change: LocalChange, cost: float) -> str:
+        """Format the review output for display."""
+        # For local reviews, line references are already correct
+        # No need to fix them like we do for GitHub URLs
+
+        # Apply priority filtering if configured
+        if self.config.priority_filter:
+            review_text = filter_review_by_priority(review_text, self.config.priority_filter)
+
+        # Add header and footer
+        header = f"""## 🔍 Kit Local Diff Review
+
+**Repository**: {change.repo_path.name}
+**Diff**: {change.base_ref}..{change.head_ref}
+**Author**: {change.author}
+
+---
+
+"""
+
+        footer = f"""
+
+---
+
+*Generated by kit • Cost: ${cost:.4f} • Model: {self.config.llm_model}*
+"""
+
+        return header + review_text + footer
+
+    def _save_review(self, review: str, change: LocalChange) -> Path:
+        """Save review to a file."""
+        # Create reviews directory if it doesn't exist
+        reviews_dir = self.repo_path / ".kit" / "reviews"
+        reviews_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate filename
+        timestamp = subprocess.run(["date", "+%Y%m%d_%H%M%S"], capture_output=True, text=True).stdout.strip()
+
+        safe_refs = f"{change.base_ref}..{change.head_ref}".replace("/", "_").replace(" ", "_")
+        filename = f"review_{timestamp}_{safe_refs}.md"
+
+        review_path = reviews_dir / filename
+        review_path.write_text(review)
+
+        return review_path
+
+    def review(self, diff_spec: str) -> str:
+        """Review a local diff specification."""
+        try:
+            # Check if we're in a git repository
+            _, code = self._run_git_command("rev-parse", "--git-dir")
+            if code != 0:
+                raise ValueError("Not in a git repository")
+
+            # Prepare the change object
+            if not self.config.quiet:
+                print("Analyzing local changes...")
+
+            change = self._prepare_local_change(diff_spec)
+
+            if not change.diff:
+                return "No changes to review."
+
+            # Analyze with kit
+            if not self.config.quiet:
+                print("Analyzing repository with kit...")
+
+            analysis = asyncio.run(self._analyze_with_kit(change))
+
+            # Generate review prompt
+            prompt = self._generate_review_prompt(change, analysis)
+
+            # Get LLM review
+            if not self.config.quiet:
+                print(f"Generating review with {self.config.llm_model}...")
+
+            review_text, usage = asyncio.run(self._get_llm_review(prompt))
+
+            # Get total cost from tracker
+            cost = self.cost_tracker.get_total_cost()
+
+            # Format output
+            formatted_review = self._format_review_output(review_text, change, cost)
+
+            # Save review if configured
+            if self.config.save_reviews:
+                review_path = self._save_review(formatted_review, change)
+                if not self.config.quiet:
+                    print(f"\nReview saved to: {review_path.relative_to(self.repo_path)}")
+
+            # Validate review quality
+            validation = validate_review_quality(review_text, change.diff, [f["filename"] for f in change.files])
+            if not self.config.quiet and validation.score < 0.5:
+                print("\n⚠️  Warning: Review quality score is low. Consider reviewing manually.")
+
+            return formatted_review
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to review local diff: {e!s}")
