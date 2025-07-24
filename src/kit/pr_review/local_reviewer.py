@@ -72,19 +72,30 @@ class LocalDiffReviewer:
         if ref in ["HEAD", "--staged", "--cached"]:
             return True
 
-        # Block path traversal attempts
-        if ".." in ref or ref.startswith("/") or ref.startswith("~"):
+        # Block obvious path traversal attempts and shell injection
+        # But allow ".." in branch range syntax like "main..feature"
+        if ref.startswith("/") or ref.startswith("~") or ref.startswith("-"):
             return False
 
-        # Allow HEAD with tilde notation (e.g., HEAD~3)
-        if re.match(r"^HEAD~\d+$", ref):
+        # Block shell metacharacters
+        dangerous_chars = [";", "&", "|", "`", "$", "(", ")", "<", ">", "\n", "\r", "\x00"]
+        if any(char in ref for char in dangerous_chars):
+            return False
+
+        # Allow HEAD with various notations
+        # HEAD~3, HEAD^, HEAD@{1}, HEAD@{upstream}
+        if re.match(r"^HEAD[@~^].*$", ref):
             return True
 
         # Allow commit SHAs (full or abbreviated)
         if re.match(r"^[a-f0-9]{4,40}$", ref):
             return True
 
-        # Allow branch names (alphanumeric, dash, underscore, slash)
+        # Allow remote refs like origin/main
+        if re.match(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9/_.-]+$", ref):
+            return True
+
+        # Allow branch names (alphanumeric, dash, underscore, slash, dot)
         if re.match(r"^[a-zA-Z0-9/_.-]+$", ref):
             return True
 
@@ -114,6 +125,7 @@ class LocalDiffReviewer:
                     # Whitelist safe options
                     allowed_options = {
                         "-s",
+                        "--",
                         "--cached",
                         "--name-status",
                         "--numstat",
@@ -123,6 +135,7 @@ class LocalDiffReviewer:
                         "--no-pager",
                         "--format",
                         "--pretty",
+                        "--git-dir",
                     }
                     # Allow --format= and --pretty= with values
                     if arg.startswith("--format=") or arg.startswith("--pretty="):
@@ -133,19 +146,35 @@ class LocalDiffReviewer:
                         safe_args.append(arg)
                     else:
                         raise ValueError(f"Disallowed git option: {arg}")
-                # Git refs need validation
+                # Git refs need validation (but not after --)
                 elif i > 0 and args[0] in {"diff", "show", "rev-parse", "log"}:
-                    # For diff ranges like main..feature
-                    if ".." in arg:
-                        parts = arg.split("..", 1)
-                        if len(parts) == 2 and all(self._validate_git_ref(p) for p in parts):
+                    # Check if we've seen "--" already, which means following args are paths
+                    seen_separator = False
+                    for j in range(i):
+                        if args[j] == "--":
+                            seen_separator = True
+                            break
+                    
+                    if seen_separator:
+                        # Everything after -- is a file path, not a ref
+                        safe_args.append(shlex.quote(arg))
+                    else:
+                        # For diff ranges like main..feature or main...feature
+                        if ".." in arg:
+                            # Handle both .. and ... operators
+                            if "..." in arg:
+                                parts = arg.split("...", 1)
+                            else:
+                                parts = arg.split("..", 1)
+                            
+                            if len(parts) == 2 and all(self._validate_git_ref(p) for p in parts):
+                                safe_args.append(arg)
+                            else:
+                                raise ValueError(f"Invalid git ref range: {arg}")
+                        elif self._validate_git_ref(arg):
                             safe_args.append(arg)
                         else:
-                            raise ValueError(f"Invalid git ref range: {arg}")
-                    elif self._validate_git_ref(arg):
-                        safe_args.append(arg)
-                    else:
-                        raise ValueError(f"Invalid git ref: {arg}")
+                            raise ValueError(f"Invalid git ref: {arg}")
                 # Other arguments (like format strings) should be quoted
                 else:
                     safe_args.append(shlex.quote(arg))
@@ -700,9 +729,13 @@ Focus on practical, actionable feedback. Be concise but specific.
 
             # Save review if configured
             if self.config.save_reviews:
-                review_path = self._save_review(formatted_review, change)
-                if not self.config.quiet:
-                    print(f"\nReview saved to: {review_path.relative_to(self.repo_path)}")
+                try:
+                    review_path = self._save_review(formatted_review, change)
+                    if not self.config.quiet:
+                        print(f"\nReview saved to: {review_path.relative_to(self.repo_path)}")
+                except PermissionError as e:
+                    if not self.config.quiet:
+                        print(f"\n⚠️  Warning: Could not save review to file: {e}")
 
             # Validate review quality
             validation = validate_review_quality(review_text, change.diff, [f["filename"] for f in change.files])

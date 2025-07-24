@@ -70,7 +70,7 @@ class TestLocalReviewEdgeCases:
 
             reviewer = LocalDiffReviewer(mock_config, repo_path)
 
-            with pytest.raises(ValueError, match="Failed to get diff"):
+            with pytest.raises(ValueError, match="Invalid git ref"):
                 reviewer._get_diff("invalid-ref-1", "invalid-ref-2")
 
     def test_llm_api_error(self, mock_config):
@@ -86,6 +86,11 @@ class TestLocalReviewEdgeCases:
             (repo_path / "test.py").write_text("print('test')")
             os.system("git add test.py")
             os.system('git commit -m "Add test" --quiet')
+            
+            # Create a second commit so HEAD~1 exists
+            (repo_path / "test.py").write_text("print('test modified')")
+            os.system("git add test.py")
+            os.system('git commit -m "Modify test" --quiet')
 
             reviewer = LocalDiffReviewer(mock_config, repo_path)
 
@@ -111,9 +116,14 @@ class TestLocalReviewEdgeCases:
 
             reviewer = LocalDiffReviewer(mock_config, repo_path)
 
-            # Mock import error
-            with patch("kit.pr_review.local_reviewer.anthropic") as mock_anthropic:
-                mock_anthropic.side_effect = ImportError("No module named 'anthropic'")
+            # Create a second commit so HEAD~1 exists
+            (repo_path / "test2.py").write_text("print('test2')")
+            os.system("git add test2.py")
+            os.system('git commit -m "Add test2" --quiet')
+
+            # Mock import error by mocking the method that uses anthropic
+            with patch.object(reviewer, "_analyze_with_anthropic_enhanced") as mock_anthropic:
+                mock_anthropic.side_effect = ValueError("Anthropic library not installed. Install with: pip install anthropic")
 
                 with pytest.raises(RuntimeError):
                     reviewer.review("HEAD~1..HEAD")
@@ -161,17 +171,27 @@ class TestLocalReviewEdgeCases:
             repo_path = Path(tmpdir)
             reviewer = LocalDiffReviewer(mock_config, repo_path)
 
-            # Mock _get_diff to return malformed content
-            with patch.object(reviewer, "_get_diff") as mock_diff:
-                mock_diff.return_value = "This is not a valid diff format"
+            # Mock _get_commit_info to avoid needing a real git repo
+            with patch.object(reviewer, "_get_commit_info") as mock_commit_info:
+                mock_commit_info.return_value = {
+                    "hash": "abc123",
+                    "author": "Test",
+                    "date": "now",
+                    "subject": "Test commit",
+                    "body": ""
+                }
+                
+                # Mock _get_diff to return malformed content
+                with patch.object(reviewer, "_get_diff") as mock_diff:
+                    mock_diff.return_value = "This is not a valid diff format"
 
-                with patch.object(reviewer, "_get_changed_files") as mock_files:
-                    mock_files.return_value = []
+                    with patch.object(reviewer, "_get_changed_files") as mock_files:
+                        mock_files.return_value = []
 
-                    # Should handle gracefully
-                    change = reviewer._prepare_local_change("HEAD..HEAD")
-                    assert change.diff == "This is not a valid diff format"
-                    assert change.files == []
+                        # Should handle gracefully
+                        change = reviewer._prepare_local_change("HEAD..HEAD")
+                        assert change.diff == "This is not a valid diff format"
+                        assert change.files == []
 
     def test_very_long_diff(self, mock_config):
         """Test handling of very long diffs."""
@@ -182,6 +202,11 @@ class TestLocalReviewEdgeCases:
             os.system('git config user.name "Test"')
             os.system('git config user.email "test@test.com"')
 
+            # Create initial commit
+            (repo_path / "README.md").write_text("Initial")
+            os.system("git add README.md")
+            os.system('git commit -m "Initial commit" --quiet')
+            
             # Create a large file
             large_content = "\n".join([f"line {i}" for i in range(10000)])
             (repo_path / "large.txt").write_text(large_content)
@@ -203,6 +228,11 @@ class TestLocalReviewEdgeCases:
             os.system('git config user.name "Test"')
             os.system('git config user.email "test@test.com"')
 
+            # Create initial commit
+            (repo_path / "README.md").write_text("Initial")
+            os.system("git add README.md")
+            os.system('git commit -m "Initial commit" --quiet')
+            
             # Create files with special characters
             special_files = [
                 "file with spaces.txt",
@@ -235,6 +265,12 @@ class TestLocalReviewEdgeCases:
             os.system('git config user.name "Test"')
             os.system('git config user.email "test@test.com"')
 
+            # Create initial commit
+            (repo_path / "initial.txt").write_text("initial")
+            os.system("git add initial.txt")
+            os.system('git commit -m "Initial" --quiet')
+            
+            # Create second commit
             (repo_path / "test.txt").write_text("test")
             os.system("git add test.txt")
             os.system('git commit -m "Test" --quiet')
