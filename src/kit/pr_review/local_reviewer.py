@@ -39,11 +39,55 @@ class LocalDiffReviewer:
         self.repo_path = Path(repo_path) if repo_path else Path.cwd()
         self.cost_tracker = CostTracker(config.custom_pricing)
         self._llm_client = None
+        self._ollama_session = None
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - cleanup resources."""
+        self.cleanup()
+        return False
+
+    def cleanup(self):
+        """Clean up resources like LLM clients and sessions."""
+        # Close Ollama session if exists
+        if self._ollama_session:
+            try:
+                self._ollama_session.close()
+            except Exception:
+                pass
+            self._ollama_session = None
+
+        # Reset LLM client
+        self._llm_client = None
 
     def _run_git_command(self, *args: str) -> Tuple[str, int]:
         """Run a git command and return output and exit code."""
-        result = subprocess.run(["git", *list(args)], cwd=self.repo_path, capture_output=True, text=True)
-        return result.stdout.strip(), result.returncode
+        try:
+            # Validate arguments to prevent command injection
+            for arg in args:
+                if not isinstance(arg, str):
+                    raise ValueError(f"Invalid git argument type: {type(arg)}")
+                # Basic validation - git refs shouldn't contain shell metacharacters
+                if any(char in arg for char in [";", "&", "|", "`", "$", "(", ")", "<", ">", "\n"]):
+                    raise ValueError(f"Invalid characters in git argument: {arg}")
+
+            result = subprocess.run(
+                ["git", *list(args)],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True,
+                timeout=30,  # Prevent hanging on large operations
+            )
+            return result.stdout.strip(), result.returncode
+        except subprocess.TimeoutExpired:
+            return "", 128  # Git error code for timeout
+        except FileNotFoundError:
+            raise RuntimeError("Git is not installed or not in PATH")
+        except Exception as e:
+            raise RuntimeError(f"Failed to execute git command: {e}")
 
     def _parse_diff_spec(self, diff_spec: str) -> Tuple[str, str]:
         """Parse diff specification like 'main..feature' or 'HEAD~3'."""
@@ -85,6 +129,22 @@ class LocalDiffReviewer:
 
     def _get_diff(self, base_ref: str, head_ref: str) -> str:
         """Get diff between two refs."""
+        # Check if repository is in a clean state first
+        status_output, status_code = self._run_git_command("status", "--porcelain")
+        if status_code != 0:
+            raise ValueError("Unable to check repository status")
+
+        # Check for merge/rebase in progress
+        merge_head_exists = (self.repo_path / ".git" / "MERGE_HEAD").exists()
+        rebase_dir_exists = (self.repo_path / ".git" / "rebase-merge").exists() or (
+            self.repo_path / ".git" / "rebase-apply"
+        ).exists()
+
+        if merge_head_exists:
+            raise ValueError("Repository is in the middle of a merge. Please complete or abort the merge first.")
+        if rebase_dir_exists:
+            raise ValueError("Repository is in the middle of a rebase. Please complete or abort the rebase first.")
+
         if head_ref == "staged":
             # Get staged changes
             diff, code = self._run_git_command("diff", "--cached")
@@ -92,6 +152,15 @@ class LocalDiffReviewer:
             diff, code = self._run_git_command("diff", f"{base_ref}..{head_ref}")
 
         if code != 0:
+            # Try to provide more helpful error messages
+            if code == 128:
+                # Check if refs exist
+                base_exists, _ = self._run_git_command("rev-parse", "--verify", base_ref)
+                head_exists, _ = self._run_git_command("rev-parse", "--verify", head_ref)
+                if _ != 0:
+                    raise ValueError(f"Invalid git ref: {base_ref}")
+                if head_exists == "" and _ != 0:
+                    raise ValueError(f"Invalid git ref: {head_ref}")
             raise ValueError(f"Failed to get diff between {base_ref} and {head_ref}")
 
         return diff
@@ -421,10 +490,10 @@ Focus on practical, actionable feedback. Be concise but specific.
         if not self._llm_client:
             # Create Ollama client
             class OllamaClient:
-                def __init__(self, base_url: str, model: str):
+                def __init__(self, base_url: str, model: str, session: requests.Session):
                     self.base_url = base_url
                     self.model = model
-                    self.session = requests.Session()
+                    self.session = session
 
                 def generate(self, prompt: str, **kwargs) -> str:
                     """Generate text using Ollama's API."""
@@ -434,8 +503,12 @@ Focus on practical, actionable feedback. Be concise but specific.
                     response.raise_for_status()
                     return response.json().get("response", "")
 
+            # Create a session if not exists
+            if not self._ollama_session:
+                self._ollama_session = requests.Session()
+
             self._llm_client = OllamaClient(
-                self.config.llm_api_base_url or "http://localhost:11434", self.config.llm_model
+                self.config.llm_api_base_url or "http://localhost:11434", self.config.llm_model, self._ollama_session
             )
 
         try:

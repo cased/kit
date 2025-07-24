@@ -72,7 +72,7 @@ class TestCLILocalReview:
         assert "GitHub PR:" in result.output
         assert "Local diff:" in result.output
 
-    @patch("kit.cli.LocalDiffReviewer")
+    @patch("kit.pr_review.local_reviewer.LocalDiffReviewer")
     def test_review_local_diff(self, mock_reviewer_class, runner, temp_git_repo):
         """Test reviewing local diff between branches."""
         # Mock the reviewer
@@ -81,21 +81,32 @@ class TestCLILocalReview:
         mock_reviewer_class.return_value = mock_reviewer
 
         # Mock config loading
-        with patch("kit.cli.ReviewConfig.from_file") as mock_config:
-            mock_config.return_value = MagicMock(
-                post_as_comment=False, quiet=False, llm_model="test-model", priority_filter=None
+        with patch("kit.pr_review.config.ReviewConfig.from_file") as mock_config:
+            config_obj = MagicMock(
+                post_as_comment=False, quiet=False, llm_model="gpt-3.5-turbo", priority_filter=None, repo_path=None
             )
+            # Add llm attribute with model for model validation
+            config_obj.llm = MagicMock(model="gpt-3.5-turbo")
+            mock_config.return_value = config_obj
 
             # Run review
             os.chdir(temp_git_repo)
             result = runner.invoke(app, ["review", "main..feature", "--dry-run"])
 
+            if result.exit_code != 0:
+                print(f"Exit code: {result.exit_code}")
+                print(f"Output: {result.output}")
+                print(f"Exception: {result.exception}")
+                if result.exc_info:
+                    import traceback
+
+                    traceback.print_exception(*result.exc_info)
             assert result.exit_code == 0
             assert "REVIEW COMMENT THAT WOULD BE POSTED:" in result.output
             assert "Looks good!" in result.output
             mock_reviewer.review.assert_called_once_with("main..feature")
 
-    @patch("kit.cli.LocalDiffReviewer")
+    @patch("kit.pr_review.local_reviewer.LocalDiffReviewer")
     def test_review_staged_changes(self, mock_reviewer_class, runner, temp_git_repo):
         """Test reviewing staged changes."""
         # Mock the reviewer
@@ -104,10 +115,14 @@ class TestCLILocalReview:
         mock_reviewer_class.return_value = mock_reviewer
 
         # Mock config loading
-        with patch("kit.cli.ReviewConfig.from_file") as mock_config:
-            mock_config.return_value = MagicMock(
-                post_as_comment=False, quiet=False, llm_model="test-model", priority_filter=None
+        with patch("kit.pr_review.config.ReviewConfig.from_file") as mock_config:
+            config_obj = MagicMock(
+                post_as_comment=False, quiet=False, llm_model="gpt-3.5-turbo", priority_filter=None, repo_path=None
             )
+            # Add llm attribute with model for CostTracker
+            config_obj.llm = MagicMock(model="gpt-3.5-turbo")
+            config_obj.llm_model = "gpt-3.5-turbo"  # Ensure the model is valid
+            mock_config.return_value = config_obj
 
             # Stage a change
             os.chdir(temp_git_repo)
@@ -117,11 +132,19 @@ class TestCLILocalReview:
             # Run review
             result = runner.invoke(app, ["review", "--staged", "--dry-run"])
 
+            if result.exit_code != 0:
+                print(f"Exit code: {result.exit_code}")
+                print(f"Output: {result.output}")
+                print(f"Exception: {result.exception}")
+                if result.exc_info:
+                    import traceback
+
+                    traceback.print_exception(*result.exc_info)
             assert result.exit_code == 0
             assert "Staged changes look good!" in result.output
             mock_reviewer.review.assert_called_once_with("--staged")
 
-    @patch("kit.cli.LocalDiffReviewer")
+    @patch("kit.pr_review.local_reviewer.LocalDiffReviewer")
     def test_review_commit_range(self, mock_reviewer_class, runner, temp_git_repo):
         """Test reviewing commit range."""
         # Mock the reviewer
@@ -130,13 +153,16 @@ class TestCLILocalReview:
         mock_reviewer_class.return_value = mock_reviewer
 
         # Mock config loading
-        with patch("kit.cli.ReviewConfig.from_file") as mock_config:
-            mock_config.return_value = MagicMock(
+        with patch("kit.pr_review.config.ReviewConfig.from_file") as mock_config:
+            config_obj = MagicMock(
                 post_as_comment=False,
                 quiet=True,  # Test plain mode
-                llm_model="test-model",
+                llm_model="gpt-3.5-turbo",
                 priority_filter=None,
             )
+            # Add llm attribute with model for model validation
+            config_obj.llm = MagicMock(model="gpt-3.5-turbo")
+            mock_config.return_value = config_obj
 
             # Run review
             os.chdir(temp_git_repo)
@@ -149,15 +175,17 @@ class TestCLILocalReview:
 
     def test_review_github_pr(self, runner):
         """Test that GitHub PR URLs still work."""
-        with patch("kit.cli.PRReviewer") as mock_pr_reviewer_class:
+        with patch("kit.pr_review.reviewer.PRReviewer") as mock_pr_reviewer_class:
             mock_reviewer = MagicMock()
             mock_reviewer.review_pr.return_value = "PR review content"
             mock_pr_reviewer_class.return_value = mock_reviewer
 
-            with patch("kit.cli.ReviewConfig.from_file") as mock_config:
-                mock_config.return_value = MagicMock(
-                    post_as_comment=False, quiet=False, llm_model="test-model", priority_filter=None
+            with patch("kit.pr_review.config.ReviewConfig.from_file") as mock_config:
+                config_obj = MagicMock(
+                    post_as_comment=False, quiet=False, llm_model="gpt-3.5-turbo", priority_filter=None
                 )
+                config_obj.llm = MagicMock(model="gpt-3.5-turbo")
+                mock_config.return_value = config_obj
 
                 result = runner.invoke(app, ["review", "https://github.com/owner/repo/pull/123", "--dry-run"])
 
@@ -165,7 +193,7 @@ class TestCLILocalReview:
                 assert mock_pr_reviewer_class.called
                 assert "PR review content" in result.output
 
-    @patch("kit.cli.LocalDiffReviewer")
+    @patch("kit.pr_review.local_reviewer.LocalDiffReviewer")
     def test_review_with_repo_path(self, mock_reviewer_class, runner, temp_git_repo):
         """Test review with custom repo path."""
         # Mock the reviewer
@@ -174,14 +202,17 @@ class TestCLILocalReview:
         mock_reviewer_class.return_value = mock_reviewer
 
         # Mock config loading
-        with patch("kit.cli.ReviewConfig.from_file") as mock_config:
-            mock_config.return_value = MagicMock(
+        with patch("kit.pr_review.config.ReviewConfig.from_file") as mock_config:
+            config_obj = MagicMock(
                 post_as_comment=False,
                 quiet=False,
-                llm_model="test-model",
+                llm_model="gpt-3.5-turbo",
                 priority_filter=None,
                 repo_path=str(temp_git_repo),
             )
+            # Add llm attribute with model for model validation
+            config_obj.llm = MagicMock(model="gpt-3.5-turbo")
+            mock_config.return_value = config_obj
 
             # Run review from different directory
             result = runner.invoke(app, ["review", "HEAD~1..HEAD", "--dry-run", "--repo-path", str(temp_git_repo)])
@@ -190,7 +221,7 @@ class TestCLILocalReview:
             assert "Using existing repository:" in result.output
             assert str(temp_git_repo) in result.output
 
-    @patch("kit.cli.LocalDiffReviewer")
+    @patch("kit.pr_review.local_reviewer.LocalDiffReviewer")
     def test_review_with_priority_filter(self, mock_reviewer_class, runner, temp_git_repo):
         """Test review with priority filtering."""
         # Mock the reviewer
@@ -199,8 +230,9 @@ class TestCLILocalReview:
         mock_reviewer_class.return_value = mock_reviewer
 
         # Mock config loading
-        with patch("kit.cli.ReviewConfig.from_file") as mock_config:
-            config = MagicMock(post_as_comment=False, quiet=False, llm_model="test-model", priority_filter=None)
+        with patch("kit.pr_review.config.ReviewConfig.from_file") as mock_config:
+            config = MagicMock(post_as_comment=False, quiet=False, llm_model="gpt-3.5-turbo", priority_filter=None)
+            config.llm = MagicMock(model="gpt-3.5-turbo")
             mock_config.return_value = config
 
             # Run review
@@ -213,15 +245,17 @@ class TestCLILocalReview:
 
     def test_review_error_handling(self, runner, temp_git_repo):
         """Test error handling in review command."""
-        with patch("kit.cli.LocalDiffReviewer") as mock_reviewer_class:
+        with patch("kit.pr_review.local_reviewer.LocalDiffReviewer") as mock_reviewer_class:
             mock_reviewer = MagicMock()
             mock_reviewer.review.side_effect = RuntimeError("Test error")
             mock_reviewer_class.return_value = mock_reviewer
 
-            with patch("kit.cli.ReviewConfig.from_file") as mock_config:
-                mock_config.return_value = MagicMock(
-                    post_as_comment=False, quiet=False, llm_model="test-model", priority_filter=None
+            with patch("kit.pr_review.config.ReviewConfig.from_file") as mock_config:
+                config_obj = MagicMock(
+                    post_as_comment=False, quiet=False, llm_model="gpt-3.5-turbo", priority_filter=None
                 )
+                config_obj.llm = MagicMock(model="gpt-3.5-turbo")
+                mock_config.return_value = config_obj
 
                 os.chdir(temp_git_repo)
                 result = runner.invoke(app, ["review", "HEAD~1..HEAD"])
@@ -231,10 +265,12 @@ class TestCLILocalReview:
 
     def test_review_agentic_mode_not_supported(self, runner, temp_git_repo):
         """Test that agentic mode is not supported for local diffs."""
-        with patch("kit.cli.ReviewConfig.from_file") as mock_config:
-            mock_config.return_value = MagicMock(
-                post_as_comment=False, quiet=False, llm_model="test-model", priority_filter=None
+        with patch("kit.pr_review.config.ReviewConfig.from_file") as mock_config:
+            config_obj = MagicMock(
+                post_as_comment=False, quiet=False, llm_model="gpt-3.5-turbo", priority_filter=None, repo_path=None
             )
+            config_obj.llm = MagicMock(model="gpt-3.5-turbo")
+            mock_config.return_value = config_obj
 
             os.chdir(temp_git_repo)
             result = runner.invoke(app, ["review", "HEAD~1..HEAD", "--agentic"])

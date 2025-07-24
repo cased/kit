@@ -766,7 +766,8 @@ def index(
 @app.command("review")
 def review_pr(
     init_config: bool = typer.Option(False, "--init-config", help="Create a default configuration file and exit"),
-    target: str = typer.Argument("", help="GitHub PR URL or local diff (e.g., main..feature, HEAD~3, --staged)"),
+    target: str = typer.Argument("", help="GitHub PR URL or local diff (e.g., main..feature, HEAD~3)"),
+    staged: bool = typer.Option(False, "--staged", help="Review staged changes"),
     config: Optional[str] = typer.Option(
         None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
     ),
@@ -832,7 +833,10 @@ def review_pr(
             typer.secho(f"❌ Failed to create config: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
 
-    if not target:
+    # Handle --staged flag
+    if staged:
+        target = "--staged"
+    elif not target:
         typer.secho("❌ Target is required", fg=typer.colors.RED)
         typer.echo("\n💡 Examples:")
         typer.echo("  - GitHub PR: kit review https://github.com/owner/repo/pull/123")
@@ -950,7 +954,9 @@ def review_pr(
                 print("🛠️ Standard mode configured - repository intelligence enabled")
 
         # Determine if target is a PR URL or local diff
-        is_pr_url = target.startswith("http") and "github.com" in target and "/pull/" in target
+        is_pr_url = (
+            isinstance(target, str) and target.startswith("http") and "github.com" in target and "/pull/" in target
+        )
 
         # Create reviewer and run review
         if is_pr_url:
