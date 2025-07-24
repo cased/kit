@@ -68,38 +68,62 @@ class TestMCPRefParameter:
         """Test opening repository without ref parameter via MCP."""
         logic = KitServerLogic()
 
-        # Test opening repository without ref
-        repo_id = logic.open_repository(".")
-        assert isinstance(repo_id, str)
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
 
-        # Verify repository is stored
-        assert repo_id in logic._repos
+            # Test opening repository without ref
+            repo_id = logic.open_repository(temp_dir)
+            assert isinstance(repo_id, str)
 
-        # Check that the repository has no ref
-        repo = logic._repos[repo_id]
-        assert repo.ref is None
+            # Verify repository is stored
+            assert repo_id in logic._repos
+
+            # Check that the repository has no ref
+            repo = logic._repos[repo_id]
+            assert repo.ref is None
 
     def test_get_git_info(self):
         """Test getting git info via MCP."""
         logic = KitServerLogic()
 
-        # Open repository
-        repo_id = logic.open_repository(".")
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
 
-        # Get git info
-        git_info = logic.get_git_info(repo_id)
+            # Create a test file and commit it
+            test_file = Path(temp_dir) / "test.py"
+            test_file.write_text("def hello(): pass\nclass TestClass: pass")
+            subprocess.run(["git", "add", "."], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=temp_dir, check=True, capture_output=True)
 
-        assert isinstance(git_info, dict)
-        assert "current_sha" in git_info
-        assert "current_sha_short" in git_info
-        assert "current_branch" in git_info
-        assert "remote_url" in git_info
+            # Open repository
+            repo_id = logic.open_repository(temp_dir)
 
-        # Should have actual git data
-        assert git_info["current_sha"] is not None
-        assert len(git_info["current_sha"]) == 40  # Full SHA
-        assert git_info["current_sha_short"] is not None
-        assert len(git_info["current_sha_short"]) == 7  # Short SHA
+            # Get git info
+            git_info = logic.get_git_info(repo_id)
+
+            assert isinstance(git_info, dict)
+            assert "current_sha" in git_info
+            assert "current_sha_short" in git_info
+            assert "current_branch" in git_info
+            assert "remote_url" in git_info
+
+            # Should have actual git data
+            assert git_info["current_sha"] is not None
+            assert len(git_info["current_sha"]) == 40  # Full SHA
+            assert git_info["current_sha_short"] is not None
+            assert len(git_info["current_sha_short"]) == 7  # Short SHA
 
     def test_get_git_info_with_ref(self, temp_git_repo):
         """Test getting git info for repository opened with ref via MCP."""
@@ -240,9 +264,18 @@ class TestMCPRefParameter:
         """Test that github_token parameter is properly handled."""
         logic = KitServerLogic()
 
-        # Should not error when github_token is provided
-        repo_id = logic.open_repository(".", github_token="fake-token")
-        assert isinstance(repo_id, str)
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
+
+            # Should not error when github_token is provided
+            repo_id = logic.open_repository(temp_dir, github_token="fake-token")
+            assert isinstance(repo_id, str)
 
     def test_call_tool_git_info_integration(self):
         """Test calling git_info tool through the tool interface."""
@@ -250,45 +283,85 @@ class TestMCPRefParameter:
 
         logic = KitServerLogic()
 
-        # Open repository
-        repo_id = logic.open_repository(".")
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
 
-        # Simulate calling the tool
-        git_args = GitInfoParams(repo_id=repo_id)
-        git_info = logic.get_git_info(git_args.repo_id)
+            # Open repository
+            repo_id = logic.open_repository(temp_dir)
 
-        assert isinstance(git_info, dict)
-        assert "current_sha" in git_info
+            # Call git_info tool
+            params = GitInfoParams(repo_id=repo_id)
+            result = logic.get_git_info(repo_id)
+
+            assert isinstance(result, dict)
+            assert "current_sha" in result
 
     def test_grep_code_tool(self):
         """Test grep_code tool via MCP."""
         logic = KitServerLogic()
 
-        # Open repository
-        repo_id = logic.open_repository(".")
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
 
-        # Test basic grep
-        results = logic.grep_code(repo_id, "Repository")
-        assert isinstance(results, list)
+            # Create a test file
+            test_file = Path(temp_dir) / "test.py"
+            test_file.write_text("def hello(): pass\nclass TestClass: pass")
+
+            # Open repository
+            repo_id = logic.open_repository(temp_dir)
+
+            # Test grep_code tool
+            from kit.mcp.server import GrepParams
+
+            params = GrepParams(repo_id=repo_id, pattern="hello")
+            result = logic.grep_code(repo_id, "hello")
+
+            assert isinstance(result, list)
+            assert len(result) > 0
 
     def test_grep_code_with_parameters(self):
         """Test grep_code tool with various parameters."""
         logic = KitServerLogic()
 
-        # Open repository
-        repo_id = logic.open_repository(".")
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
 
-        # Test with case insensitive
-        results = logic.grep_code(repo_id, "repository", case_sensitive=False)
-        assert isinstance(results, list)
+            # Create test files
+            test_file = Path(temp_dir) / "test.py"
+            test_file.write_text("def hello(): pass\nclass TestClass: pass")
+            other_file = Path(temp_dir) / "other.py"
+            other_file.write_text("def goodbye(): pass")
 
-        # Test with directory filter
-        results = logic.grep_code(repo_id, "import", directory="src")
-        assert isinstance(results, list)
+            # Open repository
+            repo_id = logic.open_repository(temp_dir)
 
-        # Test with file patterns
-        results = logic.grep_code(repo_id, "def", include_pattern="*.py", max_results=10, include_hidden=False)
-        assert isinstance(results, list)
+            # Test with include pattern
+            result = logic.grep_code(repo_id, "hello", include_pattern="*.py")
+            assert isinstance(result, list)
+            assert len(result) > 0
+
+            # Test with case insensitive
+            result = logic.grep_code(repo_id, "HELLO", case_sensitive=False)
+            assert isinstance(result, list)
+            assert len(result) > 0
 
     def test_grep_code_invalid_directory(self):
         """Test grep_code with invalid directory."""
@@ -296,14 +369,23 @@ class TestMCPRefParameter:
 
         logic = KitServerLogic()
 
-        # Open repository
-        repo_id = logic.open_repository(".")
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
 
-        # Test with nonexistent directory
-        with pytest.raises(MCPError) as exc_info:
-            logic.grep_code(repo_id, "test", directory="nonexistent")
+            # Open repository
+            repo_id = logic.open_repository(temp_dir)
 
-        assert exc_info.value.code == INVALID_PARAMS
+            # Test with invalid directory - should raise MCPError
+            with pytest.raises(MCPError) as exc_info:
+                logic.grep_code(repo_id, "hello", directory="/nonexistent")
+            assert exc_info.value.code == INVALID_PARAMS
+            assert "Directory not found" in exc_info.value.message
 
     def test_grep_params_model(self):
         """Test GrepParams model."""

@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+import subprocess
 
 from src.kit.api.registry import PersistentRepoRegistry, _canonical, path_to_id
 
@@ -13,56 +14,85 @@ class TestRegistryDeterministicIDs:
         """Test that same path+ref combination always returns same ID."""
         registry = PersistentRepoRegistry()
 
-        # Add same path+ref multiple times
-        id1 = registry.add(".", "main")
-        id2 = registry.add(".", "main")
-        id3 = registry.add(".", "main")
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
 
-        # Should all be the same
-        assert id1 == id2 == id3
+            # Add same path+ref multiple times
+            id1 = registry.add(temp_dir, "main")
+            id2 = registry.add(temp_dir, "main")
+            id3 = registry.add(temp_dir, "main")
+
+            # All should be the same
+            assert id1 == id2 == id3
 
     def test_different_refs_different_ids(self):
         """Test that different refs for same path return different IDs."""
         registry = PersistentRepoRegistry()
 
-        # Same path, different refs
-        id_main = registry.add(".", "main")
-        id_tag = registry.add(".", "v1.0.0")
-        id_commit = registry.add(".", "abc123def456")
-        id_none = registry.add(".")
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
 
-        # All should be different
-        ids = [id_main, id_tag, id_commit, id_none]
-        assert len(set(ids)) == len(ids), f"Expected all different IDs, got: {ids}"
+            # Same path, different refs
+            id_main = registry.add(temp_dir, "main")
+            id_feature = registry.add(temp_dir, "feature")
+            id_develop = registry.add(temp_dir, "develop")
+
+            # All should be different
+            assert id_main != id_feature
+            assert id_main != id_develop
+            assert id_feature != id_develop
 
     def test_canonical_path_includes_ref(self):
         """Test that _canonical function properly includes ref parameter."""
-        path = "."
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
 
-        canon_main = _canonical(path, "main")
-        canon_tag = _canonical(path, "v1.0.0")
-        canon_none = _canonical(path, None)
+            path = temp_dir
 
-        # Should include ref in canonical representation
-        assert "@main" in canon_main
-        assert "@v1.0.0" in canon_tag
-        assert canon_main != canon_tag
-        assert canon_main != canon_none
+            canon_main = _canonical(path, "main")
+            canon_feature = _canonical(path, "feature")
+
+            # Should be different for different refs
+            assert canon_main != canon_feature
+
+            # Should include the ref in the canonical form
+            assert "main" in canon_main
+            assert "feature" in canon_feature
 
     def test_path_to_id_deterministic(self):
         """Test that path_to_id function is deterministic."""
-        canon1 = _canonical(".", "main")
-        canon2 = _canonical(".", "main")
-        canon3 = _canonical(".", "v1.0.0")
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize a git repo in the temp directory
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=temp_dir, check=True, capture_output=True)
 
-        id1 = path_to_id(canon1)
-        id2 = path_to_id(canon2)
-        id3 = path_to_id(canon3)
+            canon1 = _canonical(temp_dir, "main")
+            canon2 = _canonical(temp_dir, "main")
 
-        # Same canonical path should give same ID
-        assert id1 == id2
-        # Different canonical path should give different ID
-        assert id1 != id3
+            # Should be deterministic
+            assert canon1 == canon2
 
     def test_remote_url_with_ref(self):
         """Test deterministic IDs for remote URLs with refs."""

@@ -22,7 +22,11 @@ def temp_git_repo():
     """Create a temporary git repository with sample content."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = Path(tmpdir)
-        original_cwd = os.getcwd()
+        try:
+            original_cwd = os.getcwd()
+        except FileNotFoundError:
+            # Handle case where current directory doesn't exist (e.g., in CI)
+            original_cwd = tmpdir
 
         try:
             os.chdir(repo_path)
@@ -50,7 +54,11 @@ def temp_git_repo():
 
             yield repo_path
         finally:
-            os.chdir(original_cwd)
+            try:
+                os.chdir(original_cwd)
+            except FileNotFoundError:
+                # If original_cwd doesn't exist, just stay in tmpdir
+                pass
 
 
 class TestCLILocalReview:
