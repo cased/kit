@@ -86,7 +86,7 @@ class TestLocalReviewEdgeCases:
             (repo_path / "test.py").write_text("print('test')")
             os.system("git add test.py")
             os.system('git commit -m "Add test" --quiet')
-            
+
             # Create a second commit so HEAD~1 exists
             (repo_path / "test.py").write_text("print('test modified')")
             os.system("git add test.py")
@@ -123,7 +123,9 @@ class TestLocalReviewEdgeCases:
 
             # Mock import error by mocking the method that uses anthropic
             with patch.object(reviewer, "_analyze_with_anthropic_enhanced") as mock_anthropic:
-                mock_anthropic.side_effect = ValueError("Anthropic library not installed. Install with: pip install anthropic")
+                mock_anthropic.side_effect = ValueError(
+                    "Anthropic library not installed. Install with: pip install anthropic"
+                )
 
                 with pytest.raises(RuntimeError):
                     reviewer.review("HEAD~1..HEAD")
@@ -178,9 +180,9 @@ class TestLocalReviewEdgeCases:
                     "author": "Test",
                     "date": "now",
                     "subject": "Test commit",
-                    "body": ""
+                    "body": "",
                 }
-                
+
                 # Mock _get_diff to return malformed content
                 with patch.object(reviewer, "_get_diff") as mock_diff:
                     mock_diff.return_value = "This is not a valid diff format"
@@ -206,7 +208,7 @@ class TestLocalReviewEdgeCases:
             (repo_path / "README.md").write_text("Initial")
             os.system("git add README.md")
             os.system('git commit -m "Initial commit" --quiet')
-            
+
             # Create a large file
             large_content = "\n".join([f"line {i}" for i in range(10000)])
             (repo_path / "large.txt").write_text(large_content)
@@ -232,7 +234,7 @@ class TestLocalReviewEdgeCases:
             (repo_path / "README.md").write_text("Initial")
             os.system("git add README.md")
             os.system('git commit -m "Initial commit" --quiet')
-            
+
             # Create files with special characters
             special_files = [
                 "file with spaces.txt",
@@ -269,7 +271,7 @@ class TestLocalReviewEdgeCases:
             (repo_path / "initial.txt").write_text("initial")
             os.system("git add initial.txt")
             os.system('git commit -m "Initial" --quiet')
-            
+
             # Create second commit
             (repo_path / "test.txt").write_text("test")
             os.system("git add test.txt")

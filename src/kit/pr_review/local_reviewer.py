@@ -77,6 +77,10 @@ class LocalDiffReviewer:
         if ref.startswith("/") or ref.startswith("~") or ref.startswith("-"):
             return False
 
+        # Block path traversal patterns (but allow .. in ranges)
+        if "../" in ref or "..\\" in ref:
+            return False
+
         # Block shell metacharacters
         dangerous_chars = [";", "&", "|", "`", "$", "(", ")", "<", ">", "\n", "\r", "\x00"]
         if any(char in ref for char in dangerous_chars):
@@ -154,7 +158,7 @@ class LocalDiffReviewer:
                         if args[j] == "--":
                             seen_separator = True
                             break
-                    
+
                     if seen_separator:
                         # Everything after -- is a file path, not a ref
                         safe_args.append(shlex.quote(arg))
@@ -166,7 +170,7 @@ class LocalDiffReviewer:
                                 parts = arg.split("...", 1)
                             else:
                                 parts = arg.split("..", 1)
-                            
+
                             if len(parts) == 2 and all(self._validate_git_ref(p) for p in parts):
                                 safe_args.append(arg)
                             else:
