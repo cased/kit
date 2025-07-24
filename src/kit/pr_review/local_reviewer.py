@@ -1,8 +1,11 @@
 """Local diff reviewer for reviewing changes without GitHub PRs."""
 
 import asyncio
+import re
+import shlex
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -63,23 +66,100 @@ class LocalDiffReviewer:
         # Reset LLM client
         self._llm_client = None
 
+    def _validate_git_ref(self, ref: str) -> bool:
+        """Validate git ref format to prevent injection attacks."""
+        # Special cases
+        if ref in ["HEAD", "--staged", "--cached"]:
+            return True
+
+        # Block path traversal attempts
+        if ".." in ref or ref.startswith("/") or ref.startswith("~"):
+            return False
+
+        # Allow HEAD with tilde notation (e.g., HEAD~3)
+        if re.match(r"^HEAD~\d+$", ref):
+            return True
+
+        # Allow commit SHAs (full or abbreviated)
+        if re.match(r"^[a-f0-9]{4,40}$", ref):
+            return True
+
+        # Allow branch names (alphanumeric, dash, underscore, slash)
+        if re.match(r"^[a-zA-Z0-9/_.-]+$", ref):
+            return True
+
+        # Allow tag names with version patterns
+        if re.match(r"^v?\d+\.\d+(\.\d+)?(-[a-zA-Z0-9._-]+)?$", ref):
+            return True
+
+        return False
+
     def _run_git_command(self, *args: str) -> Tuple[str, int]:
         """Run a git command and return output and exit code."""
         try:
             # Validate arguments to prevent command injection
-            for arg in args:
+            safe_args = []
+            for i, arg in enumerate(args):
                 if not isinstance(arg, str):
                     raise ValueError(f"Invalid git argument type: {type(arg)}")
-                # Basic validation - git refs shouldn't contain shell metacharacters
-                if any(char in arg for char in [";", "&", "|", "`", "$", "(", ")", "<", ">", "\n"]):
-                    raise ValueError(f"Invalid characters in git argument: {arg}")
+
+                # First argument is the git subcommand - validate it
+                if i == 0:
+                    allowed_commands = {"diff", "show", "rev-parse", "log", "status", "config"}
+                    if arg not in allowed_commands:
+                        raise ValueError(f"Disallowed git command: {arg}")
+                    safe_args.append(arg)
+                # Arguments starting with - are options
+                elif arg.startswith("-"):
+                    # Whitelist safe options
+                    allowed_options = {
+                        "-s",
+                        "--cached",
+                        "--name-status",
+                        "--numstat",
+                        "--porcelain",
+                        "--verify",
+                        "--quiet",
+                        "--no-pager",
+                        "--format",
+                        "--pretty",
+                    }
+                    # Allow --format= and --pretty= with values
+                    if arg.startswith("--format=") or arg.startswith("--pretty="):
+                        # These need to be passed as-is since they contain the format string
+                        # The format string itself is safe as it's constructed by our code
+                        safe_args.append(arg)
+                    elif arg in allowed_options:
+                        safe_args.append(arg)
+                    else:
+                        raise ValueError(f"Disallowed git option: {arg}")
+                # Git refs need validation
+                elif i > 0 and args[0] in {"diff", "show", "rev-parse", "log"}:
+                    # For diff ranges like main..feature
+                    if ".." in arg:
+                        parts = arg.split("..", 1)
+                        if len(parts) == 2 and all(self._validate_git_ref(p) for p in parts):
+                            safe_args.append(arg)
+                        else:
+                            raise ValueError(f"Invalid git ref range: {arg}")
+                    elif self._validate_git_ref(arg):
+                        safe_args.append(arg)
+                    else:
+                        raise ValueError(f"Invalid git ref: {arg}")
+                # Other arguments (like format strings) should be quoted
+                else:
+                    safe_args.append(shlex.quote(arg))
+
+            # Build command with proper quoting
+            cmd = ["git", *safe_args]
 
             result = subprocess.run(
-                ["git", *list(args)],
+                cmd,
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
                 timeout=30,  # Prevent hanging on large operations
+                shell=False,  # Never use shell=True
             )
             return result.stdout.strip(), result.returncode
         except subprocess.TimeoutExpired:
@@ -300,7 +380,6 @@ class LocalDiffReviewer:
         # Prioritize files
         prioritizer = FilePrioritizer()
         selected_files, total_files = prioritizer.smart_priority(change.files, max_files=self.config.max_files)
-        prioritized_files = {"selected_files": selected_files, "total_files": total_files}
 
         # Build context about the change
         context = f"""You are reviewing a local git diff.
@@ -471,9 +550,7 @@ Focus on practical, actionable feedback. Be concise but specific.
                 input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
                 output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
                 model = self.config.llm_model or self.config.llm.model
-                self.cost_tracker.track_llm_usage(
-                    LLMProvider.GOOGLE, model, input_tokens, output_tokens
-                )
+                self.cost_tracker.track_llm_usage(LLMProvider.GOOGLE, model, input_tokens, output_tokens)
             else:
                 # Fallback: estimate tokens based on character count
                 estimated_input_tokens = len(enhanced_prompt) // 4
@@ -514,9 +591,7 @@ Focus on practical, actionable feedback. Be concise but specific.
             model = self.config.llm_model or self.config.llm.model
             session = self._ollama_session
             assert session is not None  # Type guard for mypy
-            self._llm_client = OllamaClient(
-                self.config.llm_api_base_url or "http://localhost:11434", model, session
-            )
+            self._llm_client = OllamaClient(self.config.llm_api_base_url or "http://localhost:11434", model, session)
 
         try:
             response = await asyncio.to_thread(
@@ -575,7 +650,7 @@ Focus on practical, actionable feedback. Be concise but specific.
         reviews_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate filename
-        timestamp = subprocess.run(["date", "+%Y%m%d_%H%M%S"], capture_output=True, text=True).stdout.strip()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         safe_refs = f"{change.base_ref}..{change.head_ref}".replace("/", "_").replace(" ", "_")
         filename = f"review_{timestamp}_{safe_refs}.md"
