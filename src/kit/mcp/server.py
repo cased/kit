@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import uuid
 from pathlib import Path
@@ -72,6 +73,8 @@ from pydantic import BaseModel, ValidationError
 
 from .. import __version__ as KIT_VERSION
 from ..docstring_indexer import DocstringIndexer
+from ..pr_review.config import ReviewConfig
+from ..pr_review.local_reviewer import LocalDiffReviewer
 from ..repository import Repository
 from ..summaries import Summarizer
 from ..tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
@@ -169,6 +172,14 @@ class GetCodeSummaryParams(BaseModel):
 
 class GitInfoParams(BaseModel):
     repo_id: str
+
+
+class ReviewDiffParams(BaseModel):
+    repo_id: str
+    diff_spec: str
+    priority_filter: Optional[List[str]] = None
+    max_files: int = 10
+    model: Optional[str] = None
 
 
 class KitServerLogic:
@@ -400,6 +411,79 @@ class KitServerLogic:
             "remote_url": repo.remote_url,
         }
 
+    def review_diff(
+        self,
+        repo_id: str,
+        diff_spec: str,
+        priority_filter: Optional[List[str]] = None,
+        max_files: int = 10,
+        model: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Review a local git diff using AI."""
+        repo = self.get_repo(repo_id)
+
+        try:
+            # Create a temporary config file in memory
+            import tempfile
+
+            import yaml
+
+            # Build config dict
+            config_data = {
+                "github_token": os.getenv("GITHUB_TOKEN", ""),
+                "post_as_comment": False,
+                "max_files": max_files,
+                "quiet": True,
+                "save_reviews": False,
+                "priority_filter": priority_filter,
+            }
+
+            # Determine provider and API key based on model or environment
+            if model and "claude" in model:
+                provider = "anthropic"
+                api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("KIT_ANTHROPIC_TOKEN")
+            else:
+                # Default to OpenAI
+                provider = "openai"
+                api_key = os.getenv("OPENAI_API_KEY") or os.getenv("KIT_OPENAI_TOKEN")
+                if not model:
+                    model = "gpt-4"
+
+            config_data["llm"] = {
+                "provider": provider,
+                "model": model,
+                "api_key": api_key or "",
+                "temperature": 0.1,
+                "max_tokens": 4000,
+            }
+
+            # Write to temporary file
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+                yaml.dump(config_data, f)
+                temp_config_path = f.name
+
+            try:
+                # Load config from file
+                review_config = ReviewConfig.from_file(temp_config_path, repo_path=repo.repo_path)
+
+                # Create LocalDiffReviewer
+                reviewer = LocalDiffReviewer(review_config, repo.repo_path)
+
+                # Get the review
+                review_result = reviewer.review(diff_spec)
+
+                # Extract cost from the result if present
+                cost_match = re.search(r"Cost: \$(\d+\.\d+)", review_result)
+                cost = float(cost_match.group(1)) if cost_match else None
+
+                return {"review": review_result, "diff_spec": diff_spec, "cost": cost, "model": model or "gpt-4"}
+            finally:
+                # Clean up temp file
+                os.unlink(temp_config_path)
+
+        except Exception as e:
+            raise MCPError(code=INTERNAL_ERROR, message=f"Failed to review diff: {e!s}")
+
     def list_tools(self) -> list[Tool]:
         ro_ann = ToolAnnotations(readOnlyHint=True)
         tools_to_return = [
@@ -461,6 +545,12 @@ class KitServerLogic:
                 name="get_git_info",
                 description="Get git repository metadata (SHA, branch, remote URL)",
                 inputSchema=GitInfoParams.model_json_schema(),
+                annotations=ro_ann,
+            ),
+            Tool(
+                name="review_diff",
+                description="Review a local git diff using AI (e.g., main..feature, HEAD~3, --staged)",
+                inputSchema=ReviewDiffParams.model_json_schema(),
                 annotations=ro_ann,
             ),
         ]
@@ -540,6 +630,31 @@ class KitServerLogic:
                     PromptArgument(
                         name="symbol_name",
                         description="Optional name of a function or class to summarize. If provided, will attempt to summarize it as both a function and class.",
+                        required=False,
+                    ),
+                ],
+            ),
+            Prompt(
+                name="review_diff",
+                description="Review a local git diff using AI",
+                arguments=[
+                    PromptArgument(name="repo_id", description="ID of the repository", required=True),
+                    PromptArgument(
+                        name="diff_spec",
+                        description="Diff specification (e.g., main..feature, HEAD~3, --staged)",
+                        required=True,
+                    ),
+                    PromptArgument(
+                        name="priority_filter",
+                        description="Optional priority filter: ['high'], ['medium'], ['low'] or combinations",
+                        required=False,
+                    ),
+                    PromptArgument(
+                        name="max_files", description="Maximum number of files to review (default: 10)", required=False
+                    ),
+                    PromptArgument(
+                        name="model",
+                        description="Optional LLM model override (e.g., gpt-4, claude-3-opus)",
                         required=False,
                     ),
                 ],
@@ -655,6 +770,24 @@ class KitServerLogic:
                             PromptMessage(
                                 role="user",
                                 content=TextContent(type="text", text=json.dumps(git_info, indent=2)),
+                            )
+                        ],
+                    )
+                case "review_diff":
+                    review_args = ReviewDiffParams(**arguments)
+                    review_result = self.review_diff(
+                        review_args.repo_id,
+                        review_args.diff_spec,
+                        review_args.priority_filter,
+                        review_args.max_files,
+                        review_args.model,
+                    )
+                    return GetPromptResult(
+                        description=f"AI review of diff: {review_args.diff_spec}",
+                        messages=[
+                            PromptMessage(
+                                role="user",
+                                content=TextContent(type="text", text=review_result["review"]),
                             )
                         ],
                     )
@@ -827,6 +960,16 @@ async def serve() -> None:
                 git_args = GitInfoParams(**arguments)
                 git_info = logic.get_git_info(git_args.repo_id)
                 return [TextContent(type="text", text=json.dumps(git_info, indent=2))]
+            elif name == "review_diff":
+                review_args = ReviewDiffParams(**arguments)
+                review_result = logic.review_diff(
+                    review_args.repo_id,
+                    review_args.diff_spec,
+                    review_args.priority_filter,
+                    review_args.max_files,
+                    review_args.model,
+                )
+                return [TextContent(type="text", text=review_result["review"])]
             else:
                 raise MCPError(code=INVALID_PARAMS, message=f"Unknown tool: {name}")
         except ValidationError as e:

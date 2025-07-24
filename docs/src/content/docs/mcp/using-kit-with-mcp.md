@@ -33,6 +33,7 @@ Currently, `kit` exposes the following functionalities via MCP tools:
 *   `find_symbol_usages`: Finds where a specific symbol is used across the repository.
 *   `get_code_summary`: Provides AI-generated summaries for files, functions, or classes.
 *   `get_git_info`: Retrieves git metadata including current SHA, branch, and remote URL.
+*   `review_diff`: Reviews local git diffs using AI-powered code review.
 
 ### Opening Repositories with Specific Versions
 
@@ -103,6 +104,46 @@ And then simply open private repositories without needing to specify the `github
 }
 ```
 
+### Reviewing Code Changes
+
+The `review_diff` tool allows you to get AI-powered code reviews for local git diffs without needing to create a GitHub pull request:
+
+```json
+{
+  "tool": "review_diff",
+  "arguments": {
+    "repo_id": "your-repo-id",
+    "diff_spec": "main..feature"
+  }
+}
+```
+
+The `diff_spec` parameter accepts various git diff specifications:
+- **Branch comparisons**: `"main..feature"`, `"develop..my-branch"`
+- **Commit ranges**: `"HEAD~3..HEAD"`, `"abc123..def456"`
+- **Staged changes**: `"--staged"`
+
+Optional parameters:
+- `priority_filter`: Filter by priority levels - `["high"]`, `["medium", "low"]`
+- `max_files`: Maximum number of files to review (default: 10)
+- `model`: Override the AI model - `"gpt-4"`, `"claude-3-opus"`, etc.
+
+Example with all options:
+```json
+{
+  "tool": "review_diff",
+  "arguments": {
+    "repo_id": "your-repo-id",
+    "diff_spec": "HEAD~1..HEAD",
+    "priority_filter": ["high", "medium"],
+    "max_files": 20,
+    "model": "claude-3-opus"
+  }
+}
+```
+
+The tool will return a comprehensive code review with issues categorized by priority (HIGH, MEDIUM, LOW), including specific file and line references.
+
 More MCP features are coming soon.
 
 ## Setup
@@ -110,8 +151,11 @@ More MCP features are coming soon.
 1. After installing `kit`, configure your MCP-compatible client by adding a stanza like this to your settings:
 
 Available environment variables for the `env` section:
-- `OPENAI_API_KEY`
-- `KIT_MCP_LOG_LEVEL`
+- `OPENAI_API_KEY` - For OpenAI models in code reviews and summaries
+- `ANTHROPIC_API_KEY` - For Claude models in code reviews  
+- `KIT_ANTHROPIC_TOKEN` - Alternative to ANTHROPIC_API_KEY
+- `KIT_OPENAI_TOKEN` - Alternative to OPENAI_API_KEY
+- `KIT_MCP_LOG_LEVEL` - Set logging level (DEBUG, INFO, WARNING, ERROR)
 - `KIT_GITHUB_TOKEN` - Automatically used for private repository access
 - `GITHUB_TOKEN` - Fallback for private repository access
 

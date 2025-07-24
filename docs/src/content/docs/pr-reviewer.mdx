@@ -7,9 +7,9 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 
-# Kit AI PR Reviewer & Summarizer
+# Kit AI Code Reviewer & Summarizer
 
-Kit includes a **production-ready AI PR reviewer and summarizer** that provides professional-grade code analysis with full repository context.
+Kit includes a **production-ready AI code reviewer and summarizer** that provides professional-grade analysis with full repository context. Review GitHub PRs or local git diffs without creating a PR.
 Use almost any LLM and pay just for tokens. High-quality reviews with SOTA models like Claude Sonnet 4 generally cost about 10 cents, while summaries cost just pennies.
 
 Use per-organization profiles and prioritization for further customization. Use kit's local output to pipe to other unix tools.
@@ -21,20 +21,25 @@ Use per-organization profiles and prioritization for further customization. Use 
 ## 🚀 Quick Start
 
 ```bash
-# 1. Install kit (lightweight - no ML dependencies needed for PR review!)
+# 1. Install kit (lightweight - no ML dependencies needed for code review!)
 pip install cased-kit
 
 # 2. Set up configuration
 kit review --init-config
 
 # 3. Set API keys
-export KIT_GITHUB_TOKEN="ghp_your_token"
+export KIT_GITHUB_TOKEN="ghp_your_token"  # For GitHub PRs
 export KIT_ANTHROPIC_TOKEN="sk-ant-your_key"  # For Anthropic (default)
 export KIT_OPENAI_TOKEN="sk-openai-your_key"  # For OpenAI
 export KIT_GOOGLE_API_KEY="AIzaSy-your_google_key"  # For Google
 
-# 4. Review any GitHub PR
+# 4a. Review any GitHub PR
 kit review https://github.com/owner/repo/pull/123
+
+# 4b. Review local changes (no PR needed!)
+kit review main..feature           # Compare branches
+kit review HEAD~3..HEAD            # Review last 3 commits
+kit review --staged                # Review staged changes
 
 # 4b. For OpenAI users: specify provider
 kit review --model gpt-4.1 https://github.com/owner/repo/pull/123
@@ -178,6 +183,36 @@ kit review-profile list
 ```
 
 → **[Complete Profiles Guide](/pr-reviewer/profiles)** - Profile management, team workflows, and examples
+
+## 🏠 Local Diff Reviews (No PR Required!)
+
+Review code changes locally without creating a GitHub PR. Perfect for pre-commit reviews, work-in-progress checks, or private repositories:
+
+```bash
+# Review changes between branches
+kit review main..feature
+kit review develop..my-branch
+
+# Review recent commits
+kit review HEAD~3..HEAD    # Last 3 commits
+kit review abc123..def456  # Specific commit range
+
+# Review staged changes before committing
+kit review --staged
+
+# Combine with other options
+kit review --plain main..feature | claude "Should I merge this?"
+kit review --priority=high HEAD~1..HEAD
+kit review --model gpt-4.1-mini --staged
+```
+
+**Key Benefits:**
+- **Privacy**: Review sensitive code without pushing to GitHub
+- **Speed**: Instant reviews without PR creation overhead
+- **Workflow**: Integrate into pre-commit hooks or local development
+- **Cost**: Same transparent pricing as PR reviews
+
+**Local reviews are saved to**: `~/.kit/reviews/` for future reference
 
 ## 🔄 Output Modes & Integration
 

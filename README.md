@@ -6,7 +6,7 @@
 
 Use `kit` to build things like code reviewers, code generators, even IDEs, all enriched with the right code context. Work with `kit` directly from Python, or with MCP + function calling, REST, or CLI.
 
-`kit` also ships with damn fine PR reviewer that works with your choice of LLM, showcasing the power of this library for building full products.
+`kit` also ships with damn fine code reviewer that works with your choice of LLM, supporting both GitHub PRs and local git diffs, showcasing the power of this library for building full products.
 
 Explore the **[Full Documentation](https://kit.cased.com)** for detailed usage, advanced features, and practical examples.
 
@@ -97,10 +97,17 @@ kit usages /path/to/repo "MyClass"
 # Export data for external tools
 kit export /path/to/repo symbols symbols.json
 
-# Initialize configuration and review a PR
+# Initialize configuration for reviews
 kit review --init-config
+
+# Review GitHub PRs
 kit review --dry-run https://github.com/owner/repo/pull/123
 kit review https://github.com/owner/repo/pull/123
+
+# Review local git diffs (no PR required!)
+kit review main..feature  # Compare branches
+kit review HEAD~3..HEAD   # Review last 3 commits
+kit review --staged       # Review staged changes
 
 # Generate PR summaries for quick triage
 kit summarize https://github.com/owner/repo/pull/123
