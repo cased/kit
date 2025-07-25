@@ -992,8 +992,17 @@ def review_pr(
             typer.echo(comment)
             typer.echo("=" * 60)
         else:
-            # Normal mode: post comment and show success
-            typer.echo("✅ Review completed and comment posted!")
+            # Normal mode: check if there were actually changes to review
+            if comment.strip() == "No changes to review.":
+                typer.echo("ℹ️  No changes to review.")
+            else:
+                # Show the review content by default
+                typer.echo(comment)
+                # Show completion message after the review
+                if is_pr_url:
+                    typer.echo("\n✅ Review completed and comment posted!")
+                else:
+                    typer.echo("\n✅ Review completed!")
 
     except ValueError as e:
         typer.secho(f"❌ Configuration error: {e}", fg=typer.colors.RED)

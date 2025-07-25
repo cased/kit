@@ -1,16 +1,11 @@
-import json
-import uuid
-from unittest.mock import patch
+import subprocess
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
-import tempfile
-import subprocess
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 
-from kit.mcp.server import INVALID_PARAMS, GetFileTreeParams, KitServerLogic, MCPError
-from kit.summaries import LLMError
-from kit.types import TextContent
+from kit.mcp.server import INVALID_PARAMS, KitServerLogic, MCPError
 
 
 @pytest.fixture

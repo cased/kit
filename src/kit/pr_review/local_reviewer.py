@@ -86,6 +86,30 @@ class LocalDiffReviewer:
         if any(char in ref for char in dangerous_chars):
             return False
 
+        # Handle git range syntax (main..feature, main...feature)
+        if ".." in ref:
+            # Check if it's a valid range pattern
+            if "..." in ref:
+                # Three dots: main...feature (symmetric difference)
+                parts = ref.split("...", 1)
+            else:
+                # Two dots: main..feature (range)
+                parts = ref.split("..", 1)
+
+            if len(parts) == 2:
+                # Validate both parts of the range
+                return all(self._validate_single_ref(part) for part in parts)
+            else:
+                return False
+
+        # Block dots at the beginning or end of ref names
+        if ref.startswith(".") or ref.endswith("."):
+            return False
+
+        # Block multiple consecutive dots (more than 3)
+        if "...." in ref:
+            return False
+
         # Allow HEAD with various notations
         # HEAD~3, HEAD^, HEAD@{1}, HEAD@{upstream}
         if re.match(r"^HEAD[@~^].*$", ref):
@@ -99,12 +123,74 @@ class LocalDiffReviewer:
         if re.match(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9/_.-]+$", ref):
             return True
 
-        # Allow branch names (alphanumeric, dash, underscore, slash, dot)
-        if re.match(r"^[a-zA-Z0-9/_.-]+$", ref):
+        # Allow branch names with restricted dot usage
+        # Dots are only allowed in specific patterns:
+        # - Version numbers: v1.2.3, 1.2.3
+        # - Release candidates: v1.2.3-rc1
+        # - Feature branches with dots: feature/name.1
+        # But NOT: ../../../etc/passwd or similar path traversal
+        if re.match(r"^[a-zA-Z0-9/_-]+$", ref):
+            # No dots - safe
+            return True
+        elif re.match(r"^[a-zA-Z0-9/_-]*\.\d+([a-zA-Z0-9/_-]*\.\d+)*[a-zA-Z0-9/_-]*$", ref):
+            # Dots only in version number patterns
+            return True
+        elif re.match(r"^[a-zA-Z0-9/_-]*\.\d+[a-zA-Z0-9/_-]*$", ref):
+            # Single dot with version number
+            return True
+        elif re.match(r"^v?\d+\.\d+(\.\d+)?(-[a-zA-Z0-9._-]+)?$", ref):
+            # Version tags
             return True
 
-        # Allow tag names with version patterns
-        if re.match(r"^v?\d+\.\d+(\.\d+)?(-[a-zA-Z0-9._-]+)?$", ref):
+        return False
+
+    def _validate_single_ref(self, ref: str) -> bool:
+        """Validate a single git ref (without range syntax)."""
+        # Block obvious path traversal attempts and shell injection
+        if ref.startswith("/") or ref.startswith("~") or ref.startswith("-"):
+            return False
+
+        # Block path traversal patterns
+        if "../" in ref or "..\\" in ref:
+            return False
+
+        # Block shell metacharacters
+        dangerous_chars = [";", "&", "|", "`", "$", "(", ")", "<", ">", "\n", "\r", "\x00"]
+        if any(char in ref for char in dangerous_chars):
+            return False
+
+        # Block dots at the beginning or end of ref names
+        if ref.startswith(".") or ref.endswith("."):
+            return False
+
+        # Block multiple consecutive dots
+        if "..." in ref:
+            return False
+
+        # Allow HEAD with various notations
+        if re.match(r"^HEAD[@~^].*$", ref):
+            return True
+
+        # Allow commit SHAs (full or abbreviated)
+        if re.match(r"^[a-f0-9]{4,40}$", ref):
+            return True
+
+        # Allow remote refs like origin/main
+        if re.match(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9/_.-]+$", ref):
+            return True
+
+        # Allow branch names with restricted dot usage
+        if re.match(r"^[a-zA-Z0-9/_-]+$", ref):
+            # No dots - safe
+            return True
+        elif re.match(r"^[a-zA-Z0-9/_-]*\.\d+([a-zA-Z0-9/_-]*\.\d+)*[a-zA-Z0-9/_-]*$", ref):
+            # Dots only in version number patterns
+            return True
+        elif re.match(r"^[a-zA-Z0-9/_-]*\.\d+[a-zA-Z0-9/_-]*$", ref):
+            # Single dot with version number
+            return True
+        elif re.match(r"^v?\d+\.\d+(\.\d+)?(-[a-zA-Z0-9._-]+)?$", ref):
+            # Version tags
             return True
 
         return False
@@ -163,22 +249,37 @@ class LocalDiffReviewer:
                         # Everything after -- is a file path, not a ref
                         safe_args.append(shlex.quote(arg))
                     else:
-                        # For diff ranges like main..feature or main...feature
-                        if ".." in arg:
-                            # Handle both .. and ... operators
-                            if "..." in arg:
-                                parts = arg.split("...", 1)
-                            else:
-                                parts = arg.split("..", 1)
+                        # For git commands, we need to distinguish between refs and file paths
+                        # File paths typically don't contain git ref patterns
+                        # and are usually passed after certain options
 
-                            if len(parts) == 2 and all(self._validate_git_ref(p) for p in parts):
+                        # If this looks like a file path (contains / or . and not a git ref pattern)
+                        # and we're in a context where file paths are expected, treat it as a path
+                        if (
+                            ("/" in arg or "." in arg)
+                            and not self._validate_git_ref(arg)
+                            and args[0] == "diff"
+                            and any(opt in args for opt in ["--cached", "--name-status", "--numstat"])
+                        ):
+                            # This is likely a file path, not a ref
+                            safe_args.append(shlex.quote(arg))
+                        else:
+                            # For diff ranges like main..feature or main...feature
+                            if ".." in arg:
+                                # Handle both .. and ... operators
+                                if "..." in arg:
+                                    parts = arg.split("...", 1)
+                                else:
+                                    parts = arg.split("..", 1)
+
+                                if len(parts) == 2 and all(self._validate_git_ref(p) for p in parts):
+                                    safe_args.append(arg)
+                                else:
+                                    raise ValueError(f"Invalid git ref range: {arg}")
+                            elif self._validate_git_ref(arg):
                                 safe_args.append(arg)
                             else:
-                                raise ValueError(f"Invalid git ref range: {arg}")
-                        elif self._validate_git_ref(arg):
-                            safe_args.append(arg)
-                        else:
-                            raise ValueError(f"Invalid git ref: {arg}")
+                                raise ValueError(f"Invalid git ref: {arg}")
                 # Other arguments (like format strings) should be quoted
                 else:
                     safe_args.append(shlex.quote(arg))

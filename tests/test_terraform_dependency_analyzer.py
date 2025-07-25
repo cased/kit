@@ -639,30 +639,31 @@ def test_paths_robust_to_cwd_changes():
     try:
         # Change to a different directory
         os.chdir("/tmp")
-        
+
         # Test that we can still analyze terraform files
         test_file = Path(__file__).parent / "sample_code" / "tf_sample.tf"
         assert test_file.exists()
 
-        from kit.dependency_analyzer.terraform_dependency_analyzer import TerraformDependencyAnalyzer
         from kit import Repository
-        
+        from kit.dependency_analyzer.terraform_dependency_analyzer import TerraformDependencyAnalyzer
+
         # Create a temporary repository for testing
         with tempfile.TemporaryDirectory() as temp_dir:
             # Copy the test file to the temp directory
             import shutil
+
             shutil.copy(test_file, temp_dir)
-            
+
             # Create a repository
             repo = Repository(temp_dir)
-            
+
             # Create analyzer with repository
             analyzer = TerraformDependencyAnalyzer(repo)
             dependencies = analyzer.build_dependency_graph()
-            
+
             # Should find some dependencies
             assert len(dependencies) > 0
-        
+
     finally:
         try:
             os.chdir(original_cwd)

@@ -160,7 +160,7 @@ class ReviewConfig:
     # Existing repository path (skips cloning when provided)
     repo_path: Optional[str] = None  # Path to existing repository to use for analysis
     # Local review settings
-    save_reviews: bool = True  # Save local reviews to .kit/reviews/
+    save_reviews: bool = False  # Save local reviews to .kit/reviews/
     llm_provider: Optional[str] = None  # Convenience accessor for llm.provider
     llm_model: Optional[str] = None  # Convenience accessor for llm.model
     llm_api_key: Optional[str] = None  # Convenience accessor for llm.api_key
@@ -340,7 +340,7 @@ class ReviewConfig:
             profile=profile,
             profile_context=profile_context,
             repo_path=repo_path,
-            save_reviews=review_data.get("save_reviews", True),
+            save_reviews=review_data.get("save_reviews", False),
             # Convenience accessors for LLM config
             llm_provider=llm_config.provider.value,
             llm_model=llm_config.model,

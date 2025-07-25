@@ -787,7 +787,10 @@ class TestSemanticSearchIntegration:
                 assert "No semantic matches found" in result.stdout
             else:
                 # Should fail with a meaningful error message
-                assert any(keyword in result.stdout for keyword in ["Error:", "Failed to", "not found", "Read-only file system"])
+                assert any(
+                    keyword in result.stdout
+                    for keyword in ["Error:", "Failed to", "not found", "Read-only file system"]
+                )
         else:
             # Without sentence-transformers, it fails earlier
             assert result.returncode == 1

@@ -296,7 +296,7 @@ class TestMCPRefParameter:
             repo_id = logic.open_repository(temp_dir)
 
             # Call git_info tool
-            params = GitInfoParams(repo_id=repo_id)
+            GitInfoParams(repo_id=repo_id)
             result = logic.get_git_info(repo_id)
 
             assert isinstance(result, dict)
@@ -325,7 +325,7 @@ class TestMCPRefParameter:
             # Test grep_code tool
             from kit.mcp.server import GrepParams
 
-            params = GrepParams(repo_id=repo_id, pattern="hello")
+            GrepParams(repo_id=repo_id, pattern="hello")
             result = logic.grep_code(repo_id, "hello")
 
             assert isinstance(result, list)

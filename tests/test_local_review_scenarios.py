@@ -221,14 +221,14 @@ class TestLocalReviewScenarios:
         # Git might report this as either a rename or delete+add
         # Check for either the new file or the old file being present
         file_names = [f["filename"] for f in files]
-        
+
         # Git might detect this as a rename, or as a delete + add
         # Let's be more flexible and just check that we have some files
         assert len(files) > 0
-        
+
         # Print the actual files for debugging
         print(f"Detected files: {file_names}")
-        
+
         # At least one file should be present (either the old or new name)
         # Git might show this as either "src/main.py" (deleted) or "src/app.py" (added)
         # or both, or as a rename
@@ -350,3 +350,46 @@ More content
         files = reviewer._get_changed_files("HEAD~1", "HEAD")
         vendor_file = next(f for f in files if "vendor" in f["filename"])
         assert vendor_file["status"] == "added"
+
+    def test_git_ref_validation_security(self, mock_config, complex_git_repo):
+        """Test that git ref validation prevents path traversal attacks."""
+        reviewer = LocalDiffReviewer(mock_config, complex_git_repo)
+
+        # Test path traversal attempts - these should be blocked
+        malicious_refs = [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\config",
+            "..../etc/passwd",
+            ".hidden",
+            "branch.",
+            ".branch",
+            "branch...",
+            "branch....",
+        ]
+
+        for malicious_ref in malicious_refs:
+            assert not reviewer._validate_git_ref(malicious_ref), f"Should block: {malicious_ref}"
+
+        # Test legitimate refs - these should be allowed
+        legitimate_refs = [
+            "main",
+            "feature-branch",
+            "feature_branch",
+            "feature/branch",
+            "v1.2.3",
+            "1.2.3",
+            "v1.2.3-rc1",
+            "feature.1",
+            "feature.1.2",
+            "main..feature",
+            "main...feature",
+            "HEAD~3",
+            "HEAD^",
+            "HEAD@{1}",
+            "origin/main",
+            "a1b2c3d4",
+            "a1b2c3d4e5f6",
+        ]
+
+        for legitimate_ref in legitimate_refs:
+            assert reviewer._validate_git_ref(legitimate_ref), f"Should allow: {legitimate_ref}"

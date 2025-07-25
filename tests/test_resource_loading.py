@@ -1,9 +1,6 @@
 import os
-import tempfile
 import unittest
 from pathlib import Path
-
-from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
 
 
 class ResourceLoadingTest(unittest.TestCase):
@@ -32,7 +29,7 @@ class ResourceLoadingTest(unittest.TestCase):
             from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
 
             extractor = TreeSitterSymbolExtractor()
-            with open(test_file, 'r') as f:
+            with open(test_file, "r") as f:
                 source_code = f.read()
             symbols = extractor.extract_symbols(".py", source_code)
 

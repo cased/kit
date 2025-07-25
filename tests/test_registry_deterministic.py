@@ -1,8 +1,8 @@
 """Tests for deterministic ID generation in registry with ref parameters."""
 
+import subprocess
 import tempfile
 from pathlib import Path
-import subprocess
 
 from src.kit.api.registry import PersistentRepoRegistry, _canonical, path_to_id
 
