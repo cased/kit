@@ -357,12 +357,24 @@ class TreeSitterSymbolExtractor:
             tree = parser.parse(bytes(source_code, "utf8"))
             root = tree.root_node
 
-            matches = query.matches(root)
-            logger.debug(f"[EXTRACT] Found {len(matches)} matches.")
+            # tree-sitter compatibility
+            if hasattr(query, "matches"):
+                raw_matches = query.matches(root)  # type: ignore[attr-defined]
+                logger.debug(f"[EXTRACT] Found {len(raw_matches)} matches via Query.matches().")
+                # Convert to unified (pattern_index, captures) structure expected below
+                match_tuples = list(raw_matches)  # already in correct format
+            else:
+                # Newer API – build a single pseudo-match dictionary grouping all captures
+                captures_dict: Dict[str, List[Any]] = {}
+                for capture_name, node in query.captures(root):  # type: ignore[attr-defined]
+                    captures_dict.setdefault(capture_name, []).append(node)
+                match_tuples = [(0, captures_dict)]
+                logger.debug(
+                    f"[EXTRACT] Found {sum(len(v) for v in captures_dict.values())} captures via Query.captures()."
+                )
 
-            # matches is List[Tuple[int, Dict[str, Node]]]
-            # Each tuple is (pattern_index, {capture_name: Node})
-            for pattern_index, captures in matches:
+            # Now process matches
+            for pattern_index, captures in match_tuples:
                 logger.debug(f"[MATCH pattern={pattern_index}] Processing match with captures: {list(captures.keys())}")
 
                 # Determine symbol name: prefer @name, fallback to @type for blocks like terraform/locals
