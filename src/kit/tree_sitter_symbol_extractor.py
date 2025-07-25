@@ -357,9 +357,7 @@ class TreeSitterSymbolExtractor:
             tree = parser.parse(bytes(source_code, "utf8"))
             root = tree.root_node
 
-            # Tree-sitter Python bindings changed in 0.23 – the `Query.matches` API was removed
-            # in favour of `Query.captures`. To maintain compatibility with both the old (<0.23)
-            # and new (>=0.23) versions we fall back to `captures` when `matches` does not exist.
+            # tree-sitter compatibility
             if hasattr(query, "matches"):
                 raw_matches = query.matches(root)  # type: ignore[attr-defined]
                 logger.debug(f"[EXTRACT] Found {len(raw_matches)} matches via Query.matches().")
