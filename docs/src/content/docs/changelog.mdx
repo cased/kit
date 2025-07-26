@@ -10,6 +10,40 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2025-07-26
+
+### Major Features
+
+- **Enhanced Local Diff Reviews**
+  - Clear documentation on output modes and piping workflows
+  - Default behavior now properly documented: outputs to stdout with formatting
+  - `--plain` mode for clean piping to other tools (e.g., `kit review --plain HEAD~1 | claude`)
+  - Reviews are NOT saved by default (requires `save_reviews: true` in config)
+
+### New Features
+
+- **Comprehensive CLI Test Suite**
+  - Added 72 new tests covering CLI argument parsing and validation
+  - Security-focused validation tests for local diff patterns
+  - Edge case handling for special characters and malicious inputs
+  - CI-friendly test assertions that handle different terminal environments
+
+### Bug Fixes
+
+- **CI Test Failures**: Fixed 9 failing tests related to help output formatting in CI environments
+  - Made help text assertions more robust to handle truncated or ANSI-formatted output
+  - Tests now verify functionality rather than exact help text matches
+
+### Documentation
+
+- **PR Reviewer Docs**: Updated local diff documentation to clarify:
+  - Default output behavior (stdout with formatting)
+  - Output modes (standard vs plain)
+  - File saving is opt-in, not default
+  - Better examples showing piping workflows
+
+---
+
 ## [1.7.3] - 2025-07-26
 
 ### New Features
