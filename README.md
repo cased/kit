@@ -6,7 +6,7 @@
 
 Use `kit` to build things like code reviewers, code generators, even IDEs, all enriched with the right code context. Work with `kit` directly from Python, or with MCP + function calling, REST, or CLI.
 
-`kit` also ships with damn fine code reviewer that works with your choice of LLM, supporting both GitHub PRs and local git diffs, showcasing the power of this library for building full products.
+`kit` also ships with [damn fine PR reviewer](https://kit.cased.com/pr-reviewer/) that works with your choice of LLM, at just the cost of tokens, showcasing the power of this library for building full products.
 
 Explore the **[Full Documentation](https://kit.cased.com)** for detailed usage, advanced features, and practical examples.
 
