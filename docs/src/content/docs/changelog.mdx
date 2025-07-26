@@ -10,6 +10,30 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2025-07-26
+
+### New Features
+
+- **Local Diff Review Support with MCP** (#118)
+  - Added ability to review local diffs through the MCP server
+  - Enables PR-style reviews for uncommitted changes in development environments
+  - Integrates seamlessly with Claude Desktop and other MCP clients
+
+### Bug Fixes
+
+- **MCP Server Tests**: Fixed test failures in MCP server test suite (#121)
+- **Local Review Tests**: Resolved issues with local review functionality tests (#121)
+- **Symbol Extractor**: Improved defensive query checking to prevent crashes with invalid tree-sitter queries (#119)
+  - Enhanced tree-sitter compatibility handling
+  - More robust error handling for malformed queries
+
+### Improvements
+
+- **Documentation**: Added reviewer link in README for better visibility
+- **Dependencies**: Updated lockfile and TypeScript dependencies
+
+---
+
 ## [1.7.1] - 2025-07-17
 
 ### New Features
