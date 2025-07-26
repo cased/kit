@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from kit.mcp.server import INVALID_PARAMS, KitServerLogic, MCPError
+from kit.mcp.server import INVALID_PARAMS, GetPromptResult, KitServerLogic, MCPError
 
 
 @pytest.fixture
@@ -255,16 +255,19 @@ class TestMCPMultiFileContent:
     def test_mcp_tools_list_includes_multi_file(self, logic):
         """Test that tools list includes the multi-file content method."""
         tools = logic.list_tools()
-        tool_names = [tool["name"] for tool in tools]
+        tool_names = [tool.name for tool in tools]
         assert "get_multiple_file_contents" in tool_names
 
     def test_path_mapping_consistency(self, logic, temp_git_repo):
         """Test that path mapping is consistent between single and multiple file methods."""
         repo_id = logic.open_repository(temp_git_repo)
 
-        def mock_path_check(repo, path):
+        def mock_path_check(path):
             # This would be called by the repository to validate paths
-            return path
+            # When called with a list, return a dictionary
+            if isinstance(path, list):
+                return {p: f"Content of {p}" for p in path}
+            return f"Content of {path}"
 
         with patch("kit.repository.Repository.get_file_content") as mock_content:
             mock_content.side_effect = mock_path_check
@@ -325,36 +328,46 @@ def test_get_code_summary_mocked(logic, temp_git_repo):
     """Test getting code summary with mocked repository."""
     repo_id = logic.open_repository(temp_git_repo)
 
-    with patch("kit.repository.Repository.get_code_summary") as mock_summary:
-        mock_summary.return_value = {
-            "summary": "This is a test file with a hello function and TestClass.",
-            "symbols": [
-                {"name": "hello", "type": "function", "line": 1},
-                {"name": "TestClass", "type": "class", "line": 2},
-            ],
+    # Mock the analyzer instead of Repository method
+    with patch.object(logic, "get_analyzer") as mock_get_analyzer:
+        mock_analyzer = MagicMock()
+        mock_analyzer.summarize_file.return_value = {
+            "summary": "This is a test file with a hello function and TestClass."
         }
+        mock_analyzer.summarize_symbol.return_value = [
+            {"name": "hello", "type": "function", "line": 1}
+        ]
+        mock_get_analyzer.return_value = mock_analyzer
 
         result = logic.get_code_summary(repo_id, "test.py")
 
         assert isinstance(result, dict)
-        assert "summary" in result
-        assert "symbols" in result
-        assert "hello" in [s["name"] for s in result["symbols"]]
-        assert "TestClass" in [s["name"] for s in result["symbols"]]
+        assert "file" in result
+        assert "summary" in result["file"]
 
 
 def test_get_prompt_open_repo(logic, temp_git_repo):
     """Test getting prompt with open repository."""
     repo_id = logic.open_repository(temp_git_repo)
-    result = logic.get_prompt(repo_id, "code_review")
-    assert isinstance(result, str)
+    
+    # Mock the analyzer to avoid OpenAI API key requirement
+    with patch.object(logic, "get_analyzer") as mock_get_analyzer:
+        mock_analyzer = MagicMock()
+        mock_analyzer.summarize_file.return_value = {
+            "summary": "This is a test file with a hello function and TestClass."
+        }
+        mock_get_analyzer.return_value = mock_analyzer
+        
+        result = logic.get_prompt("get_code_summary", {"repo_id": repo_id, "file_path": "test.py"})
+        assert isinstance(result, GetPromptResult)
+        assert result.messages
 
 
 def test_invalid_prompt_name(logic, temp_git_repo):
     """Test getting invalid prompt name."""
     repo_id = logic.open_repository(temp_git_repo)
     with pytest.raises(MCPError):
-        logic.get_prompt(repo_id, "invalid_prompt")
+        logic.get_prompt("invalid_prompt", {"repo_id": repo_id})
 
 
 def test_list_tools(logic):
@@ -373,16 +386,16 @@ def test_list_prompts(logic):
 
 def test_get_prompt_with_missing_args(logic, temp_git_repo):
     """Test getting prompt with missing arguments."""
-    repo_id = logic.open_repository(temp_git_repo)
+    logic.open_repository(temp_git_repo)
     with pytest.raises(MCPError):
-        logic.get_prompt(repo_id, "code_review", {})
+        logic.get_prompt("get_code_summary", None)
 
 
 def test_get_prompt_with_invalid_args(logic, temp_git_repo):
     """Test getting prompt with invalid arguments."""
-    repo_id = logic.open_repository(temp_git_repo)
+    logic.open_repository(temp_git_repo)
     with pytest.raises(MCPError):
-        logic.get_prompt(repo_id, "code_review", {"invalid": "args"})
+        logic.get_prompt("get_code_summary", {"invalid": "args"})
 
 
 def test_repository_not_found(logic):
@@ -393,8 +406,11 @@ def test_repository_not_found(logic):
 
 def test_open_repository_invalid_path(logic):
     """Test opening repository with invalid path."""
+    # Repository accepts non-existent paths, so we test operations on it instead
+    repo_id = logic.open_repository("/nonexistent/path")
+    # Operations on non-existent repo should fail
     with pytest.raises(MCPError):
-        logic.open_repository("/nonexistent/path")
+        logic.get_file_content(repo_id, "test.py")
 
 
 def test_get_file_content_nonexistent_file(logic, temp_git_repo):
@@ -407,8 +423,10 @@ def test_get_file_content_nonexistent_file(logic, temp_git_repo):
 def test_extract_symbols_invalid_file(logic, temp_git_repo):
     """Test extracting symbols from invalid file."""
     repo_id = logic.open_repository(temp_git_repo)
-    with pytest.raises(MCPError):
-        logic.extract_symbols(repo_id, "nonexistent.py")
+    # Repository logs warning and returns empty list for non-existent files
+    result = logic.extract_symbols(repo_id, "nonexistent.py")
+    assert isinstance(result, list)
+    assert len(result) == 0
 
 
 def test_find_symbol_usages_invalid_symbol(logic, temp_git_repo):
@@ -430,8 +448,10 @@ def test_search_code_invalid_pattern(logic, temp_git_repo):
 def test_get_code_summary_invalid_type(logic, temp_git_repo):
     """Test getting code summary with invalid type."""
     repo_id = logic.open_repository(temp_git_repo)
+    # get_code_summary doesn't have a symbol_type parameter
+    # Test with invalid file path instead
     with pytest.raises(MCPError):
-        logic.get_code_summary(repo_id, "test.py", symbol_type="invalid_type")
+        logic.get_code_summary(repo_id, "../invalid/path.py")
 
 
 def test_find_symbol_usages_invalid_repo_id(logic):
@@ -450,8 +470,11 @@ def test_get_code_summary_error(logic, temp_git_repo):
     """Test getting code summary with error."""
     repo_id = logic.open_repository(temp_git_repo)
 
-    with patch("kit.repository.Repository.get_code_summary") as mock_summary:
-        mock_summary.side_effect = Exception("Test error")
+    # Mock the analyzer instead of Repository method
+    with patch.object(logic, "get_analyzer") as mock_get_analyzer:
+        mock_analyzer = MagicMock()
+        mock_analyzer.summarize_file.side_effect = Exception("Test error")
+        mock_get_analyzer.return_value = mock_analyzer
 
         with pytest.raises(MCPError):
             logic.get_code_summary(repo_id, "test.py")

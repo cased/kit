@@ -47,6 +47,8 @@ def complex_git_repo():
             os.system("git init --quiet")
             os.system('git config user.name "Test User"')
             os.system('git config user.email "test@example.com"')
+            # Explicitly create main branch
+            os.system("git branch -M main --quiet")
 
             # Create main branch with initial structure
             (repo_path / "src").mkdir()
