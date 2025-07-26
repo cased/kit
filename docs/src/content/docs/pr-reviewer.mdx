@@ -186,24 +186,30 @@ kit review-profile list
 
 ## 🏠 Local Diff Reviews (No PR Required!)
 
-Review code changes locally without creating a GitHub PR. Perfect for pre-commit reviews, work-in-progress checks, or private repositories:
+Review code changes locally without creating a GitHub PR. Perfect for pre-commit reviews, work-in-progress checks, or private repositories.
+
+**How it works**: Kit analyzes the git diff in your current repository and provides an AI-powered review with the same intelligence as PR reviews.
 
 ```bash
 # Review changes between branches
-kit review main..feature
-kit review develop..my-branch
+kit review main..feature        # Changes from main to feature branch
+kit review develop..my-branch   # Changes from develop to my-branch
 
 # Review recent commits
-kit review HEAD~3..HEAD    # Last 3 commits
-kit review abc123..def456  # Specific commit range
+kit review HEAD~3..HEAD         # Last 3 commits
+kit review HEAD~1               # Last commit (shorthand for HEAD~1..HEAD)
+kit review abc123..def456       # Specific commit range
 
 # Review staged changes before committing
-kit review --staged
+kit review --staged             # Review what's staged for commit
 
 # Combine with other options
-kit review --plain main..feature | claude "Should I merge this?"
+kit review --plain main..feature | claude "Fix the high priority issues"
 kit review --priority=high HEAD~1..HEAD
 kit review --model gpt-4.1-mini --staged
+
+# Review from a different directory
+kit review HEAD~1 --repo-path /path/to/repo
 ```
 
 **Key Benefits:**
@@ -212,23 +218,83 @@ kit review --model gpt-4.1-mini --staged
 - **Workflow**: Integrate into pre-commit hooks or local development
 - **Cost**: Same transparent pricing as PR reviews
 
-**Local reviews are saved to**: `~/.kit/reviews/` for future reference
+**Default Behavior:**
+- **Output**: Always goes to stdout (perfect for piping and redirection)
+- **Format**: Standard mode includes headers, metadata, and formatting
+- **Saving**: Reviews are NOT saved to disk by default
+
+**Output Formats:**
+- **Standard** (default): Full formatted output with headers, diff info, author, and cost tracking
+- **Plain** (`--plain`): Clean output with just the review content - ideal for piping to other tools
+- **Dry Run** (`--dry-run`): Preview mode without posting to GitHub (for PR reviews)
+
+**Examples:**
+```bash
+# Default: outputs formatted review to stdout
+kit review HEAD~1                    # See full formatted review in terminal
+kit review HEAD~1 > review.md        # Save formatted review to file
+
+# Plain mode: clean output for piping
+kit review --plain HEAD~1 | claude "fix these issues"
+kit review --plain HEAD~1 | pbcopy   # Copy review to clipboard (macOS)
+```
+
+**Note**: To automatically save reviews to `.kit/reviews/` within your repository, enable `save_reviews: true` in your config file.
 
 ## 🔄 Output Modes & Integration
 
-Kit provides different output modes for various workflows - from direct GitHub posting to piping output to CLI code writers:
+Kit provides different output modes for various workflows:
 
 ```bash
-# Standard mode - posts directly to GitHub
-kit review https://github.com/owner/repo/pull/123
+# Standard mode (default) - formatted output with headers and metadata
+kit review main..feature
+# Shows: header, diff info, author, review content, cost tracking
 
 # Plain mode - clean output for piping to other tools
-kit review --plain https://github.com/owner/repo/pull/123 | \
-  claude "implement these suggestions"
+kit review --plain main..feature | claude "implement these suggestions"
+# Shows: only the review content, perfect for piping
 
-# Priority filtering - focus on what matters
-kit review --priority=high,medium https://github.com/owner/repo/pull/123
+# Dry run mode - preview without posting (GitHub PRs only)
+kit review --dry-run https://github.com/owner/repo/pull/123
+
+# Combine modes with filtering
+kit review --plain --priority=high HEAD~1..HEAD
 ```
+
+**Output Examples:**
+
+<details>
+<summary>Standard Output (default)</summary>
+
+```
+🔍 Kit Local Diff Review
+
+Repository: my-project
+Diff: main..feature
+Author: John Doe
+
+---
+
+## Code Review
+
+### HIGH Priority
+- Security issue in auth.py...
+
+---
+✨ Cost: $0.0234
+```
+</details>
+
+<details>
+<summary>Plain Output (--plain)</summary>
+
+```
+## Code Review
+
+### HIGH Priority
+- Security issue in auth.py...
+```
+</details>
 
 → **[Integration Guide](/pr-reviewer/integration)** - Output modes, piping workflows, and multi-stage AI analysis
 
