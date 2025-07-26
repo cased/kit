@@ -994,7 +994,7 @@ def review_pr(
         else:
             # Normal mode: check if there were actually changes to review
             if comment.strip() == "No changes to review.":
-                typer.echo("ℹ️  No changes to review.")
+                typer.echo("No changes to review.")
             else:
                 # Show the review content by default
                 typer.echo(comment)
