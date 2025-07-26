@@ -159,6 +159,14 @@ class ReviewConfig:
     profile_context: Optional[str] = None  # Loaded profile context
     # Existing repository path (skips cloning when provided)
     repo_path: Optional[str] = None  # Path to existing repository to use for analysis
+    # Local review settings
+    save_reviews: bool = False  # Save local reviews to .kit/reviews/
+    llm_provider: Optional[str] = None  # Convenience accessor for llm.provider
+    llm_model: Optional[str] = None  # Convenience accessor for llm.model
+    llm_api_key: Optional[str] = None  # Convenience accessor for llm.api_key
+    llm_api_base_url: Optional[str] = None  # Convenience accessor for llm.api_base_url
+    llm_temperature: Optional[float] = None  # Convenience accessor for llm.temperature
+    llm_max_tokens: Optional[int] = None  # Convenience accessor for llm.max_tokens
 
     @classmethod
     def from_file(
@@ -332,6 +340,14 @@ class ReviewConfig:
             profile=profile,
             profile_context=profile_context,
             repo_path=repo_path,
+            save_reviews=review_data.get("save_reviews", False),
+            # Convenience accessors for LLM config
+            llm_provider=llm_config.provider.value,
+            llm_model=llm_config.model,
+            llm_api_key=llm_config.api_key,
+            llm_api_base_url=llm_config.api_base_url,
+            llm_temperature=llm_config.temperature,
+            llm_max_tokens=llm_config.max_tokens,
         )
 
     def create_default_config_file(self, config_path: Optional[str] = None) -> str:

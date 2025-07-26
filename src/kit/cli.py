@@ -29,7 +29,7 @@ def main(
     [bold blue]Kit[/] - A modular toolkit for LLM-powered codebase understanding.
 
     [bold yellow]🤖 AI-Powered Commands:[/]
-    • [cyan]review[/]     - AI code reviews for GitHub PRs
+    • [cyan]review[/]     - AI code reviews for GitHub PRs or local diffs
     • [cyan]summarize[/]  - Quick PR summaries for triage
     • [cyan]commit[/]     - Generate intelligent commit messages
 
@@ -766,7 +766,8 @@ def index(
 @app.command("review")
 def review_pr(
     init_config: bool = typer.Option(False, "--init-config", help="Create a default configuration file and exit"),
-    pr_url: str = typer.Argument("", help="GitHub PR URL (https://github.com/owner/repo/pull/123)"),
+    target: str = typer.Argument("", help="GitHub PR URL or local diff (e.g., main..feature, HEAD~3)"),
+    staged: bool = typer.Option(False, "--staged", help="Review staged changes"),
     config: Optional[str] = typer.Option(
         None, "--config", "-c", help="Path to config file (default: ~/.kit/review-config.yaml)"
     ),
@@ -797,8 +798,9 @@ def review_pr(
         None, "--repo-path", help="Path to existing repository (skips cloning, uses current state)"
     ),
 ):
-    """Review a GitHub PR using kit's repository intelligence and AI analysis."""
+    """Review a GitHub PR or local diff using kit's repository intelligence and AI analysis."""
     from kit.pr_review.config import ReviewConfig
+    from kit.pr_review.local_reviewer import LocalDiffReviewer
     from kit.pr_review.reviewer import PRReviewer
 
     if init_config:
@@ -823,15 +825,23 @@ def review_pr(
                 "2. Set KIT_GITHUB_TOKEN and either KIT_ANTHROPIC_TOKEN or KIT_OPENAI_TOKEN environment variables, or"
             )
             typer.echo("3. Update the config file with your actual tokens")
-            typer.echo("\n💡 Then try: kit review --dry-run https://github.com/owner/repo/pull/123")
+            typer.echo("\n💡 Then try:")
+            typer.echo("   - GitHub PR: kit review --dry-run https://github.com/owner/repo/pull/123")
+            typer.echo("   - Local diff: kit review --dry-run main..feature")
             return
         except Exception as e:
             typer.secho(f"❌ Failed to create config: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
 
-    if not pr_url:
-        typer.secho("❌ PR URL is required", fg=typer.colors.RED)
-        typer.echo("\n💡 Example: kit review https://github.com/owner/repo/pull/123")
+    # Handle --staged flag
+    if staged:
+        target = "--staged"
+    elif not target:
+        typer.secho("❌ Target is required", fg=typer.colors.RED)
+        typer.echo("\n💡 Examples:")
+        typer.echo("  - GitHub PR: kit review https://github.com/owner/repo/pull/123")
+        typer.echo("  - Local diff: kit review main..feature")
+        typer.echo("  - Staged changes: kit review --staged")
         typer.echo("💡 Or run: kit review --help")
         raise typer.Exit(code=1)
 
@@ -943,15 +953,32 @@ def review_pr(
             if not plain:  # Only show this message if not in plain mode
                 print("🛠️ Standard mode configured - repository intelligence enabled")
 
-        # Create reviewer and run review
-        if agentic:
-            from kit.pr_review.agentic_reviewer import AgenticPRReviewer
+        # Determine if target is a PR URL or local diff
+        is_pr_url = (
+            isinstance(target, str) and target.startswith("http") and "github.com" in target and "/pull/" in target
+        )
 
-            agentic_reviewer = AgenticPRReviewer(review_config)
-            comment = agentic_reviewer.review_pr_agentic(pr_url)
+        # Create reviewer and run review
+        if is_pr_url:
+            # GitHub PR review
+            if agentic:
+                from kit.pr_review.agentic_reviewer import AgenticPRReviewer
+
+                agentic_reviewer = AgenticPRReviewer(review_config)
+                comment = agentic_reviewer.review_pr_agentic(target)
+            else:
+                standard_reviewer = PRReviewer(review_config)
+                comment = standard_reviewer.review_pr(target)
         else:
-            standard_reviewer = PRReviewer(review_config)
-            comment = standard_reviewer.review_pr(pr_url)
+            # Local diff review
+            if agentic:
+                typer.secho("⚠️  Agentic mode is not yet supported for local diffs", fg=typer.colors.YELLOW)
+                raise typer.Exit(code=1)
+
+            # Use current directory or specified repo path
+            local_repo_path = repo_path or "."
+            local_reviewer = LocalDiffReviewer(review_config, local_repo_path)
+            comment = local_reviewer.review(target)
 
         # Handle output based on mode
         if plain:
@@ -965,8 +992,17 @@ def review_pr(
             typer.echo(comment)
             typer.echo("=" * 60)
         else:
-            # Normal mode: post comment and show success
-            typer.echo("✅ Review completed and comment posted!")
+            # Normal mode: check if there were actually changes to review
+            if comment.strip() == "No changes to review.":
+                typer.echo("No changes to review.")
+            else:
+                # Show the review content by default
+                typer.echo(comment)
+                # Show completion message after the review
+                if is_pr_url:
+                    typer.echo("\n✅ Review completed and comment posted!")
+                else:
+                    typer.echo("\n✅ Review completed!")
 
     except ValueError as e:
         typer.secho(f"❌ Configuration error: {e}", fg=typer.colors.RED)

@@ -97,10 +97,17 @@ kit usages /path/to/repo "MyClass"
 # Export data for external tools
 kit export /path/to/repo symbols symbols.json
 
-# Initialize configuration and review a PR
+# Initialize configuration for reviews
 kit review --init-config
+
+# Review GitHub PRs
 kit review --dry-run https://github.com/owner/repo/pull/123
 kit review https://github.com/owner/repo/pull/123
+
+# Review local git diffs (no PR required!)
+kit review main..feature  # Compare branches
+kit review HEAD~3..HEAD   # Review last 3 commits
+kit review --staged       # Review staged changes
 
 # Generate PR summaries for quick triage
 kit summarize https://github.com/owner/repo/pull/123

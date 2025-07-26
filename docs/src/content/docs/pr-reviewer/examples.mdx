@@ -147,6 +147,40 @@ kit review --repo-path ~/projects/myapp \
 **Local Development Pro Tip**: Use `--repo-path` when you want to analyze how a PR integrates with your local changes or when working on a feature branch that's not yet pushed.
 </Aside>
 
+### Local Diff Review (No PR Required)
+
+```bash
+# Review work-in-progress before creating PR
+kit review main..feature-branch
+
+# Get AI feedback on staged changes before committing
+kit review --staged --model gpt-4.1-mini
+
+# Review last 3 commits for a retrospective
+kit review HEAD~3..HEAD --priority=high
+
+# Private repository review without GitHub
+cd /path/to/private-repo
+kit review develop..hotfix/security-patch
+```
+
+**Benefits**:
+- **Pre-commit quality checks**: Catch issues before they enter version control
+- **Private code review**: Keep sensitive changes local
+- **Faster iteration**: No PR creation/deletion overhead
+- **Cost-effective**: Same pricing as PR reviews
+
+**Example pre-commit hook**:
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+if ! kit review --staged --plain --priority=high | grep -q "No HIGH priority issues"; then
+  echo "High priority issues found. Review before committing."
+  kit review --staged --priority=high
+  exit 1
+fi
+```
+
 ### Large Repository Optimization
 
 ```bash
