@@ -349,9 +349,18 @@ def test_get_code_summary_mocked(logic, temp_git_repo):
 def test_get_prompt_open_repo(logic, temp_git_repo):
     """Test getting prompt with open repository."""
     repo_id = logic.open_repository(temp_git_repo)
-    result = logic.get_prompt("get_code_summary", {"repo_id": repo_id, "file_path": "test.py"})
-    assert isinstance(result, GetPromptResult)
-    assert result.messages
+    
+    # Mock the analyzer to avoid OpenAI API key requirement
+    with patch.object(logic, "get_analyzer") as mock_get_analyzer:
+        mock_analyzer = MagicMock()
+        mock_analyzer.summarize_file.return_value = {
+            "summary": "This is a test file with a hello function and TestClass."
+        }
+        mock_get_analyzer.return_value = mock_analyzer
+        
+        result = logic.get_prompt("get_code_summary", {"repo_id": repo_id, "file_path": "test.py"})
+        assert isinstance(result, GetPromptResult)
+        assert result.messages
 
 
 def test_invalid_prompt_name(logic, temp_git_repo):
