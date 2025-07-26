@@ -70,7 +70,8 @@ class TestCLILocalReview:
         assert result.exit_code == 0
         assert "GitHub PR URL or local diff" in result.output
         assert "main..feature" in result.output
-        assert "--staged" in result.output
+        # Check for staged option (may have formatting characters)
+        assert "staged" in result.output.lower() and "review staged changes" in result.output.lower()
 
     def test_review_missing_target(self, runner):
         """Test review with missing target."""

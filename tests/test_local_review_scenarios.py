@@ -76,6 +76,9 @@ class TestMain(unittest.TestCase):
             os.system("git add .")
             os.system('git commit -m "Initial project structure" --quiet')
 
+            # Ensure we have a main branch
+            os.system("git branch -M main --quiet")
+
             # Create feature branch with multiple commits
             os.system("git checkout -b feature/auth --quiet")
 
