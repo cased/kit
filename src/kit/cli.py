@@ -797,6 +797,12 @@ def review_pr(
     repo_path: Optional[str] = typer.Option(
         None, "--repo-path", help="Path to existing repository (skips cloning, uses current state)"
     ),
+    validate_high: bool = typer.Option(
+        False, "--validate-high", help="Enable secondary validation pass for high-priority issues"
+    ),
+    confidence_threshold: float = typer.Option(
+        0.7, "--confidence-threshold", help="Minimum confidence (0-1) to keep high-priority issues after validation"
+    ),
 ):
     """Review a GitHub PR or local diff using kit's repository intelligence and AI analysis."""
     from kit.pr_review.config import ReviewConfig
@@ -937,6 +943,13 @@ def review_pr(
         if plain:
             # Set quiet mode to suppress all status output
             review_config.quiet = True
+
+        # Configure validation settings if requested
+        if validate_high:
+            review_config.validate_high_issues = True
+            review_config.high_issue_confidence_threshold = confidence_threshold
+            if not plain:
+                typer.echo(f"✅ High-priority issue validation enabled (threshold: {confidence_threshold})")
 
         # Configure agentic settings if requested
         if agentic:

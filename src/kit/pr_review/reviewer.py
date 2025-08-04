@@ -15,6 +15,7 @@ from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
 from .diff_parser import DiffParser, FileDiff
 from .file_prioritizer import FilePrioritizer
+from .high_issue_validator import HighIssueValidator, apply_validation_results
 from .priority_filter import filter_review_by_priority
 from .validator import validate_review_quality
 
@@ -293,6 +294,30 @@ class PRReviewer:
             analysis = await self._analyze_with_ollama_enhanced(analysis_prompt)
         else:
             analysis = await self._analyze_with_openai_enhanced(analysis_prompt)
+
+        # Apply secondary validation for high-priority issues if enabled
+        if self.config.validate_high_issues:
+            validator = HighIssueValidator(self.config.llm, self.config.high_issue_confidence_threshold)
+
+            # Extract high-priority issues
+            high_issues = validator.extract_high_priority_issues(analysis)
+
+            if high_issues and not self.config.quiet:
+                print(f"🔍 Validating {len(high_issues)} high-priority issue(s)...")
+
+            if high_issues:
+                # Run validation
+                validations = await validator.validate_issues(
+                    high_issues, pr_diff, diff_files, context=f"PR: {pr_details['title']}"
+                )
+
+                # Apply validation results
+                analysis, removed, total = apply_validation_results(
+                    analysis, validations, self.config.high_issue_confidence_threshold
+                )
+
+                if removed > 0 and not self.config.quiet:
+                    print(f"✅ Validation complete: {total - removed}/{total} high-priority issues confirmed")
 
         # Apply priority filtering if requested
         priority_filter = self.config.priority_filter

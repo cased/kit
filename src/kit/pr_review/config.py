@@ -161,6 +161,9 @@ class ReviewConfig:
     repo_path: Optional[str] = None  # Path to existing repository to use for analysis
     # Local review settings
     save_reviews: bool = False  # Save local reviews to .kit/reviews/
+    # High-priority issue validation settings
+    validate_high_issues: bool = False  # Enable secondary validation pass for high-priority issues
+    high_issue_confidence_threshold: float = 0.7  # Minimum confidence to keep a high-priority issue (0-1)
     llm_provider: Optional[str] = None  # Convenience accessor for llm.provider
     llm_model: Optional[str] = None  # Convenience accessor for llm.model
     llm_api_key: Optional[str] = None  # Convenience accessor for llm.api_key
@@ -341,6 +344,8 @@ class ReviewConfig:
             profile_context=profile_context,
             repo_path=repo_path,
             save_reviews=review_data.get("save_reviews", False),
+            validate_high_issues=review_data.get("validate_high_issues", False),
+            high_issue_confidence_threshold=review_data.get("high_issue_confidence_threshold", 0.7),
             # Convenience accessors for LLM config
             llm_provider=llm_config.provider.value,
             llm_model=llm_config.model,
@@ -388,6 +393,9 @@ class ReviewConfig:
                 # Agentic reviewer settings (for multi-turn analysis)
                 "agentic_max_turns": 20,  # Maximum number of analysis turns
                 "agentic_finalize_threshold": 15,  # Start encouraging finalization at this turn
+                # High-priority issue validation (secondary LLM pass for confirmation)
+                # "validate_high_issues": True,  # Enable validation of high-priority issues
+                # "high_issue_confidence_threshold": 0.7,  # Minimum confidence (0-1) to keep issue
                 # "custom_pricing": {
                 #     "anthropic": {
                 #         "claude-3-7-sonnet-latest": {
