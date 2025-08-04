@@ -24,6 +24,31 @@ pip install cased-kit[ml]
 pip install cased-kit[all]
 ```
 
+### Install Globally with uv (Recommended for CLI usage)
+
+If you want to use the `kit` CLI globally without affecting your system Python, use `uv tool install`. This creates an isolated environment for `kit` while making the CLI available from anywhere:
+
+```bash
+# Install the base kit CLI globally
+uv tool install cased-kit
+
+# With semantic search features (includes PyTorch, sentence-transformers)
+uv tool install cased-kit[ml]
+
+# Everything (including MCP server and all features)
+uv tool install cased-kit[all]
+```
+
+After installation, the `kit` and `kit-mcp` commands will be available globally. To manage your uv tool installations:
+
+```bash
+# List installed tools
+uv tool list
+
+# Uninstall if needed
+uv tool uninstall cased-kit
+```
+
 ### Install from Source
 
 ```bash
