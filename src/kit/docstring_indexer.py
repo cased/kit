@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 from .repository import Repository
 from .summaries import Summarizer
-from .vector_searcher import ChromaDBBackend, VectorDBBackend
+from .vector_searcher import ChromaCloudBackend, ChromaDBBackend, VectorDBBackend
 
 EmbedFn = Callable[[str], List[float]]  # str -> embedding vector
 
@@ -200,11 +200,25 @@ class DocstringIndexer:
         if not os.path.exists(self.persist_dir):
             os.makedirs(self.persist_dir, exist_ok=True)
 
-        # Updated backend instantiation: explicitly pass path and a clearer collection_name
-        str_persist_dir = str(self.persist_dir)
-        self.backend: VectorDBBackend = backend or ChromaDBBackend(
-            persist_dir=str_persist_dir, collection_name="kit_docstring_index"
-        )
+        # Updated backend instantiation: use cloud backend if explicitly configured
+        if backend is None:
+            use_cloud = os.environ.get("KIT_USE_CHROMA_CLOUD", "").lower() == "true"
+
+            if use_cloud:
+                api_key = os.environ.get("CHROMA_API_KEY")
+                if not api_key:
+                    raise ValueError(
+                        "KIT_USE_CHROMA_CLOUD is set to true but CHROMA_API_KEY is not found. "
+                        "Please set CHROMA_API_KEY environment variable or set KIT_USE_CHROMA_CLOUD=false"
+                    )
+                self.backend: VectorDBBackend = ChromaCloudBackend(collection_name="kit_docstring_index")
+            else:
+                str_persist_dir = str(self.persist_dir)
+                self.backend: VectorDBBackend = ChromaDBBackend(
+                    persist_dir=str_persist_dir, collection_name="kit_docstring_index"
+                )
+        else:
+            self.backend = backend
 
     def build(self, force: bool = False, level: str = "symbol", file_extensions: Optional[List[str]] = None) -> None:
         """(Re)build the docstring index.
