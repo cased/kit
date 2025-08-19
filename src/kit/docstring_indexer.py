@@ -154,6 +154,7 @@ class DocstringIndexer:
     ) -> None:
         self.repo = repo
         self.summarizer = summarizer
+        self.backend: VectorDBBackend  # Will be set later
 
         if embed_fn:
             self.embed_fn = embed_fn
@@ -211,12 +212,10 @@ class DocstringIndexer:
                         "KIT_USE_CHROMA_CLOUD is set to true but CHROMA_API_KEY is not found. "
                         "Please set CHROMA_API_KEY environment variable or set KIT_USE_CHROMA_CLOUD=false"
                     )
-                self.backend: VectorDBBackend = ChromaCloudBackend(collection_name="kit_docstring_index")
+                self.backend = ChromaCloudBackend(collection_name="kit_docstring_index")
             else:
                 str_persist_dir = str(self.persist_dir)
-                self.backend: VectorDBBackend = ChromaDBBackend(
-                    persist_dir=str_persist_dir, collection_name="kit_docstring_index"
-                )
+                self.backend = ChromaDBBackend(persist_dir=str_persist_dir, collection_name="kit_docstring_index")
         else:
             self.backend = backend
 

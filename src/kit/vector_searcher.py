@@ -127,7 +127,13 @@ class ChromaCloudBackend(VectorDBBackend):
         # Get credentials from environment if not provided
         api_key = api_key or os.environ.get("CHROMA_API_KEY")
         tenant = tenant or os.environ.get("CHROMA_TENANT")
-        database = database or os.environ.get("CHROMA_DATABASE", "kit_codebase_index")
+        database = database or os.environ.get("CHROMA_DATABASE")
+
+        if not database:
+            raise ValueError(
+                "Chroma Cloud database not specified. Set CHROMA_DATABASE environment variable "
+                "or pass database directly. Create a database in your Chroma Cloud dashboard first."
+            )
 
         if not tenant:
             raise ValueError(

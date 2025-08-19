@@ -34,8 +34,8 @@ export CHROMA_API_KEY="your-api-key-here"
 # Required: Your tenant UUID (find this in your Chroma Cloud dashboard)
 export CHROMA_TENANT="your-tenant-uuid"  # e.g., "3893b771-b971-4f45-8e30-7aac7837ad7f"
 
-# Optional: Specify database (default shown)
-export CHROMA_DATABASE="kit_codebase_index"  # Default for kit
+# Required: Your database name (create in Chroma Cloud dashboard first)
+export CHROMA_DATABASE="your-database-name"  # e.g., "kit-1"
 ```
 
 ### 4. Use Kit as normal
