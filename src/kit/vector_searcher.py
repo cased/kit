@@ -113,8 +113,13 @@ class ChromaDBBackend(VectorDBBackend):
 class ChromaCloudBackend(VectorDBBackend):
     """ChromaDB Cloud backend for vector search using Chroma's managed cloud service."""
 
-    def __init__(self, collection_name: Optional[str] = None, api_key: Optional[str] = None,
-                 tenant: Optional[str] = None, database: Optional[str] = None):
+    def __init__(
+        self,
+        collection_name: Optional[str] = None,
+        api_key: Optional[str] = None,
+        tenant: Optional[str] = None,
+        database: Optional[str] = None,
+    ):
         if chromadb is None or CloudClient is None:
             raise ImportError("chromadb is not installed. Run 'pip install chromadb'.")
         self.is_local = False  # Flag to identify cloud backend
@@ -123,7 +128,7 @@ class ChromaCloudBackend(VectorDBBackend):
         api_key = api_key or os.environ.get("CHROMA_API_KEY")
         tenant = tenant or os.environ.get("CHROMA_TENANT")
         database = database or os.environ.get("CHROMA_DATABASE", "kit_codebase_index")
-        
+
         if not tenant:
             raise ValueError(
                 "Chroma Cloud tenant not specified. Set CHROMA_TENANT environment variable "

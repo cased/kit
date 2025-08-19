@@ -33,10 +33,7 @@ class TestChromaCloudBackend(unittest.TestCase):
         mock_cloud_client.return_value = mock_client_instance
 
         ChromaCloudBackend(
-            collection_name="my_collection",
-            api_key="explicit-key",
-            tenant="my-tenant",
-            database="my-db"
+            collection_name="my_collection", api_key="explicit-key", tenant="my-tenant", database="my-db"
         )
 
         mock_cloud_client.assert_called_once_with(
@@ -69,11 +66,7 @@ class TestChromaCloudBackend(unittest.TestCase):
 
         backend.add(embeddings, metadatas)
 
-        mock_collection.add.assert_called_once_with(
-            embeddings=embeddings,
-            metadatas=metadatas,
-            ids=["0", "1"]
-        )
+        mock_collection.add.assert_called_once_with(embeddings=embeddings, metadatas=metadatas, ids=["0", "1"])
 
     @patch("kit.vector_searcher.CloudClient")
     @patch.dict(os.environ, {"CHROMA_API_KEY": "test-api-key"})
@@ -83,7 +76,7 @@ class TestChromaCloudBackend(unittest.TestCase):
         mock_collection.query.return_value = {
             "ids": [["id1", "id2"]],
             "metadatas": [[{"file": "test1.py"}, {"file": "test2.py"}]],
-            "distances": [[0.1, 0.2]]
+            "distances": [[0.1, 0.2]],
         }
         mock_client_instance = MagicMock()
         mock_client_instance.get_or_create_collection.return_value = mock_collection
