@@ -117,11 +117,11 @@ def embed_fn_single(texts: list[str]) -> list[list[float]]:
 
 ### Backend Configuration
 
-`kit`'s `VectorSearcher` uses a pluggable backend system for storing and querying vector embeddings. Currently, the primary supported and default backend is **ChromaDB**.
+`kit`'s `VectorSearcher` uses a pluggable backend system for storing and querying vector embeddings. Kit supports both local ChromaDB storage and Chroma Cloud for managed vector databases.
 
-#### ChromaDB (Default)
+#### Local ChromaDB (Default)
 
-When you initialize `VectorSearcher` without specifying a `backend` argument, `kit` automatically uses an instance of `ChromaDBBackend`.
+When you initialize `VectorSearcher` without specifying a `backend` argument, `kit` automatically uses an instance of `ChromaDBBackend` for local storage.
 
 **Configuration Options:**
 
@@ -148,9 +148,116 @@ vector_searcher_reloaded = repo.get_vector_searcher(
 results = vector_searcher_reloaded.search("my query")
 ```
 
+#### Chroma Cloud (Managed Service)
+
+Kit supports [Chroma Cloud](https://trychroma.com), a fully managed vector database service, as an alternative to local ChromaDB storage. This enables better scalability, team collaboration, and eliminates local storage constraints for large codebases.
+
+**Important:** The API remains exactly the same whether you're using local ChromaDB or Chroma Cloud. The only difference is which Chroma server you're connecting to - a local single-node instance or the managed Cloud service. Your code doesn't need to change, just the environment configuration.
+
+##### Prerequisites
+
+- ChromaDB version 1.0.0 or higher (`pip install chromadb>=1.0.0`)
+- Python 3.10+
+- Chroma Cloud account (sign up at [https://trychroma.com/signup](https://trychroma.com/signup))
+
+##### Configuration
+
+Set the following environment variables to enable Chroma Cloud:
+
+```bash
+# Required: Enable Chroma Cloud backend
+export KIT_USE_CHROMA_CLOUD="true"
+
+# Required: Your Chroma Cloud API key
+export CHROMA_API_KEY="your-api-key-here"
+
+# Required: Your tenant UUID (must be valid UUID format)
+export CHROMA_TENANT="3893b771-b971-4f45-8e30-7aac7837ad7f"
+
+# Required: Your database name (create in dashboard first)
+export CHROMA_DATABASE="kit-codebase-index"
+```
+
+**Note:** The tenant must be a valid UUID. Kit will validate the format and provide a clear error if an invalid tenant is provided. Find your tenant UUID in your [Chroma Cloud dashboard](https://cloud.trychroma.com).
+
+##### Usage
+
+Once the environment variables are set, Kit will automatically use Chroma Cloud:
+
+```python
+from kit import Repository
+from kit.vector_searcher import VectorSearcher
+
+# Initialize repository
+repo = Repository("/path/to/repo")
+
+# Create vector searcher - will use Chroma Cloud automatically
+searcher = VectorSearcher(repo, embed_fn=my_embed_function)
+
+# Build index (stored in cloud)
+searcher.build_index()
+
+# Search (queries cloud backend)
+results = searcher.search("find authentication logic", top_k=5)
+```
+
+##### Programmatic Configuration
+
+You can also explicitly create a cloud backend:
+
+```python
+from kit.vector_searcher import ChromaCloudBackend, VectorSearcher
+
+# Create cloud backend explicitly
+backend = ChromaCloudBackend(
+    api_key="your-api-key",
+    tenant="3893b771-b971-4f45-8e30-7aac7837ad7f",  # UUID format
+    database="kit-codebase-index",
+    collection_name="my_project_index"
+)
+
+# Use with VectorSearcher
+searcher = VectorSearcher(repo, embed_fn=my_embed_function, backend=backend)
+```
+
+##### Switching Between Local and Cloud
+
+Kit determines which backend to use based on the `KIT_USE_CHROMA_CLOUD` environment variable:
+
+- **`KIT_USE_CHROMA_CLOUD=true`**: Uses Chroma Cloud (requires `CHROMA_API_KEY`)
+- **`KIT_USE_CHROMA_CLOUD=false` or unset**: Uses local ChromaDB storage
+
+```bash
+# Switch to cloud
+export KIT_USE_CHROMA_CLOUD="true"
+
+# Switch back to local
+export KIT_USE_CHROMA_CLOUD="false"
+# or
+unset KIT_USE_CHROMA_CLOUD
+```
+
+##### Benefits of Chroma Cloud
+
+- **Team Collaboration**: Share indexes across team members
+- **No Storage Limits**: Scale to massive codebases without local disk constraints
+- **Managed Service**: No infrastructure to maintain
+- **Persistence**: Data persists across machines and sessions
+- **Performance**: Optimized cloud infrastructure for vector operations
+
+##### Migration
+
+To migrate from local to cloud:
+1. Set up Chroma Cloud credentials
+2. Rebuild your indexes (they'll be stored in cloud)
+
+To migrate from cloud to local:
+1. Unset `KIT_USE_CHROMA_CLOUD`
+2. Rebuild your indexes locally
+
 #### Other Backends
 
-While the `VectorDBBackend` interface is designed to support other vector databases, ChromaDB is the primary focus for now. If you need other backends like Faiss, please raise an issue on the kit GitHub repository.
+While the `VectorDBBackend` interface is designed to support other vector databases, ChromaDB (local and cloud) is the primary focus for now. If you need other backends like Faiss, please raise an issue on the kit GitHub repository.
 
 ## Usage Patterns
 
