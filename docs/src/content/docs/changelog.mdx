@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Chroma Cloud Integration**
   - Added support for [Chroma Cloud](https://trychroma.com), a fully managed vector database service
   - New `ChromaCloudBackend` class enables cloud-based vector storage for semantic search
+  - Same API as local ChromaDB - only difference is connecting to Cloud server instead of local
   - Seamless switching between local and cloud storage via `KIT_USE_CHROMA_CLOUD` environment variable
   - Supports team collaboration with shared indexes across machines
   - No local storage limits - scale to massive codebases

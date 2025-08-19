@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any, Dict, List, Optional
 
 try:
@@ -138,7 +139,16 @@ class ChromaCloudBackend(VectorDBBackend):
         if not tenant:
             raise ValueError(
                 "Chroma Cloud tenant not specified. Set CHROMA_TENANT environment variable "
-                "(check your Chroma Cloud dashboard for your tenant name) or pass tenant directly."
+                "(check your Chroma Cloud dashboard for your tenant UUID) or pass tenant directly."
+            )
+        
+        # Validate tenant UUID format
+        uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+        if not uuid_pattern.match(tenant):
+            raise ValueError(
+                f"Invalid tenant format: '{tenant}'. "
+                "Chroma Cloud requires a valid UUID (e.g., '3893b771-b971-4f45-8e30-7aac7837ad7f'). "
+                "Check your Chroma Cloud dashboard for your tenant UUID."
             )
 
         if not api_key:

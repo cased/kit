@@ -2,6 +2,8 @@
 
 Kit now supports [Chroma Cloud](https://trychroma.com), a fully managed vector database service, as an alternative to local ChromaDB storage. This enables better scalability, team collaboration, and eliminates local storage constraints for large codebases.
 
+**Important:** The API remains exactly the same whether you're using local ChromaDB or Chroma Cloud. The only difference is which Chroma server you're connecting to - a local single-node instance or the managed Cloud service. Your code doesn't need to change, just the environment configuration.
+
 ## Prerequisites
 
 - ChromaDB version 1.0.0 or higher (`pip install chromadb>=1.0.0`)
@@ -17,8 +19,10 @@ Sign up for a free account at [https://trychroma.com/signup](https://trychroma.c
 
 After signing up, from your Chroma Cloud dashboard (https://cloud.trychroma.com), you'll need:
 - Your API key
-- Your tenant UUID (a UUID like `3893b771-b971-4f45-8e30-7aac7837ad7f`)
+- Your tenant UUID (must be a valid UUID format like `3893b771-b971-4f45-8e30-7aac7837ad7f`)
 - Database name (create one in the dashboard, e.g., `kit-1` or `kit-codebase-index`)
+
+**Note:** The tenant must be a valid UUID. Kit will validate the format and provide a clear error if an invalid tenant is provided.
 
 ### 3. Configure Kit to use Chroma Cloud
 
