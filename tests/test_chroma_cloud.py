@@ -4,14 +4,26 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-from kit.vector_searcher import ChromaCloudBackend, get_default_backend
+import pytest
+
+# Try to import chromadb to check if it's available
+try:
+    import chromadb
+    CHROMADB_AVAILABLE = True
+except ImportError:
+    CHROMADB_AVAILABLE = False
+
+# Only import these if chromadb is available
+if CHROMADB_AVAILABLE:
+    from kit.vector_searcher import ChromaCloudBackend, get_default_backend
 
 
+@pytest.mark.skipif(not CHROMADB_AVAILABLE, reason="chromadb is not installed")
 class TestChromaCloudBackend(unittest.TestCase):
     """Test Chroma Cloud backend functionality."""
 
     @patch("kit.vector_searcher.CloudClient")
-    @patch.dict(os.environ, {"CHROMA_API_KEY": "test-api-key"})
+    @patch.dict(os.environ, {"CHROMA_API_KEY": "test-api-key", "CHROMA_TENANT": "test-tenant", "CHROMA_DATABASE": "test-db"})
     def test_init_with_env_vars(self, mock_cloud_client):
         """Test initialization with environment variables."""
         mock_client_instance = MagicMock()
@@ -20,8 +32,8 @@ class TestChromaCloudBackend(unittest.TestCase):
         ChromaCloudBackend()
 
         mock_cloud_client.assert_called_once_with(
-            tenant="default_tenant",
-            database="default_database",
+            tenant="test-tenant",
+            database="test-db",
             api_key="test-api-key",
         )
         mock_client_instance.get_or_create_collection.assert_called_once_with("kit_code_chunks")
@@ -45,13 +57,13 @@ class TestChromaCloudBackend(unittest.TestCase):
 
     def test_init_without_api_key_raises(self):
         """Test that initialization without API key raises ValueError."""
-        with patch.dict(os.environ, {}, clear=True):
+        with patch.dict(os.environ, {"CHROMA_TENANT": "test-tenant", "CHROMA_DATABASE": "test-db"}, clear=True):
             with self.assertRaises(ValueError) as cm:
                 ChromaCloudBackend()
             self.assertIn("Chroma Cloud API key not found", str(cm.exception))
 
     @patch("kit.vector_searcher.CloudClient")
-    @patch.dict(os.environ, {"CHROMA_API_KEY": "test-api-key"})
+    @patch.dict(os.environ, {"CHROMA_API_KEY": "test-api-key", "CHROMA_TENANT": "test-tenant", "CHROMA_DATABASE": "test-db"})
     def test_add_embeddings(self, mock_cloud_client):
         """Test adding embeddings to cloud backend."""
         mock_collection = MagicMock()
@@ -69,7 +81,7 @@ class TestChromaCloudBackend(unittest.TestCase):
         mock_collection.add.assert_called_once_with(embeddings=embeddings, metadatas=metadatas, ids=["0", "1"])
 
     @patch("kit.vector_searcher.CloudClient")
-    @patch.dict(os.environ, {"CHROMA_API_KEY": "test-api-key"})
+    @patch.dict(os.environ, {"CHROMA_API_KEY": "test-api-key", "CHROMA_TENANT": "test-tenant", "CHROMA_DATABASE": "test-db"})
     def test_query(self, mock_cloud_client):
         """Test querying the cloud backend."""
         mock_collection = MagicMock()
@@ -92,7 +104,7 @@ class TestChromaCloudBackend(unittest.TestCase):
         self.assertEqual(results[1]["score"], 0.2)
 
     @patch("kit.vector_searcher.CloudClient")
-    @patch.dict(os.environ, {"CHROMA_API_KEY": "test-api-key"})
+    @patch.dict(os.environ, {"CHROMA_API_KEY": "test-api-key", "CHROMA_TENANT": "test-tenant", "CHROMA_DATABASE": "test-db"})
     def test_delete(self, mock_cloud_client):
         """Test deleting vectors from cloud backend."""
         mock_collection = MagicMock()
@@ -106,11 +118,12 @@ class TestChromaCloudBackend(unittest.TestCase):
         mock_collection.delete.assert_called_once_with(ids=["id1", "id2"])
 
 
+@pytest.mark.skipif(not CHROMADB_AVAILABLE, reason="chromadb is not installed")
 class TestGetDefaultBackend(unittest.TestCase):
     """Test the get_default_backend factory function."""
 
     @patch("kit.vector_searcher.ChromaCloudBackend")
-    @patch.dict(os.environ, {"KIT_USE_CHROMA_CLOUD": "true", "CHROMA_API_KEY": "test-api-key"})
+    @patch.dict(os.environ, {"KIT_USE_CHROMA_CLOUD": "true", "CHROMA_API_KEY": "test-api-key", "CHROMA_TENANT": "test-tenant", "CHROMA_DATABASE": "test-db"})
     def test_returns_cloud_backend_when_explicitly_enabled(self, mock_cloud_backend):
         """Test that cloud backend is returned when explicitly enabled."""
         backend = get_default_backend(persist_dir="/some/path", collection_name="test_collection")
