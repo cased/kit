@@ -3,12 +3,6 @@ title: Docstring-based Vector Indexing
 ---
 import { Steps, Aside } from '@astrojs/starlight/components';
 
-<Aside type="note" title="Alpha Feature">
-  The features described on this page, particularly symbol-level indexing and LLM-generated summaries, are currently in **alpha**. API and behavior may change in future releases. Please use with this in mind and report any issues or feedback.
-</Aside>
-
-<br />
-
 `DocstringIndexer` builds a vector index using **LLM-generated summaries** of
 source files ("docstrings") instead of the raw code.  This often yields more
 relevant results because the embedded text focuses on *intent* rather than
@@ -106,6 +100,10 @@ This approach gives you flexibility if the default embedding model doesn't meet 
 After building the index, you might want to inspect its raw contents to understand what was stored. This can be useful for debugging or exploration. The exact method depends on the `VectorDBBackend` being used.
 
 If you're using the default `ChromaDBBackend` (or have explicitly configured it), you can access the underlying ChromaDB collection and retrieve entries.
+
+<Aside type="tip">
+  DocstringIndexer supports both local ChromaDB and Chroma Cloud backends. When `KIT_USE_CHROMA_CLOUD="true"` is set with appropriate credentials, your docstring indexes will be stored in the cloud automatically. See the [Semantic Search documentation](/core-concepts/semantic-search#chroma-cloud-managed-service) for Chroma Cloud configuration details.
+</Aside>
 
 ```python
 # Assuming 'indexer' is your DocstringIndexer instance after 'indexer.build()' has run.
