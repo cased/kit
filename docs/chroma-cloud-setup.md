@@ -2,6 +2,11 @@
 
 Kit now supports [Chroma Cloud](https://trychroma.com), a fully managed vector database service, as an alternative to local ChromaDB storage. This enables better scalability, team collaboration, and eliminates local storage constraints for large codebases.
 
+## Prerequisites
+
+- ChromaDB version 1.0.0 or higher (`pip install chromadb>=1.0.0`)
+- Python 3.10+
+
 ## Getting Started
 
 ### 1. Sign up for Chroma Cloud
@@ -10,10 +15,10 @@ Sign up for a free account at [https://trychroma.com/signup](https://trychroma.c
 
 ### 2. Get your API credentials
 
-After signing up, you'll receive:
-- An API key
-- Tenant information (defaults to `default_tenant`)
-- Database information (defaults to `default_database`)
+After signing up, from your Chroma Cloud dashboard (https://cloud.trychroma.com), you'll need:
+- Your API key
+- Your tenant UUID (a UUID like `3893b771-b971-4f45-8e30-7aac7837ad7f`)
+- Database name (create one in the dashboard, e.g., `kit-1` or `kit-codebase-index`)
 
 ### 3. Configure Kit to use Chroma Cloud
 
@@ -26,9 +31,11 @@ export KIT_USE_CHROMA_CLOUD="true"
 # Required: Your Chroma Cloud API key
 export CHROMA_API_KEY="your-api-key-here"
 
-# Optional: Specify tenant and database (defaults shown)
-export CHROMA_TENANT="default_tenant"
-export CHROMA_DATABASE="default_database"
+# Required: Your tenant UUID (find this in your Chroma Cloud dashboard)
+export CHROMA_TENANT="your-tenant-uuid"  # e.g., "3893b771-b971-4f45-8e30-7aac7837ad7f"
+
+# Optional: Specify database (default shown)
+export CHROMA_DATABASE="kit_codebase_index"  # Default for kit
 ```
 
 ### 4. Use Kit as normal
@@ -76,8 +83,8 @@ from kit.vector_searcher import ChromaCloudBackend, VectorSearcher
 # Create cloud backend explicitly
 backend = ChromaCloudBackend(
     api_key="your-api-key",
-    tenant="your-tenant",
-    database="your-database",
+    tenant="your-tenant-uuid",  # e.g., "3893b771-b971-4f45-8e30-7aac7837ad7f"
+    database="your-database",   # e.g., "kit-1"
     collection_name="my_project_index"
 )
 

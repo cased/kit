@@ -89,11 +89,11 @@ test-api = [
 ]
 ml = [
     "sentence-transformers>=2.2.0",  # For VectorSearcher and DocstringIndexer
-    "chromadb>=0.5.23",  # Vector database for semantic search
+    "chromadb>=1.0.0",  # Vector database for semantic search (1.0+ required for Cloud)
 ]
 all = [
     "sentence-transformers>=2.2.0",
-    "chromadb>=0.5.23",
+    "chromadb>=1.0.0",
 ]
 
 [tool.ruff]

@@ -40,6 +40,7 @@ class ChromaDBBackend(VectorDBBackend):
             raise ImportError("chromadb is not installed. Run 'pip install chromadb'.")
         self.persist_dir = persist_dir
         self.client = PersistentClient(path=self.persist_dir)
+        self.is_local = True  # Flag to identify local backend
 
         final_collection_name = collection_name
         if final_collection_name is None:
@@ -116,11 +117,18 @@ class ChromaCloudBackend(VectorDBBackend):
                  tenant: Optional[str] = None, database: Optional[str] = None):
         if chromadb is None or CloudClient is None:
             raise ImportError("chromadb is not installed. Run 'pip install chromadb'.")
+        self.is_local = False  # Flag to identify cloud backend
 
         # Get credentials from environment if not provided
         api_key = api_key or os.environ.get("CHROMA_API_KEY")
-        tenant = tenant or os.environ.get("CHROMA_TENANT", "default_tenant")
-        database = database or os.environ.get("CHROMA_DATABASE", "default_database")
+        tenant = tenant or os.environ.get("CHROMA_TENANT")
+        database = database or os.environ.get("CHROMA_DATABASE", "kit_codebase_index")
+        
+        if not tenant:
+            raise ValueError(
+                "Chroma Cloud tenant not specified. Set CHROMA_TENANT environment variable "
+                "(check your Chroma Cloud dashboard for your tenant name) or pass tenant directly."
+            )
 
         if not api_key:
             raise ValueError(
@@ -141,12 +149,9 @@ class ChromaCloudBackend(VectorDBBackend):
         if not embeddings or not metadatas:
             return
 
-        # Clear collection before adding (for index overwrite)
-        if self.collection.count() > 0:
-            try:
-                self.collection.delete(where={"source": {"$ne": "impossible_source_value_to_match_all"}})  # type: ignore[dict-item]
-            except Exception:
-                pass
+        # Note: For cloud backend, we append data instead of clearing
+        # This preserves data across sessions and allows incremental updates
+        # If you need to clear, manually delete the collection in the dashboard
 
         final_ids = ids
         if final_ids is None:
