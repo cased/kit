@@ -23,6 +23,7 @@ kit comes with built-in support for 12+ programming languages:
 - **Ruby** (`.rb`) - Classes, methods, modules
 - **Dart** (`.dart`) - Classes, functions, mixins, enums, extensions
 - **HCL/Terraform** (`.hcl`, `.tf`) - Resources, variables, modules
+- **Haskell** (`.hs`) - Module header, functions (including lambda-binds), common type-level declarations
 
 Each language supports comprehensive symbol extraction including:
 - **Classes and interfaces** with inheritance relationships
@@ -120,6 +121,57 @@ for symbol in symbols:
 # enum: Status
 # extension: StringExtension
 # getter: reversed
+```
+
+### Working with Haskell
+
+Haskell is supported via the official tree-sitter grammar. Queries capture the module header, functions (including lambda-binds), and common type-level declarations.
+
+```scheme
+; queries/haskell/tags.scm (excerpt)
+
+; Module header (avoids imports)
+(haskell
+  (header (module) @name) @definition.module)
+
+; Named function and lambda-bind
+(decl/function name: (variable) @name) @definition.function
+(decl/bind name: (variable) @name (match expression: (expression/lambda))) @definition.function
+(decl/bind name: (variable) @name (#eq? @name "main")) @definition.function
+
+; Type-level declarations
+(data_type  name: (name) @name) @definition.data
+(newtype    name: (name) @name) @definition.newtype
+(type_synomym name: (name) @name) @definition.type
+(class      name: (name) @name) @definition.class
+(type_family name: (name) @name) @definition.type_family
+(instance   name: (name) @name) @definition.instance
+```
+
+Then extract symbols from `.hs` files just like other languages:
+
+```python
+from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
+
+code = """\
+module A.B where
+
+add x y = x + y
+f = \x -> x
+newtype Age = Age Int
+data Person = Person String Int
+type Str = String
+class Show a where
+  show :: a -> String
+type family F a
+instance Show Int where
+  show = undefined
+main = undefined
+"""
+
+symbols = TreeSitterSymbolExtractor.extract_symbols(".hs", code)
+for s in symbols:
+    print(s["type"], s["name"])  # module, function, data, newtype, type, class, type_family, instance
 ```
 
 ## API Reference
