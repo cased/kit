@@ -1,0 +1,104 @@
+---
+title: Kit Dev MCP Server
+description: Enhanced MCP server for AI-powered development assistants
+---
+
+import { LinkCard, Aside, Card, CardGrid } from '@astrojs/starlight/components';
+
+# Kit Dev MCP Server
+
+The Kit Dev MCP Server transforms your AI assistant (Cursor, Claude Desktop, VS Code) into an active development partner with 15+ specialized tools for real coding work.
+
+<LinkCard
+  title="🚀 Visit Full Documentation"
+  description="Complete setup guides, tool references, and examples"
+  href="https://kit-dev.cased.com"
+/>
+
+## Quick Overview
+
+Kit Dev MCP provides enhanced development capabilities beyond basic code search:
+
+<CardGrid>
+  <Card title="15+ Development Tools" icon="rocket">
+    - Code search & analysis
+    - File watching & monitoring
+    - Symbol extraction
+    - Git integration
+    - Deep package research
+  </Card>
+  <Card title="100% Private & Free" icon="shield">
+    - Runs entirely on YOUR machine
+    - Your code never leaves your computer
+    - Free forever (just pay for LLM tokens)
+    - MIT licensed & open source
+  </Card>
+</CardGrid>
+
+## Quick Installation
+
+### For Cursor
+
+Add to your Cursor MCP settings (`~/.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "kit-mcp-dev": {
+      "command": "uvx",
+      "args": ["--from", "cased-kit", "kit-mcp-dev"]
+    }
+  }
+}
+```
+
+### For Claude Desktop
+
+Add to your Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "kit-mcp-dev": {
+      "command": "python",
+      "args": ["-m", "kit.mcp.dev"],
+      "env": {
+        "OPENAI_API_KEY": "sk-..."  // Optional for deep research
+      }
+    }
+  }
+}
+```
+
+## Available Tools
+
+The server provides 15 tools including:
+
+- **open_repository** - Open local or remote Git repositories
+- **search_code** - Pattern-based code search
+- **grep_code** - Fast literal string search
+- **get_file_content** - Read file contents
+- **extract_symbols** - Extract functions, classes, and symbols
+- **find_symbol_usages** - Find where symbols are used
+- **get_code_summary** - AI-powered code summaries
+- **review_diff** - AI-powered diff reviews
+- **watch_files** - Real-time file monitoring
+- **deep_research_package** - Comprehensive package documentation
+- **semantic_search** - Vector-based code search
+- **build_smart_context** - Task-aware context building
+
+## Learn More
+
+<LinkCard
+  title="Complete Documentation →"
+  description="Setup guides, examples, workflows, and more"
+  href="https://kit-dev.cased.com"
+/>
+
+<Aside type="tip">
+The dedicated site includes:
+- Detailed setup for all AI assistants
+- Complete tool reference with examples
+- Development workflows and best practices
+- Comparison with other MCP servers
+</Aside>

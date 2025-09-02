@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Shimmer animation for the main title */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@layer utilities {
+  .animate-shimmer {
+    animation: shimmer 6s ease-in-out infinite;
+  }
+  
+  /* Neobrutalist styles */
+  .neo-card {
+    @apply border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)];
+  }
+  
+  .neo-card-clickable {
+    @apply border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px];
+  }
+  
+  .neo-button {
+    @apply border-2 border-black font-bold shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px] active:shadow-none active:translate-x-[3px] active:translate-y-[3px];
+  }
+  
+  .neo-badge {
+    @apply border-2 border-black font-bold;
+  }
+  
+  .neo-input {
+    @apply border-2 border-black focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)];
+  }
+  
+  .dotted-border {
+    background-image: radial-gradient(circle, black 1px, transparent 1px);
+    background-size: 4px 4px;
+    background-position: 0 0, 2px 2px;
+  }
+  
+  
+  .dotted-pattern {
+    position: relative;
+  }
+  
+  .dotted-pattern::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    background-image: radial-gradient(circle, currentColor 1px, transparent 1px);
+    background-size: 8px 8px;
+    opacity: 0.1;
+    pointer-events: none;
+    z-index: -1;
+  }
+  
+  .neo-section {
+    @apply relative overflow-hidden;
+  }
+  
+  .neo-section::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: repeating-linear-gradient(
+      90deg,
+      black 0px,
+      black 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  }
+  
+}

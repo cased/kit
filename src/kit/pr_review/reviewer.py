@@ -670,6 +670,287 @@ class PRReviewer:
         self._cached_parsed_diff = parsed
         return parsed
 
+    def review_local_diff(self, diff_spec: str, repo_path: str = ".") -> str:
+        """Review local branch changes using git diff."""
+        try:
+            # Validate we're in a git repository
+            from pathlib import Path
+
+            git_dir = Path(repo_path) / ".git"
+            if not git_dir.exists():
+                raise RuntimeError("Not a git repository. Local diff review requires a git repository.")
+
+            # Check if quiet mode is enabled (for plain output)
+            quiet: bool = self.config.quiet
+
+            if not quiet:
+                print(f"🛠️ Reviewing local changes: {diff_spec} [STANDARD MODE - {self.config.llm.model}]")
+
+            # Use LocalDiffProvider for git operations
+            from kit.pr_review.local_diff_provider import LocalDiffProvider
+
+            diff_provider = LocalDiffProvider(repo_path)
+            diff_content: str = diff_provider.get_diff(diff_spec)
+
+            if not diff_content.strip():
+                return "No changes found in the specified diff range."
+
+            changed_files: List[str] = diff_provider.get_changed_files(diff_spec)
+
+            if not quiet:
+                print(f"Changed files: {len(changed_files)}")
+                for file in changed_files[:5]:  # Show first 5 files
+                    print(f"  {file}")
+                if len(changed_files) > 5:
+                    print(f"  ... and {len(changed_files) - 5} more")
+
+            # Parse the diff to get file change information
+            from .diff_parser import DiffParser
+
+            parsed_diff: Dict[str, FileDiff] = DiffParser.parse_diff(diff_content)
+
+            # Create mock data for analysis
+            mock_files: List[Dict[str, Any]] = diff_provider.get_mock_files(diff_spec, changed_files)
+            mock_pr_details: Dict[str, Any] = diff_provider.get_mock_pr_details(diff_spec)
+
+            if not quiet:
+                print(f"Title: {mock_pr_details['title']}")
+                print(f"Base: {mock_pr_details['base']['ref']} -> Head: {mock_pr_details['head']['ref']}")
+
+            # Perform repository analysis if enabled
+            if len(mock_files) > 0 and self.config.analysis_depth.value != "quick" and self.config.clone_for_analysis:
+                # Use the specified repo path or current directory
+                analysis_repo_path: str = repo_path
+
+                if not quiet:
+                    print("Running analysis...")
+
+                try:
+                    analysis: str = asyncio.run(
+                        self.analyze_local_diff_with_kit(
+                            analysis_repo_path, mock_pr_details, mock_files, diff_content, parsed_diff
+                        )
+                    )
+
+                    # Validate review quality
+                    try:
+                        changed_files_list: List[str] = [str(f.get("filename", "")) for f in mock_files]
+                        from .validator import validate_review_quality
+
+                        validation = validate_review_quality(analysis, diff_content, changed_files_list)
+
+                        if not quiet:
+                            print(f"📊 Review Quality Score: {validation.score:.2f}/1.0")
+                            if validation.issues:
+                                print(f"⚠️  Quality Issues: {', '.join(validation.issues)}")
+                            print(f"📈 Metrics: {validation.metrics}")
+
+                        # Auto-fix wrong line numbers if any
+                        if validation.metrics.get("line_reference_errors", 0) > 0:
+                            from .line_ref_fixer import LineRefFixer
+
+                            analysis, fixes = LineRefFixer.fix_comment(analysis, diff_content)
+                            if fixes and not quiet:
+                                is_different = [f[1] != f[2] for f in fixes]
+                                divisor = 2 if any(is_different) else 1
+                                print(f"🔧 Auto-fixed {len(fixes) // divisor} line reference(s)")
+
+                    except Exception as e:
+                        if not quiet:
+                            print(f"⚠️  Could not validate review quality: {e}")
+
+                    review_comment = self._generate_local_diff_comment(mock_pr_details, mock_files, analysis, diff_spec)
+
+                except Exception as e:
+                    if not quiet:
+                        print(f"Analysis failed: {e}")
+                    # Fall back to basic analysis
+                    basic_analysis = f"Analysis failed ({e!s}). Reviewing based on git diff only.\n\nFiles changed: {len(mock_files)} files with {sum(f['additions'] for f in mock_files)} additions and {sum(f['deletions'] for f in mock_files)} deletions."
+                    review_comment = self._generate_local_diff_comment(
+                        mock_pr_details, mock_files, basic_analysis, diff_spec
+                    )
+            else:
+                # Basic analysis for quick mode or no files
+                basic_analysis = f"Quick analysis mode.\n\nFiles changed: {len(mock_files)} files with {sum(f['additions'] for f in mock_files)} additions and {sum(f['deletions'] for f in mock_files)} deletions."
+                review_comment = self._generate_local_diff_comment(
+                    mock_pr_details, mock_files, basic_analysis, diff_spec
+                )
+
+            # Display cost summary
+            if not quiet:
+                print(self.cost_tracker.get_cost_summary())
+
+            return review_comment
+
+        except Exception as e:
+            raise RuntimeError(f"Local diff review failed: {e}")
+
+    async def analyze_local_diff_with_kit(
+        self,
+        repo_path: str,
+        mock_pr_details: Dict[str, Any],
+        files: List[Dict[str, Any]],
+        diff_content: str,
+        parsed_diff: Dict[str, Any],
+    ) -> str:
+        """Analyze local diff using kit Repository class and LLM analysis."""
+        from kit import Repository
+
+        # Create kit Repository instance
+        repo = Repository(repo_path)
+
+        # Generate line number context from parsed diff
+        from .diff_parser import DiffParser
+
+        line_number_context = DiffParser.generate_line_number_context(parsed_diff)
+
+        # Prioritize files for analysis
+        from .file_prioritizer import FilePrioritizer
+
+        priority_files, skipped_count = FilePrioritizer.smart_priority(files, max_files=10)
+
+        # Get symbol analysis for each file
+        file_analysis: Dict[str, Dict[str, Any]] = {}
+
+        for file_data in priority_files:
+            file_path = file_data["filename"]
+            try:
+                # Get symbols from the file
+                file_symbols = repo.extract_symbols(file_path)
+
+                # Get symbol usage counts
+                symbol_usages = {}
+                for symbol in file_symbols[:5]:  # Limit to top 5 symbols
+                    try:
+                        usages = repo.find_symbol_usages(symbol["name"])
+                        symbol_usages[symbol["name"]] = len(usages)
+                    except Exception:
+                        symbol_usages[symbol["name"]] = 0
+
+                file_analysis[file_path] = {
+                    "changes": f"{file_data['additions']}+, {file_data['deletions']}-",
+                    "symbols": file_symbols[:5],
+                    "symbol_usages": symbol_usages,
+                }
+
+            except Exception:
+                file_analysis[file_path] = {
+                    "changes": f"{file_data['additions']}+, {file_data['deletions']}-",
+                    "symbols": [],
+                    "symbol_usages": {},
+                }
+
+        # Get dependency analysis for the repository
+        try:
+            dependency_analyzer = repo.get_dependency_analyzer()
+            dependency_context = dependency_analyzer.generate_llm_context()
+        except Exception as e:
+            dependency_context = f"Dependency analysis unavailable: {e}"
+
+        # Get repository context
+        try:
+            file_tree = repo.get_file_tree()
+            total_files = len([f for f in file_tree if not f.get("is_dir", True)])
+            total_dirs = len([f for f in file_tree if f.get("is_dir", False)])
+            repo_summary = f"{total_files} files in {total_dirs} directories"
+        except Exception:
+            repo_summary = "Repository structure unavailable"
+
+        # Generate analysis summary
+        analysis_summary = FilePrioritizer.get_analysis_summary(files, priority_files)
+
+        # Create enhanced analysis prompt
+        analysis_prompt = f"""You are an expert code reviewer. Analyze this local git diff using the provided repository intelligence.
+
+**Local Changes Information:**
+- Diff: {mock_pr_details["base"]["ref"]}..{mock_pr_details["head"]["ref"]}
+- Title: {mock_pr_details["title"]}
+- Files: {len(files)} changed
+
+**Repository Context:**
+- Structure: {repo_summary}
+- Dependencies: {dependency_context}
+
+{analysis_summary}
+
+{line_number_context}"""
+
+        # Add custom context from profile if available
+        if self.config.profile_context:
+            analysis_prompt += f"""
+
+**Custom Review Guidelines:**
+{self.config.profile_context}"""
+
+        analysis_prompt += f"""
+
+**Diff:**
+```diff
+{diff_content}
+```
+
+**Symbol Analysis:**"""
+
+        for file_path, file_data in file_analysis.items():
+            analysis_prompt += f"""
+{file_path} ({file_data["changes"]}) - {len(file_data["symbols"])} symbols
+{chr(10).join([f"- {name}: used in {count} places" for name, count in file_data["symbol_usages"].items()]) if file_data["symbol_usages"] else "- No widespread usage"}"""
+
+        analysis_prompt += """
+
+**Review Format:**
+
+## Priority Issues
+- [High/Medium/Low priority] findings with file:line references
+
+## Summary
+- What these changes do
+- Key architectural changes (if any)
+
+## Recommendations
+- Security, performance, or logic issues with specific fixes; missing error handling or edge cases; cross-codebase impact concerns
+
+**Guidelines:** Be specific, actionable, and professional. Reference actual diff content. Focus on issues worth fixing. Use measured technical language - distinguish between defensive code (with safeguards) and actual vulnerabilities."""
+
+        # Use LLM to analyze with enhanced context
+        if self.config.llm.provider == LLMProvider.ANTHROPIC:
+            analysis = await self._analyze_with_anthropic_enhanced(analysis_prompt)
+        elif self.config.llm.provider == LLMProvider.GOOGLE:
+            analysis = await self._analyze_with_google_enhanced(analysis_prompt)
+        elif self.config.llm.provider == LLMProvider.OLLAMA:
+            analysis = await self._analyze_with_ollama_enhanced(analysis_prompt)
+        else:
+            analysis = await self._analyze_with_openai_enhanced(analysis_prompt)
+
+        # Apply priority filtering if requested
+        from .priority_filter import filter_review_by_priority
+
+        priority_filter = self.config.priority_filter
+        filtered_analysis = filter_review_by_priority(analysis, priority_filter, self.config.max_review_size_mb)
+
+        return filtered_analysis
+
+    def _generate_local_diff_comment(
+        self, mock_pr_details: Dict[str, Any], files: List[Dict[str, Any]], analysis: str, diff_spec: str
+    ) -> str:
+        """Generate an intelligent review comment for local diff analysis."""
+        # Strip any existing footers from the analysis to prevent duplicates
+        analysis_lines = analysis.strip().split("\n")
+        if analysis_lines and "Generated by" in analysis_lines[-1]:
+            # Remove the last two lines (footer separator and attribution)
+            analysis = "\n".join(analysis_lines[:-2]).strip()
+
+        comment = f"""## 🛠️ Kit AI Code Review - Local Changes
+
+**Diff:** `{diff_spec}`
+
+{analysis}
+
+---
+*Generated by [cased kit](https://github.com/cased/kit) v{self._get_kit_version()} • Mode: local-diff • Model: {self.config.llm.model}*
+"""
+        return comment
+
 
 def _strip_thinking_tokens(response: str) -> str:
     """

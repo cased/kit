@@ -4,7 +4,7 @@ from mcp.types import CallToolResult, EmbeddedResource, TextContent
 # The server module provides a fallback alias called `ResourceContent`.  Depending on
 # the MCP SDK version, this *may* be the same object as `EmbeddedResource`, or a
 # stub when running under an older spec version.  Importing it must never fail.
-from kit.mcp.server import GetFileContentParams, GetFileTreeParams, KitServerLogic, ResourceContent
+from kit.mcp.dev_server import GetFileContentParams, GetFileTreeParams, KitServerLogic, ResourceContent
 
 
 def _dummy_repo(tmp_path):

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from kit.mcp.server import INVALID_PARAMS, GetPromptResult, KitServerLogic, MCPError
+from kit.mcp.dev_server import INVALID_PARAMS, GetPromptResult, KitServerLogic, MCPError
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ class TestMCPGitHubTokenPickup:
     """Test MCP server GitHub token pickup functionality."""
 
     @patch.dict("os.environ", {"KIT_GITHUB_TOKEN": "test_kit_token", "GITHUB_TOKEN": "test_github_token"})
-    @patch("kit.mcp.server.Repository")
+    @patch("kit.mcp.dev_server.Repository")
     def test_mcp_picks_up_kit_github_token(self, mock_repo_class):
         """Test that MCP server picks up KIT_GITHUB_TOKEN environment variable."""
         logic = KitServerLogic()
@@ -62,7 +62,7 @@ class TestMCPGitHubTokenPickup:
             assert repo_id in logic._repos
 
     @patch.dict("os.environ", {"GITHUB_TOKEN": "test_github_token"}, clear=True)
-    @patch("kit.mcp.server.Repository")
+    @patch("kit.mcp.dev_server.Repository")
     def test_mcp_picks_up_github_token_fallback(self, mock_repo_class):
         """Test that MCP server falls back to GITHUB_TOKEN when KIT_GITHUB_TOKEN is not set."""
         logic = KitServerLogic()
@@ -84,7 +84,7 @@ class TestMCPGitHubTokenPickup:
             assert repo_id in logic._repos
 
     @patch.dict("os.environ", {}, clear=True)
-    @patch("kit.mcp.server.Repository")
+    @patch("kit.mcp.dev_server.Repository")
     def test_mcp_no_token_when_env_empty(self, mock_repo_class):
         """Test that MCP server works without GitHub token when environment is empty."""
         logic = KitServerLogic()
@@ -106,7 +106,7 @@ class TestMCPGitHubTokenPickup:
             assert repo_id in logic._repos
 
     @patch.dict("os.environ", {"KIT_GITHUB_TOKEN": "env_token"})
-    @patch("kit.mcp.server.Repository")
+    @patch("kit.mcp.dev_server.Repository")
     def test_mcp_explicit_token_overrides_env(self, mock_repo_class):
         """Test that explicitly passed GitHub token overrides environment variable."""
         logic = KitServerLogic()
@@ -128,7 +128,7 @@ class TestMCPGitHubTokenPickup:
             assert repo_id in logic._repos
 
     @patch.dict("os.environ", {"KIT_GITHUB_TOKEN": "test_token"})
-    @patch("kit.mcp.server.Repository")
+    @patch("kit.mcp.dev_server.Repository")
     def test_mcp_with_ref_passes_token(self, mock_repo_class):
         """Test that MCP server passes GitHub token when ref is specified."""
         logic = KitServerLogic()

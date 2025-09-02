@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from kit import Repository
-from kit.mcp.server import KitServerLogic
+from kit.mcp.dev_server import KitServerLogic
 
 
 class TestGrepIntegration:
@@ -144,7 +144,7 @@ class TestGrepIntegration:
         logic = KitServerLogic()
         repo_id = logic.open_repository(test_repo)
 
-        from kit.mcp.server import INVALID_PARAMS, MCPError
+        from kit.mcp.dev_server import INVALID_PARAMS, MCPError
 
         with pytest.raises(MCPError) as exc_info:
             logic.grep_code(repo_id, "test", directory="nonexistent")

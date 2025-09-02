@@ -22,24 +22,43 @@ import CardGroup from "../../components/CardGroup.astro";
   </div>
 </div>
 
-<hr />
-
-{/* Production PR Reviewer Highlight */}
-<div style="background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%); color: white; padding: 1.5rem; border-radius: 0.75rem; margin: 1.5rem 0;">
-  <h3 style="margin-top: 0; color: white; font-size: 1.25rem;">Production-Ready AI PR Reviewer</h3>
-  <p style="margin-bottom: 1rem; opacity: 0.9;">
-    kit includes an MIT-licensed, complete AI-powered pull request reviewer: professional-grade code analysis with full repository context, at cost.
-    Choose any LLM, pay just for tokens with transparent pricing, priority filtering, CI/CD integration, more.
-  </p>
-  <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-    <a href="/pr-reviewer" style="background: rgba(255,255,255,0.2); color: white; padding: 0.5rem 1rem; border-radius: 0.375rem; text-decoration: none; font-weight: 500;">
-      📖 Full Documentation
-    </a>
-    <a href="/tutorials/ai_pr_reviewer" style="background: rgba(255,255,255,0.2); color: white; padding: 0.5rem 1rem; border-radius: 0.375rem; text-decoration: none; font-weight: 500;">
-      🛠️ Build Custom
+{/* Kit Dev MCP Announcement */}
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 0.75rem; margin-top: 2rem; margin-bottom: 2rem; text-align: center;">
+  <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+    <span style="background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">NEW</span>
+    <span style="font-weight: 600; font-size: 1.1rem;">🚀 Kit Dev MCP is here!</span>
+    <span style="opacity: 0.95;">Enhanced development tools for Cursor, Windsurf, Claude Code & VS Code</span>
+    <a href="https://kit-dev.cased.com" target="_blank" style="background: rgba(255,255,255,0.25); color: white; padding: 0.375rem 1rem; border-radius: 0.375rem; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 0.5rem; margin-left: 0.5rem; vertical-align: middle;">
+      Explore Now →
     </a>
   </div>
 </div>
+
+<hr />
+
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 0.75rem; margin-bottom: 2rem; text-align: center;">
+  <h3 style="margin: 0 0 0.75rem 0; color: white; font-size: 1.25rem; text-align: center;">🔍 AI PR Reviewer</h3>
+  <p style="margin-bottom: 1rem; opacity: 0.95; font-size: 0.9rem;">
+    Production-ready pull request reviewer with full repository context, customizable profiles, and CI/CD integration.
+  </p>
+  <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap;">
+    <a href="/pr-reviewer" style="background: rgba(255,255,255,0.25); color: white; padding: 0.5rem 1rem; border-radius: 0.375rem; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center;">
+      Documentation
+    </a>
+    <a href="/tutorials/ai_pr_reviewer" style="background: rgba(255,255,255,0.25); color: white; padding: 0.5rem 1rem; border-radius: 0.375rem; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center;">
+      Build Custom
+    </a>
+  </div>
+</div>
+
+{/* Responsive styles for mobile */}
+<style>{`
+  @media (max-width: 768px) {
+    div[style*="grid-template-columns: 1fr 1fr"] {
+      grid-template-columns: 1fr !important;
+    }
+  }
+`}</style>
 
 {/* Features Section - Full Width Items */}
 
@@ -71,6 +90,15 @@ import CardGroup from "../../components/CardGroup.astro";
     </p>
   </div>
   <div style="padding: 1.25rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem;">
+    <h4 style="margin-top: 0; font-size: 1.1rem;">
+      🆕 Deep dependency documentation
+    </h4>
+    <p style="font-size: 0.95rem; color: var(--sl-color-gray-2); margin-bottom: 0;">
+      Automatically index and search documentation from all your dependencies. 
+      Aggregate docs from official sources, GitHub, tutorials, Stack Overflow, and more with deep research capabilities.
+    </p>
+  </div>
+  <div style="padding: 1.25rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem;">
     <h4 style="margin-top: 0; font-size: 1.1rem;">Build AI Workflows</h4>
     <p style="font-size: 0.95rem; color: var(--sl-color-gray-2); margin-bottom: 0;">
       Leverage ready-made utilities for code chunking, context retrieval, and
@@ -82,18 +110,17 @@ import CardGroup from "../../components/CardGroup.astro";
 ## Explore the docs
 
 <CardGroup cols={2}>
-  <Card title="AI PR Reviewer" href="/pr-reviewer">
-    Production-ready AI pull requests reviewer with 10 models, transparent pricing, CI/CD integration, and roadmap.
+  <Card title="🚀 Kit Local Dev MCP" href="/local-dev-mcp/overview">
+    Enhanced MCP server for Cursor, Windsurf, Claude Code & VS Code with deep documentation research and smart context building.
   </Card>
-  <Card title="Overview" href="/introduction/overview">
-    What Kit is, why it exists, and how to install it.
+  <Card title="🔍 AI PR Reviewer" href="/pr-reviewer">
+    Production-ready pull request reviewer with customizable profiles, CI/CD integration, and context-aware feedback.
   </Card>
-  <Card title="Core Concepts" href="/core-concepts/repository-api">
-    Deep-dive into the Repository API, symbol extraction, vector search, and
-    architecture.
+  <Card title="🛠️ Core Toolkit" href="/introduction/overview">
+    Build your own AI developer tools with Kit's powerful Python library for code intelligence and context building.
   </Card>
-  <Card title="Tutorials" href="/tutorials/ai_pr_reviewer">
-    Step-by-step tutorials to build real-world tools with Kit.
+  <Card title="📚 Tutorials" href="/tutorials/ai_pr_reviewer">
+    Step-by-step guides for building real-world applications with Kit's toolkit.
   </Card>
 </CardGroup>
 

@@ -64,7 +64,7 @@ class TestChromaCloudBackend(unittest.TestCase):
             with self.assertRaises(ValueError) as cm:
                 ChromaCloudBackend()
             self.assertIn("Chroma Cloud API key not found", str(cm.exception))
-    
+
     def test_init_with_invalid_tenant_uuid_raises(self):
         """Test that initialization with invalid tenant UUID raises ValueError."""
         with patch.dict(os.environ, {"CHROMA_API_KEY": "test-key", "CHROMA_TENANT": "not-a-uuid", "CHROMA_DATABASE": "test-db"}, clear=True):

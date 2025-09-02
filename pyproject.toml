@@ -1,6 +1,6 @@
 [project]
 name = "cased-kit"
-version = "1.9.1"
+version = "1.9.0"
 description = "A modular toolkit for LLM-powered codebase understanding."
 authors = [
     { name = "Cased", email = "ted@cased.com" }
@@ -32,7 +32,7 @@ Homepage = "https://github.com/cased/kit"
 
 [project.scripts]
 kit = "kit.cli:app"
-kit-mcp = "kit.mcp:main"
+kit-mcp-dev = "kit.mcp.dev:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
