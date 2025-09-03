@@ -143,7 +143,7 @@ class ChromaCloudBackend(VectorDBBackend):
             )
 
         # Validate tenant UUID format
-        uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+        uuid_pattern = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
         if not uuid_pattern.match(tenant):
             raise ValueError(
                 f"Invalid tenant format: '{tenant}'. "

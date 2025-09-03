@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Entry point for the kit-dev-mcp server.
+"""Entry point for the kit-mcp-dev server.
 
 This MCP server provides enhanced code intelligence and documentation research:
 - Real-time file watching and change detection
@@ -13,7 +13,7 @@ To use with Claude Desktop, add to your config:
 
 {
   "mcpServers": {
-    "kit-dev-mcp": {
+    "kit-mcp-dev": {
       "command": "python",
       "args": ["-m", "kit.mcp.dev"]
     }
@@ -28,11 +28,11 @@ from .dev_server import serve
 
 
 def main():
-    """Main entry point for the kit-dev-mcp server."""
+    """Main entry point for the kit-mcp-dev server."""
     try:
         asyncio.run(serve())
     except KeyboardInterrupt:
-        print("\nShutting down kit-dev-mcp server...", file=sys.stderr)
+        print("\nShutting down kit-mcp-dev server...", file=sys.stderr)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

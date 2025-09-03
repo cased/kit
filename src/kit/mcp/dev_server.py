@@ -37,25 +37,30 @@ from ..pr_review.config import ReviewConfig
 from ..pr_review.local_reviewer import LocalDiffReviewer
 from ..repository import Repository
 
-logger = logging.getLogger("kit-dev-mcp")
+logger = logging.getLogger("kit-mcp-dev")
 
 # MCP error codes
 INVALID_PARAMS = -32602
 INTERNAL_ERROR = -32603
 
+
 class MCPError(Exception):
     """MCP protocol error."""
+
     def __init__(self, code: int, message: str):
         self.code = code
         self.message = message
         super().__init__(message)
 
+
 # Compatibility alias for different MCP versions
 try:
     from mcp.types import EmbeddedResource
-    ResourceContent = EmbeddedResource
+
+    ResourceContent: type[Union[EmbeddedResource, TextContent]] = EmbeddedResource
 except ImportError:
     ResourceContent = TextContent
+
 
 # Parameter classes from standard server
 class OpenRepoParams(BaseModel):
@@ -63,10 +68,12 @@ class OpenRepoParams(BaseModel):
     github_token: Optional[str] = None
     ref: Optional[str] = None
 
+
 class SearchParams(BaseModel):
     repo_id: str
     query: str
     pattern: str = "*.py"
+
 
 class GrepParams(BaseModel):
     repo_id: str
@@ -78,18 +85,22 @@ class GrepParams(BaseModel):
     directory: Optional[str] = None
     include_hidden: bool = False
 
+
 class GetFileContentParams(BaseModel):
     repo_id: str
     file_path: Union[str, List[str]]
+
 
 class GetMultipleFileContentsParams(BaseModel):
     repo_id: str
     file_paths: List[str]
 
+
 class ExtractSymbolsParams(BaseModel):
     repo_id: str
     file_path: str
     symbol_type: Optional[str] = None
+
 
 class FindSymbolUsagesParams(BaseModel):
     repo_id: str
@@ -97,16 +108,20 @@ class FindSymbolUsagesParams(BaseModel):
     symbol_type: Optional[str] = None
     file_path: Optional[str] = None
 
+
 class GetFileTreeParams(BaseModel):
     repo_id: str
+
 
 class GetCodeSummaryParams(BaseModel):
     repo_id: str
     file_path: str
     symbol_name: Optional[str] = None
 
+
 class GitInfoParams(BaseModel):
     repo_id: str
+
 
 class ReviewDiffParams(BaseModel):
     repo_id: str
@@ -115,19 +130,20 @@ class ReviewDiffParams(BaseModel):
     max_files: int = 10
     model: Optional[str] = None
 
+
 class KitServerLogic:
     def __init__(self):
         self._repos: Dict[str, Repository] = {}
-    
+
     def open_repository(self, path_or_url: str, github_token: Optional[str] = None, ref: Optional[str] = None) -> str:
         """Open a repository and return its ID."""
         import os
         import time
-        
+
         # Check for GitHub token in environment if not provided
         if github_token is None:
             github_token = os.environ.get("KIT_GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN")
-        
+
         try:
             repo = Repository(path_or_url, github_token=github_token, ref=ref)
             repo_id = f"repo_{int(time.time() * 1000)}"
@@ -135,125 +151,149 @@ class KitServerLogic:
             return repo_id
         except Exception as e:
             raise MCPError(INVALID_PARAMS, f"Failed to open repository: {e}")
-    
+
     def get_repo(self, repo_id: str) -> Repository:
         """Get a repository by ID."""
         if repo_id not in self._repos:
             raise MCPError(INVALID_PARAMS, f"Repository {repo_id} not found")
         return self._repos[repo_id]
-    
+
     def get_file_content(self, repo_id: str, file_path: Union[str, List[str]]) -> Union[str, Dict[str, str]]:
         """Get file content."""
         repo = self.get_repo(repo_id)
         if isinstance(file_path, list):
             return {fp: repo.get_file_content(fp) for fp in file_path}
         return repo.get_file_content(file_path)
-    
+
     def get_multiple_file_contents(self, repo_id: str, file_paths: List[str]) -> Dict[str, Any]:
         """Get multiple file contents."""
-        return self.get_file_content(repo_id, file_paths)
-    
-    def grep_code(self, repo_id: str, pattern: str, case_sensitive: bool = True,
-                  include_pattern: Optional[str] = None, exclude_pattern: Optional[str] = None,
-                  max_results: int = 1000, directory: Optional[str] = None,
-                  include_hidden: bool = False) -> List[Dict[str, Any]]:
+        result = self.get_file_content(repo_id, file_paths)
+        if isinstance(result, dict):
+            return result
+        # Should not happen as we're passing a list
+        return {"error": "Unexpected result type"}
+
+    def grep_code(
+        self,
+        repo_id: str,
+        pattern: str,
+        case_sensitive: bool = True,
+        include_pattern: Optional[str] = None,
+        exclude_pattern: Optional[str] = None,
+        max_results: int = 1000,
+        directory: Optional[str] = None,
+        include_hidden: bool = False,
+    ) -> List[Dict[str, Any]]:
         """Grep for patterns in code."""
         repo = self.get_repo(repo_id)
         try:
-            return repo.grep(pattern, case_sensitive=case_sensitive, 
-                           include_pattern=include_pattern, 
-                           exclude_pattern=exclude_pattern,
-                           max_results=max_results, 
-                           directory=directory,
-                           include_hidden=include_hidden)
+            return repo.grep(
+                pattern,
+                case_sensitive=case_sensitive,
+                include_pattern=include_pattern,
+                exclude_pattern=exclude_pattern,
+                max_results=max_results,
+                directory=directory,
+                include_hidden=include_hidden,
+            )
         except ValueError as e:
             raise MCPError(INVALID_PARAMS, str(e))
-    
+
     def get_file_tree(self, repo_id: str) -> List[Dict[str, Any]]:
         """Get file tree."""
         repo = self.get_repo(repo_id)
         return repo.get_file_tree()
-    
+
     def extract_symbols(self, repo_id: str, file_path: str, symbol_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """Extract symbols from a file."""
         repo = self.get_repo(repo_id)
         # Repository.extract_symbols doesn't accept symbol_type parameter
         return repo.extract_symbols(file_path)
-    
-    def find_symbol_usages(self, repo_id: str, symbol_name: str, symbol_type: Optional[str] = None, 
-                          file_path: Optional[str] = None) -> List[Dict[str, Any]]:
+
+    def find_symbol_usages(
+        self, repo_id: str, symbol_name: str, symbol_type: Optional[str] = None, file_path: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Find symbol usages."""
         repo = self.get_repo(repo_id)
         # Repository.find_symbol_usages doesn't accept keyword arguments
         return repo.find_symbol_usages(symbol_name)
-    
+
     def get_code_summary(self, repo_id: str, file_path: str, symbol_name: Optional[str] = None) -> Dict[str, Any]:
         """Get code summary."""
         repo = self.get_repo(repo_id)
         # Repository doesn't have get_code_summary, so we'll implement a basic one
         content = repo.get_file_content(file_path)
         symbols = repo.extract_symbols(file_path)
-        
+
         summary = {
             "file": file_path,
             "content_preview": content[:500] if content else "",
             "symbols": symbols[:10] if symbols else [],  # First 10 symbols
-            "line_count": len(content.splitlines()) if content else 0
+            "line_count": len(content.splitlines()) if content else 0,
         }
-        
+
         if symbol_name:
             # Find specific symbol
             matching_symbols = [s for s in symbols if s.get("name") == symbol_name]
             if matching_symbols:
                 summary["requested_symbol"] = matching_symbols[0]
-        
+
         return {"summary": summary}
-    
+
     def get_git_info(self, repo_id: str) -> Dict[str, Any]:
         """Get git information."""
         repo = self.get_repo(repo_id)
-        return repo.get_git_info()
-    
-    def review_diff(self, repo_id: str, diff_spec: str, priority_filter: Optional[List[str]] = None,
-                   max_files: int = 10, model: Optional[str] = None) -> Dict[str, Any]:
+        # Repository doesn't have get_git_info, construct it from available methods
+        return {
+            "current_sha": repo.current_sha,
+            "current_sha_short": repo.current_sha_short,
+            "current_branch": repo.current_branch,
+            "remote_url": repo.remote_url,
+            "is_dirty": repo.is_dirty,
+            "tags": repo.tags,
+            "branches": repo.branches,
+        }
+
+    def review_diff(
+        self,
+        repo_id: str,
+        diff_spec: str,
+        priority_filter: Optional[List[str]] = None,
+        max_files: int = 10,
+        model: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Review a diff."""
-        from ..pr_review.config import ReviewConfig
-        from ..pr_review.local_reviewer import LocalDiffReviewer
-        
+
         repo = self.get_repo(repo_id)
-        
+
         try:
             # Create review config
             config = ReviewConfig.from_file()
             if model:
-                config.model = model
-            
+                config.llm.model = model
+
             # Create reviewer
             reviewer = LocalDiffReviewer(config, repo.repo_path)
-            
+
             # Perform review
             result = reviewer.review(diff_spec)
-            
+
             # Extract cost from result if present
             import re
-            cost_match = re.search(r'Cost: \$(\d+\.\d+)', result)
+
+            cost_match = re.search(r"Cost: \$(\d+\.\d+)", result)
             cost = float(cost_match.group(1)) if cost_match else 0.0
-            
-            return {
-                "review": result,
-                "diff_spec": diff_spec,
-                "cost": cost,
-                "model": model or "gpt-4"
-            }
+
+            return {"review": result, "diff_spec": diff_spec, "cost": cost, "model": model or "gpt-4"}
         except Exception as e:
             raise MCPError(INTERNAL_ERROR, f"Failed to review diff: {e}")
-    
+
     def search_code(self, repo_id: str, query: str, pattern: str = "*.py") -> List[Dict[str, Any]]:
         """Search code."""
         repo = self.get_repo(repo_id)
         # Repository uses search_text, not search_code
         return repo.search_text(query, file_pattern=pattern)
-    
+
     def list_prompts(self) -> List[Any]:
         """List available prompts."""
         return [
@@ -261,130 +301,106 @@ class KitServerLogic:
                 name="review_diff",
                 description="Review a local git diff",
                 arguments=[
+                    PromptArgument(name="repo_id", description="Repository ID", required=True),
                     PromptArgument(
-                        name="repo_id",
-                        description="Repository ID",
-                        required=True
+                        name="diff_spec", description="Git diff spec (e.g., 'HEAD~1..HEAD', '--staged')", required=True
                     ),
-                    PromptArgument(
-                        name="diff_spec",
-                        description="Git diff spec (e.g., 'HEAD~1..HEAD', '--staged')",
-                        required=True
-                    ),
-                    PromptArgument(
-                        name="priority_filter",
-                        description="Priority levels to include",
-                        required=False
-                    ),
-                    PromptArgument(
-                        name="max_files",
-                        description="Maximum number of files to review",
-                        required=False
-                    ),
-                    PromptArgument(
-                        name="model",
-                        description="LLM model to use",
-                        required=False
-                    )
-                ]
+                    PromptArgument(name="priority_filter", description="Priority levels to include", required=False),
+                    PromptArgument(name="max_files", description="Maximum number of files to review", required=False),
+                    PromptArgument(name="model", description="LLM model to use", required=False),
+                ],
             )
         ]
-    
+
     def get_prompt(self, name: str, arguments: dict) -> Any:
         """Get a specific prompt."""
         # This would normally handle prompt requests
         from mcp.types import GetPromptResult, PromptMessage, TextContent
-        
+
         if name == "review_diff":
             repo_id = arguments.get("repo_id")
             diff_spec = arguments.get("diff_spec", "HEAD~1..HEAD")
-            
+
             # Keep repo_id as string for review_diff
+            if not repo_id:
+                raise MCPError(INVALID_PARAMS, "repo_id is required")
             result = self.review_diff(repo_id, diff_spec)
-            
+
             return GetPromptResult(
                 description=f"AI review of diff: {diff_spec}",
-                messages=[
-                    PromptMessage(
-                        role="assistant",
-                        content=TextContent(type="text", text=result["review"])
-                    )
-                ]
+                messages=[PromptMessage(role="assistant", content=TextContent(type="text", text=result["review"]))],
             )
-        
+
         raise MCPError(INVALID_PARAMS, f"Unknown prompt: {name}")
-    
+
     def list_tools(self) -> List[Tool]:
         """List standard Kit tools."""
         return [
             Tool(
                 name="open_repository",
                 description="Open a local or remote Git repository",
-                inputSchema=OpenRepoParams.model_json_schema()
+                inputSchema=OpenRepoParams.model_json_schema(),
             ),
             Tool(
-                name="search_code",
-                description="Search for code patterns",
-                inputSchema=SearchParams.model_json_schema()
+                name="search_code", description="Search for code patterns", inputSchema=SearchParams.model_json_schema()
             ),
             Tool(
-                name="grep_code",
-                description="Fast literal string search",
-                inputSchema=GrepParams.model_json_schema()
+                name="grep_code", description="Fast literal string search", inputSchema=GrepParams.model_json_schema()
             ),
             Tool(
                 name="get_file_content",
                 description="Read file contents",
-                inputSchema=GetFileContentParams.model_json_schema()
+                inputSchema=GetFileContentParams.model_json_schema(),
             ),
             Tool(
                 name="get_multiple_file_contents",
                 description="Read multiple files efficiently",
-                inputSchema=GetMultipleFileContentsParams.model_json_schema()
+                inputSchema=GetMultipleFileContentsParams.model_json_schema(),
             ),
             Tool(
                 name="get_file_tree",
                 description="Get repository file structure",
-                inputSchema=GetFileTreeParams.model_json_schema()
+                inputSchema=GetFileTreeParams.model_json_schema(),
             ),
             Tool(
                 name="extract_symbols",
                 description="Extract symbols from a file",
-                inputSchema=ExtractSymbolsParams.model_json_schema()
+                inputSchema=ExtractSymbolsParams.model_json_schema(),
             ),
             Tool(
                 name="find_symbol_usages",
                 description="Find where symbols are used",
-                inputSchema=FindSymbolUsagesParams.model_json_schema()
+                inputSchema=FindSymbolUsagesParams.model_json_schema(),
             ),
             Tool(
                 name="get_code_summary",
                 description="Get AI-powered code summary",
-                inputSchema=GetCodeSummaryParams.model_json_schema()
+                inputSchema=GetCodeSummaryParams.model_json_schema(),
             ),
             Tool(
                 name="get_git_info",
                 description="Get git repository info",
-                inputSchema=GitInfoParams.model_json_schema()
+                inputSchema=GitInfoParams.model_json_schema(),
             ),
             Tool(
                 name="review_diff",
                 description="Review a local git diff with AI",
-                inputSchema=ReviewDiffParams.model_json_schema()
+                inputSchema=ReviewDiffParams.model_json_schema(),
             ),
         ]
 
 
 class WatchFilesParams(BaseModel):
     """Watch files for changes in real-time."""
+
     repo_id: str
     patterns: List[str] = Field(default=["*.py", "*.js", "*.ts"], description="File patterns to watch")
     exclude_dirs: List[str] = Field(default=[".git", "node_modules", "__pycache__"])
 
 
-
 class BuildContextParams(BaseModel):
     """Build comprehensive context for a development task."""
+
     repo_id: str
     task_description: str
     include_tests: bool = True
@@ -392,15 +408,17 @@ class BuildContextParams(BaseModel):
     include_dependencies: bool = True
     max_files: int = 20
 
+
 class DeepResearchParams(BaseModel):
     """Deep research documentation for a package (using LLM)."""
+
     package_name: str
     query: str = Field(default="", description="Specific question about the package")
 
 
-
 class SemanticSearchParams(BaseModel):
     """Search code semantically using embeddings."""
+
     repo_id: str
     query: str
     max_results: int = Field(default=10, ge=1, le=50)
@@ -409,6 +427,7 @@ class SemanticSearchParams(BaseModel):
 @dataclass
 class FileChange:
     """Represents a file change event."""
+
     path: str
     change_type: str  # created, modified, deleted
     timestamp: float
@@ -453,20 +472,12 @@ class FileWatcher:
                     if file_path in self.watched_files:
                         if mtime > self.watched_files[file_path]:
                             # File modified
-                            self.changes.append(FileChange(
-                                path=file_path,
-                                change_type="modified",
-                                timestamp=mtime
-                            ))
+                            self.changes.append(FileChange(path=file_path, change_type="modified", timestamp=mtime))
                             self.watched_files[file_path] = mtime
                     else:
                         # New file
                         self.watched_files[file_path] = mtime
-                        self.changes.append(FileChange(
-                            path=file_path,
-                            change_type="created",
-                            timestamp=mtime
-                        ))
+                        self.changes.append(FileChange(path=file_path, change_type="created", timestamp=mtime))
 
             await asyncio.sleep(1)  # Check every second
 
@@ -479,7 +490,6 @@ class FileWatcher:
         return self.changes[-limit:]
 
 
-
 class LocalDevServerLogic(KitServerLogic):
     """Enhanced MCP server logic for development."""
 
@@ -490,13 +500,13 @@ class LocalDevServerLogic(KitServerLogic):
         self._context_cache: Dict[str, Any] = {}
         self._indexers: Dict[str, DocstringIndexer] = {}  # For semantic search
 
-    def open_repository(self, path: str) -> str:
+    def open_repository(self, path_or_url: str, github_token: Optional[str] = None, ref: Optional[str] = None) -> str:
         """Open a repository."""
         try:
-            repo = Repository(path)
+            repo = Repository(path_or_url, github_token=github_token, ref=ref)
             repo_id = f"repo_{len(self._repos)}"
             self._repos[repo_id] = repo
-            logger.info(f"Opened repository at {path} with ID {repo_id}")
+            logger.info(f"Opened repository at {path_or_url} with ID {repo_id}")
             return repo_id
         except Exception as e:
             logger.error(f"Failed to open repository: {e}")
@@ -512,14 +522,14 @@ class LocalDevServerLogic(KitServerLogic):
         watcher = self._watchers[repo_id]
 
         # Start watching in background - store task reference
-        self._watcher_tasks = getattr(self, '_watcher_tasks', {})
+        self._watcher_tasks = getattr(self, "_watcher_tasks", {})
         self._watcher_tasks[repo_id] = asyncio.create_task(watcher.start_watching(patterns, exclude_dirs))
 
         return {
             "status": "watching",
             "patterns": patterns,
             "exclude_dirs": exclude_dirs,
-            "message": "File watcher started. Use 'get_file_changes' to check for changes."
+            "message": "File watcher started. Use 'get_file_changes' to check for changes.",
         }
 
     def get_file_changes(self, repo_id: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -528,23 +538,17 @@ class LocalDevServerLogic(KitServerLogic):
             return []
 
         changes = self._watchers[repo_id].get_recent_changes(limit)
-        return [
-            {
-                "path": c.path,
-                "type": c.change_type,
-                "timestamp": c.timestamp
-            }
-            for c in changes
-        ]
+        return [{"path": c.path, "type": c.change_type, "timestamp": c.timestamp} for c in changes]
 
     def deep_research_package(self, package_name: str, query: str = "") -> Dict[str, Any]:
         """Perform deep research on a package using LLM."""
         import os
+
         from ..deep_research import DeepResearch
-        from ..summaries import OpenAIConfig, AnthropicConfig, LLMError
-        
+        from ..summaries import AnthropicConfig, LLMError, OpenAIConfig
+
         # Try to get LLM config from environment
-        config = None
+        config: Optional[Union[OpenAIConfig, AnthropicConfig]] = None
         if os.environ.get("OPENAI_API_KEY"):
             config = OpenAIConfig(model="gpt-4o-mini")
         elif os.environ.get("ANTHROPIC_API_KEY"):
@@ -555,9 +559,9 @@ class LocalDevServerLogic(KitServerLogic):
                 "package": package_name,
                 "model": "none",
                 "execution_time": 0,
-                "documentation": f"No LLM API key configured. To use deep research, set either OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable. This feature uses an LLM to provide comprehensive documentation about {package_name}."
+                "documentation": f"No LLM API key configured. To use deep research, set either OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable. This feature uses an LLM to provide comprehensive documentation about {package_name}.",
             }
-        
+
         try:
             researcher = DeepResearch(config)
         except LLMError as e:
@@ -565,9 +569,9 @@ class LocalDevServerLogic(KitServerLogic):
                 "package": package_name,
                 "model": "error",
                 "execution_time": 0,
-                "documentation": f"LLM configuration error: {e}"
+                "documentation": f"LLM configuration error: {e}",
             }
-        
+
         # Build the research query
         if query:
             research_query = f"Tell me about the {package_name} package, specifically: {query}"
@@ -578,34 +582,36 @@ class LocalDevServerLogic(KitServerLogic):
             - Basic usage examples
             - Common patterns and best practices
             - Important classes/functions to know about"""
-        
+
         result = researcher.research(research_query)
-        
+
         return {
             "package": package_name,
             "model": result.model,
             "execution_time": result.execution_time,
-            "documentation": result.answer
+            "documentation": result.answer,
         }
 
-    def build_smart_context(self, repo_id: str, task_description: str,
-                           include_tests: bool, include_docs: bool,
-                           include_dependencies: bool, max_files: int) -> Dict[str, Any]:
+    def build_smart_context(
+        self,
+        repo_id: str,
+        task_description: str,
+        include_tests: bool,
+        include_docs: bool,
+        include_dependencies: bool,
+        max_files: int,
+    ) -> Dict[str, Any]:
         """Build comprehensive context for a development task."""
         repo = self.get_repo(repo_id)
 
-        context = {
+        context: Dict[str, Any] = {
             "task": task_description,
-            "repository": {
-                "path": repo.repo_path,
-                "branch": repo.current_branch,
-                "sha": repo.current_sha
-            },
+            "repository": {"path": repo.repo_path, "branch": repo.current_branch, "sha": repo.current_sha},
             "relevant_files": [],
             "symbols": [],
             "tests": [],
             "documentation": [],
-            "dependencies": []
+            "dependencies": [],
         }
 
         keywords = task_description.lower().split()
@@ -618,22 +624,17 @@ class LocalDevServerLogic(KitServerLogic):
 
             # Check if file might be relevant
             if any(keyword in file_path.lower() for keyword in keywords):
-                context["relevant_files"].append({
-                    "path": file_path,
-                    "size": file_info.get("size", 0)
-                })
+                context["relevant_files"].append({"path": file_path, "size": file_info.get("size", 0)})
 
                 # Extract symbols from relevant files
                 try:
                     symbols = repo.extract_symbols(file_path)
-                    context["symbols"].extend([
-                        {
-                            "file": file_path,
-                            "name": s["name"],
-                            "type": s["type"]
-                        }
-                        for s in symbols[:5]  # Limit symbols per file
-                    ])
+                    context["symbols"].extend(
+                        [
+                            {"file": file_path, "name": s["name"], "type": s["type"]}
+                            for s in symbols[:5]  # Limit symbols per file
+                        ]
+                    )
                 except Exception:
                     pass
 
@@ -641,19 +642,34 @@ class LocalDevServerLogic(KitServerLogic):
         if include_tests:
             test_patterns = ["test_*.py", "*_test.py", "*.test.js", "*.spec.js"]
             for file_info in repo.get_file_tree():
-                if any(file_info["path"].endswith(pattern.replace("*", ""))
-                       for pattern in test_patterns):
+                if any(file_info["path"].endswith(pattern.replace("*", "")) for pattern in test_patterns):
                     context["tests"].append(file_info["path"])
 
         # Get dependencies if requested
         if include_dependencies:
-            deps = self._dep_fetcher.get_dependencies_from_requirements(
-                Path(repo.repo_path) / "requirements.txt"
-            )
-            context["dependencies"] = [
-                {"name": name, "version": version}
-                for name, version in deps[:10]
-            ]
+            requirements_file = Path(repo.repo_path) / "requirements.txt"
+            if requirements_file.exists():
+                try:
+                    deps = []
+                    with open(requirements_file, "r") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#"):
+                                # Simple parsing of requirement lines
+                                if "==" in line:
+                                    name, version = line.split("==")
+                                    deps.append({"name": name.strip(), "version": version.strip()})
+                                elif ">=" in line:
+                                    name = line.split(">=")[0]
+                                    deps.append({"name": name.strip(), "version": "latest"})
+                                else:
+                                    deps.append({"name": line, "version": "any"})
+                    context["dependencies"] = deps[:10]
+                except Exception as e:
+                    logger.warning(f"Failed to parse requirements.txt: {e}")
+                    context["dependencies"] = []
+            else:
+                context["dependencies"] = []
 
         # Cache context
         cache_key = f"{repo_id}:{task_description[:50]}"
@@ -670,13 +686,14 @@ class LocalDevServerLogic(KitServerLogic):
             try:
                 # Create indexer with the repository's summarizer
                 from ..summaries import OpenAIConfig, Summarizer
+
                 config = OpenAIConfig(model="gpt-4o-mini")
                 summarizer = Summarizer(repo, config=config)
-                
+
                 # Create indexer
                 indexer = DocstringIndexer(repo, summarizer)
                 # Index the repository
-                indexer.index_docstrings()
+                indexer.build()
                 self._indexers[repo_id] = indexer
             except Exception as e:
                 logger.error(f"Failed to create semantic search index: {e}")
@@ -692,14 +709,16 @@ class LocalDevServerLogic(KitServerLogic):
             # Format results
             formatted_results = []
             for result in results:
-                formatted_results.append({
-                    "file": result.get("file_path", ""),
-                    "symbol": result.get("symbol_name", ""),
-                    "type": result.get("symbol_type", ""),
-                    "summary": result.get("summary", ""),
-                    "score": result.get("score", 0.0),
-                    "line": result.get("line_number", 0)
-                })
+                formatted_results.append(
+                    {
+                        "file": result.get("file_path", ""),
+                        "symbol": result.get("symbol_name", ""),
+                        "type": result.get("symbol_type", ""),
+                        "summary": result.get("summary", ""),
+                        "score": result.get("score", 0.0),
+                        "line": result.get("line_number", 0),
+                    }
+                )
 
             return formatted_results
         except Exception as e:
@@ -713,47 +732,39 @@ class LocalDevServerLogic(KitServerLogic):
 
         # Add our enhanced development tools
         dev_tools = [
-
             # File watching
             Tool(
                 name="watch_files",
                 description="Watch files for real-time changes",
-                inputSchema=WatchFilesParams.model_json_schema()
+                inputSchema=WatchFilesParams.model_json_schema(),
             ),
             Tool(
                 name="get_file_changes",
                 description="Get recent file changes from watcher",
                 inputSchema={
                     "type": "object",
-                    "properties": {
-                        "repo_id": {"type": "string"},
-                        "limit": {"type": "integer", "default": 10}
-                    },
-                    "required": ["repo_id"]
-                }
+                    "properties": {"repo_id": {"type": "string"}, "limit": {"type": "integer", "default": 10}},
+                    "required": ["repo_id"],
+                },
             ),
-
-
             # Semantic search
             Tool(
                 name="semantic_search",
                 description="Search code semantically using AI-powered embeddings",
-                inputSchema=SemanticSearchParams.model_json_schema()
+                inputSchema=SemanticSearchParams.model_json_schema(),
             ),
-
             # Documentation and research
             Tool(
                 name="deep_research_package",
                 description="Deep research documentation for any package (using LLM to provide comprehensive answers)",
-                inputSchema=DeepResearchParams.model_json_schema()
+                inputSchema=DeepResearchParams.model_json_schema(),
             ),
-
             # Smart context building
             Tool(
                 name="build_smart_context",
                 description="Build comprehensive context for a development task",
-                inputSchema=BuildContextParams.model_json_schema()
-            )
+                inputSchema=BuildContextParams.model_json_schema(),
+            ),
         ]
 
         # Return combined tools
@@ -762,7 +773,7 @@ class LocalDevServerLogic(KitServerLogic):
 
 async def serve():
     """Serve the enhanced development MCP server."""
-    server = Server("kit-dev-mcp", version=KIT_VERSION)
+    server = Server("kit-mcp-dev", version=KIT_VERSION)
     logic = LocalDevServerLogic()
 
     @server.call_tool()
@@ -772,90 +783,120 @@ async def serve():
             # Handle development-specific tools
             if name == "watch_files":
                 params = WatchFilesParams(**arguments)
-                result = await logic.watch_files(
-                    params.repo_id, params.patterns, params.exclude_dirs
-                )
+                result = await logic.watch_files(params.repo_id, params.patterns, params.exclude_dirs)
                 return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
             elif name == "get_file_changes":
-                changes = logic.get_file_changes(
-                    arguments["repo_id"],
-                    arguments.get("limit", 10)
-                )
+                changes = logic.get_file_changes(arguments["repo_id"], arguments.get("limit", 10))
                 return [TextContent(type="text", text=json.dumps(changes, indent=2))]
 
             elif name == "deep_research_package":
-                params = DeepResearchParams(**arguments)
-                result = logic.deep_research_package(
-                    params.package_name, params.query
-                )
+                research_params = DeepResearchParams(**arguments)
+                result = logic.deep_research_package(research_params.package_name, research_params.query)
                 return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
             elif name == "build_smart_context":
-                params = BuildContextParams(**arguments)
+                build_params = BuildContextParams(**arguments)
                 result = logic.build_smart_context(
-                    params.repo_id, params.task_description,
-                    params.include_tests, params.include_docs,
-                    params.include_dependencies, params.max_files
+                    build_params.repo_id,
+                    build_params.task_description,
+                    build_params.include_tests,
+                    build_params.include_docs,
+                    build_params.include_dependencies,
+                    build_params.max_files,
                 )
                 return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
             elif name == "semantic_search":
-                params = SemanticSearchParams(**arguments)
+                semantic_params = SemanticSearchParams(**arguments)
                 result = logic.semantic_search(
-                    params.repo_id, params.query, params.max_results
+                    semantic_params.repo_id, semantic_params.query, semantic_params.max_results
                 )
                 return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
             # For all other tools, delegate to parent class handling
-            elif name in ["open_repository", "search_code", "grep_code", "get_file_content",
-                         "get_multiple_file_contents", "extract_symbols", "find_symbol_usages",
-                         "get_file_tree", "get_code_summary", "get_git_info", "review_diff"]:
+            elif name in [
+                "open_repository",
+                "search_code",
+                "grep_code",
+                "get_file_content",
+                "get_multiple_file_contents",
+                "extract_symbols",
+                "find_symbol_usages",
+                "get_file_tree",
+                "get_code_summary",
+                "get_git_info",
+                "review_diff",
+            ]:
                 # Route to parent class method
                 if name == "open_repository":
-                    params = OpenRepoParams(**arguments)
-                    repo_id = logic.open_repository(params.path_or_url, params.github_token, params.ref)
+                    open_params = OpenRepoParams(**arguments)
+                    repo_id = logic.open_repository(open_params.path_or_url, open_params.github_token, open_params.ref)
                     return [TextContent(type="text", text=f"Opened repository with ID: {repo_id}")]
                 elif name == "search_code":
-                    params = SearchParams(**arguments)
-                    result = logic.search_code(params.repo_id, params.query, params.pattern)
+                    search_params = SearchParams(**arguments)
+                    result = logic.search_code(search_params.repo_id, search_params.query, search_params.pattern)
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "grep_code":
-                    params = GrepParams(**arguments)
-                    result = logic.grep_code(params.repo_id, params.pattern, params.include_dirs, params.exclude_dirs, params.file_extensions)
+                    grep_params = GrepParams(**arguments)
+                    result = logic.grep_code(
+                        grep_params.repo_id,
+                        grep_params.pattern,
+                        grep_params.case_sensitive,
+                        grep_params.include_pattern,
+                        grep_params.exclude_pattern,
+                        grep_params.max_results,
+                        grep_params.directory,
+                        grep_params.include_hidden,
+                    )
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "get_file_content":
-                    params = GetFileContentParams(**arguments)
-                    result = logic.get_file_content(params.repo_id, params.file_path)
+                    file_params = GetFileContentParams(**arguments)
+                    result = logic.get_file_content(file_params.repo_id, file_params.file_path)
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "get_multiple_file_contents":
-                    params = GetMultipleFileContentsParams(**arguments)
-                    result = logic.get_multiple_file_contents(params.repo_id, params.file_paths)
+                    multi_params = GetMultipleFileContentsParams(**arguments)
+                    result = logic.get_multiple_file_contents(multi_params.repo_id, multi_params.file_paths)
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "extract_symbols":
-                    params = ExtractSymbolsParams(**arguments)
-                    result = logic.extract_symbols(params.repo_id, params.file_path, params.symbol_type)
+                    symbol_params = ExtractSymbolsParams(**arguments)
+                    result = logic.extract_symbols(
+                        symbol_params.repo_id, symbol_params.file_path, symbol_params.symbol_type
+                    )
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "find_symbol_usages":
-                    params = FindSymbolUsagesParams(**arguments)
-                    result = logic.find_symbol_usages(params.repo_id, params.symbol_name, params.file_path)
+                    usage_params = FindSymbolUsagesParams(**arguments)
+                    result = logic.find_symbol_usages(
+                        usage_params.repo_id, usage_params.symbol_name, usage_params.file_path
+                    )
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "get_file_tree":
-                    params = GetFileTreeParams(**arguments)
-                    result = logic.get_file_tree(params.repo_id)
+                    tree_params = GetFileTreeParams(**arguments)
+                    result = logic.get_file_tree(tree_params.repo_id)
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "get_code_summary":
-                    params = GetCodeSummaryParams(**arguments)
-                    result = logic.get_code_summary(params.repo_id, params.file_path, params.symbol_name)
+                    summary_params = GetCodeSummaryParams(**arguments)
+                    result = logic.get_code_summary(
+                        summary_params.repo_id, summary_params.file_path, summary_params.symbol_name
+                    )
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "get_git_info":
-                    params = GitInfoParams(**arguments)
-                    result = logic.get_git_info(params.repo_id)
+                    git_params = GitInfoParams(**arguments)
+                    result = logic.get_git_info(git_params.repo_id)
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "review_diff":
-                    params = ReviewDiffParams(**arguments)
-                    result = logic.review_diff(params.repo_id, params.diff_spec, params.priority_filter, params.max_files, params.model)
+                    review_params = ReviewDiffParams(**arguments)
+                    result = logic.review_diff(
+                        review_params.repo_id,
+                        review_params.diff_spec,
+                        review_params.priority_filter,
+                        review_params.max_files,
+                        review_params.model,
+                    )
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
+                else:
+                    # Should not happen since we checked the name is in the list
+                    return [TextContent(type="text", text=f"Tool {name} is recognized but not implemented")]
 
             else:
                 return [TextContent(type="text", text=f"Unknown tool: {name}")]
@@ -877,17 +918,9 @@ async def serve():
                 name="analyze_codebase",
                 description="Comprehensive codebase analysis with all features",
                 arguments=[
-                    PromptArgument(
-                        name="path",
-                        description="Path to the repository",
-                        required=True
-                    ),
-                    PromptArgument(
-                        name="task",
-                        description="What you want to accomplish",
-                        required=True
-                    )
-                ]
+                    PromptArgument(name="path", description="Path to the repository", required=True),
+                    PromptArgument(name="task", description="What you want to accomplish", required=True),
+                ],
             ),
         ]
 
@@ -900,14 +933,16 @@ async def serve():
                     PromptMessage(
                         role="user",
                         content=TextContent(
+                            type="text",
                             text=f"Analyze the codebase at {arguments['path']} "
-                                 f"for the task: {arguments['task']}. "
-                                 "Use all available tools including file watching, "
-                                 "test running, performance analysis, and context building."
-                        )
+                            f"for the task: {arguments['task']}. "
+                            "Use all available tools including file watching, "
+                            "test running, performance analysis, and context building.",
+                        ),
                     )
                 ]
             )
+        else:
             raise MCPError(INVALID_PARAMS, f"Unknown prompt: {name}")
 
     options = server.create_initialization_options()
@@ -918,4 +953,5 @@ async def serve():
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(serve())

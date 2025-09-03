@@ -49,9 +49,7 @@ class TestFileWatcher:
         watcher = FileWatcher(mock_repo)
 
         # Start watching in background
-        task = asyncio.create_task(
-            watcher.start_watching(["*.py"], [".git", "node_modules"])
-        )
+        task = asyncio.create_task(watcher.start_watching(["*.py"], [".git", "node_modules"]))
 
         # Let it run briefly
         await asyncio.sleep(0.1)
@@ -130,6 +128,7 @@ class TestLocalDevServerLogic:
     def test_get_repo_not_found(self, server):
         """Test getting a non-existent repository."""
         from kit.mcp.dev_server import MCPError
+
         with pytest.raises(MCPError, match="Repository invalid_id not found"):
             server.get_repo("invalid_id")
 
@@ -142,11 +141,7 @@ class TestLocalDevServerLogic:
 
             repo_id = server.open_repository(tmpdir)
 
-            result = await server.watch_files(
-                repo_id,
-                patterns=["*.py"],
-                exclude_dirs=[".git"]
-            )
+            result = await server.watch_files(repo_id, patterns=["*.py"], exclude_dirs=[".git"])
 
             assert result["status"] == "watching"
             assert result["patterns"] == ["*.py"]
@@ -166,9 +161,7 @@ class TestLocalDevServerLogic:
 
             repo_id = server.open_repository(tmpdir)
             server._watchers[repo_id] = MagicMock()
-            server._watchers[repo_id].get_recent_changes.return_value = [
-                FileChange("test.py", "modified", 1000)
-            ]
+            server._watchers[repo_id].get_recent_changes.return_value = [FileChange("test.py", "modified", 1000)]
 
             changes = server.get_file_changes(repo_id)
 
@@ -178,10 +171,7 @@ class TestLocalDevServerLogic:
 
     def test_deep_research_package(self, server):
         """Test deep research package functionality."""
-        result = server.deep_research_package(
-            "fastapi",
-            query="What are the main features?"
-        )
+        result = server.deep_research_package("fastapi", query="What are the main features?")
 
         assert result["package"] == "fastapi"
         assert "model" in result
@@ -208,7 +198,7 @@ class TestLocalDevServerLogic:
                 include_tests=True,
                 include_docs=False,
                 include_dependencies=True,
-                max_files=10
+                max_files=10,
             )
 
             assert context["task"] == "add authentication"
@@ -253,18 +243,10 @@ class TestMCPServerIntegration:
     def test_parameter_models(self):
         """Test that all parameter models are valid."""
         # Test instantiation of parameter models
-        params = WatchFilesParams(
-            repo_id="test",
-            patterns=["*.py"],
-            exclude_dirs=[".git"]
-        )
+        params = WatchFilesParams(repo_id="test", patterns=["*.py"], exclude_dirs=[".git"])
         assert params.repo_id == "test"
 
-        params = DeepResearchParams(
-            package_name="fastapi",
-            use_context7=True,
-            max_sources=5
-        )
+        params = DeepResearchParams(package_name="fastapi", use_context7=True, max_sources=5)
         assert params.package_name == "fastapi"
 
         params = BuildContextParams(
@@ -273,13 +255,9 @@ class TestMCPServerIntegration:
             include_tests=True,
             include_docs=True,
             include_dependencies=True,
-            max_files=20
+            max_files=20,
         )
         assert params.task_description == "Add auth"
 
-        params = SemanticSearchParams(
-            repo_id="test",
-            query="authentication",
-            max_results=10
-        )
+        params = SemanticSearchParams(repo_id="test", query="authentication", max_results=10)
         assert params.query == "authentication"

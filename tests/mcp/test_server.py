@@ -171,7 +171,15 @@ class TestMCPMultiFileContent:
         repo_id = logic.open_repository(temp_git_repo)
 
         with patch("kit.repository.Repository.get_file_content") as mock_content:
-            mock_content.return_value = {"file1.py": "# File 1\nprint('hello')", "file2.py": "# File 2\nprint('world')"}
+            # Mock should return individual file contents based on the file path
+            def mock_get_content(fp):
+                if fp == "file1.py":
+                    return "# File 1\nprint('hello')"
+                elif fp == "file2.py":
+                    return "# File 2\nprint('world')"
+                return ""
+
+            mock_content.side_effect = mock_get_content
 
             result = logic.get_file_content(repo_id, ["file1.py", "file2.py"])
 
@@ -187,7 +195,15 @@ class TestMCPMultiFileContent:
         repo_id = logic.open_repository(temp_git_repo)
 
         with patch("kit.repository.Repository.get_file_content") as mock_content:
-            mock_content.return_value = {"src/main.py": "# Main file", "src/utils.py": "# Utils file"}
+            # Mock should return individual file contents based on the file path
+            def mock_get_content(fp):
+                if fp == "src/main.py":
+                    return "# Main file"
+                elif fp == "src/utils.py":
+                    return "# Utils file"
+                return ""
+
+            mock_content.side_effect = mock_get_content
 
             result = logic.get_multiple_file_contents(repo_id, ["src/main.py", "src/utils.py"])
 

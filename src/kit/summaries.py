@@ -13,7 +13,6 @@ except ImportError:
     tiktoken = None
 
 
-
 # Define a Protocol for LLM clients to help with type checking
 @runtime_checkable
 class LLMClientProtocol(Protocol):

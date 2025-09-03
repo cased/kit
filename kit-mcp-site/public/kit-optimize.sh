@@ -51,7 +51,7 @@ if [ -d ".cursor" ] || command -v cursor &> /dev/null; then
     cat > .cursorrules << 'EOF'
 # Cursor Rules - Kit MCP Integration
 
-You have access to kit-dev-mcp. ALWAYS use these tools:
+You have access to kit-mcp-dev. ALWAYS use these tools:
 
 ## Required for EVERY task:
 1. open_repository - Load codebase

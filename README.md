@@ -66,7 +66,7 @@ uv tool install cased-kit[ml]
 uv tool install cased-kit[all]
 ```
 
-After installation, the `kit` and `kit-mcp-local-dev` commands will be available globally. To manage your uv tool installations:
+After installation, the `kit` and `kit-mcp-dev` commands will be available globally. To manage your uv tool installations:
 
 ```bash
 # List installed tools
@@ -256,9 +256,9 @@ Add a stanza like this to your MCP configuration:
 ```jsonc
 {
   "mcpServers": {
-    "kit-mcp-local-dev": {
+    "kit-mcp-dev": {
       "command": "uvx",
-      "args": ["--from", "cased-kit", "kit-mcp-local-dev"],
+      "args": ["--from", "cased-kit", "kit-mcp-dev"],
       "env": {
         "KIT_GITHUB_TOKEN": "ghp_your_token_here"  // Optional: for private repos
       }
@@ -274,7 +274,7 @@ If you have installed `cased-kit` with `pip` or some other method, you can invok
 ```jsonc
 {
   "mcpServers": {
-    "kit-mcp-local-dev": {
+    "kit-mcp-dev": {
       "command": "python",
       "args": ["-m", "kit.mcp.dev"]
     }
