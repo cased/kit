@@ -1,188 +1,363 @@
-# Kit 🛠️ Production-Grade Code Intelligence Platform (plus a lot more)
+# kit 🛠️ Code Intelligence Toolkit
 
 <img src="https://github.com/user-attachments/assets/7bdfa9c6-94f0-4ee0-9fdd-cbd8bd7ec060" width="360">
 
-**Kit** is a comprehensive code intelligence toolkit and platform:
+`kit` is a production-ready toolkit for codebase mapping, symbol extraction, code search, and building LLM-powered developer tools, agents, and workflows. 
+
+Use `kit` to build things like code reviewers, code generators, even IDEs, all enriched with the right code context. Work with `kit` directly from Python, or with MCP + function calling, REST, or CLI.
+
+`kit` also ships with a [damn fine PR reviewer](https://kit.cased.com/pr-reviewer/) that works with your choice of LLM, at just the cost of tokens, showcasing the power of this library for building full products.
+
+Explore the **[Full Documentation](https://kit.cased.com)** for detailed usage, advanced features, and practical examples.
+
+## Three Powerful Components
 
 ### 1. **Core Toolkit** - Build Your Own AI Developer Tools
-The foundation that powers everything: a production-ready library for codebase mapping, symbol extraction, and intelligent code search. Build your own code reviewers, generators, IDE plugins, or any LLM-powered development tool. Features a comprehensive CLI so you can work with kit in any language.
+The foundation that powers everything: a production-ready library for codebase mapping, symbol extraction, and intelligent code search. Build your own code reviewers, generators, IDE plugins, or any LLM-powered development tool. Features a comprehensive CLI and Python API.
 
-### 2. **Kit Dev MCP** - Supercharge Your AI Assistant
-An enhanced MCP server that gives Cursor, Windsurf, Claude Code, and VS Code super-powered context capabilities:
+### 2. **Kit Dev MCP** - Supercharge Your AI Assistant  
+An enhanced MCP (Model Context Protocol) server that gives Cursor, Windsurf, Claude Code, and VS Code super-powered context capabilities:
 - Smart context building for any development task
-- Real-time file watching and change detection
+- Real-time file watching and change detection  
 - Semantic code search with AI embeddings
 - Documentation research for any package
-- A lot more
+- Symbol extraction and dependency analysis
+- And much more
 
-[**→ Explore Kit Dev MCP**](https://kit-dev.cased.com)
+[**→ Explore Kit Dev MCP Documentation**](https://kit-dev.cased.com)
 
 ### 3. **AI PR Reviewer** - Production-Ready Code Reviews
-A complete, customizable pull request reviewer that provides:
-- Context-aware feedback using semantic understanding
+A complete, customizable pull request reviewer that rivals paid services:
+- Whole repo context analysis
+- Custom review profiles for your organization
 - Security vulnerability detection
 - Performance analysis
-- CI/CD integration
+- Works from CLI or CI/CD
+- Just pay for tokens
 
 [**→ Learn About PR Reviewer**](https://kit.cased.com/pr-reviewer/)
 
-The entire toolkit is free, MIT-licensed. The only costs you ever pay (if only) are at-cost LLM tokens,
-with your own API keys.
+## Quick Installation
 
----
+### Install from PyPI
 
-## 🚀 Quick Start
-
-Choose your path based on what you want to build:
-
-### For AI Assistant Users (MCP Server)
 ```bash
-# Install Kit with MCP server (simple, works everywhere)
 pip install cased-kit
 
-# Or with all extras (quote for zsh compatibility)
-pip install 'cased-kit[all]'
-
-# Configure your AI assistant (Cursor, Windsurf, Claude Code, VS Code)
-# See full guide: https://kit.cased.com/docs/quickstart
-```
-
-### For Developers (Core Toolkit)
-```bash
-# Install the core toolkit
-pip install cased-kit
-
-# With ML features for semantic search
+# With semantic search features (includes PyTorch, sentence-transformers)
 pip install cased-kit[ml]
+
+# Everything (including MCP server and all features)
+pip install cased-kit[all]
 ```
 
-### For Teams (PR Reviewer)
+### Install Globally with uv (Recommended for CLI usage)
+
+If you want to use the `kit` CLI globally without affecting your system Python, use `uv tool install`. This creates an isolated environment for `kit` while making the CLI available from anywhere:
+
 ```bash
-# Install with all features 
-pip install 'cased-kit[all]'
-# Or just: pip install cased-kit
+# Install the base kit CLI globally
+uv tool install cased-kit
 
-# Run your first review
-kit review PR_URL
+# With semantic search features (includes PyTorch, sentence-transformers)
+uv tool install cased-kit[ml]
+
+# Everything (including MCP server and all features)
+uv tool install cased-kit[all]
 ```
 
-## 💡 Core Toolkit Usage
+After installation, the `kit` and `kit-mcp-local-dev` commands will be available globally. To manage your uv tool installations:
 
-The power behind all Kit solutions - use it to build your own tools:
+```bash
+# List installed tools
+uv tool list
+
+# Uninstall if needed
+uv tool uninstall cased-kit
+```
+
+### Install from Source
+
+```bash
+git clone https://github.com/cased/kit.git
+cd kit
+uv venv .venv
+source .venv/bin/activate
+uv pip install -e .
+```
+
+## Basic Toolkit Usage
+
+### Python API
 
 ```python
 from kit import Repository
 
-# Load any repository
-repo = Repository("/path/to/codebase")
-# Or from GitHub: repo = Repository("https://github.com/owner/repo")
+# Load a local repository
+repo = Repository("/path/to/your/local/codebase")
 
-# Extract code intelligence
-symbols = repo.extract_symbols('src/main.py')
-# Output: [{"name": "main", "type": "function", ...}, ...]
+# Load a remote public GitHub repo
+# repo = Repository("https://github.com/owner/repo")
 
-# Semantic code search
-results = repo.search_code("authentication", mode="semantic")
+# Load a private GitHub repo (automatically uses KIT_GITHUB_TOKEN if set)
+# repo = Repository("https://github.com/owner/private-repo")
+# Or explicitly: repo = Repository("https://github.com/owner/private-repo", github_token="ghp_...")
 
-# Build context for LLMs
-context = repo.get_context_for_task("implement OAuth2")
+# Load a repository at a specific commit, tag, or branch
+# repo = Repository("https://github.com/owner/repo", ref="v1.2.3")
+
+# Explore the repo
+print(repo.get_file_tree())
+# Output: [{"path": "src/main.py", "is_dir": False, ...}, ...]
+
+print(repo.extract_symbols('src/main.py'))
+# Output: [{"name": "main", "type": "function", "file": "src/main.py", ...}, ...]
+
+# Access git metadata
+print(f"Current SHA: {repo.current_sha}")
+print(f"Branch: {repo.current_branch}")
+
+# Read one file
+main_py = repo.get_file_content("src/main.py")
+
+# Read many files in one round-trip
+contents = repo.get_file_content([
+    "src/main.py",
+    "src/utils/helper.py",
+    "tests/test_main.py",
+])
+print(contents["src/utils/helper.py"])
 ```
 
-## 🎨 Build With Kit
+### Command Line Interface
 
-Kit's core toolkit enables you to create:
+`kit` also provides a comprehensive CLI for repository analysis and code exploration:
 
-- **Code Reviewers** - Context-aware analysis with your choice of LLM
-- **Documentation Generators** - Extract and explain code structure
-- **Refactoring Tools** - Understand dependencies before making changes
-- **Security Scanners** - Find vulnerabilities with deep code understanding
-- **AI Coding Assistants** - Provide perfect context to any LLM
-- **Custom IDE Features** - Build language servers and code intelligence
-
-## 🏗️ Architecture
-
-All three Kit offerings share the same powerful core:
-
-```
-┌─────────────────────────────────────────────┐
-│          Kit Local Dev MCP Server           │
-│  (Cursor, Windsurf, Claude Code, VS Code)   │
-├─────────────────────────────────────────────┤
-│            AI PR Reviewer                   │
-│     (CLI, GitHub Actions, CI/CD)            │
-├─────────────────────────────────────────────┤
-│           Core Kit Toolkit                  │
-│   • Symbol Extraction (25x faster)          │
-│   • Semantic Search                         │
-│   • Dependency Analysis                     │
-│   • Context Building                        │
-│   • Documentation Research                  │
-└─────────────────────────────────────────────┘
-```
-
-## 🔥 Key Features
-
-### Performance at Scale
-- **25x faster** symbol extraction with incremental caching
-- Handle repositories with **millions of lines** of code
-- Optimized for **monorepos** and complex architectures
-
-### Intelligent Code Understanding
-- Language-aware parsing (Python, JS/TS, Go, Java, C++, more)
-- Semantic search using embeddings
-- Cross-file dependency tracking
-- Docstring and comment extraction
-
-### Developer Experience
-- Simple Python API
-- MCP protocol support
-- REST API server
-- CLI tools
-- GitHub integration
-
-## 📚 Documentation
-
-- **[Full Documentation](https://kit.cased.com)** - Complete guides and API reference
-- **[Kit Local Dev MCP](http://localhost:3000)** - MCP server documentation
-- **[PR Reviewer Guide](https://kit.cased.com/pr-reviewer/)** - Setup and configuration
-- **[Examples](https://kit.cased.com/tutorials/)** - Real-world usage patterns
-
-## 🛠️ Installation Options
-
-### Global CLI with uv (Recommended)
 ```bash
-# Install globally without affecting system Python
-uv tool install 'cased-kit[all]' 
-# Or simply: uv tool install cased-kit
+# Get repository file structure
+kit file-tree /path/to/repo
 
-# Now use from anywhere
-kit review PR_URL
-kit-mcp-local-dev
+# Extract symbols (functions, classes, etc.)
+kit symbols /path/to/repo --format table
+
+# Search for code patterns
+kit search /path/to/repo "def main" --pattern "*.py"
+
+# Find symbol usages
+kit usages /path/to/repo "MyClass"
+
+# Export data for external tools
+kit export /path/to/repo symbols symbols.json
+
+# Initialize configuration for reviews
+kit review --init-config
+
+# Review GitHub PRs
+kit review --dry-run https://github.com/owner/repo/pull/123
+kit review https://github.com/owner/repo/pull/123
+
+# Review local git diffs (no PR required!)
+kit review main..feature  # Compare branches
+kit review HEAD~3..HEAD   # Review last 3 commits
+kit review --staged       # Review staged changes
+
+# Generate PR summaries for quick triage
+kit summarize https://github.com/owner/repo/pull/123
+kit summarize --update-pr-body https://github.com/owner/repo/pull/123
+
+# Generate intelligent commit messages from staged changes
+git add .  # Stage your changes first
+kit commit  # Analyze and commit with AI-generated message
 ```
 
-### From Source
+The CLI supports all major repository operations with Unix-friendly output for scripting and automation. See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehensive usage examples.
+
+## Key Toolkit Capabilities
+
+`kit` helps your apps and agents understand and interact with codebases, with components to build your own AI-powered developer tools.
+
+*   **Explore Code Structure:**
+    *   High-level view with `repo.get_file_tree()` to list all files and directories. You can also pass a subdirectory for a more limited scan.
+    *   Dive down with `repo.extract_symbols()` to identify functions, classes, and other code constructs, either across the entire repository or within a single file.
+    *   Use the new (as of 1.1.0) and faster `repo.extract_symbols_incremental()` to get fast, cache-aware symbol extraction—best when dealing with small changes to repositories.
+
+*   **Pinpoint Information:**
+    *   Run regular expression searches across your codebase using `repo.search_text()`.
+    *   Track specific symbols (like a function or class) with `repo.find_symbol_usages()`.
+    *   Perform semantic code search using vector embeddings to find code based on meaning rather than just keywords.
+
+*   **Prepare Code for LLMs & Analysis:**
+    *   Break down large files into manageable pieces for LLM context windows using `repo.chunk_file_by_lines()` or `repo.chunk_file_by_symbols()`.
+    *   Get the full definition of a function or class off a line number within it using `repo.extract_context_around_line()`.
+
+*   **Generate Code Summaries:**
+    *   Use LLMs to create natural language summaries for files, functions, or classes using the `Summarizer` (e.g., `summarizer.summarize_file()`, `summarizer.summarize_function()`).
+    *   Works with **any LLM**: free local models (Ollama), or cloud models (OpenAI, Anthropic, Google).
+    *   Build a searchable semantic index of these AI-generated docstrings with `DocstringIndexer` and query it with `SummarySearcher` to find code based on intent and meaning.
+
+*   **Analyze Code Dependencies:**
+    *   Map import relationships between modules using `repo.get_dependency_analyzer()` to understand your codebase structure.
+    *   Generate dependency reports and LLM-friendly context with `analyzer.generate_dependency_report()` and `analyzer.generate_llm_context()`.
+
+*   **Repository Versioning & Historical Analysis:**
+    *   Analyze repositories at specific commits, tags, or branches using the `ref` parameter.
+    *   Compare code evolution over time, work with diffs, ensure reproducible analysis results
+    *   Access git metadata including current SHA, branch, and remote URL with `repo.current_sha`, `repo.current_branch`, etc.
+
+*   **Multiple Access Methods:**
+    *   **Python API**: Direct integration for building applications and scripts.
+    *   **Command Line Interface**: 11+ commands for shell scripting, CI/CD, and automation workflows.
+    *   **TypeScript / Node Client**: `npm install @runcased/kit` for type-safe wrapper that shells out to the same CLI.
+    *   **REST API**: HTTP endpoints for web applications and microservices.
+    *   **MCP Server**: Model Context Protocol integration for AI agents and development tools.
+
+## High-Performance Incremental Analysis
+
+kit's incremental analysis system provides intelligent caching that dramatically improves performance for repeated symbol extraction operations. This system is particularly powerful for development workflows where you're iterating on code and need fast analysis of changes.
+
+**Key Performance Benefits:**
+- **25x faster symbol extraction** on warm cache scenarios
+- **Per-file incremental analysis**: Only analyzes files that have actually changed
+- **Multi-strategy cache invalidation**: Uses file modification time, size, and content hash for accurate change detection
+- **Automatic git state detection**: Invalidates caches when you switch branches, commit, merge, or rebase
+- **LRU cache management**: Automatically manages memory usage with configurable cache size limits
+
+**Manual Cache Management:**
+```python
+# Get performance statistics
+stats = repo.get_incremental_stats()
+print(f"Cache hit rate: {stats['cache_hit_rate']}")
+
+# Clean up stale entries
+repo.cleanup_incremental_cache()
+
+# Clear all cached data
+repo.clear_incremental_cache()
+```
+
+## MCP Server (Kit Dev MCP)
+
+The `kit` tool includes an enhanced MCP (Model Context Protocol) server called **Kit Dev MCP** that allows AI agents and development tools to interact with codebases programmatically. This MCP server provides advanced context capabilities beyond basic file operations.
+
+**Key Features:**
+- Smart context building for any development task
+- Real-time file watching and change detection
+- Semantic code search with AI embeddings
+- Documentation research for any package
+- Symbol extraction and dependency analysis
+- Integration with Cursor, Windsurf, Claude Code, and VS Code
+
+**[→ Full Kit Dev MCP Documentation](https://kit-dev.cased.com)**
+
+### Quick Setup
+
+Add a stanza like this to your MCP configuration:
+
+```jsonc
+{
+  "mcpServers": {
+    "kit-mcp-local-dev": {
+      "command": "uvx",
+      "args": ["--from", "cased-kit", "kit-mcp-local-dev"],
+      "env": {
+        "KIT_GITHUB_TOKEN": "ghp_your_token_here"  // Optional: for private repos
+      }
+    }
+  }
+}
+```
+
+This requires you have `uvx` installed (`pip install uvx` or `pipx install uvx`).
+
+If you have installed `cased-kit` with `pip` or some other method, you can invoke with python:
+
+```jsonc
+{
+  "mcpServers": {
+    "kit-mcp-local-dev": {
+      "command": "python",
+      "args": ["-m", "kit.mcp.dev"]
+    }
+  }
+}
+```
+
+The `python` executable invoked must be the one where `cased-kit` is installed.
+If you see `ModuleNotFoundError: No module named 'kit'`, ensure the Python
+interpreter your MCP client is using is the correct one.
+
+## kit-powered Features & Utilities
+
+As both demonstrations of this library, and as standalone products,
+`kit` ships with MIT-licensed, CLI-based pull request review and summarization features.
+
+### PR Reviews
+
+The pull request reviewer ranks with the better closed-source paid options, but at 
+a fraction of the cost with cloud models. At Cased we use `kit` extensively
+with models like Sonnet 4 and gpt4.1, paying just for the price of tokens.
+
 ```bash
-git clone https://github.com/cased/kit.git
-cd kit
-pip install -e .[all]
+kit review --init-config
+kit review https://github.com/owner/repo/pull/123
 ```
 
-## 🤝 Community & Support
+**Key Features:**
+- **Whole repo context**: Uses `kit` so has all the features of this library
+- **Production-ready**: Rivals paid services, but MIT-licensed; just pay for tokens
+- **Custom context profiles**: Organization-specific coding standards and review guidelines automatically applied
+- **Cost transparency**: Real-time token usage and pricing
+- **Fast**: No queuing, shared services: just your code and the LLM
+- **Works from wherever**: Trigger reviews with the CLI, or run it via CI
 
-Kit is open source (MIT licensed) and actively maintained.
+`kit` also has first-class support for free local models via [Ollama](https://ollama.ai/). 
+No API keys, no costs, no data leaving your machine.
 
-- **GitHub**: [github.com/cased/kit](https://github.com/cased/kit)
-- **Issues**: [Report bugs or request features](https://github.com/cased/kit/issues)
-- **Discussions**: [Join the community](https://github.com/cased/kit/discussions)
+**📖 [Complete PR Reviewer Documentation](src/kit/pr_review/README.md)**
 
-## 🏢 Built by Cased
+### PR Summaries
 
-Kit is built by [Cased](https://cased.com), with deep expertise in developer tools and code intelligence.
+For quick PR triage and understanding, `kit` includes a fast, cost-effective PR summarization feature.
+Perfect for teams that need to quickly understand what PRs do before deciding on detailed review.
 
----
+```bash
+kit summarize https://github.com/owner/repo/pull/123
+kit summarize --update-pr-body https://github.com/owner/repo/pull/123
+```
 
-**Ready to enhance your development workflow?**
+**Key Features:**
+- **5-10x cheaper** than full reviews (~$0.005-0.02 vs $0.01-0.05+)
+- **Fast triage**: Quick overview of changes, impact, and key modifications
+- **PR body updates**: Automatically add AI summaries to PR descriptions for team visibility
+- **Same LLM support**: Works with OpenAI, Anthropic, Google, and free Ollama models
+- **Repository intelligence**: Leverages symbol extraction and dependency analysis for context
 
-- 🚀 [Try Kit Local Dev MCP](http://localhost:3000) for AI-powered development
-- 📖 [Read the Docs](https://kit.cased.com) to build your own tools
-- 🔍 [Setup PR Reviews](https://kit.cased.com/pr-reviewer/) for your team
+### Commit Messages
+
+Generate intelligent commit messages from staged changes using the same repository intelligence:
+
+```bash
+git add .       # Stage your changes
+kit commit      # Analyze and commit with AI-generated message
+```
+
+## Documentation
+
+Explore the **[Full Documentation](https://kit.cased.com)** for detailed usage, advanced features, and practical examples.
+Full REST documentation is also available.
+
+**[Kit Dev MCP Documentation](https://kit-dev.cased.com)** - Complete guide for the enhanced MCP server
+
+📝 **[Changelog](https://kit.cased.com/changelog)** - Track all changes and improvements across kit releases
+
+## License
+
+MIT License
+
+## Contributing
+
+- **Local Development**: Check out our [Running Tests](https://kit.cased.com/development/running-tests) guide to get started with local development.
+- **Project Direction**: See our [Roadmap](https://kit.cased.com/development/roadmap) for future plans and focus areas.
+- **Discord**: [Join the Discord](https://discord.gg/DzxxC9SdvZ) to talk kit and Cased
+
+To contribute, fork the repository, make your changes, and submit a pull request.
