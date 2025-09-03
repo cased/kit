@@ -32,7 +32,7 @@ Homepage = "https://github.com/cased/kit"
 
 [project.scripts]
 kit = "kit.cli:app"
-kit-mcp-dev = "kit.mcp.dev:main"
+kit-dev-mcp = "kit.mcp.dev:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

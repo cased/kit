@@ -81,7 +81,7 @@ export default defineConfig({
         {
           label: "🚀 Kit Dev MCP",
           items: [
-            "mcp/kit-mcp-dev",
+            "mcp/kit-dev-mcp",
           ],
         },
         {

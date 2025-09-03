@@ -37,7 +37,7 @@ from ..pr_review.config import ReviewConfig
 from ..pr_review.local_reviewer import LocalDiffReviewer
 from ..repository import Repository
 
-logger = logging.getLogger("kit-mcp-dev")
+logger = logging.getLogger("kit-dev-mcp")
 
 # MCP error codes
 INVALID_PARAMS = -32602
@@ -773,7 +773,7 @@ class LocalDevServerLogic(KitServerLogic):
 
 async def serve():
     """Serve the enhanced development MCP server."""
-    server = Server("kit-mcp-dev", version=KIT_VERSION)
+    server = Server("kit-dev-mcp", version=KIT_VERSION)
     logic = LocalDevServerLogic()
 
     @server.call_tool()
