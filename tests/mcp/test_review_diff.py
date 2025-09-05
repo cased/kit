@@ -97,7 +97,7 @@ class TestReviewDiff:
         mock_config_class.from_file.return_value = mock_config
 
         mock_reviewer = MagicMock()
-        mock_reviewer.review.return_value = "## Review\\n\\nLooks good! Cost: $0.0123"
+        mock_reviewer.review.return_value = "## Kit Local Diff Review\n\nLooks good! Cost: $0.0123"
         mock_reviewer_class.return_value = mock_reviewer
 
         # Call review_diff

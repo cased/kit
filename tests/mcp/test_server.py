@@ -226,7 +226,7 @@ class TestMCPMultiFileContent:
         repo_id = logic.open_repository(temp_git_repo)
 
         with pytest.raises(MCPError) as exc:
-            logic.get_file_content(repo_id, ["valid.py", "../secrets.txt"])
+            logic.get_file_content(repo_id, ["test.py", "../secrets.txt"])
         assert exc.value.code == INVALID_PARAMS
         assert "Path traversal" in exc.value.message
 
@@ -344,37 +344,41 @@ def test_get_code_summary_mocked(logic, temp_git_repo):
     """Test getting code summary with mocked repository."""
     repo_id = logic.open_repository(temp_git_repo)
 
-    # Mock the analyzer instead of Repository method
-    with patch.object(logic, "get_analyzer") as mock_get_analyzer:
-        mock_analyzer = MagicMock()
-        mock_analyzer.summarize_file.return_value = {
-            "summary": "This is a test file with a hello function and TestClass."
-        }
-        mock_analyzer.summarize_symbol.return_value = [{"name": "hello", "type": "function", "line": 1}]
-        mock_get_analyzer.return_value = mock_analyzer
+    # Mock the repository methods
+    with patch("kit.repository.Repository.get_file_content") as mock_content:
+        with patch("kit.repository.Repository.extract_symbols") as mock_symbols:
+            mock_content.return_value = "def hello(): pass\nclass TestClass: pass"
+            mock_symbols.return_value = [
+                {"name": "hello", "type": "function", "line": 1},
+                {"name": "TestClass", "type": "class", "line": 2}
+            ]
 
-        result = logic.get_code_summary(repo_id, "test.py")
+            result = logic.get_code_summary(repo_id, "test.py")
 
-        assert isinstance(result, dict)
-        assert "file" in result
-        assert "summary" in result["file"]
+            assert isinstance(result, dict)
+            assert "summary" in result
+            assert result["summary"]["file"] == "test.py"
+            assert len(result["summary"]["symbols"]) == 2
 
 
 def test_get_prompt_open_repo(logic, temp_git_repo):
     """Test getting prompt with open repository."""
     repo_id = logic.open_repository(temp_git_repo)
 
-    # Mock the analyzer to avoid OpenAI API key requirement
-    with patch.object(logic, "get_analyzer") as mock_get_analyzer:
-        mock_analyzer = MagicMock()
-        mock_analyzer.summarize_file.return_value = {
-            "summary": "This is a test file with a hello function and TestClass."
+    # Mock the review_diff method to avoid actual review
+    with patch.object(logic, "review_diff") as mock_review:
+        mock_review.return_value = {
+            "review": "## Review\n\nNo issues found.",
+            "diff_spec": "HEAD~1..HEAD",
+            "cost": 0.01,
+            "model": "gpt-4"
         }
-        mock_get_analyzer.return_value = mock_analyzer
 
-        result = logic.get_prompt("get_code_summary", {"repo_id": repo_id, "file_path": "test.py"})
+        result = logic.get_prompt("review_diff", {"repo_id": repo_id, "diff_spec": "HEAD~1..HEAD"})
         assert isinstance(result, GetPromptResult)
         assert result.messages
+        assert len(result.messages) == 1
+        assert "Review" in result.messages[0].content.text
 
 
 def test_invalid_prompt_name(logic, temp_git_repo):
@@ -484,11 +488,9 @@ def test_get_code_summary_error(logic, temp_git_repo):
     """Test getting code summary with error."""
     repo_id = logic.open_repository(temp_git_repo)
 
-    # Mock the analyzer instead of Repository method
-    with patch.object(logic, "get_analyzer") as mock_get_analyzer:
-        mock_analyzer = MagicMock()
-        mock_analyzer.summarize_file.side_effect = Exception("Test error")
-        mock_get_analyzer.return_value = mock_analyzer
+    # Mock the repository method to raise an error
+    with patch("kit.repository.Repository.get_file_content") as mock_content:
+        mock_content.side_effect = FileNotFoundError("File not found: test.py")
 
         with pytest.raises(MCPError):
             logic.get_code_summary(repo_id, "test.py")

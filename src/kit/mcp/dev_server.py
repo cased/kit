@@ -161,9 +161,19 @@ class KitServerLogic:
     def get_file_content(self, repo_id: str, file_path: Union[str, List[str]]) -> Union[str, Dict[str, str]]:
         """Get file content."""
         repo = self.get_repo(repo_id)
-        if isinstance(file_path, list):
-            return {fp: repo.get_file_content(fp) for fp in file_path}
-        return repo.get_file_content(file_path)
+        try:
+            if isinstance(file_path, list):
+                result = {}
+                for fp in file_path:
+                    result[fp] = repo.get_file_content(fp)
+                return result
+            return repo.get_file_content(file_path)
+        except ValueError as e:
+            if "outside repository bounds" in str(e):
+                raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {e}")
+            raise MCPError(INVALID_PARAMS, str(e))
+        except FileNotFoundError as e:
+            raise MCPError(INVALID_PARAMS, str(e))
 
     def get_multiple_file_contents(self, repo_id: str, file_paths: List[str]) -> Dict[str, Any]:
         """Get multiple file contents."""
@@ -208,7 +218,12 @@ class KitServerLogic:
         """Extract symbols from a file."""
         repo = self.get_repo(repo_id)
         # Repository.extract_symbols doesn't accept symbol_type parameter
-        return repo.extract_symbols(file_path)
+        try:
+            return repo.extract_symbols(file_path)
+        except ValueError as e:
+            if "outside repository bounds" in str(e):
+                raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {e}")
+            raise MCPError(INVALID_PARAMS, str(e))
 
     def find_symbol_usages(
         self, repo_id: str, symbol_name: str, symbol_type: Optional[str] = None, file_path: Optional[str] = None
@@ -222,8 +237,11 @@ class KitServerLogic:
         """Get code summary."""
         repo = self.get_repo(repo_id)
         # Repository doesn't have get_code_summary, so we'll implement a basic one
-        content = repo.get_file_content(file_path)
-        symbols = repo.extract_symbols(file_path)
+        try:
+            content = repo.get_file_content(file_path)
+            symbols = repo.extract_symbols(file_path)
+        except (ValueError, FileNotFoundError) as e:
+            raise MCPError(INVALID_PARAMS, str(e))
 
         summary = {
             "file": file_path,
