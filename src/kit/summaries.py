@@ -5,12 +5,10 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union, runtime_checkable
 
-tiktoken: Optional[Any]
-
 try:
     import tiktoken
 except ImportError:
-    tiktoken = None
+    tiktoken = None  # type: ignore
 
 
 # Define a Protocol for LLM clients to help with type checking

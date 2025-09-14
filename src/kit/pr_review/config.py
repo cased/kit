@@ -6,7 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import yaml
+import yaml  # type: ignore
 
 
 class LLMProvider(Enum):

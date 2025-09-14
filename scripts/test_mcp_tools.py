@@ -47,8 +47,8 @@ def test_code_search(server, repo_id):
     results = server.search_code(repo_id, "Context7")
     print(f"  ✓ Text search found {len(results)} matches for 'Context7'")
 
-    # Grep with context
-    grep_results = server.grep_code(repo_id, "def.*async", context_lines=2)
+    # Grep with pattern
+    grep_results = server.grep_code(repo_id, "def.*async")
     print(f"  ✓ Grep found {len(grep_results)} async function definitions")
 
 

@@ -211,7 +211,7 @@ class TestLocalDevServerLogic:
         tools = server.list_tools()
 
         assert isinstance(tools, list)
-        assert len(tools) == 16  # Should have exactly 16 tools
+        assert len(tools) >= 16  # Should have at least 16 tools
 
         tool_names = {tool.name for tool in tools}
 

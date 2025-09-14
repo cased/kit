@@ -137,7 +137,10 @@ class Context7Client:
                 start = html.find('<script type="application/ld+json">') + len('<script type="application/ld+json">')
                 end = html.find("</script>", start)
                 json_data = json.loads(html[start:end])
-                docs["documentation"]["structured_data"] = json_data
+                # Cast to dict to make mypy happy with indexed assignment
+                documentation = docs["documentation"]
+                if isinstance(documentation, dict):
+                    documentation["structured_data"] = json_data
             except (json.JSONDecodeError, ValueError):
                 pass
 
