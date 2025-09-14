@@ -85,13 +85,13 @@ const deps = await repo.dependencies("src/main.ts");
 const asyncFuncs = await repo.grepAst("async def", {
   mode: "simple",
   filePattern: "**/*.py",
-  maxResults: 20
+  maxResults: 20,
 });
 
 // Find error handling blocks
 const tryBlocks = await repo.grepAst('{"type": "try_statement"}', {
   mode: "pattern",
-  maxResults: 10
+  maxResults: 10,
 });
 
 // Results include file, line, and matched code

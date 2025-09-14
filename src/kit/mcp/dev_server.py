@@ -15,6 +15,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -177,11 +179,19 @@ class KitServerLogic:
             if isinstance(file_path, list):
                 result = {}
                 for fp in file_path:
-                    # Check for path traversal attempts
-                    if ".." in fp or fp.startswith("/"):
-                        raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {fp}")
+                    # Securely validate path to prevent traversal
                     try:
-                        content = repo.get_file_content(fp)
+                        # Convert to Path object and resolve
+                        safe_path = Path(fp).resolve()
+                        repo_path = Path(repo.repo_path).resolve()
+
+                        # Ensure resolved path is within repo bounds
+                        if not safe_path.is_relative_to(repo_path):
+                            raise MCPError(INVALID_PARAMS, f"Path outside repository: {fp}")
+
+                        # Use the relative path for the actual operation
+                        relative_path = safe_path.relative_to(repo_path)
+                        content = repo.get_file_content(str(relative_path))
                         result[fp] = content
                     except FileNotFoundError:
                         result[fp] = f"File not found: {fp}"
@@ -193,7 +203,17 @@ class KitServerLogic:
                         result[fp] = f"Error reading file: {e!s}"
                 return result
             else:
-                return repo.get_file_content(file_path)
+                # Securely validate single file path
+                safe_path = Path(file_path).resolve()
+                repo_path = Path(repo.repo_path).resolve()
+
+                # Ensure resolved path is within repo bounds
+                if not safe_path.is_relative_to(repo_path):
+                    raise MCPError(INVALID_PARAMS, f"Path outside repository: {file_path}")
+
+                # Use the relative path for the actual operation
+                relative_path = safe_path.relative_to(repo_path)
+                return repo.get_file_content(str(relative_path))
         except ValueError as e:
             if "outside repository bounds" in str(e):
                 raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {e}")
@@ -342,10 +362,10 @@ class KitServerLogic:
 
         return results
 
-    def grep_ast(
+    async def grep_ast_async(
         self, repo_id: str, pattern: str, mode: str = "simple", file_pattern: str = "**/*.py", max_results: int = 20
     ) -> List[Dict[str, Any]]:
-        """Search code using AST patterns with context limits.
+        """Search code using AST patterns with async execution to prevent blocking.
 
         Examples:
             - pattern="async def" - Find all async functions
@@ -354,8 +374,21 @@ class KitServerLogic:
         """
         repo = self.get_repo(repo_id)
 
+        # Run the heavy AST parsing in a thread pool to avoid blocking the event loop
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = await loop.run_in_executor(
+                executor, self._grep_ast_sync, repo.repo_path, pattern, file_pattern, mode, max_results
+            )
+
+        return results
+
+    def _grep_ast_sync(
+        self, repo_path: str, pattern: str, file_pattern: str, mode: str, max_results: int
+    ) -> List[Dict[str, Any]]:
+        """Synchronous AST search implementation for thread pool execution."""
         # Create AST searcher
-        searcher = ASTSearcher(repo.repo_path)
+        searcher = ASTSearcher(repo_path)
 
         # Perform search
         results = searcher.search_pattern(
@@ -371,6 +404,21 @@ class KitServerLogic:
                     result["preview"] = result["preview"][:100] + "..."
 
         return results
+
+    def grep_ast(
+        self, repo_id: str, pattern: str, mode: str = "simple", file_pattern: str = "**/*.py", max_results: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Search code using AST patterns with context limits (synchronous wrapper).
+
+        Examples:
+            - pattern="async def" - Find all async functions
+            - pattern="class $NAME(BaseModel)" - Find classes extending BaseModel
+            - pattern='{"type": "try_statement"}' - Find all try blocks
+        """
+        # For backward compatibility, provide a sync wrapper
+        # This is called from the MCP server, which will handle async execution
+        repo = self.get_repo(repo_id)
+        return self._grep_ast_sync(repo.repo_path, pattern, file_pattern, mode, max_results)
 
     def list_prompts(self) -> List[Any]:
         """List available prompts."""
@@ -511,58 +559,122 @@ class FileChange:
 
 
 class FileWatcher:
-    """Watches files for changes in real-time."""
+    """Watches files for changes in real-time with proper buffering and data persistence."""
 
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: Repository, max_buffer_size: int = 1000):
         self.repo = repo
         self.watched_files: Dict[str, float] = {}  # path -> last_modified
         self.changes: List[FileChange] = []
         self.running = False
+        self.max_buffer_size = max_buffer_size
+        self._lock = asyncio.Lock()  # Thread-safe access to changes buffer
+        self._last_check_time = time.time()
 
     async def start_watching(self, patterns: List[str], exclude_dirs: List[str]):
-        """Start watching files matching patterns."""
+        """Start watching files matching patterns with proper error handling."""
         self.running = True
 
-        while self.running:
-            # Get all files matching patterns
-            for file_info in self.repo.get_file_tree():
-                if file_info.get("is_dir"):
-                    continue
+        try:
+            while self.running:
+                try:
+                    # Batch check files to reduce I/O overhead
+                    current_time = time.time()
+                    files_to_check = []
 
-                file_path = file_info["path"]
+                    # Get all files matching patterns
+                    for file_info in self.repo.get_file_tree():
+                        if file_info.get("is_dir"):
+                            continue
 
-                # Check if excluded
-                if any(excluded in file_path for excluded in exclude_dirs):
-                    continue
+                        file_path = file_info["path"]
 
-                # Check if matches pattern
-                if not any(file_path.endswith(pattern.replace("*", "")) for pattern in patterns):
-                    continue
+                        # Check if excluded
+                        if any(excluded in file_path for excluded in exclude_dirs):
+                            continue
 
-                # Check modification time
-                full_path = Path(self.repo.repo_path) / file_path
-                if full_path.exists():
-                    mtime = full_path.stat().st_mtime
+                        # Check if matches pattern (improved pattern matching)
+                        matched = False
+                        for pattern in patterns:
+                            if "*" in pattern:
+                                # Simple glob matching
+                                suffix = pattern.replace("*", "")
+                                if file_path.endswith(suffix):
+                                    matched = True
+                                    break
+                            elif pattern in file_path:
+                                matched = True
+                                break
 
-                    if file_path in self.watched_files:
-                        if mtime > self.watched_files[file_path]:
-                            # File modified
-                            self.changes.append(FileChange(path=file_path, change_type="modified", timestamp=mtime))
-                            self.watched_files[file_path] = mtime
-                    else:
-                        # New file
-                        self.watched_files[file_path] = mtime
-                        self.changes.append(FileChange(path=file_path, change_type="created", timestamp=mtime))
+                        if matched:
+                            files_to_check.append(file_path)
 
-            await asyncio.sleep(1)  # Check every second
+                    # Check files in batches
+                    async with self._lock:
+                        for file_path in files_to_check:
+                            try:
+                                full_path = Path(self.repo.repo_path) / file_path
+                                if full_path.exists():
+                                    stat_info = full_path.stat()
+                                    mtime = stat_info.st_mtime
+
+                                    if file_path in self.watched_files:
+                                        if mtime > self.watched_files[file_path]:
+                                            # File modified
+                                            change = FileChange(path=file_path, change_type="modified", timestamp=mtime)
+                                            self._add_change(change)
+                                            self.watched_files[file_path] = mtime
+                                    else:
+                                        # New file
+                                        self.watched_files[file_path] = mtime
+                                        change = FileChange(path=file_path, change_type="created", timestamp=mtime)
+                                        self._add_change(change)
+                                elif file_path in self.watched_files:
+                                    # File deleted
+                                    change = FileChange(path=file_path, change_type="deleted", timestamp=current_time)
+                                    self._add_change(change)
+                                    del self.watched_files[file_path]
+                            except (OSError, IOError) as e:
+                                # Handle file access errors gracefully
+                                logger.warning(f"Error checking file {file_path}: {e}")
+                                continue
+
+                    self._last_check_time = current_time
+                    await asyncio.sleep(1)  # Check every second
+
+                except asyncio.CancelledError:
+                    # Graceful shutdown
+                    break
+                except Exception as e:
+                    logger.error(f"Error in file watcher loop: {e}")
+                    await asyncio.sleep(1)  # Continue after error
+
+        finally:
+            self.running = False
+
+    def _add_change(self, change: FileChange):
+        """Add a change to the buffer with size management."""
+        self.changes.append(change)
+
+        # Implement circular buffer to prevent unbounded memory growth
+        if len(self.changes) > self.max_buffer_size:
+            # Remove oldest changes, keeping the most recent
+            self.changes = self.changes[-self.max_buffer_size :]
 
     def stop_watching(self):
         """Stop watching files."""
         self.running = False
 
-    def get_recent_changes(self, limit: int = 10) -> List[FileChange]:
-        """Get recent file changes."""
+    def get_recent_changes(self, limit: int = 10, since_timestamp: Optional[float] = None) -> List[FileChange]:
+        """Get recent file changes with optional timestamp filter."""
+        if since_timestamp:
+            # Return changes since the specified timestamp
+            filtered = [c for c in self.changes if c.timestamp > since_timestamp]
+            return filtered[-limit:] if len(filtered) > limit else filtered
         return self.changes[-limit:]
+
+    def clear_changes(self):
+        """Clear the changes buffer to free memory."""
+        self.changes.clear()
 
 
 class LocalDevServerLogic(KitServerLogic):

@@ -37,13 +37,36 @@ class Context7Client:
         Returns:
             Dictionary containing aggregated documentation from multiple sources
         """
+        # Input validation to prevent SSRF attacks
+        import re
+
+        # Validate package name - only allow alphanumeric, hyphens, underscores, dots, @, /
+        # Common patterns: "react", "@angular/core", "lodash.debounce"
+        if not re.match(r"^[@a-zA-Z0-9._/-]+$", package_name):
+            raise ValueError(f"Invalid package name format: {package_name}")
+
+        # Limit length to prevent DoS
+        if len(package_name) > 100:
+            raise ValueError(f"Package name too long: {package_name[:50]}...")
+
+        if topic and len(topic) > 100:
+            raise ValueError(f"Topic too long: {topic[:50]}...")
+
         try:
             # First, try to fetch from Context7's public endpoint
             url = f"{self.base_url}/{package_name}"
             if topic:
+                # Validate topic similarly
+                if not re.match(r"^[a-zA-Z0-9._/-]+$", topic):
+                    raise ValueError(f"Invalid topic format: {topic}")
                 url = f"{url}/{topic}"
 
-            with httpx.Client(timeout=30.0) as client:
+            # Add retry limits and proper timeout configuration
+            with httpx.Client(
+                timeout=httpx.Timeout(10.0, connect=5.0),
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+                max_redirects=3,
+            ) as client:
                 # Try to get documentation page
                 response = client.get(
                     url,

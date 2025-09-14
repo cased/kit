@@ -286,9 +286,9 @@ def test_vector_searcher_with_sentence_transformer():
         # Check if the top result's metadata (which includes the code) contains relevant terms
         # The 'text' field in metadata should be the chunk of code
         top_result1_text = results1[0].get("code", "")
-        assert (
-            "calculate_area_of_circle" in top_result1_text or "radius" in top_result1_text
-        ), f"Top result for '{query1}' did not contain expected geometry code. Got: {top_result1_text}"
+        assert "calculate_area_of_circle" in top_result1_text or "radius" in top_result1_text, (
+            f"Top result for '{query1}' did not contain expected geometry code. Got: {top_result1_text}"
+        )
 
         # Query for something related to "user sign-in"
         query2 = "process for verifying user credentials"
@@ -296,9 +296,9 @@ def test_vector_searcher_with_sentence_transformer():
 
         assert len(results2) >= 1, "Should find at least one result for query 2"
         top_result2_text = results2[0].get("code", "")
-        assert (
-            "UserLogin" in top_result2_text or "authenticate" in top_result2_text
-        ), f"Top result for '{query2}' did not contain expected auth code. Got: {top_result2_text}"
+        assert "UserLogin" in top_result2_text or "authenticate" in top_result2_text, (
+            f"Top result for '{query2}' did not contain expected auth code. Got: {top_result2_text}"
+        )
 
         # Test persistence: create a new searcher instance pointing to the same directory
         vs_persistent = VectorSearcher(repository, embed_fn=st_embed_fn, persist_dir=str(persist_path))
