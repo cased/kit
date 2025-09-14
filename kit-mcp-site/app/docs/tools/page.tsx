@@ -243,7 +243,7 @@ export default function ToolsPage() {
             />
           </div>
           <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-            <TabsList className="grid grid-cols-3 lg:grid-cols-6 w-full">
+            <TabsList className="grid grid-cols-3 lg:grid-cols-6 w-full bg-white">
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="Documentation Research">Docs</TabsTrigger>
               <TabsTrigger value="Repository Management">Repo</TabsTrigger>

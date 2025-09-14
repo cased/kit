@@ -22,15 +22,15 @@ export default function QuickstartPage() {
         <h2 className="text-2xl font-bold mb-4">Prerequisites</h2>
         <ul className="space-y-2 text-muted-foreground">
           <li className="flex items-start">
-            <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
+            <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
             <span>Python 3.8+ installed</span>
           </li>
           <li className="flex items-start">
-            <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
+            <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
             <span>MCP-compatible AI assistant (Cursor, Windsurf, Claude Code, VS Code)</span>
           </li>
           <li className="flex items-start">
-            <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
+            <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
             <span>GitHub token (optional, for private repos)</span>
           </li>
         </ul>

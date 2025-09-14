@@ -313,11 +313,11 @@ export default function Home() {
           <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
             <CardHeader className="bg-muted/50">
               <Tabs value={activeDemo} onValueChange={setActiveDemo}>
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="symbols">Symbol Extraction</TabsTrigger>
-                  <TabsTrigger value="context">Smart Context</TabsTrigger>
-                  <TabsTrigger value="deps">Dependency Docs</TabsTrigger>
-                  <TabsTrigger value="research">Deep Research</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
+                  <TabsTrigger value="symbols" className="text-xs sm:text-sm px-2">Symbols</TabsTrigger>
+                  <TabsTrigger value="context" className="text-xs sm:text-sm px-2">Context</TabsTrigger>
+                  <TabsTrigger value="deps" className="text-xs sm:text-sm px-2">Deps</TabsTrigger>
+                  <TabsTrigger value="research" className="text-xs sm:text-sm px-2">Research</TabsTrigger>
                 </TabsList>
               </Tabs>
             </CardHeader>
