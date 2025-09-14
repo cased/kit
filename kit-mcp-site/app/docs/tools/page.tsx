@@ -11,7 +11,6 @@ import {
   BookOpen,
   FileCode2,
   GitBranch,
-  RefreshCw,
   Code2
 } from "lucide-react";
 
@@ -200,34 +199,7 @@ const tools = [
 })`
       }
     ]
-  },
-  {
-    category: "Local Development",
-    icon: <RefreshCw className="h-5 w-5" />,
-    tools: [
-      {
-        name: "watch_files",
-        description: "Watch files for real-time changes and get notifications",
-        parameters: ["repo_id", "patterns", "exclude_dirs"],
-        naturalLanguage: "Using Kit, watch Python and JavaScript files for changes",
-        example: `watch_files({
-  "repo_id": "repo_123",
-  "patterns": ["*.py", "*.js", "*.ts"],
-  "exclude_dirs": [".git", "node_modules"]
-})`
-      },
-      {
-        name: "get_file_changes",
-        description: "Get recent file changes from the file watcher",
-        parameters: ["repo_id", "limit"],
-        naturalLanguage: "Using Kit, show me the last 10 file changes",
-        example: `get_file_changes({
-  "repo_id": "repo_123",
-  "limit": 10
-})`
-      }
-    ]
-  },
+  }
 ];
 
 export default function ToolsPage() {
@@ -271,14 +243,13 @@ export default function ToolsPage() {
             />
           </div>
           <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-            <TabsList className="grid grid-cols-4 lg:grid-cols-7 w-full">
+            <TabsList className="grid grid-cols-3 lg:grid-cols-6 w-full">
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="Documentation Research">Docs</TabsTrigger>
               <TabsTrigger value="Repository Management">Repo</TabsTrigger>
               <TabsTrigger value="Code Intelligence">Intel</TabsTrigger>
               <TabsTrigger value="Code Search">Search</TabsTrigger>
               <TabsTrigger value="Git Information">Git</TabsTrigger>
-              <TabsTrigger value="Local Development">Local</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

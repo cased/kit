@@ -17,7 +17,6 @@ import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -152,7 +151,6 @@ class KitServerLogic:
     def open_repository(self, path_or_url: str, github_token: Optional[str] = None, ref: Optional[str] = None) -> str:
         """Open a repository and return its ID."""
         import os
-        import time
 
         # Check for GitHub token in environment if not provided
         if github_token is None:
@@ -181,18 +179,20 @@ class KitServerLogic:
                 for fp in file_path:
                     # Securely validate path to prevent traversal
                     try:
-                        # Convert to Path object and resolve
-                        safe_path = Path(fp).resolve()
+                        # Join the file path with repo path, then resolve
                         repo_path = Path(repo.repo_path).resolve()
+                        safe_path = (repo_path / fp).resolve()
 
                         # Ensure resolved path is within repo bounds
                         if not safe_path.is_relative_to(repo_path):
-                            raise MCPError(INVALID_PARAMS, f"Path outside repository: {fp}")
+                            raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {fp}")
 
-                        # Use the relative path for the actual operation
-                        relative_path = safe_path.relative_to(repo_path)
-                        content = repo.get_file_content(str(relative_path))
+                        # Get the content directly with the original path
+                        content = repo.get_file_content(fp)
                         result[fp] = content
+                    except MCPError:
+                        # Re-raise MCPError for path traversal
+                        raise
                     except FileNotFoundError:
                         result[fp] = f"File not found: {fp}"
                     except ValueError as e:
@@ -204,16 +204,15 @@ class KitServerLogic:
                 return result
             else:
                 # Securely validate single file path
-                safe_path = Path(file_path).resolve()
                 repo_path = Path(repo.repo_path).resolve()
+                safe_path = (repo_path / file_path).resolve()
 
                 # Ensure resolved path is within repo bounds
                 if not safe_path.is_relative_to(repo_path):
-                    raise MCPError(INVALID_PARAMS, f"Path outside repository: {file_path}")
+                    raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {file_path}")
 
-                # Use the relative path for the actual operation
-                relative_path = safe_path.relative_to(repo_path)
-                return repo.get_file_content(str(relative_path))
+                # Get the content directly with the original path
+                return repo.get_file_content(file_path)
         except ValueError as e:
             if "outside repository bounds" in str(e):
                 raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {e}")
@@ -521,14 +520,6 @@ class KitServerLogic:
         ]
 
 
-class WatchFilesParams(BaseModel):
-    """Watch files for changes in real-time."""
-
-    repo_id: str
-    patterns: List[str] = Field(default=["*.py", "*.js", "*.ts"], description="File patterns to watch")
-    exclude_dirs: List[str] = Field(default=[".git", "node_modules", "__pycache__"])
-
-
 class BuildContextParams(BaseModel):
     """Build comprehensive context for a development task."""
 
@@ -547,142 +538,11 @@ class DeepResearchParams(BaseModel):
     query: str = Field(default="", description="Specific question about the package")
 
 
-@dataclass
-class FileChange:
-    """Represents a file change event."""
-
-    path: str
-    change_type: str  # created, modified, deleted
-    timestamp: float
-    old_content: Optional[str] = None
-    new_content: Optional[str] = None
-
-
-class FileWatcher:
-    """Watches files for changes in real-time with proper buffering and data persistence."""
-
-    def __init__(self, repo: Repository, max_buffer_size: int = 1000):
-        self.repo = repo
-        self.watched_files: Dict[str, float] = {}  # path -> last_modified
-        self.changes: List[FileChange] = []
-        self.running = False
-        self.max_buffer_size = max_buffer_size
-        self._lock = asyncio.Lock()  # Thread-safe access to changes buffer
-        self._last_check_time = time.time()
-
-    async def start_watching(self, patterns: List[str], exclude_dirs: List[str]):
-        """Start watching files matching patterns with proper error handling."""
-        self.running = True
-
-        try:
-            while self.running:
-                try:
-                    # Batch check files to reduce I/O overhead
-                    current_time = time.time()
-                    files_to_check = []
-
-                    # Get all files matching patterns
-                    for file_info in self.repo.get_file_tree():
-                        if file_info.get("is_dir"):
-                            continue
-
-                        file_path = file_info["path"]
-
-                        # Check if excluded
-                        if any(excluded in file_path for excluded in exclude_dirs):
-                            continue
-
-                        # Check if matches pattern (improved pattern matching)
-                        matched = False
-                        for pattern in patterns:
-                            if "*" in pattern:
-                                # Simple glob matching
-                                suffix = pattern.replace("*", "")
-                                if file_path.endswith(suffix):
-                                    matched = True
-                                    break
-                            elif pattern in file_path:
-                                matched = True
-                                break
-
-                        if matched:
-                            files_to_check.append(file_path)
-
-                    # Check files in batches
-                    async with self._lock:
-                        for file_path in files_to_check:
-                            try:
-                                full_path = Path(self.repo.repo_path) / file_path
-                                if full_path.exists():
-                                    stat_info = full_path.stat()
-                                    mtime = stat_info.st_mtime
-
-                                    if file_path in self.watched_files:
-                                        if mtime > self.watched_files[file_path]:
-                                            # File modified
-                                            change = FileChange(path=file_path, change_type="modified", timestamp=mtime)
-                                            self._add_change(change)
-                                            self.watched_files[file_path] = mtime
-                                    else:
-                                        # New file
-                                        self.watched_files[file_path] = mtime
-                                        change = FileChange(path=file_path, change_type="created", timestamp=mtime)
-                                        self._add_change(change)
-                                elif file_path in self.watched_files:
-                                    # File deleted
-                                    change = FileChange(path=file_path, change_type="deleted", timestamp=current_time)
-                                    self._add_change(change)
-                                    del self.watched_files[file_path]
-                            except (OSError, IOError) as e:
-                                # Handle file access errors gracefully
-                                logger.warning(f"Error checking file {file_path}: {e}")
-                                continue
-
-                    self._last_check_time = current_time
-                    await asyncio.sleep(1)  # Check every second
-
-                except asyncio.CancelledError:
-                    # Graceful shutdown
-                    break
-                except Exception as e:
-                    logger.error(f"Error in file watcher loop: {e}")
-                    await asyncio.sleep(1)  # Continue after error
-
-        finally:
-            self.running = False
-
-    def _add_change(self, change: FileChange):
-        """Add a change to the buffer with size management."""
-        self.changes.append(change)
-
-        # Implement circular buffer to prevent unbounded memory growth
-        if len(self.changes) > self.max_buffer_size:
-            # Remove oldest changes, keeping the most recent
-            self.changes = self.changes[-self.max_buffer_size :]
-
-    def stop_watching(self):
-        """Stop watching files."""
-        self.running = False
-
-    def get_recent_changes(self, limit: int = 10, since_timestamp: Optional[float] = None) -> List[FileChange]:
-        """Get recent file changes with optional timestamp filter."""
-        if since_timestamp:
-            # Return changes since the specified timestamp
-            filtered = [c for c in self.changes if c.timestamp > since_timestamp]
-            return filtered[-limit:] if len(filtered) > limit else filtered
-        return self.changes[-limit:]
-
-    def clear_changes(self):
-        """Clear the changes buffer to free memory."""
-        self.changes.clear()
-
-
 class LocalDevServerLogic(KitServerLogic):
     """Enhanced MCP server logic for development."""
 
     def __init__(self):
         super().__init__()
-        self._watchers: Dict[str, FileWatcher] = {}
         self._test_results: Dict[str, Dict] = {}
         self._context_cache: Dict[str, Any] = {}
 
@@ -697,34 +557,6 @@ class LocalDevServerLogic(KitServerLogic):
         except Exception as e:
             logger.error(f"Failed to open repository: {e}")
             raise
-
-    async def watch_files(self, repo_id: str, patterns: List[str], exclude_dirs: List[str]) -> Dict[str, Any]:
-        """Start watching files for changes."""
-        repo = self.get_repo(repo_id)
-
-        if repo_id not in self._watchers:
-            self._watchers[repo_id] = FileWatcher(repo)
-
-        watcher = self._watchers[repo_id]
-
-        # Start watching in background - store task reference
-        self._watcher_tasks = getattr(self, "_watcher_tasks", {})
-        self._watcher_tasks[repo_id] = asyncio.create_task(watcher.start_watching(patterns, exclude_dirs))
-
-        return {
-            "status": "watching",
-            "patterns": patterns,
-            "exclude_dirs": exclude_dirs,
-            "message": "File watcher started. Use 'get_file_changes' to check for changes.",
-        }
-
-    def get_file_changes(self, repo_id: str, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get recent file changes."""
-        if repo_id not in self._watchers:
-            return []
-
-        changes = self._watchers[repo_id].get_recent_changes(limit)
-        return [{"path": c.path, "type": c.change_type, "timestamp": c.timestamp} for c in changes]
 
     def deep_research_package(self, package_name: str, query: str = "") -> Dict[str, Any]:
         """Perform deep research on a package using Context7 + LLM synthesis."""
@@ -917,21 +749,6 @@ class LocalDevServerLogic(KitServerLogic):
 
         # Add our enhanced development tools
         dev_tools = [
-            # File watching
-            Tool(
-                name="watch_files",
-                description="Watch files for real-time changes",
-                inputSchema=WatchFilesParams.model_json_schema(),
-            ),
-            Tool(
-                name="get_file_changes",
-                description="Get recent file changes from watcher",
-                inputSchema={
-                    "type": "object",
-                    "properties": {"repo_id": {"type": "string"}, "limit": {"type": "integer", "default": 10}},
-                    "required": ["repo_id"],
-                },
-            ),
             # Documentation and research
             Tool(
                 name="deep_research_package",
@@ -960,16 +777,7 @@ async def serve():
         """Handle tool calls."""
         try:
             # Handle development-specific tools
-            if name == "watch_files":
-                params = WatchFilesParams(**arguments)
-                result = await logic.watch_files(params.repo_id, params.patterns, params.exclude_dirs)
-                return [TextContent(type="text", text=json.dumps(result, indent=2))]
-
-            elif name == "get_file_changes":
-                changes = logic.get_file_changes(arguments["repo_id"], arguments.get("limit", 10))
-                return [TextContent(type="text", text=json.dumps(changes, indent=2))]
-
-            elif name == "deep_research_package":
+            if name == "deep_research_package":
                 research_params = DeepResearchParams(**arguments)
                 result = logic.deep_research_package(research_params.package_name, research_params.query)
                 return [TextContent(type="text", text=json.dumps(result, indent=2))]

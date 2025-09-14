@@ -84,8 +84,6 @@ export default function Home() {
     { name: "get_code_summary", description: "AI-powered code summaries" },
     { name: "get_git_info", description: "Git repository metadata" },
     { name: "review_diff", description: "AI-powered git diff review" },
-    { name: "watch_files", description: "Real-time file change monitoring" },
-    { name: "get_file_changes", description: "Recent file change history" },
     { name: "grep_ast", description: "AST-based pattern matching with tree-sitter" },
     { name: "deep_research_package", description: "Comprehensive package documentation using LLM" },
     { name: "build_smart_context", description: "Task-aware context building" }

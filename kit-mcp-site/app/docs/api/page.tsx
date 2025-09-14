@@ -337,44 +337,6 @@ export default function ApiPage() {
       </div>
 
       <div className="my-8">
-        <h2 className="text-2xl font-bold mb-4">File Monitoring</h2>
-        
-        <Card className="neo-card not-prose mb-6">
-          <CardHeader>
-            <CardTitle className="font-mono">watch_files</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold mb-2">Parameters</h4>
-                <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
-                  <pre className="text-white">
-{`{
-  "repo_id": string,        // Required: repository identifier
-  "patterns": string[],     // Optional: file patterns to watch
-  "ignore_patterns": string[] // Optional: patterns to ignore
-}`}</pre>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold mb-2">Returns</h4>
-                <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
-                  <pre className="text-white">
-{`{
-  "watcher_id": "watch_abc123",
-  "watching": ["src/**/*.py", "tests/**/*.py"],
-  "ignoring": ["*.pyc", "__pycache__"],
-  "status": "active"
-}`}</pre>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="my-8">
         <h2 className="text-2xl font-bold mb-4">Error Responses</h2>
         <Card className="neo-card not-prose">
           <CardContent className="p-6">
