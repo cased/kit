@@ -97,12 +97,21 @@ Be thorough but concise. Focus on accuracy and usefulness."""
 
         try:
             if isinstance(self.config, OpenAIConfig):
-                response = self._llm_client.chat.completions.create(
-                    model=self.config.model,
-                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                    temperature=self.config.temperature,
-                    max_tokens=self.config.max_tokens,
-                )
+                # GPT-5 models use max_completion_tokens instead of max_tokens
+                completion_params = {
+                    "model": self.config.model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": self.config.temperature,
+                }
+                if "gpt-5" in self.config.model.lower():
+                    completion_params["max_completion_tokens"] = self.config.max_tokens
+                else:
+                    completion_params["max_tokens"] = self.config.max_tokens
+
+                response = self._llm_client.chat.completions.create(**completion_params)
                 answer = response.choices[0].message.content
 
             elif isinstance(self.config, AnthropicConfig):

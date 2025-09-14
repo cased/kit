@@ -28,42 +28,42 @@ export default function ResearchPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Brain className="h-5 w-5 text-purple-500" />
-                LLM-Powered Research
+                Multi-Source Documentation Research
               </CardTitle>
               <Badge className="neo-badge bg-purple-100 text-purple-800">
-                Requires API Key
+                Enhanced with Context7
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Uses advanced language models to provide comprehensive package documentation,
-              including features, API details, common patterns, and best practices.
+              Aggregates real, up-to-date documentation from multiple sources including official docs,
+              examples, and community resources. Powered by Context7 for accurate, current information.
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <h4 className="font-semibold mb-2">What You Get:</h4>
+                <h4 className="font-semibold mb-2">Documentation Sources:</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Package overview and purpose</li>
-                  <li>• Installation instructions</li>
-                  <li>• Core API documentation</li>
-                  <li>• Common usage patterns</li>
-                  <li>• Best practices and tips</li>
-                  <li>• Integration examples</li>
-                  <li>• Troubleshooting guidance</li>
+                  <li>• Official package documentation</li>
+                  <li>• Latest API references</li>
+                  <li>• Real code examples from repos</li>
+                  <li>• Community tutorials & guides</li>
+                  <li>• Stack Overflow solutions</li>
+                  <li>• GitHub issues & discussions</li>
+                  <li>• Version-specific changes</li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Supported Models:</h4>
+                <h4 className="font-semibold mb-2">How It Works:</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• OpenAI (GPT-4, GPT-3.5)</li>
-                  <li>• Anthropic (Claude)</li>
-                  <li>• Google (Gemini)</li>
-                  <li>• Ollama (Local models)</li>
+                  <li>• Context7 fetches current docs</li>
+                  <li>• Aggregates multiple sources</li>
+                  <li>• LLM synthesizes information</li>
+                  <li>• Returns structured, accurate data</li>
                 </ul>
-                <div className="mt-3 p-2 bg-green-50 rounded">
-                  <p className="text-xs text-green-700">
-                    <strong>💡 Tip:</strong> Use Ollama for free local inference
+                <div className="mt-3 p-2 bg-blue-50 rounded">
+                  <p className="text-xs text-blue-700">
+                    <strong>✨ Key Benefit:</strong> Real docs, not hallucinations
                   </p>
                 </div>
               </div>
@@ -301,7 +301,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 # 2. Pull a coding model
 ollama pull qwen2.5-coder:latest
 
-# 3. Use with kit-mcp-dev (no API key needed!)
+# 3. Use with kit-dev-mcp (no API key needed!)
 deep_research_package({
   "package_name": "requests"
 })`}</pre>

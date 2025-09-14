@@ -14,7 +14,7 @@ export default function QuickstartPage() {
         </Badge>
         <h1 className="text-4xl font-bold mb-4">Quick Start Guide</h1>
         <p className="text-xl text-muted-foreground">
-          Get kit-mcp-dev running in under 2 minutes
+          Get kit-dev-mcp running in under 2 minutes
         </p>
       </div>
 
@@ -117,7 +117,7 @@ export default function QuickstartPage() {
   "mcpServers": {
     "kit-dev": {
       "command": "uvx",
-      "args": ["--from", "cased-kit", "kit-mcp-dev"],
+      "args": ["--from", "cased-kit", "kit-dev-mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-...",              // For get_code_summary (or use ANTHROPIC_API_KEY)
         "KIT_GITHUB_TOKEN": "ghp_..."            // Optional: for private repos
@@ -153,7 +153,7 @@ export default function QuickstartPage() {
     "servers": {
       "kit-dev": {
         "command": "uvx",
-        "args": ["--from", "cased-kit", "kit-mcp-dev"],
+        "args": ["--from", "cased-kit", "kit-dev-mcp"],
         "env": {
           "OPENAI_API_KEY": "sk-...",              // For get_code_summary (or use ANTHROPIC_API_KEY)
           "KIT_GITHUB_TOKEN": "ghp_..."            // Optional: for private repos
@@ -188,7 +188,7 @@ export default function QuickstartPage() {
     "servers": {
       "kit-dev": {
         "command": "uvx",
-        "args": ["--from", "cased-kit[all]", "kit-mcp-dev"],
+        "args": ["--from", "cased-kit[all]", "kit-dev-mcp"],
         "env": {
           "OPENAI_API_KEY": "sk-...",              // For get_code_summary (or use ANTHROPIC_API_KEY)
           "KIT_GITHUB_TOKEN": "ghp_..."            // Optional: for private repos
@@ -280,7 +280,7 @@ export default function QuickstartPage() {
             </Card>
           </Link>
           
-          <Link href="/tools" className="block">
+          <Link href="/docs/tools" className="block">
             <Card className="neo-card hover:shadow-lg transition-shadow cursor-pointer group">
               <CardContent className="p-6">
                 <h3 className="font-semibold mb-2 group-hover:text-red-500 transition-colors">

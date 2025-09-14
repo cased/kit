@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Terminal, ChevronRight, Home, Book, Wrench, Zap, Shield, FileCode, Search } from "lucide-react";
 
 const sidebarItems = [
@@ -54,7 +53,7 @@ export default function DocsLayout({
               </Link>
             </Button>
             <Button variant="ghost" size="sm" className="px-2 sm:px-4 neo-button" asChild>
-              <Link href="/tools">Tools</Link>
+              <Link href="/docs/tools">Tools</Link>
             </Button>
             <Button variant="ghost" size="sm" className="px-2 sm:px-4 neo-button" asChild>
               <Link href="https://github.com/cased/kit">
@@ -62,7 +61,6 @@ export default function DocsLayout({
                 <span className="hidden sm:inline">GitHub</span>
               </Link>
             </Button>
-            <ThemeToggle />
           </div>
         </div>
       </nav>

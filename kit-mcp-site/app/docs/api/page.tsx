@@ -12,7 +12,7 @@ export default function ApiPage() {
         </Badge>
         <h1 className="text-4xl font-bold mb-4">API Reference</h1>
         <p className="text-xl text-muted-foreground">
-          Complete reference for kit-mcp-dev tools and responses
+          Complete reference for kit-dev-mcp tools and responses
         </p>
       </div>
 
@@ -115,7 +115,6 @@ export default function ApiPage() {
                   <pre className="text-white">
 {`{
   "package_name": string,    // Required: package to research
-  "use_context7": boolean,   // Optional: enable context7.com
   "max_sources": number      // Optional: max sources to fetch
 }`}</pre>
                 </div>
@@ -141,11 +140,6 @@ export default function ApiPage() {
       "type": "official",
       "url": "https://react.dev",
       "reliability": 1.0
-    },
-    {
-      "type": "context7",
-      "url": "https://context7.com/react",
-      "reliability": 0.95
     }
   ],
   "output_file": "/path/to/cache/react_docs.json"
@@ -267,6 +261,111 @@ export default function ApiPage() {
     "complexity": 5,
     "lines_of_code": 150
   }
+}`}</pre>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="my-8">
+        <h2 className="text-2xl font-bold mb-4">Search Operations</h2>
+        
+        <Card className="neo-card not-prose mb-6">
+          <CardHeader>
+            <CardTitle className="font-mono">grep_ast</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2">Parameters</h4>
+                <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
+                  <pre className="text-white">
+{`{
+  "repo_id": string,        // Required: repository identifier
+  "pattern": string,        // Required: AST pattern to search
+  "file_pattern": string,   // Optional: glob pattern for files
+  "language": string        // Optional: programming language
+}`}</pre>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold mb-2">Returns</h4>
+                <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
+                  <pre className="text-white">
+{`{
+  "matches": [
+    {
+      "file": "src/main.py",
+      "line": 42,
+      "text": "async def handle_request(req):",
+      "match_type": "async_function_def"
+    }
+  ],
+  "total_matches": 15,
+  "files_searched": 120
+}`}</pre>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="neo-card not-prose mb-6">
+          <CardHeader>
+            <CardTitle className="font-mono">search_code</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2">Parameters</h4>
+                <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
+                  <pre className="text-white">
+{`{
+  "repo_id": string,        // Required: repository identifier
+  "pattern": string,        // Required: regex pattern
+  "max_results": number,    // Optional: limit results
+  "case_sensitive": boolean // Optional: case sensitivity
+}`}</pre>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="my-8">
+        <h2 className="text-2xl font-bold mb-4">File Monitoring</h2>
+        
+        <Card className="neo-card not-prose mb-6">
+          <CardHeader>
+            <CardTitle className="font-mono">watch_files</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2">Parameters</h4>
+                <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
+                  <pre className="text-white">
+{`{
+  "repo_id": string,        // Required: repository identifier
+  "patterns": string[],     // Optional: file patterns to watch
+  "ignore_patterns": string[] // Optional: patterns to ignore
+}`}</pre>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold mb-2">Returns</h4>
+                <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
+                  <pre className="text-white">
+{`{
+  "watcher_id": "watch_abc123",
+  "watching": ["src/**/*.py", "tests/**/*.py"],
+  "ignoring": ["*.pyc", "__pycache__"],
+  "status": "active"
 }`}</pre>
                 </div>
               </div>

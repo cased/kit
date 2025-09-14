@@ -7,10 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Terminal, 
   Shield, 
-  Zap, 
   GitBranch, 
   Eye,
-  TestTube,
   Search,
   BookOpen,
   Sparkles,
@@ -24,37 +22,22 @@ import {
   Layers
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export default function Home() {
   const [activeDemo, setActiveDemo] = useState("symbols");
-  const [typedText, setTypedText] = useState("");
-  const fullText = "The best MCP server for coding with AI agents";
   
   // Create the Cursor deep link config
   const cursorConfig = {
-    "kit-mcp-dev": {
+    "kit-dev-mcp": {
       "command": "uvx",
-      "args": ["--from", "cased-kit", "kit-mcp-dev"]
+      "args": ["--from", "cased-kit", "kit-dev-mcp"]
     }
   };
   const encodedConfig = typeof window !== 'undefined' 
     ? btoa(JSON.stringify(cursorConfig))
     : '';
   const cursorDeepLink = `cursor://settings/mcp/install?server=${encodeURIComponent(encodedConfig)}`;
-  
-  useEffect(() => {
-    let index = 0;
-    const timer = setInterval(() => {
-      if (index <= fullText.length) {
-        setTypedText(fullText.slice(0, index));
-        index++;
-      } else {
-        clearInterval(timer);
-      }
-    }, 50);
-    return () => clearInterval(timer);
-  }, []);
 
   const features = [
     {
@@ -64,8 +47,8 @@ export default function Home() {
     },
     {
       icon: <BookOpen className="h-5 w-5" />,
-      title: "Tiered Deep Research",
-      description: "LLM-powered comprehensive documentation research. Get detailed answers about any package using AI. Local LLM support. Just pay for tokens, if anything."
+      title: "Deep Documentation Research",
+      description: "LLM-powered comprehensive documentation research. Get detailed answers about any package using AI. Local LLM support available."
     },
     {
       icon: <FileCode2 className="h-5 w-5" />,
@@ -79,13 +62,13 @@ export default function Home() {
     },
     {
       icon: <Search className="h-5 w-5" />,
-      title: "Semantic Code Search",
-      description: "Find code by meaning, not just keywords - powered by AI embeddings"
+      title: "AST-Based Pattern Matching",
+      description: "Find code by structure using tree-sitter - search for async functions, error handlers, and more"
     },
     {
-      icon: <Zap className="h-5 w-5" />,
-      title: "Fast Incremental Symbol Extraction",
-      description: "Smart caching system for instant code understanding"
+      icon: <BookOpen className="h-5 w-5" />,
+      title: "Local LLM Documentation",
+      description: "Support for local LLMs like Ollama - keep your documentation research private and free"
     }
   ];
 
@@ -103,7 +86,7 @@ export default function Home() {
     { name: "review_diff", description: "AI-powered git diff review" },
     { name: "watch_files", description: "Real-time file change monitoring" },
     { name: "get_file_changes", description: "Recent file change history" },
-    { name: "semantic_search", description: "AI-powered search by meaning" },
+    { name: "grep_ast", description: "AST-based pattern matching with tree-sitter" },
     { name: "deep_research_package", description: "Comprehensive package documentation using LLM" },
     { name: "build_smart_context", description: "Task-aware context building" }
   ];
@@ -127,7 +110,7 @@ export default function Home() {
               </Link>
             </Button>
             <Button variant="ghost" size="sm" className="px-2 sm:px-4 neo-button" asChild>
-              <Link href="/tools">Tools</Link>
+              <Link href="/docs/tools">Tools</Link>
             </Button>
             <Button variant="ghost" size="sm" className="px-2 sm:px-4 neo-button" asChild>
               <Link href="https://github.com/cased/kit" target="_blank">
@@ -135,7 +118,7 @@ export default function Home() {
                 <span className="hidden sm:inline">GitHub</span>
               </Link>
             </Button>
-            <Button size="sm" className="hidden sm:flex neo-button bg-red-400" asChild>
+            <Button size="sm" className="hidden sm:flex neo-button bg-red-500 hover:bg-red-600 text-white" asChild>
               <Link href="/docs/quickstart">Get Started</Link>
             </Button>
           </div>
@@ -155,13 +138,8 @@ export default function Home() {
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight bg-gradient-to-r from-red-600 via-blue-500 to-red-600 bg-clip-text text-transparent pb-2 animate-shimmer bg-[length:200%_100%]">
             kit-dev for mcp
           </h1>
-          <p className="mt-6 text-xl md:text-2xl text-muted-foreground h-8">
-            {typedText}
-          </p>
-          <p className="mt-6 text-lg text-muted-foreground max-w-3xl mx-auto">
-            <span className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto font-bold">
-            100% local, private, and free. MIT licensed from <Link href="https://cased.com" className="text-blue-500 hover:text-blue-600">Cased</Link>.
-            </span>
+          <p className="mt-6 text-xl md:text-2xl text-muted-foreground">
+            The best MCP server for coding with AI agents. MIT licensed from <Link href="https://cased.com" className="text-blue-500 hover:text-blue-600">Cased</Link>.
           </p>
           
           {/* Quick Install */}
@@ -169,7 +147,7 @@ export default function Home() {
             <div className="border border-gray-600 bg-black p-3 font-mono text-sm rounded-lg">
               <div className="flex items-center justify-between">
                 <code className="text-white text-xs sm:text-sm font-bold">
-                  uvx --from cased-kit kit-mcp-dev
+                  uvx --from cased-kit kit-dev-mcp
                 </code>
                 <Link 
                   href="/docs"
@@ -182,7 +160,7 @@ export default function Home() {
           </div>
           
           <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="neo-button bg-blue-400 text-black" asChild>  
+            <Button size="lg" className="neo-button bg-blue-500 hover:bg-blue-600 text-white" asChild>  
               <Link href="/docs/quickstart">
                 Quick Start Guide
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -214,10 +192,10 @@ export default function Home() {
               <Card key={i} className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <CardHeader>
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                    <div className="p-2 bg-primary/10 rounded-lg text-primary flex-shrink-0 w-10 h-10 flex items-center justify-center">
                       {feature.icon}
                     </div>
-                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                    <CardTitle className="text-base sm:text-lg">{feature.title}</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -225,6 +203,101 @@ export default function Home() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* And a lot more section */}
+      <section className="container px-4 py-12 neo-section bg-gradient-to-br from-blue-50 to-red-50">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold">Agentic DevOps from Cased</h2>
+            <p className="mt-3 text-lg text-muted-foreground">
+              kit-dev for MCP is just the beginning. Cased provides AI agents that do DevOps for you, so you can focus on your product.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center">
+                    <Activity className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <CardTitle className="text-base sm:text-lg">Autonomous Deployments</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">
+                  AI agents that integrate with your CI/CD, catch issues before production, 
+                  and handle automatic rollbacks. Stop managing deployments manually.
+                </p>
+                <Badge className="neo-badge bg-green-500 hover:bg-green-500 text-white">Zero-touch deploys</Badge>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center">
+                    <Shield className="h-6 w-6 text-red-600" />
+                  </div>
+                  <CardTitle className="text-base sm:text-lg">Infrastructure Agents</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">
+                  Continuous scanning for drift, security gaps, and compliance issues. 
+                  Agents automatically implement fixes before problems escalate.
+                </p>
+                <Badge className="neo-badge bg-blue-500 hover:bg-blue-500 text-white">SOC2 compliant</Badge>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center">
+                    <GitBranch className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <CardTitle className="text-base sm:text-lg">Cost Optimization Agents</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">
+                  AI agents that manage cloud costs and resource scaling. Integrates with Terraform 
+                  to automatically adjust infrastructure based on actual usage.
+                </p>
+                <Badge className="neo-badge bg-purple-500 hover:bg-purple-500 text-white">30-50% cost reduction</Badge>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center">
+                    <RefreshCw className="h-6 w-6 text-green-600" />
+                  </div>
+                  <CardTitle className="text-base sm:text-lg">Agentic Workflows & API</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">
+                  Orchestrate agents with event-driven workflows. Multiple triggers, custom logic, 
+                  and a full API for programmatic control of your DevOps automation.
+                </p>
+                <Badge className="neo-badge bg-yellow-500 hover:bg-yellow-500 text-black">Fully programmable</Badge>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="mt-8 text-center">
+            <Button size="lg" className="neo-button bg-blue-500 hover:bg-blue-600 text-white" asChild>
+              <Link href="https://cased.com" target="_blank">
+                Let AI Agents Do Your DevOps
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -297,13 +370,13 @@ export default function Home() {
                 <TabsContent value="research" className="p-6">
                   <div className="border border-gray-600 bg-black p-4 font-mono text-sm text-white rounded-lg">
                     <div className="absolute -top-6 left-0 text-gray-400 text-xs font-mono">● ● ●</div>
-                    <div className="mb-2 text-gray-500 terminal-prompt">Deep Research: FastAPI OAuth2 (Tier: Advanced)</div>
-                    <div>🔍 Iteration 1: Initial survey of documentation...</div>
-                    <div>📚 Iteration 3: Found OAuth2 patterns in 12 sources</div>
-                    <div>🤔 Iteration 5: Resolving token storage contradiction</div>
-                    <div>💡 Iteration 8: Deep dive into refresh tokens</div>
-                    <div>✅ Iteration 12: Synthesis complete</div>
-                    <div className="mt-2 text-green-400">→ Report: 47 sources, 94% confidence</div>
+                    <div className="mb-2 text-gray-500 terminal-prompt">Deep Research: FastAPI OAuth2</div>
+                    <div>🔍 Searching official documentation...</div>
+                    <div>📚 Found OAuth2 patterns in 12 sources</div>
+                    <div>🤔 Analyzing implementation patterns</div>
+                    <div>💡 Synthesizing best practices</div>
+                    <div>✅ Research complete</div>
+                    <div className="mt-2 text-green-400">→ Comprehensive report generated from 47 sources</div>
                   </div>
                 </TabsContent>
               </Tabs>
@@ -340,7 +413,7 @@ export default function Home() {
       <section className="container px-4 py-12 neo-section">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold">Why use kit-mcp-dev</h2>
+            <h2 className="text-3xl font-bold">Why use kit-dev-mcp</h2>
             <p className="mt-3 text-lg text-muted-foreground">
               The most comprehensive MCP server for coding with AI agents. It's also free and open source.
             </p>
@@ -373,7 +446,7 @@ export default function Home() {
                     </li>
                     <li className="flex items-start">
                       <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">Semantic search with AI embeddings</span>
+                      <span className="text-sm">AST-based code search with tree-sitter</span>
                     </li>
                     <li className="flex items-start">
                       <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -397,7 +470,7 @@ export default function Home() {
                       <span className="text-sm ml-7">No file tree navigation</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-sm ml-7">No semantic search</span>
+                      <span className="text-sm ml-7">No AST-based code search</span>
                     </li>
                     <li className="flex items-start">
                       <span className="text-sm ml-7">No multi-source docs aggregation</span>
@@ -442,10 +515,10 @@ export default function Home() {
               </p>
               <div className="border border-gray-600 bg-black p-4 font-mono text-sm mb-8 text-left max-w-2xl mx-auto rounded-lg">
                 <div className="text-white text-sm space-y-2">
-                  <div>uvx --from cased-kit kit-mcp-dev</div>
-                  <div className="text-gray-500"># Or with all extras (quote for zsh): uvx --from 'cased-kit[all]' kit-mcp-dev</div>
+                  <div>uvx --from cased-kit kit-dev-mcp</div>
+                  <div className="text-gray-500"># Or with all extras (quote for zsh): uvx --from 'cased-kit[all]' kit-dev-mcp</div>
                   <div className="text-gray-500"># Add to Cursor settings.json:</div>
-                  <div className="text-blue-400">"mcp.servers.kit-dev": {"{"}"command": "uvx", "args": ["--from", "cased-kit", "kit-mcp-dev"]{"}"}</div>
+                  <div className="text-blue-400">"mcp.servers.kit-dev": {"{"}"command": "uvx", "args": ["--from", "cased-kit", "kit-dev-mcp"]{"}"}</div>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -483,7 +556,7 @@ export default function Home() {
               <Link href="/docs" className="text-muted-foreground hover:text-foreground">
                 Docs
               </Link>
-              <Link href="/tools" className="text-muted-foreground hover:text-foreground">
+              <Link href="/docs/tools" className="text-muted-foreground hover:text-foreground">
                 Tools
               </Link>
               <span className="text-muted-foreground">MIT License</span>

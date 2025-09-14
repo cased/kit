@@ -13,7 +13,6 @@ from kit.mcp.dev_server import (
     FileChange,
     FileWatcher,
     LocalDevServerLogic,
-    SemanticSearchParams,
     WatchFilesParams,
 )
 
@@ -98,7 +97,6 @@ class TestLocalDevServerLogic:
         assert server._watchers == {}
         assert server._test_results == {}
         assert server._context_cache == {}
-        assert server._indexers == {}
 
     def test_open_repository(self, server):
         """Test opening a repository."""
@@ -177,7 +175,8 @@ class TestLocalDevServerLogic:
         assert "model" in result
         assert "execution_time" in result
         assert "documentation" in result
-        assert isinstance(result["documentation"], str)
+        # Documentation can be either a string (from LLM) or dict (from Context7)
+        assert isinstance(result["documentation"], (str, dict))
 
     def test_build_smart_context(self, server):
         """Test building smart context."""
@@ -221,7 +220,7 @@ class TestLocalDevServerLogic:
         assert "watch_files" in tool_names
         assert "deep_research_package" in tool_names
         assert "build_smart_context" in tool_names
-        assert "semantic_search" in tool_names
+        assert "grep_ast" in tool_names  # Replaced semantic_search with grep_ast
         assert "review_diff" in tool_names
         assert "get_file_content" in tool_names
         assert "extract_symbols" in tool_names
@@ -258,6 +257,3 @@ class TestMCPServerIntegration:
             max_files=20,
         )
         assert params.task_description == "Add auth"
-
-        params = SemanticSearchParams(repo_id="test", query="authentication", max_results=10)
-        assert params.query == "authentication"

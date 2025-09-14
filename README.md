@@ -19,7 +19,7 @@ The foundation that powers everything: a production-ready library for codebase m
 An enhanced MCP (Model Context Protocol) server that gives Cursor, Windsurf, Claude Code, and VS Code super-powered context capabilities:
 - Smart context building for any development task
 - Real-time file watching and change detection  
-- Semantic code search with AI embeddings
+- AST-based pattern matching to find code by structure
 - Documentation research for any package
 - Symbol extraction and dependency analysis
 - And much more
@@ -44,7 +44,7 @@ A complete, customizable pull request reviewer that rivals paid services:
 ```bash
 pip install cased-kit
 
-# With semantic search features (includes PyTorch, sentence-transformers)
+# With ML features for advanced code analysis (includes PyTorch, sentence-transformers)
 pip install cased-kit[ml]
 
 # Everything (including MCP server and all features)
@@ -59,7 +59,7 @@ If you want to use the `kit` CLI globally without affecting your system Python, 
 # Install the base kit CLI globally
 uv tool install cased-kit
 
-# With semantic search features (includes PyTorch, sentence-transformers)
+# With ML features for advanced code analysis (includes PyTorch, sentence-transformers)
 uv tool install cased-kit[ml]
 
 # Everything (including MCP server and all features)
@@ -184,7 +184,7 @@ The CLI supports all major repository operations with Unix-friendly output for s
 *   **Pinpoint Information:**
     *   Run regular expression searches across your codebase using `repo.search_text()`.
     *   Track specific symbols (like a function or class) with `repo.find_symbol_usages()`.
-    *   Perform semantic code search using vector embeddings to find code based on meaning rather than just keywords.
+    *   Find code by structure with AST-based pattern matching (async functions, try blocks, class inheritance, etc.).
 
 *   **Prepare Code for LLMs & Analysis:**
     *   Break down large files into manageable pieces for LLM context windows using `repo.chunk_file_by_lines()` or `repo.chunk_file_by_symbols()`.
@@ -193,7 +193,7 @@ The CLI supports all major repository operations with Unix-friendly output for s
 *   **Generate Code Summaries:**
     *   Use LLMs to create natural language summaries for files, functions, or classes using the `Summarizer` (e.g., `summarizer.summarize_file()`, `summarizer.summarize_function()`).
     *   Works with **any LLM**: free local models (Ollama), or cloud models (OpenAI, Anthropic, Google).
-    *   Build a searchable semantic index of these AI-generated docstrings with `DocstringIndexer` and query it with `SummarySearcher` to find code based on intent and meaning.
+    *   Build a searchable index of these AI-generated docstrings with `DocstringIndexer` and query it with `SummarySearcher` for intelligent code discovery.
 
 *   **Analyze Code Dependencies:**
     *   Map import relationships between modules using `repo.get_dependency_analyzer()` to understand your codebase structure.
@@ -242,7 +242,7 @@ The `kit` tool includes an enhanced MCP (Model Context Protocol) server called *
 **Key Features:**
 - Smart context building for any development task
 - Real-time file watching and change detection
-- Semantic code search with AI embeddings
+- AST-based pattern matching (find async functions, error handlers, etc.)
 - Documentation research for any package
 - Symbol extraction and dependency analysis
 - Integration with Cursor, Windsurf, Claude Code, and VS Code

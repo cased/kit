@@ -11,16 +11,16 @@ export default function DocsPage() {
         <Badge variant="secondary" className="mb-4 neo-badge bg-yellow-300 text-black">
           Version 2.0
         </Badge>
-        <h1 className="text-2xl sm:text-4xl font-bold mb-4 break-words">kit-mcp-dev Documentation</h1>
+        <h1 className="text-2xl sm:text-4xl font-bold mb-4 break-words">kit-dev-mcp Documentation</h1>
         <p className="text-sm sm:text-xl text-muted-foreground break-words">
           The most comprehensive MCP server with Kit's production-grade code intelligence
         </p>
       </div>
 
       <div className="my-8">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4">What is kit-mcp-dev?</h2>
+        <h2 className="text-xl sm:text-2xl font-bold mb-4">What is kit-dev-mcp?</h2>
         <p className="text-sm sm:text-base text-muted-foreground mb-6 break-words">
-          kit-mcp-dev provides your AI assistant with <strong>comprehensive development tools</strong>: repository indexing, 
+          kit-dev-mcp provides your AI assistant with <strong>comprehensive development tools</strong>: repository indexing, 
           file trees, fast cached symbol extraction, dependency analysis, semantic search, and deep documentation 
           research using powerful LLMs. All running locally, privately, and for free (just pay for tokens).
         </p>
@@ -87,7 +87,7 @@ pip install cased-kit`}</code>
                   <code>{`# Install globally with uv
 uv tool install cased-kit
 
-# The kit-mcp-dev command will be available globally`}</code>
+# The kit-dev-mcp command will be available globally`}</code>
                 </pre>
               </CardContent>
             </Card>
@@ -101,7 +101,7 @@ cd kit
 uv venv .venv
 source .venv/bin/activate
 uv pip install -e .
-# Then run: kit-mcp-dev`}</code>
+# Then run: kit-dev-mcp`}</code>
                 </pre>
               </CardContent>
             </Card>
@@ -112,7 +112,7 @@ uv pip install -e .
       <div className="my-8">
         <h2 className="text-2xl font-bold mb-4">Configuration</h2>
         <p className="text-muted-foreground mb-4">
-          Add kit-mcp-dev to your AI assistant's configuration:
+          Add kit-dev-mcp to your AI assistant's configuration:
         </p>
         <Tabs defaultValue="cursor" className="mt-4">
           <TabsList className="grid w-full grid-cols-3">
@@ -129,7 +129,7 @@ uv pip install -e .
   "mcpServers": {
     "kit-dev": {
       "command": "uvx",
-      "args": ["--from", "cased-kit", "kit-mcp-dev"],
+      "args": ["--from", "cased-kit", "kit-dev-mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-...",              // For get_code_summary (or use ANTHROPIC_API_KEY)
         "KIT_GITHUB_TOKEN": "ghp_..."            // Optional: for private repos
@@ -152,7 +152,7 @@ uv pip install -e .
   "mcpServers": {
     "kit-dev": {
       "command": "uvx",
-      "args": ["--from", "cased-kit", "kit-mcp-dev"],
+      "args": ["--from", "cased-kit", "kit-dev-mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-...",              // For get_code_summary (or use ANTHROPIC_API_KEY)
         "KIT_GITHUB_TOKEN": "ghp_..."            // Optional: for private repos
@@ -175,7 +175,7 @@ uv pip install -e .
       "kit-dev": {
         "type": "stdio",
         "command": "uvx",
-        "args": ["--from", "cased-kit", "kit-mcp-dev"],
+        "args": ["--from", "cased-kit", "kit-dev-mcp"],
         "env": {
           "OPENAI_API_KEY": "sk-...",              // For get_code_summary (or use ANTHROPIC_API_KEY)
           "KIT_GITHUB_TOKEN": "ghp_..."            // Optional: for private repos
@@ -194,7 +194,7 @@ uv pip install -e .
       <div className="my-8">
         <h2 className="text-2xl font-bold mb-4">How It Works</h2>
         <p className="text-muted-foreground mb-4">
-          kit-mcp-dev provides a comprehensive set of tools that your AI assistant can use to 
+          kit-dev-mcp provides a comprehensive set of tools that your AI assistant can use to 
           understand and work with your codebase:
         </p>
         <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
@@ -218,7 +218,7 @@ uv pip install -e .
               </CardContent>
             </Card>
           </Link>
-          <Link href="/tools" className="block">
+          <Link href="/docs/tools" className="block">
             <Card className="neo-card h-full">
               <CardContent className="p-6">
                 <h3 className="font-semibold mb-2">Available Tools</h3>

@@ -237,10 +237,9 @@ class TestMCPMultiFileContent:
         with patch("kit.repository.Repository.get_file_content") as mock_content:
             mock_content.side_effect = FileNotFoundError("Files not found: missing.py")
 
-            with pytest.raises(MCPError) as exc:
-                logic.get_multiple_file_contents(repo_id, ["missing.py"])
-            assert exc.value.code == INVALID_PARAMS
-            assert "Files not found" in exc.value.message
+            # Now returns error messages instead of raising
+            result = logic.get_multiple_file_contents(repo_id, ["missing.py"])
+            assert "File not found" in result["missing.py"]
 
     def test_get_file_content_type_detection(self, logic, temp_git_repo):
         """Test that method correctly handles both string and list inputs."""
@@ -350,7 +349,7 @@ def test_get_code_summary_mocked(logic, temp_git_repo):
             mock_content.return_value = "def hello(): pass\nclass TestClass: pass"
             mock_symbols.return_value = [
                 {"name": "hello", "type": "function", "line": 1},
-                {"name": "TestClass", "type": "class", "line": 2}
+                {"name": "TestClass", "type": "class", "line": 2},
             ]
 
             result = logic.get_code_summary(repo_id, "test.py")
@@ -371,7 +370,7 @@ def test_get_prompt_open_repo(logic, temp_git_repo):
             "review": "## Review\n\nNo issues found.",
             "diff_spec": "HEAD~1..HEAD",
             "cost": 0.01,
-            "model": "gpt-4"
+            "model": "gpt-4",
         }
 
         result = logic.get_prompt("review_diff", {"repo_id": repo_id, "diff_spec": "HEAD~1..HEAD"})

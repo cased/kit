@@ -12,7 +12,7 @@ export default function ExamplesPage() {
         </Badge>
         <h1 className="text-4xl font-bold mb-4">Real-World Examples</h1>
         <p className="text-xl text-muted-foreground">
-          Common development scenarios using kit-mcp-dev
+          Common development scenarios using kit-dev-mcp
         </p>
       </div>
 
@@ -143,7 +143,7 @@ export default function ExamplesPage() {
               <TabsContent value="tools">
                 <div className="space-y-3">
                   <div className="bg-slate-100 rounded-lg p-3">
-                    <code className="text-sm">deep_research_package(package_name="authlib", use_context7=true)</code>
+                    <code className="text-sm">deep_research_package(package_name="authlib")</code>
                   </div>
                   <div className="bg-slate-100 rounded-lg p-3">
                     <code className="text-sm">find_symbol_usages(repo_id="...", symbol_name="authenticate")</code>
@@ -219,7 +219,7 @@ export default function ExamplesPage() {
                     <code className="text-sm">get_file_content(repo_id="...", file_path="components/Dashboard.tsx")</code>
                   </div>
                   <div className="bg-slate-100 rounded-lg p-3">
-                    <code className="text-sm">deep_research_package(package_name="react", use_context7=true)</code>
+                    <code className="text-sm">deep_research_package(package_name="react")</code>
                   </div>
                   <div className="bg-slate-100 rounded-lg p-3">
                     <code className="text-sm">extract_symbols(repo_id="...", file_path="components/Dashboard.tsx")</code>
@@ -335,8 +335,8 @@ export default function ExamplesPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Use deep_research_package when working with unfamiliar libraries. 
-                The context7.com integration provides excellent examples.
+                Use deep_research_package when working with unfamiliar libraries to get comprehensive 
+                documentation and examples from multiple sources.
               </p>
             </CardContent>
           </Card>
@@ -347,8 +347,8 @@ export default function ExamplesPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Use semantic_search to find related code by meaning, not just keywords. 
-                This helps identify patterns and similar implementations.
+                Use grep_ast to find code patterns by structure using tree-sitter. 
+                This helps identify specific code patterns like error handlers or async functions.
               </p>
             </CardContent>
           </Card>

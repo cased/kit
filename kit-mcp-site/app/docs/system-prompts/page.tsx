@@ -61,8 +61,7 @@ When working with code in this project, always:
    - Use \`get_dependency_graph\` to understand relationships
 
 3. **For Documentation**
-   - Use \`deep_research_package\` for package docs
-   - Use \`context7_research\` for AI-aggregated docs
+   - Use \`deep_research_package\` for comprehensive package research
    - Use \`build_smart_context\` before implementing features
 
 4. **Best Practices**
@@ -88,15 +87,14 @@ Remember: Better context = Better code suggestions`}</code>
                     <code>{`# .cursorrules - Kit MCP Integration
 
 ## Available MCP Tools
-You have access to kit-mcp-dev with these tools:
+You have access to kit-dev-mcp with these tools:
 - open_repository: Load codebases
 - get_file_tree: Navigate structure  
 - extract_symbols: Fast symbol extraction
 - search_text: Regex search
 - find_symbol_usages: Track usage
 - get_dependency_graph: Import maps
-- deep_research_package: Multi-source docs
-- context7_research: AI-aggregated docs
+- deep_research_package: Multi-source documentation research
 - build_smart_context: Task-aware context
 
 ## Tool Usage Rules
@@ -128,13 +126,13 @@ This ensures accurate, context-aware suggestions.`}</code>
                 </p>
                 <Card className="neo-card border-2 border-black bg-black p-4">
                   <pre className="text-red-400 text-sm overflow-x-auto">
-                    <code>{`You have access to kit-mcp-dev server with powerful code intelligence tools.
+                    <code>{`You have access to kit-dev-mcp server with powerful code intelligence tools.
 
 MANDATORY WORKFLOW for code tasks:
 1. open_repository(path) - Load the codebase
 2. get_file_tree() - Understand structure
 3. extract_symbols() - Analyze code (cached)
-4. For new libraries: deep_research_package() or context7_research()
+4. For new libraries: deep_research_package()
 5. build_smart_context(task) - Gather all relevant info
 
 TOOL DESCRIPTIONS:
@@ -145,8 +143,7 @@ TOOL DESCRIPTIONS:
 - search_text: Powerful regex search
 - find_symbol_usages: Find where symbols are used
 - get_dependency_graph: Map import relationships
-- deep_research_package: Research from multiple doc sources
-- context7_research: AI-aggregated documentation
+- deep_research_package: Research from multiple documentation sources
 - build_smart_context: Intelligent context for tasks
 
 Always use these tools proactively. Don't wait to be asked.
@@ -184,7 +181,7 @@ Available tools:
 - Repository: open_repository, get_file_tree
 - Analysis: extract_symbols, find_symbol_usages
 - Search: search_text, get_dependency_graph
-- Docs: deep_research_package, context7_research
+- Docs: deep_research_package
 - Context: build_smart_context
 EOF
 

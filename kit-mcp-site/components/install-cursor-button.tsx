@@ -8,7 +8,7 @@ export function InstallCursorButton() {
     const config = {
       "kit-dev": {
         "command": "uvx",
-        "args": ["--from", "cased-kit", "kit-mcp-dev"],
+        "args": ["--from", "cased-kit", "kit-dev-mcp"],
         "env": {
           "OPENAI_API_KEY": "sk-...",
           "KIT_GITHUB_TOKEN": "ghp_..."

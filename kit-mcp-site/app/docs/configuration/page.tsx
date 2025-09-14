@@ -12,7 +12,7 @@ export default function ConfigurationPage() {
         </Badge>
         <h1 className="text-4xl font-bold mb-4">Configuration Guide</h1>
         <p className="text-xl text-muted-foreground">
-          Configure kit-mcp-dev for your development environment
+          Configure kit-dev-mcp for your development environment
         </p>
       </div>
 
@@ -84,22 +84,6 @@ export GOOGLE_API_KEY="AI..."</code>
             </CardContent>
           </Card>
 
-          <Card className="neo-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5 text-primary" />
-                KIT_USE_CONTEXT7
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-3">
-                Enable context7.com integration for AI-aggregated documentation. Defaults to true.
-              </p>
-              <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
-                <code className="text-white">export KIT_USE_CONTEXT7="true"</code>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
@@ -123,7 +107,7 @@ export GOOGLE_API_KEY="AI..."</code>
   "mcpServers": {
     "kit-dev": {
       "command": "uvx",
-      "args": ["--from", "cased-kit[all]", "kit-mcp-dev"],
+      "args": ["--from", "cased-kit[all]", "kit-dev-mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-...",              // For get_code_summary (or use ANTHROPIC_API_KEY)
         "KIT_GITHUB_TOKEN": "ghp_..."            // Optional: for private repos
@@ -147,7 +131,7 @@ export GOOGLE_API_KEY="AI..."</code>
   "mcpServers": {
     "kit-dev": {
       "command": "uvx",
-      "args": ["--from", "cased-kit[all]", "kit-mcp-dev"],
+      "args": ["--from", "cased-kit[all]", "kit-dev-mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-...",              // For get_code_summary (or use ANTHROPIC_API_KEY)
         "KIT_GITHUB_TOKEN": "ghp_..."            // Optional: for private repos
@@ -172,7 +156,7 @@ export GOOGLE_API_KEY="AI..."</code>
     "kit-dev": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["--from", "cased-kit[all]", "kit-mcp-dev"],
+      "args": ["--from", "cased-kit[all]", "kit-dev-mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-...",              // For get_code_summary (or use ANTHROPIC_API_KEY)
         "KIT_GITHUB_TOKEN": "ghp_..."            // Optional: for private repos
@@ -199,7 +183,6 @@ export GOOGLE_API_KEY="AI..."</code>
   "env": {
     "KIT_GITHUB_TOKEN": "ghp_...",           // GitHub access token
     "KIT_CACHE_DIR": "~/.cache/kit",         // Cache directory  
-    "KIT_USE_CONTEXT7": "true",              // Enable context7.com
     "KIT_LOG_LEVEL": "DEBUG",                // Logging level
     "KIT_MAX_WORKERS": "8",                  // Parallel workers
     "KIT_CACHE_TTL": "3600",                 // Cache TTL in seconds

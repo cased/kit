@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Kit Dev MCP - Production-Grade Code Intelligence for AI",
   description: "Supercharge your AI assistant with real-time file watching, deep documentation research, and smart context building. 100% local, private, and free. From Cased.",
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+  },
 };
 
 export default function RootLayout({

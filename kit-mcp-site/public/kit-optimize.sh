@@ -25,8 +25,7 @@ cat > .kit-prompts.md << 'EOF'
 - `get_dependency_graph` - Map import relationships
 
 ### 3. Documentation Research
-- `deep_research_package` - Multi-source documentation
-- `context7_research` - AI-aggregated docs from context7.com
+- `deep_research_package` - Multi-source documentation research
 - `build_smart_context` - Task-aware context building
 
 ## Workflow for EVERY code task:
@@ -60,7 +59,6 @@ You have access to kit-dev-mcp. ALWAYS use these tools:
 
 ## For implementation:
 - deep_research_package - Research before using libraries
-- context7_research - Get AI-aggregated docs
 - build_smart_context - Gather task context
 
 ## For debugging:
@@ -87,7 +85,6 @@ When using Kit MCP tools:
 
 2. **Research before implementing**
    - deep_research_package for libraries
-   - context7_research for AI docs
    - build_smart_context for tasks
 
 3. **Use cached operations**

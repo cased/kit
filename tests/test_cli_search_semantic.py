@@ -81,6 +81,7 @@ class TestSearchSemanticCommand:
         else:
             # If it succeeds, should show valid JSON output
             import json
+
             try:
                 json.loads(result.output)
                 # Successfully parsed JSON output
@@ -97,6 +98,7 @@ class TestSearchSemanticCommand:
         if result.exit_code == 0:
             # Check for empty results (valid JSON array)
             import json
+
             try:
                 results = json.loads(result.output)
                 assert isinstance(results, list)

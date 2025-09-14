@@ -1,7 +1,6 @@
 """Tests for the search-semantic CLI command."""
 
 import json
-import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -243,6 +242,7 @@ class TestSearchSemanticCommand:
         else:
             # May return empty results on error
             import json
+
             try:
                 results = json.loads(result.output)
                 assert isinstance(results, list)
@@ -293,6 +293,7 @@ class TestSearchSemanticCommand:
         assert result.exit_code == 0
         # Check for JSON output
         import json
+
         results = json.loads(result.output)
         assert isinstance(results, list)
         assert len(results) == 2
@@ -364,8 +365,9 @@ class TestSearchSemanticCommand:
 
         assert result.exit_code == 0
         # Check for JSON output or text output
-        if result.output.strip().startswith('['):
+        if result.output.strip().startswith("["):
             import json
+
             results = json.loads(result.output)
             assert isinstance(results, list)
         else:
@@ -441,6 +443,7 @@ class TestSearchSemanticCommand:
         assert "very_long_function_name" in result.output
         # With JSON output, code is not truncated in the same way
         import json
+
         try:
             results = json.loads(result.output)
             assert results[0]["name"] == "very_long_function_name"
@@ -522,6 +525,7 @@ class TestSearchSemanticIntegration:
                 assert result.exit_code == 0
                 # Check for JSON output
                 import json
+
                 try:
                     results = json.loads(result.output)
                     assert len(results) == 1

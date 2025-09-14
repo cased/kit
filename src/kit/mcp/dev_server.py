@@ -32,7 +32,7 @@ from mcp.types import (
 from pydantic import BaseModel, Field
 
 from .. import __version__ as KIT_VERSION
-from ..docstring_indexer import DocstringIndexer, SummarySearcher
+from ..ast_search import ASTSearcher
 from ..pr_review.config import ReviewConfig
 from ..pr_review.local_reviewer import LocalDiffReviewer
 from ..repository import Repository
@@ -42,6 +42,8 @@ logger = logging.getLogger("kit-dev-mcp")
 # MCP error codes
 INVALID_PARAMS = -32602
 INTERNAL_ERROR = -32603
+
+# Context limits removed for better performance - let the AI handle context management
 
 
 class MCPError(Exception):
@@ -131,6 +133,16 @@ class ReviewDiffParams(BaseModel):
     model: Optional[str] = None
 
 
+class GrepASTParams(BaseModel):
+    """Search code using AST patterns."""
+
+    repo_id: str
+    pattern: str = Field(description="AST pattern to search for")
+    mode: str = Field(default="simple", description="Search mode: simple, pattern, or query")
+    file_pattern: str = Field(default="**/*.py", description="File glob pattern")
+    max_results: int = Field(default=20, ge=1, le=50)
+
+
 class KitServerLogic:
     def __init__(self):
         self._repos: Dict[str, Repository] = {}
@@ -158,16 +170,30 @@ class KitServerLogic:
             raise MCPError(INVALID_PARAMS, f"Repository {repo_id} not found")
         return self._repos[repo_id]
 
-    def get_file_content(self, repo_id: str, file_path: Union[str, List[str]]) -> Union[str, Dict[str, str]]:
+    def get_file_content(self, repo_id: str, file_path: Union[str, List[str]]) -> Union[str, Dict[str, Any]]:
         """Get file content."""
         repo = self.get_repo(repo_id)
         try:
             if isinstance(file_path, list):
                 result = {}
                 for fp in file_path:
-                    result[fp] = repo.get_file_content(fp)
+                    # Check for path traversal attempts
+                    if ".." in fp or fp.startswith("/"):
+                        raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {fp}")
+                    try:
+                        content = repo.get_file_content(fp)
+                        result[fp] = content
+                    except FileNotFoundError:
+                        result[fp] = f"File not found: {fp}"
+                    except ValueError as e:
+                        if "outside repository" in str(e).lower():
+                            raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {e}")
+                        raise MCPError(INVALID_PARAMS, str(e))
+                    except Exception as e:
+                        result[fp] = f"Error reading file: {e!s}"
                 return result
-            return repo.get_file_content(file_path)
+            else:
+                return repo.get_file_content(file_path)
         except ValueError as e:
             if "outside repository bounds" in str(e):
                 raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {e}")
@@ -194,10 +220,10 @@ class KitServerLogic:
         directory: Optional[str] = None,
         include_hidden: bool = False,
     ) -> List[Dict[str, Any]]:
-        """Grep for patterns in code."""
+        """Grep for patterns in code with context limits."""
         repo = self.get_repo(repo_id)
         try:
-            return repo.grep(
+            results = repo.grep(
                 pattern,
                 case_sensitive=case_sensitive,
                 include_pattern=include_pattern,
@@ -206,6 +232,8 @@ class KitServerLogic:
                 directory=directory,
                 include_hidden=include_hidden,
             )
+
+            return results
         except ValueError as e:
             raise MCPError(INVALID_PARAMS, str(e))
 
@@ -307,10 +335,42 @@ class KitServerLogic:
             raise MCPError(INTERNAL_ERROR, f"Failed to review diff: {e}")
 
     def search_code(self, repo_id: str, query: str, pattern: str = "*.py") -> List[Dict[str, Any]]:
-        """Search code."""
+        """Search code with context limits."""
         repo = self.get_repo(repo_id)
         # Repository uses search_text, not search_code
-        return repo.search_text(query, file_pattern=pattern)
+        results = repo.search_text(query, file_pattern=pattern)
+
+        return results
+
+    def grep_ast(
+        self, repo_id: str, pattern: str, mode: str = "simple", file_pattern: str = "**/*.py", max_results: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Search code using AST patterns with context limits.
+
+        Examples:
+            - pattern="async def" - Find all async functions
+            - pattern="class $NAME(BaseModel)" - Find classes extending BaseModel
+            - pattern='{"type": "try_statement"}' - Find all try blocks
+        """
+        repo = self.get_repo(repo_id)
+
+        # Create AST searcher
+        searcher = ASTSearcher(repo.repo_path)
+
+        # Perform search
+        results = searcher.search_pattern(
+            pattern=pattern, file_pattern=file_pattern, mode=mode, max_results=max_results
+        )
+
+        # Add a preview of the match
+        for result in results:
+            if "text" in result:
+                lines = result["text"].split("\n")
+                result["preview"] = lines[0] if lines else ""
+                if len(result["preview"]) > 100:
+                    result["preview"] = result["preview"][:100] + "..."
+
+        return results
 
     def list_prompts(self) -> List[Any]:
         """List available prompts."""
@@ -405,6 +465,11 @@ class KitServerLogic:
                 description="Review a local git diff with AI",
                 inputSchema=ReviewDiffParams.model_json_schema(),
             ),
+            Tool(
+                name="grep_ast",
+                description="Search code using AST patterns (semantic search)",
+                inputSchema=GrepASTParams.model_json_schema(),
+            ),
         ]
 
 
@@ -432,14 +497,6 @@ class DeepResearchParams(BaseModel):
 
     package_name: str
     query: str = Field(default="", description="Specific question about the package")
-
-
-class SemanticSearchParams(BaseModel):
-    """Search code semantically using embeddings."""
-
-    repo_id: str
-    query: str
-    max_results: int = Field(default=10, ge=1, le=50)
 
 
 @dataclass
@@ -516,7 +573,6 @@ class LocalDevServerLogic(KitServerLogic):
         self._watchers: Dict[str, FileWatcher] = {}
         self._test_results: Dict[str, Dict] = {}
         self._context_cache: Dict[str, Any] = {}
-        self._indexers: Dict[str, DocstringIndexer] = {}  # For semantic search
 
     def open_repository(self, path_or_url: str, github_token: Optional[str] = None, ref: Optional[str] = None) -> str:
         """Open a repository."""
@@ -559,52 +615,99 @@ class LocalDevServerLogic(KitServerLogic):
         return [{"path": c.path, "type": c.change_type, "timestamp": c.timestamp} for c in changes]
 
     def deep_research_package(self, package_name: str, query: str = "") -> Dict[str, Any]:
-        """Perform deep research on a package using LLM."""
+        """Perform deep research on a package using Context7 + LLM synthesis."""
+        import json
         import os
 
+        from ..context7_client import Context7Client, integrate_with_llm
         from ..deep_research import DeepResearch
         from ..summaries import AnthropicConfig, LLMError, OpenAIConfig
 
-        # Try to get LLM config from environment
+        # First, try to fetch real documentation from Context7
+        context7 = Context7Client()
+        context7_docs = context7.fetch_documentation(package_name, topic=query if query else None)
+
+        # Check if we have LLM config for synthesis
         config: Optional[Union[OpenAIConfig, AnthropicConfig]] = None
         if os.environ.get("OPENAI_API_KEY"):
-            config = OpenAIConfig(model="gpt-4o-mini")
+            config = OpenAIConfig(model="gpt-5")
         elif os.environ.get("ANTHROPIC_API_KEY"):
             config = AnthropicConfig(model="claude-3-haiku-20240307")
-        else:
-            # Return a helpful message if no API keys are configured
+
+        # If Context7 returned good data and we have no LLM, return Context7 data
+        if context7_docs.get("status") == "success" and not config:
             return {
                 "package": package_name,
+                "source": "context7",
                 "model": "none",
                 "execution_time": 0,
-                "documentation": f"No LLM API key configured. To use deep research, set either OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable. This feature uses an LLM to provide comprehensive documentation about {package_name}.",
+                "documentation": context7_docs.get("documentation", {}),
+                "message": "Using Context7 aggregated documentation (no LLM synthesis)",
+            }
+
+        # If no LLM config and Context7 failed, return helpful message
+        if not config:
+            return {
+                "package": package_name,
+                "source": "none",
+                "model": "none",
+                "execution_time": 0,
+                "documentation": "No documentation sources available. To get comprehensive docs, either set OPENAI_API_KEY/ANTHROPIC_API_KEY for LLM synthesis, or ensure Context7 is accessible.",
             }
 
         try:
             researcher = DeepResearch(config)
         except LLMError as e:
+            # If LLM fails but Context7 worked, return Context7 data
+            if context7_docs.get("status") == "success":
+                return {
+                    "package": package_name,
+                    "source": "context7",
+                    "model": "error",
+                    "execution_time": 0,
+                    "documentation": context7_docs.get("documentation", {}),
+                    "error": f"LLM error: {e}, using Context7 data only",
+                }
             return {
                 "package": package_name,
+                "source": "error",
                 "model": "error",
                 "execution_time": 0,
                 "documentation": f"LLM configuration error: {e}",
             }
 
-        # Build the research query
+        # Build the research query, including Context7 data if available
+        context_info = ""
+        if context7_docs.get("status") == "success":
+            context_info = f"\n\nContext7 provided this real documentation:\n{json.dumps(context7_docs.get('documentation', {}), indent=2)[:2000]}\n\nPlease synthesize and enhance this information."
+
         if query:
-            research_query = f"Tell me about the {package_name} package, specifically: {query}"
+            research_query = f"Tell me about the {package_name} package, specifically: {query}{context_info}"
         else:
             research_query = f"""Provide comprehensive information about the {package_name} Python package including:
             - What it does and its main use cases
             - Key features and capabilities
             - Basic usage examples
             - Common patterns and best practices
-            - Important classes/functions to know about"""
+            - Important classes/functions to know about{context_info}"""
 
         result = researcher.research(research_query)
 
+        # Integrate Context7 docs with LLM response
+        if context7_docs.get("status") == "success":
+            final_result = integrate_with_llm(context7_docs, result.answer)
+            return {
+                "package": package_name,
+                "source": "context7+llm",
+                "model": result.model,
+                "execution_time": result.execution_time,
+                "documentation": final_result,
+            }
+
+        # Just LLM response if Context7 didn't work
         return {
             "package": package_name,
+            "source": "llm_only",
             "model": result.model,
             "execution_time": result.execution_time,
             "documentation": result.answer,
@@ -695,54 +798,6 @@ class LocalDevServerLogic(KitServerLogic):
 
         return context
 
-    def semantic_search(self, repo_id: str, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """Perform semantic search using vector embeddings."""
-        repo = self.get_repo(repo_id)
-
-        # Get or create indexer for this repo
-        if repo_id not in self._indexers:
-            try:
-                # Create indexer with the repository's summarizer
-                from ..summaries import OpenAIConfig, Summarizer
-
-                config = OpenAIConfig(model="gpt-4o-mini")
-                summarizer = Summarizer(repo, config=config)
-
-                # Create indexer
-                indexer = DocstringIndexer(repo, summarizer)
-                # Index the repository
-                indexer.build()
-                self._indexers[repo_id] = indexer
-            except Exception as e:
-                logger.error(f"Failed to create semantic search index: {e}")
-                return []
-
-        # Search using the indexer
-        indexer = self._indexers[repo_id]
-        searcher = SummarySearcher(indexer)
-
-        try:
-            results = searcher.search(query, top_k=max_results)
-
-            # Format results
-            formatted_results = []
-            for result in results:
-                formatted_results.append(
-                    {
-                        "file": result.get("file_path", ""),
-                        "symbol": result.get("symbol_name", ""),
-                        "type": result.get("symbol_type", ""),
-                        "summary": result.get("summary", ""),
-                        "score": result.get("score", 0.0),
-                        "line": result.get("line_number", 0),
-                    }
-                )
-
-            return formatted_results
-        except Exception as e:
-            logger.error(f"Semantic search failed: {e}")
-            return []
-
     def list_tools(self) -> List[Tool]:
         """List all available tools."""
         # Get base tools from parent class
@@ -764,12 +819,6 @@ class LocalDevServerLogic(KitServerLogic):
                     "properties": {"repo_id": {"type": "string"}, "limit": {"type": "integer", "default": 10}},
                     "required": ["repo_id"],
                 },
-            ),
-            # Semantic search
-            Tool(
-                name="semantic_search",
-                description="Search code semantically using AI-powered embeddings",
-                inputSchema=SemanticSearchParams.model_json_schema(),
             ),
             # Documentation and research
             Tool(
@@ -822,13 +871,6 @@ async def serve():
                     build_params.include_docs,
                     build_params.include_dependencies,
                     build_params.max_files,
-                )
-                return [TextContent(type="text", text=json.dumps(result, indent=2))]
-
-            elif name == "semantic_search":
-                semantic_params = SemanticSearchParams(**arguments)
-                result = logic.semantic_search(
-                    semantic_params.repo_id, semantic_params.query, semantic_params.max_results
                 )
                 return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
@@ -910,6 +952,16 @@ async def serve():
                         review_params.priority_filter,
                         review_params.max_files,
                         review_params.model,
+                    )
+                    return [TextContent(type="text", text=json.dumps(result, indent=2))]
+                elif name == "grep_ast":
+                    ast_params = GrepASTParams(**arguments)
+                    result = logic.grep_ast(
+                        ast_params.repo_id,
+                        ast_params.pattern,
+                        ast_params.mode,
+                        ast_params.file_pattern,
+                        ast_params.max_results,
                     )
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 else:

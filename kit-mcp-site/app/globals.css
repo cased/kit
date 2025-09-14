@@ -61,7 +61,19 @@
   }
   
   .neo-button {
-    @apply border-2 border-black font-bold shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px] active:shadow-none active:translate-x-[3px] active:translate-y-[3px];
+    @apply border-2 border-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px];
+  }
+  
+  @media (hover: hover) {
+    .neo-button:active {
+      @apply shadow-none translate-x-[4px] translate-y-[4px];
+    }
+  }
+  
+  @media (hover: none) {
+    .neo-button:active {
+      @apply shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] translate-x-[3px] translate-y-[3px];
+    }
   }
   
   .neo-badge {
