@@ -359,21 +359,42 @@ class TreeSitterSymbolExtractor:
             tree = parser.parse(bytes(source_code, "utf8"))
             root = tree.root_node
 
-            # tree-sitter compatibility
-            if hasattr(query, "matches"):
-                raw_matches = query.matches(root)  # type: ignore[attr-defined]
-                logger.debug(f"[EXTRACT] Found {len(raw_matches)} matches via Query.matches().")
-                # Convert to unified (pattern_index, captures) structure expected below
-                match_tuples = list(raw_matches)  # already in correct format
-            else:
-                # Newer API – build a single pseudo-match dictionary grouping all captures
-                captures_dict: Dict[str, List[Any]] = {}
-                for capture_name, node in query.captures(root):  # type: ignore[attr-defined]
-                    captures_dict.setdefault(capture_name, []).append(node)
-                match_tuples = [(0, captures_dict)]
-                logger.debug(
-                    f"[EXTRACT] Found {sum(len(v) for v in captures_dict.values())} captures via Query.captures()."
-                )
+            # tree-sitter compatibility - try different APIs based on what's available
+            # tree-sitter >= 0.23.2 may have different API surfaces depending on version
+            # and how it was compiled. We try both matches() and captures() with proper
+            # error handling to ensure compatibility across versions.
+            match_tuples = []
+
+            # First try the matches() API (older tree-sitter versions)
+            if hasattr(query, "matches") and callable(getattr(query, "matches", None)):
+                try:
+                    raw_matches = query.matches(root)  # type: ignore[attr-defined]
+                    match_tuples = list(raw_matches)  # already in correct format
+                    logger.debug(f"[EXTRACT] Found {len(match_tuples)} matches via Query.matches().")
+                except (AttributeError, TypeError) as e:
+                    logger.debug(f"[EXTRACT] matches() failed: {e}, trying captures()")
+                    match_tuples = []
+
+            # If matches() didn't work or doesn't exist, try captures() API
+            if not match_tuples and hasattr(query, "captures") and callable(getattr(query, "captures", None)):
+                try:
+                    # Newer API – build a single pseudo-match dictionary grouping all captures
+                    captures_dict: Dict[str, List[Any]] = {}
+                    captures_result = query.captures(root)  # type: ignore[attr-defined]
+                    for capture_name, node in captures_result:
+                        captures_dict.setdefault(capture_name, []).append(node)
+                    match_tuples = [(0, captures_dict)]
+                    logger.debug(
+                        f"[EXTRACT] Found {sum(len(v) for v in captures_dict.values())} captures via Query.captures()."
+                    )
+                except (AttributeError, TypeError) as e:
+                    logger.debug(f"[EXTRACT] captures() failed: {e}")
+                    match_tuples = []
+
+            # If neither API worked, log a warning and return empty
+            if not match_tuples:
+                logger.warning(f"[EXTRACT] No compatible tree-sitter API found for extension {ext}")
+                return []
 
             # Now process matches
             for pattern_index, captures in match_tuples:
