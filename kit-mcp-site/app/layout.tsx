@@ -17,9 +17,11 @@ export const metadata: Metadata = {
   description: "Supercharge your AI assistant with real-time file watching, deep documentation research, and smart context building. 100% local, private, and free. From Cased.",
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico', sizes: 'any' }
+      { url: '/favicon.ico?v=2', sizes: 'any' },
+      { url: '/favicon.svg?v=2', type: 'image/svg+xml' }
     ],
+    shortcut: '/favicon.ico?v=2',
+    apple: '/favicon.ico?v=2',
   },
 };
 

@@ -511,14 +511,6 @@ export default function Home() {
               <p className="text-lg mb-8 text-blue-100">
                 Don't pay a cent (besides tokens) for the <Link href="https://cased.com/blog/2025-06-13-kit/" className="text-white underline hover:text-blue-100">necessary building blocks</Link> of developer tools.
               </p>
-              <div className="border border-gray-600 bg-black p-4 font-mono text-sm mb-8 text-left max-w-2xl mx-auto rounded-lg">
-                <div className="text-white text-sm space-y-2">
-                  <div>uvx --from cased-kit kit-dev-mcp</div>
-                  <div className="text-gray-500"># Or with all extras (quote for zsh): uvx --from 'cased-kit[all]' kit-dev-mcp</div>
-                  <div className="text-gray-500"># Add to Cursor settings.json:</div>
-                  <div className="text-blue-400">"mcp.servers.kit-dev": {"{"}"command": "uvx", "args": ["--from", "cased-kit", "kit-dev-mcp"]{"}"}</div>
-                </div>
-              </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="lg" className="neo-button bg-white text-black" variant="secondary" asChild>
                   <Link href="/docs/quickstart">
