@@ -49,8 +49,13 @@ def _detect_provider_from_model(model_name: str) -> Optional[LLMProvider]:
             stripped_model = stripped_model[len(prefix) :]
             break
 
-    # OpenAI model patterns
-    openai_patterns = ["gpt-", "o1-", "text-davinci", "text-curie", "text-babbage", "text-ada"]
+    # OpenAI model patterns (includes GPT-5 mini/nano and O3 models)
+    # Check exact matches first
+    if stripped_model == "o3":
+        return LLMProvider.OPENAI
+
+    # Then check prefix/substring patterns
+    openai_patterns = ["gpt-", "o1-", "o3-", "text-davinci", "text-curie", "text-babbage", "text-ada"]
     if any(pattern in stripped_model for pattern in openai_patterns):
         return LLMProvider.OPENAI
 
@@ -243,7 +248,7 @@ class ReviewConfig:
                 config_api_key = None  # Treat placeholder as missing
             api_key = config_api_key or os.getenv("KIT_ANTHROPIC_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
         elif provider == LLMProvider.GOOGLE:
-            default_model = "gemini-2.5-flash"  # Updated to latest model
+            default_model = "gemini-2.5-flash"
             api_key_env = "KIT_GOOGLE_API_KEY or GOOGLE_API_KEY"
             config_api_key = llm_data.get("api_key")
             if _is_placeholder_token(config_api_key):

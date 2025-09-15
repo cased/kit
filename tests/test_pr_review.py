@@ -31,7 +31,13 @@ def test_detect_provider_from_model():
     assert _detect_provider_from_model("gpt-4o") == LLMProvider.OPENAI
     assert _detect_provider_from_model("gpt-4.1-nano") == LLMProvider.OPENAI
     assert _detect_provider_from_model("gpt-3.5-turbo") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("gpt-5") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("gpt-5-mini") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("gpt-5-nano") == LLMProvider.OPENAI
     assert _detect_provider_from_model("o1-preview") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("o3") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("o3-mini") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("o3-medium") == LLMProvider.OPENAI
     assert _detect_provider_from_model("text-davinci-003") == LLMProvider.OPENAI
 
     # Anthropic models
