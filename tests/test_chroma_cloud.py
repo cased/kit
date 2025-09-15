@@ -25,7 +25,12 @@ class TestChromaCloudBackend(unittest.TestCase):
 
     @patch("kit.vector_searcher.CloudClient")
     @patch.dict(
-        os.environ, {"CHROMA_API_KEY": "test-api-key", "CHROMA_TENANT": "3893b771-b971-4f45-8e30-7aac7837ad7f", "CHROMA_DATABASE": "test-db"}
+        os.environ,
+        {
+            "CHROMA_API_KEY": "test-api-key",
+            "CHROMA_TENANT": "3893b771-b971-4f45-8e30-7aac7837ad7f",
+            "CHROMA_DATABASE": "test-db",
+        },
     )
     def test_init_with_env_vars(self, mock_cloud_client):
         """Test initialization with environment variables."""
@@ -48,7 +53,10 @@ class TestChromaCloudBackend(unittest.TestCase):
         mock_cloud_client.return_value = mock_client_instance
 
         ChromaCloudBackend(
-            collection_name="my_collection", api_key="explicit-key", tenant="a1b2c3d4-e5f6-7890-abcd-ef1234567890", database="my-db"
+            collection_name="my_collection",
+            api_key="explicit-key",
+            tenant="a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            database="my-db",
         )
 
         mock_cloud_client.assert_called_once_with(
@@ -60,14 +68,22 @@ class TestChromaCloudBackend(unittest.TestCase):
 
     def test_init_without_api_key_raises(self):
         """Test that initialization without API key raises ValueError."""
-        with patch.dict(os.environ, {"CHROMA_TENANT": "3893b771-b971-4f45-8e30-7aac7837ad7f", "CHROMA_DATABASE": "test-db"}, clear=True):
+        with patch.dict(
+            os.environ,
+            {"CHROMA_TENANT": "3893b771-b971-4f45-8e30-7aac7837ad7f", "CHROMA_DATABASE": "test-db"},
+            clear=True,
+        ):
             with self.assertRaises(ValueError) as cm:
                 ChromaCloudBackend()
             self.assertIn("Chroma Cloud API key not found", str(cm.exception))
-    
+
     def test_init_with_invalid_tenant_uuid_raises(self):
         """Test that initialization with invalid tenant UUID raises ValueError."""
-        with patch.dict(os.environ, {"CHROMA_API_KEY": "test-key", "CHROMA_TENANT": "not-a-uuid", "CHROMA_DATABASE": "test-db"}, clear=True):
+        with patch.dict(
+            os.environ,
+            {"CHROMA_API_KEY": "test-key", "CHROMA_TENANT": "not-a-uuid", "CHROMA_DATABASE": "test-db"},
+            clear=True,
+        ):
             with self.assertRaises(ValueError) as cm:
                 ChromaCloudBackend()
             self.assertIn("Invalid tenant format", str(cm.exception))
@@ -76,7 +92,12 @@ class TestChromaCloudBackend(unittest.TestCase):
 
     @patch("kit.vector_searcher.CloudClient")
     @patch.dict(
-        os.environ, {"CHROMA_API_KEY": "test-api-key", "CHROMA_TENANT": "3893b771-b971-4f45-8e30-7aac7837ad7f", "CHROMA_DATABASE": "test-db"}
+        os.environ,
+        {
+            "CHROMA_API_KEY": "test-api-key",
+            "CHROMA_TENANT": "3893b771-b971-4f45-8e30-7aac7837ad7f",
+            "CHROMA_DATABASE": "test-db",
+        },
     )
     def test_add_embeddings(self, mock_cloud_client):
         """Test adding embeddings to cloud backend."""
@@ -96,7 +117,12 @@ class TestChromaCloudBackend(unittest.TestCase):
 
     @patch("kit.vector_searcher.CloudClient")
     @patch.dict(
-        os.environ, {"CHROMA_API_KEY": "test-api-key", "CHROMA_TENANT": "3893b771-b971-4f45-8e30-7aac7837ad7f", "CHROMA_DATABASE": "test-db"}
+        os.environ,
+        {
+            "CHROMA_API_KEY": "test-api-key",
+            "CHROMA_TENANT": "3893b771-b971-4f45-8e30-7aac7837ad7f",
+            "CHROMA_DATABASE": "test-db",
+        },
     )
     def test_query(self, mock_cloud_client):
         """Test querying the cloud backend."""
@@ -121,7 +147,12 @@ class TestChromaCloudBackend(unittest.TestCase):
 
     @patch("kit.vector_searcher.CloudClient")
     @patch.dict(
-        os.environ, {"CHROMA_API_KEY": "test-api-key", "CHROMA_TENANT": "3893b771-b971-4f45-8e30-7aac7837ad7f", "CHROMA_DATABASE": "test-db"}
+        os.environ,
+        {
+            "CHROMA_API_KEY": "test-api-key",
+            "CHROMA_TENANT": "3893b771-b971-4f45-8e30-7aac7837ad7f",
+            "CHROMA_DATABASE": "test-db",
+        },
     )
     def test_delete(self, mock_cloud_client):
         """Test deleting vectors from cloud backend."""

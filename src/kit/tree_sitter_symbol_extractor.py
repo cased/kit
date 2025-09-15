@@ -4,6 +4,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Optional, cast
 
+import tree_sitter
 from tree_sitter_language_pack import get_language, get_parser
 
 # Set up module-level logger
@@ -287,13 +288,20 @@ class TreeSitterSymbolExtractor:
                 return None
 
             language = get_language(cast(Any, lang_name))  # type: ignore[arg-type]
-            query = language.query(combined_query_content)
+            # Use the new tree_sitter.Query constructor instead of deprecated language.query()
+            query = tree_sitter.Query(language, combined_query_content)
             cls._queries[ext] = query
             logger.debug(f"get_query: Query loaded successfully for ext {ext}")
             return query
 
+        except tree_sitter.QueryError as e:
+            # Specific query syntax error
+            logger.error(f"get_query: Query syntax error for {ext} ({lang_name}): {e}")
+            logger.error(f"Query content length: {len(combined_query_content)} chars")
+            logger.error(traceback.format_exc())
+            return None
         except Exception as e:
-            logger.error(f"get_query: Query compile error for ext {ext}: {e}")
+            logger.error(f"get_query: Unexpected error loading query for {ext}: {e}")
             logger.error(traceback.format_exc())
             return None
 
@@ -360,39 +368,54 @@ class TreeSitterSymbolExtractor:
             root = tree.root_node
 
             # tree-sitter compatibility - try different APIs based on what's available
-            # tree-sitter >= 0.23.2 may have different API surfaces depending on version
-            # and how it was compiled. We try both matches() and captures() with proper
-            # error handling to ensure compatibility across versions.
+            # tree-sitter >= 0.25.1 uses QueryCursor with the query as a parameter
             match_tuples = []
+            api_worked = False
 
-            # First try the matches() API (older tree-sitter versions)
-            if hasattr(query, "matches") and callable(getattr(query, "matches", None)):
-                try:
-                    raw_matches = query.matches(root)  # type: ignore[attr-defined]
-                    match_tuples = list(raw_matches)  # already in correct format
-                    logger.debug(f"[EXTRACT] Found {len(match_tuples)} matches via Query.matches().")
-                except (AttributeError, TypeError) as e:
-                    logger.debug(f"[EXTRACT] matches() failed: {e}, trying captures()")
-                    match_tuples = []
+            # Try the new QueryCursor API (tree-sitter >= 0.25.1)
+            try:
+                cursor = tree_sitter.QueryCursor(query)
+                raw_matches = cursor.matches(root)
+                match_tuples = list(raw_matches)
+                api_worked = True  # API worked, even if no matches found
+                logger.debug(f"[EXTRACT] Found {len(match_tuples)} matches via QueryCursor.matches().")
+            except Exception as e:
+                # Log the actual error for debugging
+                logger.debug(f"[EXTRACT] QueryCursor API failed with {type(e).__name__}: {e}")
+                if not isinstance(e, (AttributeError, TypeError, NameError)):
+                    # If it's an unexpected error, log it as a warning
+                    logger.warning(f"[EXTRACT] Unexpected error with QueryCursor for {ext}: {e}")
 
-            # If matches() didn't work or doesn't exist, try captures() API
-            if not match_tuples and hasattr(query, "captures") and callable(getattr(query, "captures", None)):
-                try:
-                    # Newer API – build a single pseudo-match dictionary grouping all captures
-                    captures_dict: Dict[str, List[Any]] = {}
-                    captures_result = query.captures(root)  # type: ignore[attr-defined]
-                    for capture_name, node in captures_result:
-                        captures_dict.setdefault(capture_name, []).append(node)
-                    match_tuples = [(0, captures_dict)]
-                    logger.debug(
-                        f"[EXTRACT] Found {sum(len(v) for v in captures_dict.values())} captures via Query.captures()."
-                    )
-                except (AttributeError, TypeError) as e:
-                    logger.debug(f"[EXTRACT] captures() failed: {e}")
-                    match_tuples = []
+            # Fallback to older API only if the new API didn't work (not just if no matches)
+            if not api_worked:
+                # Try the matches() API directly on query (older tree-sitter versions)
+                if hasattr(query, "matches") and callable(getattr(query, "matches", None)):
+                    try:
+                        raw_matches = query.matches(root)  # type: ignore[attr-defined]
+                        match_tuples = list(raw_matches)  # already in correct format
+                        api_worked = True
+                        logger.debug(f"[EXTRACT] Found {len(match_tuples)} matches via Query.matches().")
+                    except (AttributeError, TypeError) as e:
+                        logger.debug(f"[EXTRACT] matches() failed: {e}, trying captures()")
 
-            # If neither API worked, log a warning and return empty
-            if not match_tuples:
+                # If matches() didn't work or doesn't exist, try captures() API
+                if not api_worked and hasattr(query, "captures") and callable(getattr(query, "captures", None)):
+                    try:
+                        # Older API – build a single pseudo-match dictionary grouping all captures
+                        captures_dict: Dict[str, List[Any]] = {}
+                        captures_result = query.captures(root)  # type: ignore[attr-defined]
+                        for capture_name, node in captures_result:
+                            captures_dict.setdefault(capture_name, []).append(node)
+                        match_tuples = [(0, captures_dict)]
+                        api_worked = True
+                        logger.debug(
+                            f"[EXTRACT] Found {sum(len(v) for v in captures_dict.values())} captures via Query.captures()."
+                        )
+                    except (AttributeError, TypeError) as e:
+                        logger.debug(f"[EXTRACT] captures() failed: {e}")
+
+            # If no API worked, log a warning and return empty
+            if not api_worked:
                 logger.warning(f"[EXTRACT] No compatible tree-sitter API found for extension {ext}")
                 return []
 
@@ -423,7 +446,7 @@ class TreeSitterSymbolExtractor:
 
                 # Now extract symbol name as before
                 symbol_name = (
-                    actual_name_node.text.decode() if hasattr(actual_name_node, "text") else str(actual_name_node)
+                    actual_name_node.text.decode() if hasattr(actual_name_node, "text") and actual_name_node.text else str(actual_name_node)
                 )
                 # HCL: Strip quotes from string literals
                 if ext == ".tf" and hasattr(actual_name_node, "type") and actual_name_node.type == "string_lit":
@@ -441,11 +464,11 @@ class TreeSitterSymbolExtractor:
                     if ext == ".tf" and symbol_type in ["resource", "data"]:
                         type_node = captures.get("type")
                         if type_node:
-                            if isinstance(type_node, list):
-                                type_node = type_node[0] if type_node else None
-                            if type_node and hasattr(type_node, "text"):
-                                type_name = type_node.text.decode()
-                                if hasattr(type_node, "type") and type_node.type == "string_lit":
+                            # Extract the actual node from list if needed
+                            actual_type_node = type_node[0] if isinstance(type_node, list) and len(type_node) > 0 else type_node
+                            if actual_type_node and hasattr(actual_type_node, "text") and actual_type_node.text:
+                                type_name = actual_type_node.text.decode()
+                                if hasattr(actual_type_node, "type") and actual_type_node.type == "string_lit":
                                     if len(type_name) >= 2 and type_name.startswith('"') and type_name.endswith('"'):
                                         type_name = type_name[1:-1]
                                 symbol_name = f"{type_name}.{symbol_name}"
