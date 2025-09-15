@@ -150,63 +150,6 @@ export default function ApiPage() {
           </CardContent>
         </Card>
 
-        <Card className="neo-card not-prose mb-6">
-          <CardHeader>
-            <CardTitle className="font-mono">build_smart_context</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold mb-2">Parameters</h4>
-                <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
-                  <pre className="text-white">
-{`{
-  "repo_id": string,              // Required
-  "task_description": string,     // Required
-  "include_tests": boolean,       // Optional: default true
-  "include_docs": boolean,        // Optional: default true
-  "include_dependencies": boolean,// Optional: default true
-  "max_files": number             // Optional: default 20
-}`}</pre>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold mb-2">Returns</h4>
-                <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
-                  <pre className="text-white">
-{`{
-  "task": "implement OAuth2 authentication",
-  "context": {
-    "relevant_files": [
-      {
-        "path": "src/auth.py",
-        "relevance": 0.95,
-        "reason": "Existing auth implementation"
-      }
-    ],
-    "test_files": [...],
-    "documentation": {
-      "oauth2": "OAuth 2.0 is an authorization framework...",
-      "best_practices": [...]
-    },
-    "dependencies": {
-      "authlib": {
-        "version": "1.2.0",
-        "docs": "..."
-      }
-    },
-    "suggestions": [
-      "Consider using authlib for OAuth2 implementation",
-      "Review existing JWT token handling in auth.py"
-    ]
-  }
-}`}</pre>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <div className="my-8">

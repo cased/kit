@@ -64,13 +64,11 @@ When working with code in this project, always:
 
 3. **For Documentation**
    - Use \`deep_research_package\` for comprehensive package research
-   - Use \`build_smart_context\` before implementing features
 
 4. **Best Practices**
    - Always gather context before making suggestions
    - Use incremental symbol extraction (it's cached!)
    - Research dependencies before using new packages
-   - Build smart context for complex tasks
 
 Remember: Better context = Better code suggestions`}</code>
                       </pre>
@@ -101,13 +99,11 @@ You have access to kit-dev-mcp with these tools:
 - find_symbol_usages: Track usage
 - get_dependency_graph: Import maps
 - deep_research_package: Multi-source documentation research
-- build_smart_context: Task-aware context
 
 ## Tool Usage Rules
 1. ALWAYS use get_file_tree before suggesting file changes
 2. ALWAYS use extract_symbols for understanding code
 3. ALWAYS use deep_research_package before using new libraries
-4. ALWAYS use build_smart_context for feature implementation
 
 ## Context Building Workflow
 For any code task:
@@ -143,7 +139,6 @@ MANDATORY WORKFLOW for code tasks:
 2. get_file_tree() - Understand structure
 3. extract_symbols() - Analyze code (cached)
 4. For new libraries: deep_research_package()
-5. build_smart_context(task) - Gather all relevant info
 
 TOOL DESCRIPTIONS:
 - open_repository: Opens local/remote repositories
@@ -154,7 +149,6 @@ TOOL DESCRIPTIONS:
 - find_symbol_usages: Find where symbols are used
 - get_dependency_graph: Map import relationships
 - deep_research_package: Research from multiple documentation sources
-- build_smart_context: Intelligent context for tasks
 
 Always use these tools proactively. Don't wait to be asked.
 Better context = Better code.`}</code>
@@ -195,7 +189,6 @@ Available tools:
 - Analysis: extract_symbols, find_symbol_usages
 - Search: search_text, get_dependency_graph
 - Docs: deep_research_package
-- Context: build_smart_context
 EOF
 
 echo "✅ Created .kit-prompts.md"

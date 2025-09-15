@@ -75,7 +75,6 @@ export default function Home() {
   const tools = [
     { name: "open_repository", description: "Open local and remote repositories" },
     { name: "deep_research_package", description: "Comprehensive package documentation using LLM" },
-    { name: "build_smart_context", description: "Task-aware context building" },
     { name: "get_file_tree", description: "Structured file navigation" },
     { name: "extract_symbols", description: "Fast symbol extraction with caching" },
     { name: "grep_code", description: "Fast literal search with smart filtering" },

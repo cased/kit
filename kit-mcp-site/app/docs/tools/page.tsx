@@ -28,20 +28,6 @@ const tools = [
   "package_name": "react",
   "query": "How do hooks work?"  // optional specific question
 })`
-      },
-      {
-        name: "build_smart_context",
-        description: "Build comprehensive context for a development task from multiple sources",
-        parameters: ["repo_id", "task_description", "include_tests", "include_docs", "include_dependencies", "max_files"],
-        naturalLanguage: "Using Kit, build context for implementing a new authentication feature",
-        example: `build_smart_context({
-  "repo_id": "repo_123",
-  "task_description": "implement OAuth2 authentication",
-  "include_tests": true,
-  "include_docs": true,
-  "include_dependencies": true,
-  "max_files": 20
-})`
       }
     ]
   },

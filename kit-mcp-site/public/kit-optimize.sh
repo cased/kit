@@ -26,15 +26,13 @@ cat > .kit-prompts.md << 'EOF'
 
 ### 3. Documentation Research
 - `deep_research_package` - Multi-source documentation research
-- `build_smart_context` - Task-aware context building
 
 ## Workflow for EVERY code task:
 1. Open repository with `open_repository`
 2. Get structure with `get_file_tree`
 3. Extract symbols with `extract_symbols` (cached!)
 4. Research packages with `deep_research_package`
-5. Build context with `build_smart_context`
-6. THEN provide solution
+5. THEN provide solution
 
 ## Why this matters:
 - Better context = More accurate suggestions
@@ -59,7 +57,6 @@ You have access to kit-dev-mcp. ALWAYS use these tools:
 
 ## For implementation:
 - deep_research_package - Research before using libraries
-- build_smart_context - Gather task context
 
 ## For debugging:
 - search_text - Find implementations
@@ -85,7 +82,6 @@ When using Kit MCP tools:
 
 2. **Research before implementing**
    - deep_research_package for libraries
-   - build_smart_context for tasks
 
 3. **Use cached operations**
    - extract_symbols is FAST

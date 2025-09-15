@@ -95,27 +95,6 @@ def test_context7_research(server):
         print("  ✓ LLM-generated documentation received")
 
 
-def test_smart_context(server, repo_id):
-    """Test smart context building for tasks."""
-    print("\n🧠 Testing Smart Context Building...")
-
-    context = server.build_smart_context(
-        repo_id,
-        "Add rate limiting to the MCP server",
-        include_tests=True,
-        include_docs=True,
-        include_dependencies=True,
-        max_files=5,
-    )
-
-    print("  ✓ Built context for task")
-    print(f"  ✓ Found {len(context.get('relevant_files', []))} relevant files")
-    print(f"  ✓ Found {len(context.get('test_files', []))} test files")
-
-    if context.get("suggestions"):
-        print(f"  ✓ Generated {len(context['suggestions'])} suggestions")
-
-
 def main():
     """Run all tests."""
     print("=" * 60)
@@ -132,7 +111,6 @@ def main():
         test_code_search(server, repo_id)
         test_ast_search(server, repo_id)
         test_context7_research(server)
-        test_smart_context(server, repo_id)
 
         print("\n" + "=" * 60)
         print("✅ All tests completed successfully!")

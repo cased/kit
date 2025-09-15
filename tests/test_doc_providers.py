@@ -1,11 +1,10 @@
 """Tests for documentation provider system."""
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from kit.doc_providers import DocumentationProvider, DocumentationService, UpstashProvider
+from kit.doc_providers import DocumentationService, UpstashProvider
 
 
 class TestUpstashProvider:
@@ -263,6 +262,7 @@ class TestMCPIntegration:
     def dev_server_logic(self):
         """Create a LocalDevServerLogic instance for testing."""
         from kit.mcp.dev_server import LocalDevServerLogic
+
         return LocalDevServerLogic()
 
     @patch("kit.mcp.dev_server.DocumentationService")
@@ -324,7 +324,11 @@ class TestMCPIntegration:
         # Mock package/package pattern works
         def get_doc_side_effect(library_id, **kwargs):
             if library_id == "django/django":
-                return {"status": "success", "documentation": {"snippets": [{"title": "Django"}]}, "provider": "UpstashProvider"}
+                return {
+                    "status": "success",
+                    "documentation": {"snippets": [{"title": "Django"}]},
+                    "provider": "UpstashProvider",
+                }
             return {"status": "not_found"}
 
         mock_service.get_documentation.side_effect = get_doc_side_effect
@@ -332,10 +336,7 @@ class TestMCPIntegration:
         result = dev_server_logic.deep_research_package("django")
 
         # Should try django/django pattern
-        assert any(
-            call[0][0] == "django/django"
-            for call in mock_service.get_documentation.call_args_list
-        )
+        assert any(call[0][0] == "django/django" for call in mock_service.get_documentation.call_args_list)
         assert result["status"] == "success"
 
     @patch("kit.mcp.dev_server.DocumentationService")
@@ -378,11 +379,7 @@ class TestMCPIntegration:
         mock_service.search_packages.return_value = {"results": []}
         mock_service.get_documentation.return_value = {
             "status": "success",
-            "documentation": {
-                "snippets": [
-                    {"title": "Example", "description": "Test", "code": "print('hello')"}
-                ]
-            },
+            "documentation": {"snippets": [{"title": "Example", "description": "Test", "code": "print('hello')"}]},
             "provider": "UpstashProvider",
         }
 

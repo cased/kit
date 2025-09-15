@@ -39,7 +39,6 @@ class UpstashProvider(DocumentationProvider):
     DEFAULT_TOKENS = 5000
     MINIMUM_TOKENS = 1000
 
-
     def __init__(self, api_key: Optional[str] = None):
         """Initialize with optional API key."""
         self.api_key = api_key or os.environ.get("UPSTASH_API_KEY") or os.environ.get("CONTEXT7_API_KEY")
@@ -61,7 +60,6 @@ class UpstashProvider(DocumentationProvider):
 
         return headers
 
-
     def search(self, query: str) -> Dict[str, Any]:
         """Search for packages matching the query."""
         try:
@@ -73,42 +71,31 @@ class UpstashProvider(DocumentationProvider):
                 response = client.get(url, params=params, headers=headers)
 
                 if response.status_code == 429:
-                    return {
-                        "results": [],
-                        "error": "Rate limited. Please try again later.",
-                        "status": "rate_limited"
-                    }
+                    return {"results": [], "error": "Rate limited. Please try again later.", "status": "rate_limited"}
                 elif response.status_code == 401:
                     return {
                         "results": [],
                         "error": "Unauthorized. Please check your API key.",
-                        "status": "unauthorized"
+                        "status": "unauthorized",
                     }
                 elif response.status_code != 200:
                     return {
                         "results": [],
                         "error": f"Search failed with code {response.status_code}",
-                        "status": "error"
+                        "status": "error",
                     }
 
                 data = response.json()
-                return {
-                    "results": data.get("results", []),
-                    "status": "success"
-                }
+                return {"results": data.get("results", []), "status": "success"}
 
         except Exception as e:
             logger.error(f"Error searching packages: {e}")
-            return {
-                "results": [],
-                "error": str(e),
-                "status": "error"
-            }
+            return {"results": [], "error": str(e), "status": "error"}
 
     def fetch(self, package_id: str, **kwargs: Any) -> Optional[str]:
         """Fetch documentation for a specific package."""
-        tokens = kwargs.get('tokens', self.DEFAULT_TOKENS)
-        topic = kwargs.get('topic', None)
+        tokens = kwargs.get("tokens", self.DEFAULT_TOKENS)
+        topic = kwargs.get("topic", None)
 
         try:
             # Clean up library ID (just like Context7 does)
