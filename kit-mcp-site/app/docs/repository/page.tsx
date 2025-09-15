@@ -70,7 +70,7 @@ export default function RepositoryPage() {
             <div>
               <h4 className="font-mono-accent text-red-600 font-semibold">get_file_content_multi</h4>
               <p className="text-sm text-muted-foreground mt-1">
-                Read multiple files in a single efficient operation
+                Read multiple files in a single efficient operation (batch reading)
               </p>
               <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm mt-2">
                 <code className="text-white text-xs">
@@ -268,9 +268,9 @@ open_repository(path="https://github.com/org/private-repo")`}</code>
           </Card>
           <Card className="neo-card">
             <CardContent className="p-4">
-              <strong className="text-sm">3. Batch file reads when possible</strong>
+              <strong className="text-sm">3. Use batch operations for efficiency</strong>
               <p className="text-xs text-muted-foreground mt-1">
-                get_file_content_multi is more efficient than multiple single reads
+                get_file_content_multi is much faster than multiple individual get_file_content calls
               </p>
             </CardContent>
           </Card>

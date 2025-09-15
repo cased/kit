@@ -268,20 +268,6 @@ deep_research_package({
                   Monitor usage to control costs, or use Ollama for free local inference.
                 </span>
               </li>
-              <li className="flex items-start gap-2">
-                <span className="text-amber-600">•</span>
-                <span>
-                  <strong>Knowledge Cutoff:</strong> LLMs have training data cutoffs. 
-                  Very recent packages or updates might not be included.
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-amber-600">•</span>
-                <span>
-                  <strong>Verify Critical Information:</strong> While generally accurate, 
-                  always verify critical implementation details with official documentation.
-                </span>
-              </li>
             </ul>
           </CardContent>
         </Card>

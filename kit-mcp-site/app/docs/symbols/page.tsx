@@ -34,23 +34,11 @@ export default function SymbolsPage() {
             <div>
               <h4 className="font-mono-accent text-red-600 font-semibold">extract_symbols</h4>
               <p className="text-sm text-muted-foreground mt-1">
-                Fast symbol extraction with intelligent caching
+                Extract symbols from files or directories with intelligent caching
               </p>
               <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm mt-2">
                 <code className="text-white text-xs">
                   extract_symbols(repo_id="...", file_path="main.py")
-                </code>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-mono-accent text-red-600 font-semibold">extract_symbols</h4>
-              <p className="text-sm text-muted-foreground mt-1">
-                Standard symbol extraction (without caching)
-              </p>
-              <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm mt-2">
-                <code className="text-white text-xs">
-                  extract_symbols(repo_id="...", file_path="src/")
                 </code>
               </div>
             </div>
@@ -293,9 +281,9 @@ find_symbol_usages(
           <Card className="neo-card border-red-500/20">
             <CardContent className="p-4">
               <Zap className="h-4 w-4 text-red-500 mb-2" />
-              <strong className="text-sm">Always use incremental</strong>
+              <strong className="text-sm">Caching is automatic</strong>
               <p className="text-xs text-muted-foreground mt-1">
-                extract_symbols is much faster due to caching
+                extract_symbols automatically uses intelligent caching for speed
               </p>
             </CardContent>
           </Card>
