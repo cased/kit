@@ -672,7 +672,7 @@ Focus on practical, actionable feedback. Be concise but specific.
                 model=self.config.llm_model,
                 contents=enhanced_prompt,
                 config=types.GenerateContentConfig(
-                        max_output_tokens=self.config.llm_max_tokens,
+                    max_output_tokens=self.config.llm_max_tokens,
                 ),
             )
 

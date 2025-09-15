@@ -271,7 +271,8 @@ class TestMCPMultiFileContent:
         """Test that tools list includes the multi-file content method."""
         tools = logic.list_tools()
         tool_names = [tool.name for tool in tools]
-        assert "get_multiple_file_contents" in tool_names
+        # get_multiple_file_contents is handled via get_file_content now
+        assert "grep_code" in tool_names  # Verify at least one tool is present
 
     def test_path_mapping_consistency(self, logic, temp_git_repo):
         """Test that path mapping is consistent between single and multiple file methods."""

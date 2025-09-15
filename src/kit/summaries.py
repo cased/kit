@@ -602,9 +602,7 @@ class Summarizer:
                 # Use Ollama's generate API with combined prompt
                 combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
                 try:
-                    raw_summary = client.generate(
-                        combined_prompt, num_predict=self.config.max_tokens
-                    )
+                    raw_summary = client.generate(combined_prompt, num_predict=self.config.max_tokens)
                     # Strip thinking tokens from reasoning models like DeepSeek R1
                     summary = _strip_thinking_tokens(raw_summary)
                     logger.debug(f"Ollama API response for {file_path}: {len(summary)} characters (after cleaning)")
@@ -769,9 +767,7 @@ class Summarizer:
                 # Use Ollama's generate API with combined prompt
                 combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
                 try:
-                    raw_summary = client.generate(
-                        combined_prompt, num_predict=self.config.max_tokens
-                    )
+                    raw_summary = client.generate(combined_prompt, num_predict=self.config.max_tokens)
                     # Strip thinking tokens from reasoning models like DeepSeek R1
                     summary = _strip_thinking_tokens(raw_summary)
                     logger.debug(
@@ -936,9 +932,7 @@ class Summarizer:
                 # Use Ollama's generate API with combined prompt
                 combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
                 try:
-                    raw_summary = client.generate(
-                        combined_prompt, num_predict=self.config.max_tokens
-                    )
+                    raw_summary = client.generate(combined_prompt, num_predict=self.config.max_tokens)
                     # Strip thinking tokens from reasoning models like DeepSeek R1
                     summary = _strip_thinking_tokens(raw_summary)
                     logger.debug(

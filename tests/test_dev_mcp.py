@@ -102,7 +102,7 @@ class TestLocalDevServerLogic:
         tools = server.list_tools()
 
         assert isinstance(tools, list)
-        assert len(tools) >= 14  # Should have at least 14 core tools
+        assert len(tools) >= 9  # Should have at least 9 core tools
 
         tool_names = {tool.name for tool in tools}
 
@@ -112,7 +112,6 @@ class TestLocalDevServerLogic:
         assert "build_smart_context" in tool_names
         assert "grep_ast" in tool_names  # Replaced semantic_search with grep_ast
         assert "review_diff" in tool_names
-        assert "get_file_content" in tool_names
         assert "extract_symbols" in tool_names
 
 

@@ -490,7 +490,6 @@ llm:
   model: claude-sonnet-4-20250514  # or "gpt-4o"
   api_key: sk-ant-your_key_here
   max_tokens: 4000
-  temperature: 0.1
 
 review:
   max_files: 50
@@ -522,7 +521,6 @@ llm:
   api_key: "your_together_api_key"
   api_base_url: "https://api.together.xyz/v1"
   max_tokens: 4000
-  temperature: 0.1
 ```
 
 **OpenRouter Configuration:**
@@ -533,7 +531,6 @@ llm:
   api_key: "your_openrouter_api_key" 
   api_base_url: "https://openrouter.ai/api/v1"
   max_tokens: 4000
-  temperature: 0.1
 ```
 
 **Groq Configuration:**
@@ -544,7 +541,6 @@ llm:
   api_key: "your_groq_api_key"
   api_base_url: "https://api.groq.com/openai/v1"
   max_tokens: 4000
-  temperature: 0.1
 ```
 
 **Local OpenAI API Server Configuration:**
@@ -555,7 +551,6 @@ llm:
   api_key: "not-used"  # Local servers often don't require API keys
   api_base_url: "http://localhost:8000/v1"
   max_tokens: 4000
-  temperature: 0.1
 ```
 
 ## 🔧 Usage Examples

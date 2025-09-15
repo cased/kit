@@ -417,7 +417,6 @@ class ReviewConfig:
 #   api_base_url: "http://localhost:11434"  # Default Ollama endpoint
 #   api_key: "ollama"  # Placeholder (Ollama doesn't use API keys)
 #   max_tokens: 2000
-#   temperature: 0.1
 
 # Example Google Gemini configuration:
 # llm:
@@ -425,7 +424,6 @@ class ReviewConfig:
 #   model: "gemini-2.5-flash"  # Or "gemini-2.5-pro" for more complex reasoning, "gemini-2.0-flash-lite" for speed
 #   api_key: "AIzaSy..."  # Get from https://aistudio.google.com/apikey
 #   max_tokens: 4000
-#   temperature: 0.1
 
 # Example OpenAI compatible provider configurations:
 #
@@ -436,7 +434,6 @@ class ReviewConfig:
 #   api_key: "your_together_api_key"
 #   api_base_url: "https://api.together.xyz/v1"
 #   max_tokens: 4000
-#   temperature: 0.1
 #
 # OpenRouter (https://openrouter.ai/):
 # llm:
@@ -445,7 +442,6 @@ class ReviewConfig:
 #   api_key: "your_openrouter_api_key"
 #   api_base_url: "https://openrouter.ai/api/v1"
 #   max_tokens: 4000
-#   temperature: 0.1
 #
 # Local OpenAI API server (e.g., text-generation-webui, vLLM):
 # llm:
@@ -454,7 +450,6 @@ class ReviewConfig:
 #   api_key: "not-used"  # Local servers often don't require API keys
 #   api_base_url: "http://localhost:8000/v1"
 #   max_tokens: 4000
-#   temperature: 0.1
 #
 # Groq (https://groq.com/):
 # llm:
@@ -463,7 +458,6 @@ class ReviewConfig:
 #   api_key: "your_groq_api_key"
 #   api_base_url: "https://api.groq.com/openai/v1"
 #   max_tokens: 4000
-#   temperature: 0.1
 """
 
         with open(config_path, "a") as f:
