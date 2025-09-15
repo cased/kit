@@ -32,7 +32,7 @@ def get_tool_schemas() -> List[Dict[str, Any]]:
     try:
         from mcp.types import Tool  # type: ignore
 
-        from kit.mcp.server import KitServerLogic  # type: ignore
+        from kit.mcp.dev_server import KitServerLogic  # type: ignore
     except ImportError as e:  # pragma: no cover – pack not installed
         raise ImportError(
             "`get_tool_schemas()` requires the optional `mcp` package. \n"

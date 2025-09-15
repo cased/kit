@@ -427,5 +427,4 @@ class TestMCPRefParameter:
 
         # Find the grep tool and check its description
         grep_tool = next(tool for tool in tools if tool.name == "grep_code")
-        assert "literal grep search" in grep_tool.description.lower()
-        assert "directory filtering" in grep_tool.description.lower()
+        assert "literal string search" in grep_tool.description.lower()
