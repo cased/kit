@@ -37,20 +37,21 @@ export default function ResearchPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Aggregates real, up-to-date documentation from multiple sources including official docs,
-              examples, and community resources. Powered by Context7 for accurate, current information.
+              Combines real-time documentation from Context7 with LLM synthesis for the most accurate,
+              up-to-date package information. Context7 fetches current docs which are then enhanced
+              by AI for comprehensive coverage.
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <h4 className="font-semibold mb-2">Documentation Sources:</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Context7 real-time docs aggregation</li>
                   <li>• Official package documentation</li>
                   <li>• Latest API references</li>
-                  <li>• Real code examples from repos</li>
-                  <li>• Community tutorials & guides</li>
-                  <li>• Stack Overflow solutions</li>
-                  <li>• GitHub issues & discussions</li>
-                  <li>• Version-specific changes</li>
+                  <li>• Real code examples</li>
+                  <li>• Community resources</li>
+                  <li>• LLM knowledge synthesis</li>
+                  <li>• Version-specific information</li>
                 </ul>
               </div>
               <div>
@@ -58,12 +59,12 @@ export default function ResearchPage() {
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Context7 fetches current docs</li>
                   <li>• Aggregates multiple sources</li>
-                  <li>• LLM synthesizes information</li>
-                  <li>• Returns structured, accurate data</li>
+                  <li>• LLM synthesizes & enhances</li>
+                  <li>• Returns comprehensive data</li>
                 </ul>
                 <div className="mt-3 p-2 bg-blue-50 rounded">
                   <p className="text-xs text-blue-700">
-                    <strong>✨ Key Benefit:</strong> Real docs, not hallucinations
+                    <strong>✨ Key Benefit:</strong> Real docs + AI enhancement
                   </p>
                 </div>
               </div>

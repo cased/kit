@@ -25,7 +25,7 @@ export default function SearchPage() {
         </p>
       </div>
 
-      <Card className="my-8">
+      <Card className="my-8 neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
         <CardHeader>
           <CardTitle>Search Tools</CardTitle>
         </CardHeader>
@@ -72,7 +72,7 @@ export default function SearchPage() {
 
       <div className="my-8">
         <h2 className="text-xl sm:text-2xl font-bold mb-4">Text Search Features</h2>
-        <Card className="border-green-500/20">
+        <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-start mb-4">
               <Zap className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
@@ -104,7 +104,7 @@ export default function SearchPage() {
 
       <div className="my-8">
         <h2 className="text-xl sm:text-2xl font-bold mb-4">AST Pattern Search (grep_ast)</h2>
-        <Card className="border-blue-500/20">
+        <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-start mb-4">
               <Activity className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
@@ -138,7 +138,7 @@ export default function SearchPage() {
           </TabsList>
           
           <TabsContent value="text">
-            <Card className="neo-card">
+            <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <CardContent className="p-4">
                 <h4 className="font-semibold mb-2">Find all TODO comments</h4>
                 <div className="border-2 border-black bg-black rounded-lg p-2 sm:p-4 font-mono text-xs sm:text-sm">
@@ -157,7 +157,7 @@ search_text(
               </CardContent>
             </Card>
             
-            <Card className="mt-4">
+            <Card className="mt-4 neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <CardContent className="p-4">
                 <h4 className="font-semibold mb-2">Find React hooks</h4>
                 <div className="border-2 border-black bg-black rounded-lg p-2 sm:p-4 font-mono text-xs sm:text-sm">
@@ -178,7 +178,7 @@ search_text(
           </TabsContent>
           
           <TabsContent value="grep">
-            <Card className="neo-card">
+            <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <CardContent className="p-4">
                 <h4 className="font-semibold mb-2">Find TODO comments with context</h4>
                 <div className="border-2 border-black bg-black rounded-lg p-2 sm:p-4 font-mono text-xs sm:text-sm">
@@ -200,7 +200,7 @@ grep_code(
           </TabsContent>
           
           <TabsContent value="ast">
-            <Card className="neo-card">
+            <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <CardContent className="p-4">
                 <h4 className="font-semibold mb-2">Find async functions</h4>
                 <div className="border-2 border-black bg-black rounded-lg p-2 sm:p-4 font-mono text-xs sm:text-sm">
@@ -221,7 +221,7 @@ grep_ast(
               </CardContent>
             </Card>
             
-            <Card className="mt-4">
+            <Card className="mt-4 neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <CardContent className="p-4">
                 <h4 className="font-semibold mb-2">Find error handling blocks</h4>
                 <div className="border-2 border-black bg-black rounded-lg p-2 sm:p-4 font-mono text-xs sm:text-sm">
@@ -247,7 +247,7 @@ grep_ast(
       <div className="my-8">
         <h2 className="text-xl sm:text-2xl font-bold mb-4">Performance Tips</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="border-green-500/20">
+          <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <CardContent className="p-4">
               <Code2 className="h-4 w-4 text-red-500 mb-2" />
               <strong className="text-sm">Use file filters</strong>
@@ -256,7 +256,7 @@ grep_ast(
               </p>
             </CardContent>
           </Card>
-          <Card className="border-green-500/20">
+          <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <CardContent className="p-4">
               <Zap className="h-4 w-4 text-red-500 mb-2" />
               <strong className="text-sm">Semantic search is cached</strong>
