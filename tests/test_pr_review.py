@@ -1422,6 +1422,9 @@ def test_helicone_api_integration():
 
     from kit.pr_review.cost_tracker import CostTracker
 
+    # Clear the cache first to ensure test isolation
+    CostTracker._fetch_pricing_with_cache.cache_clear()
+
     # Mock successful API response
     mock_response = MagicMock()
     mock_response.json.return_value = {
@@ -1451,6 +1454,9 @@ def test_helicone_api_integration():
         tracker.track_llm_usage(LLMProvider.OPENAI, "gpt-4o", 1000, 1000)
         expected_cost = (1000 / 1_000_000) * 5.0 + (1000 / 1_000_000) * 15.0
         assert abs(tracker.breakdown.llm_cost_usd - expected_cost) < 0.0001
+
+    # Clear cache again to avoid affecting other tests
+    CostTracker._fetch_pricing_with_cache.cache_clear()
 
 
 def test_helicone_api_fallback():
