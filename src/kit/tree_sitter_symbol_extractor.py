@@ -464,11 +464,11 @@ class TreeSitterSymbolExtractor:
                     if ext == ".tf" and symbol_type in ["resource", "data"]:
                         type_node = captures.get("type")
                         if type_node:
-                            if isinstance(type_node, list):
-                                type_node = type_node[0] if len(type_node) > 0 else None
-                            if type_node and hasattr(type_node, "text") and type_node.text:
-                                type_name = type_node.text.decode()
-                                if hasattr(type_node, "type") and type_node.type == "string_lit":
+                            # Extract the actual node from list if needed
+                            actual_type_node = type_node[0] if isinstance(type_node, list) and len(type_node) > 0 else type_node
+                            if actual_type_node and hasattr(actual_type_node, "text") and actual_type_node.text:
+                                type_name = actual_type_node.text.decode()
+                                if hasattr(actual_type_node, "type") and actual_type_node.type == "string_lit":
                                     if len(type_name) >= 2 and type_name.startswith('"') and type_name.endswith('"'):
                                         type_name = type_name[1:-1]
                                 symbol_name = f"{type_name}.{symbol_name}"
