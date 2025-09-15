@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 from tree_sitter import Node
 from tree_sitter_language_pack import get_parser
@@ -159,7 +159,7 @@ class ASTSearcher:
         # Get or create parser
         if language_name not in self._parsers:
             try:
-                self._parsers[language_name] = get_parser(language_name)
+                self._parsers[language_name] = get_parser(cast(Any, language_name))
             except Exception:
                 return []
 
