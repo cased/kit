@@ -467,20 +467,7 @@ class KitServerLogic:
                 inputSchema=OpenRepoParams.model_json_schema(),
             ),
             Tool(
-                name="search_code", description="Search for code patterns", inputSchema=SearchParams.model_json_schema()
-            ),
-            Tool(
                 name="grep_code", description="Fast literal string search", inputSchema=GrepParams.model_json_schema()
-            ),
-            Tool(
-                name="get_file_content",
-                description="Read file contents",
-                inputSchema=GetFileContentParams.model_json_schema(),
-            ),
-            Tool(
-                name="get_multiple_file_contents",
-                description="Read multiple files efficiently",
-                inputSchema=GetMultipleFileContentsParams.model_json_schema(),
             ),
             Tool(
                 name="get_file_tree",
@@ -496,16 +483,6 @@ class KitServerLogic:
                 name="find_symbol_usages",
                 description="Find where symbols are used",
                 inputSchema=FindSymbolUsagesParams.model_json_schema(),
-            ),
-            Tool(
-                name="get_code_summary",
-                description="Get AI-powered code summary",
-                inputSchema=GetCodeSummaryParams.model_json_schema(),
-            ),
-            Tool(
-                name="get_git_info",
-                description="Get git repository info",
-                inputSchema=GitInfoParams.model_json_schema(),
             ),
             Tool(
                 name="review_diff",

@@ -76,15 +76,10 @@ export default function Home() {
     { name: "open_repository", description: "Open local and remote repositories" },
     { name: "get_file_tree", description: "Structured file navigation" },
     { name: "extract_symbols", description: "Fast symbol extraction with caching" },
-    { name: "search_code", description: "Powerful regex search across codebase" },
     { name: "grep_code", description: "Fast literal search with smart filtering" },
-    { name: "get_file_content", description: "Read single or multiple files" },
-    { name: "get_multiple_file_contents", description: "Bulk file operations" },
-    { name: "find_symbol_usages", description: "Track symbol usage everywhere" },
-    { name: "get_code_summary", description: "AI-powered code summaries" },
-    { name: "get_git_info", description: "Git repository metadata" },
-    { name: "review_diff", description: "AI-powered git diff review" },
     { name: "grep_ast", description: "AST-based pattern matching with tree-sitter" },
+    { name: "find_symbol_usages", description: "Track symbol usage everywhere" },
+    { name: "review_diff", description: "AI-powered git diff review" },
     { name: "deep_research_package", description: "Comprehensive package documentation using LLM" },
     { name: "build_smart_context", description: "Task-aware context building" }
   ];

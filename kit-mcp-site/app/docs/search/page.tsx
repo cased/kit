@@ -19,9 +19,8 @@ export default function SearchPage() {
       <div className="my-8">
         <h2 className="text-xl sm:text-2xl font-bold mb-4">Overview</h2>
         <p className="text-sm sm:text-base text-muted-foreground mb-6">
-          kit-dev-mcp provides three powerful search capabilities: fast regex-based text search 
-          for finding exact patterns, grep for literal string matching, and AST-based pattern matching
-          for finding code by structure.
+          kit-dev-mcp provides two powerful search capabilities: fast literal string search with grep,
+          and AST-based pattern matching for finding code by structure using tree-sitter.
         </p>
       </div>
 
@@ -31,18 +30,6 @@ export default function SearchPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div>
-              <h4 className="font-mono text-red-600 font-semibold">search_text</h4>
-              <p className="text-sm text-muted-foreground mt-1">
-                Fast regex-based search across your entire codebase
-              </p>
-              <div className="border-2 border-black bg-black rounded-lg p-2 sm:p-4 font-mono text-xs sm:text-sm mt-2">
-                <code className="text-white">
-                  search_text(repo_id="...", pattern="TODO|FIXME", file_filter="*.py")
-                </code>
-              </div>
-            </div>
-            
             <div>
               <h4 className="font-mono text-red-600 font-semibold">grep_code</h4>
               <p className="text-sm text-muted-foreground mt-1">
@@ -130,53 +117,12 @@ export default function SearchPage() {
 
       <div className="my-8">
         <h2 className="text-xl sm:text-2xl font-bold mb-4">Usage Examples</h2>
-        <Tabs defaultValue="text" className="w-full">
-          <TabsList className="grid grid-cols-3 w-full">
-            <TabsTrigger value="text" className="text-xs sm:text-sm">Text Search</TabsTrigger>
-            <TabsTrigger value="grep" className="text-xs sm:text-sm">Grep</TabsTrigger>
+        <Tabs defaultValue="grep" className="w-full">
+          <TabsList className="grid grid-cols-2 w-full">
+            <TabsTrigger value="grep" className="text-xs sm:text-sm">Grep Search</TabsTrigger>
             <TabsTrigger value="ast" className="text-xs sm:text-sm">AST Search</TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="text">
-            <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <CardContent className="p-4">
-                <h4 className="font-semibold mb-2">Find all TODO comments</h4>
-                <div className="border-2 border-black bg-black rounded-lg p-2 sm:p-4 font-mono text-xs sm:text-sm">
-                  <pre className="text-white">
-                    <code>{`# Ask your AI:
-"Using Kit, find all TODO and FIXME comments"
 
-# AI executes:
-search_text(
-  repo_id="...",
-  pattern="TODO|FIXME|HACK|XXX",
-  file_filter="*"
-)`}</code>
-                  </pre>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="mt-4 neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <CardContent className="p-4">
-                <h4 className="font-semibold mb-2">Find React hooks</h4>
-                <div className="border-2 border-black bg-black rounded-lg p-2 sm:p-4 font-mono text-xs sm:text-sm">
-                  <pre className="text-white">
-                    <code>{`# Ask your AI:
-"Find all React hooks in the codebase"
-
-# AI executes:
-search_text(
-  repo_id="...",
-  pattern="use[A-Z]\\w+",
-  file_filter="*.tsx,*.jsx"
-)`}</code>
-                  </pre>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
           <TabsContent value="grep">
             <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <CardContent className="p-4">

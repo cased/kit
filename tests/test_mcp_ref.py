@@ -194,14 +194,14 @@ class TestMCPRefParameter:
         result = logic.find_symbol_usages(repo_id, "hello")
         assert isinstance(result, list)
 
-    def test_tools_list_includes_git_info(self):
-        """Test that tools list includes get_git_info tool."""
+    def test_tools_list_includes_review_diff(self):
+        """Test that tools list includes review_diff tool."""
         logic = KitServerLogic()
 
         tools = logic.list_tools()
         tool_names = [tool.name for tool in tools]
 
-        assert "get_git_info" in tool_names
+        assert "review_diff" in tool_names
 
     def test_open_repository_params_includes_ref(self):
         """Test that OpenRepoParams includes ref parameter."""

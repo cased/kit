@@ -68,26 +68,6 @@ const tools = [
         example: `get_file_tree({
   "repo_id": "repo_123"
 })`
-      },
-      {
-        name: "get_file_content",
-        description: "Read a single file from the repository",
-        parameters: ["repo_id", "file_path"],
-        naturalLanguage: "Using Kit, read the main.py file",
-        example: `get_file_content({
-  "repo_id": "repo_123",
-  "file_path": "src/main.py"
-})`
-      },
-      {
-        name: "get_multiple_file_contents",
-        description: "Read multiple files in a single efficient operation",
-        parameters: ["repo_id", "file_paths"],
-        naturalLanguage: "Using Kit, read main.py, utils.py, and config.py",
-        example: `get_multiple_file_contents({
-  "repo_id": "repo_123",
-  "file_paths": ["main.py", "utils.py", "config.py"]
-})`
       }
     ]
   },
@@ -116,17 +96,6 @@ const tools = [
   "symbol_name": "Database",
   "file_path": "src/"  // optional: narrow search
 })`
-      },
-      {
-        name: "get_code_summary",
-        description: "Get an AI-generated summary of code",
-        parameters: ["repo_id", "file_path", "symbol_name"],
-        naturalLanguage: "Using Kit, summarize the authentication module",
-        example: `get_code_summary({
-  "repo_id": "repo_123",
-  "file_path": "src/auth.py",
-  "symbol_name": "authenticate"  // optional
-})`
       }
     ]
   },
@@ -134,17 +103,6 @@ const tools = [
     category: "Code Search",
     icon: <Search className="h-5 w-5" />,
     tools: [
-      {
-        name: "search_code",
-        description: "Search for text patterns across the codebase",
-        parameters: ["repo_id", "query", "pattern"],
-        naturalLanguage: "Using Kit, search for all TODO comments in Python files",
-        example: `search_code({
-  "repo_id": "repo_123",
-  "query": "TODO",
-  "pattern": "*.py"  // optional file pattern
-})`
-      },
       {
         name: "grep_code",
         description: "Advanced regex search with context lines",
@@ -176,15 +134,6 @@ const tools = [
     category: "Git Information",
     icon: <GitBranch className="h-5 w-5" />,
     tools: [
-      {
-        name: "get_git_info",
-        description: "Get Git metadata about the repository",
-        parameters: ["repo_id"],
-        naturalLanguage: "Using Kit, show me the git info for this repository",
-        example: `get_git_info({
-  "repo_id": "repo_123"
-})`
-      },
       {
         name: "review_diff",
         description: "Review code changes with AI-powered analysis",
