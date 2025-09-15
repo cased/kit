@@ -38,6 +38,7 @@ from ..doc_providers import DocumentationService, UpstashProvider
 from ..pr_review.config import ReviewConfig
 from ..pr_review.local_reviewer import LocalDiffReviewer
 from ..repository import Repository
+from ..summaries import AnthropicConfig, OpenAIConfig
 
 logger = logging.getLogger("kit-dev-mcp")
 
@@ -539,8 +540,9 @@ class LocalDevServerLogic(KitServerLogic):
     def deep_research_package(self, package_name: str, query: Optional[str] = None) -> Dict[str, Any]:
         """Deep research on a package - combines real docs + optional LLM synthesis."""
         import os
+
         from ..deep_research import DeepResearch
-        from ..summaries import AnthropicConfig, LLMError, OpenAIConfig
+        from ..summaries import AnthropicConfig, OpenAIConfig
 
         # Initialize documentation service (using our abstracted provider)
         doc_service = DocumentationService(UpstashProvider())
@@ -548,7 +550,7 @@ class LocalDevServerLogic(KitServerLogic):
         # Try different strategies to get documentation
         library_id = package_name
         doc_result = None
-        search_results = {"results": []}
+        search_results: Dict[str, Any] = {"results": []}
 
         # Strategy 0: If it already looks like a library ID (contains / or starts with /), try it directly
         if "/" in package_name or package_name.startswith("/"):
@@ -592,7 +594,7 @@ class LocalDevServerLogic(KitServerLogic):
         # If we got good docs and user has a specific query, optionally enhance with LLM
         if has_real_docs and query and (os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")):
             # Use LLM to synthesize an answer based on the real docs
-            config = None
+            config: Union[OpenAIConfig, AnthropicConfig, None] = None
             if os.environ.get("OPENAI_API_KEY"):
                 config = OpenAIConfig(model="gpt-4o", max_tokens=2000)
             elif os.environ.get("ANTHROPIC_API_KEY"):
@@ -625,7 +627,7 @@ Answer this specific question: {query}"""
                         "provider": doc_result.get("provider"),
                         "version": KIT_VERSION,
                     }
-                except Exception as e:
+                except Exception:
                     # If LLM fails, still return the real docs
                     pass
 

@@ -1,13 +1,11 @@
 """Abstract documentation provider system for fetching real-time package documentation."""
 
 import hashlib
-import json
 import logging
 import os
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from urllib.parse import quote
+from typing import Any, Dict, Optional
 
 import httpx
 
@@ -23,7 +21,7 @@ class DocumentationProvider(ABC):
         pass
 
     @abstractmethod
-    def fetch(self, package_id: str, **kwargs) -> Optional[str]:
+    def fetch(self, package_id: str, **kwargs: Any) -> Optional[str]:
         """Fetch documentation for a specific package."""
         pass
 
@@ -107,8 +105,11 @@ class UpstashProvider(DocumentationProvider):
                 "status": "error"
             }
 
-    def fetch(self, package_id: str, tokens: int = DEFAULT_TOKENS, topic: Optional[str] = None) -> Optional[str]:
+    def fetch(self, package_id: str, **kwargs: Any) -> Optional[str]:
         """Fetch documentation for a specific package."""
+        tokens = kwargs.get('tokens', self.DEFAULT_TOKENS)
+        topic = kwargs.get('topic', None)
+
         try:
             # Clean up library ID (just like Context7 does)
             if package_id.startswith("/"):
@@ -159,7 +160,7 @@ class UpstashProvider(DocumentationProvider):
             return {"snippets": [], "overview": "No documentation available"}
 
         snippets = []
-        current_snippet = {}
+        current_snippet: Dict[str, Any] = {}
         lines = text.split("\n")
 
         for line in lines:
@@ -176,7 +177,8 @@ class UpstashProvider(DocumentationProvider):
             elif line.startswith("CODE:"):
                 current_snippet["code"] = []
             elif "code" in current_snippet and line and not line.startswith("==="):
-                current_snippet["code"].append(line)
+                if isinstance(current_snippet["code"], list):
+                    current_snippet["code"].append(line)
 
         # Add last snippet
         if current_snippet:
@@ -184,7 +186,7 @@ class UpstashProvider(DocumentationProvider):
 
         # Join code lines
         for snippet in snippets:
-            if "code" in snippet:
+            if "code" in snippet and isinstance(snippet["code"], list):
                 snippet["code"] = "\n".join(snippet["code"]).strip()
 
         return {
