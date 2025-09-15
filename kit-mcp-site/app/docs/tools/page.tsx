@@ -174,9 +174,26 @@ export default function ToolsPage() {
       {/* Header */}
       <div className="not-prose mb-8">
         <h1 className="text-4xl font-bold mb-4">Available Tools</h1>
-        <p className="text-xl text-muted-foreground mb-8">
+        <p className="text-xl text-muted-foreground mb-4">
           Explore all the powerful tools available to your AI assistant
         </p>
+
+        {/* Philosophy Note */}
+        <Card className="mt-6 border-2 border-blue-500 bg-blue-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Code2 className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-blue-900">Focused Toolset Philosophy</h3>
+                <p className="text-sm text-blue-800 mt-1">
+                  We maintain a deliberately tight set of tools, focusing on kit's unique strengths rather than
+                  duplicating what AI assistants already do well. We enhance existing tools with new features
+                  instead of adding redundant ones. This keeps context clean and responses fast.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Search and Filter */}
