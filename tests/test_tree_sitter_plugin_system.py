@@ -67,10 +67,11 @@ class TestBackwardCompatibility:
         assert ".rb" in supported["ruby"]
         assert ".java" in supported["java"]
 
+    @patch("kit.tree_sitter_symbol_extractor.tree_sitter.Query")
     @patch("kit.tree_sitter_symbol_extractor.get_parser")
     @patch("kit.tree_sitter_symbol_extractor.get_language")
     @patch("kit.tree_sitter_symbol_extractor.files")
-    def test_backward_compatible_query_loading(self, mock_files, mock_get_language, mock_get_parser):
+    def test_backward_compatible_query_loading(self, mock_files, mock_get_language, mock_get_parser, mock_Query):
         """Test that existing tags.scm loading still works."""
         # Mock file system
         mock_package = MagicMock()
@@ -82,14 +83,14 @@ class TestBackwardCompatibility:
         # Mock language and parser
         mock_language = MagicMock()
         mock_query = MagicMock()
-        mock_language.query.return_value = mock_query
+        mock_Query.return_value = mock_query
         mock_get_language.return_value = mock_language
 
         # Test query loading
         query = TreeSitterSymbolExtractor.get_query(".py")
 
         assert query == mock_query
-        mock_language.query.assert_called_once()
+        mock_Query.assert_called_once_with(mock_language, "(function_definition) @definition.function")
         mock_files.assert_called_with("kit.queries")
 
 
@@ -385,15 +386,16 @@ class TestQueryCompilation:
         """Clean up after each test."""
         TreeSitterSymbolExtractor.reset_plugins()
 
+    @patch("kit.tree_sitter_symbol_extractor.tree_sitter.Query")
     @patch("kit.tree_sitter_symbol_extractor.get_language")
     @patch("kit.tree_sitter_symbol_extractor.TreeSitterSymbolExtractor._load_query_files")
-    def test_query_compilation_success(self, mock_load_files, mock_get_language):
+    def test_query_compilation_success(self, mock_load_files, mock_get_language, mock_Query):
         """Test successful query compilation."""
         mock_load_files.return_value = "(function_definition) @definition.function"
 
         mock_language = MagicMock()
         mock_query = MagicMock()
-        mock_language.query.return_value = mock_query
+        mock_Query.return_value = mock_query
         mock_get_language.return_value = mock_language
 
         query = TreeSitterSymbolExtractor.get_query(".py")
@@ -401,14 +403,15 @@ class TestQueryCompilation:
         assert query == mock_query
         assert ".py" in TreeSitterSymbolExtractor._queries  # Should be cached
 
+    @patch("kit.tree_sitter_symbol_extractor.tree_sitter.Query")
     @patch("kit.tree_sitter_symbol_extractor.get_language")
     @patch("kit.tree_sitter_symbol_extractor.TreeSitterSymbolExtractor._load_query_files")
-    def test_query_compilation_failure(self, mock_load_files, mock_get_language):
+    def test_query_compilation_failure(self, mock_load_files, mock_get_language, mock_Query):
         """Test query compilation failure handling."""
         mock_load_files.return_value = "invalid query syntax"
 
         mock_language = MagicMock()
-        mock_language.query.side_effect = Exception("Query compilation failed")
+        mock_Query.side_effect = Exception("Query compilation failed")
         mock_get_language.return_value = mock_language
 
         query = TreeSitterSymbolExtractor.get_query(".py")
