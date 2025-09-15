@@ -2,7 +2,6 @@ import pytest
 
 from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
 
-
 HS_SAMPLE = r"""
 module A.B where
 
