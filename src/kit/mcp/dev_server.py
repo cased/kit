@@ -784,6 +784,7 @@ async def serve():
                 "get_code_summary",
                 "get_git_info",
                 "review_diff",
+                "grep_ast",
             ]:
                 # Route to parent class method
                 if name == "open_repository":
