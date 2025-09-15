@@ -21,14 +21,30 @@ To use with Claude Desktop, add to your config:
 }
 """
 
+import argparse
 import asyncio
 import sys
 
+from .. import __version__
 from .dev_server import serve
 
 
 def main():
     """Main entry point for the kit-dev-mcp server."""
+    parser = argparse.ArgumentParser(
+        prog="kit-dev-mcp",
+        description="Enhanced MCP server for AI-powered development with Kit",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"kit-dev-mcp {__version__}",
+    )
+
+    # Parse arguments (this handles --version automatically)
+    parser.parse_args()
+
+    # If we get here, start the server
     try:
         asyncio.run(serve())
     except KeyboardInterrupt:

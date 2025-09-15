@@ -206,7 +206,7 @@ export default function Home() {
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold">Agentic DevOps from Cased</h2>
             <p className="mt-3 text-lg text-muted-foreground">
-              kit-dev for MCP is just the beginning. Cased provides AI agents that do DevOps for you, so you can focus on your product.
+              kit is open source from <Link href="https://cased.com" className="text-blue-500 hover:text-blue-600">Cased</Link>. Cased provides AI agents that do DevOps for you, so you can focus on your product.
             </p>
           </div>
           
