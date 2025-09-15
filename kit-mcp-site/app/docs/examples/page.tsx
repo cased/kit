@@ -79,9 +79,6 @@ export default function ExamplesPage() {
                   <div className="bg-slate-100 rounded-lg p-3">
                     <code className="text-sm">extract_symbols(repo_id="...", file_path="backend/main.py")</code>
                   </div>
-                  <div className="bg-slate-100 rounded-lg p-3">
-                    <code className="text-sm">build_smart_context(repo_id="...", task="understand application architecture")</code>
-                  </div>
                 </div>
               </TabsContent>
             </Tabs>
@@ -147,9 +144,6 @@ export default function ExamplesPage() {
                   </div>
                   <div className="bg-slate-100 rounded-lg p-3">
                     <code className="text-sm">find_symbol_usages(repo_id="...", symbol_name="authenticate")</code>
-                  </div>
-                  <div className="bg-slate-100 rounded-lg p-3">
-                    <code className="text-sm">build_smart_context(repo_id="...", task="implement OAuth2 authentication")</code>
                   </div>
                   <div className="bg-slate-100 rounded-lg p-3">
                     <code className="text-sm">search_code(repo_id="...", query="login")</code>

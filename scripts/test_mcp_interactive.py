@@ -76,44 +76,6 @@ def test_ast_patterns():
     return True
 
 
-def test_smart_context():
-    """Test smart context building for various tasks."""
-    print("\n🧠 Testing Smart Context Building...")
-
-    server = LocalDevServerLogic()
-    repo_id = server.open_repository(str(Path.cwd()))
-
-    tasks = [
-        "Add authentication to the MCP server",
-        "Implement caching for file operations",
-        "Add rate limiting to API endpoints",
-        "Create unit tests for AST search",
-    ]
-
-    for task in tasks:
-        print(f"\n  Task: {task[:50]}...")
-
-        context = server.build_smart_context(
-            repo_id=repo_id,
-            task_description=task,
-            include_tests=True,
-            include_docs=True,
-            include_dependencies=True,
-            max_files=10,
-        )
-
-        print(f"    ✓ Found {len(context['relevant_files'])} relevant files")
-        print(f"    ✓ Found {len(context['symbols'])} symbols")
-        print(f"    ✓ Found {len(context['tests'])} test files")
-        print(f"    ✓ Found {len(context['dependencies'])} dependencies")
-
-        # Show some relevant files
-        for file in context["relevant_files"][:3]:
-            print(f"      - {file['path']} ({file['size']} bytes)")
-
-    return True
-
-
 def test_code_search():
     """Test various code search capabilities."""
     print("\n🔎 Testing Code Search...")
@@ -158,7 +120,6 @@ async def main():
         # Run synchronous tests
         test_code_search()
         test_ast_patterns()
-        test_smart_context()
         test_deep_research()
 
         print("\n" + "=" * 60)

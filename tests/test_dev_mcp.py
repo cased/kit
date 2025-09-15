@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from kit.mcp.dev_server import (
-    BuildContextParams,
     DeepResearchParams,
     LocalDevServerLogic,
 )
@@ -75,47 +74,18 @@ class TestLocalDevServerLogic:
             # If not found, should have guidance
             assert "available_libraries" in result or "documentation" in result
 
-    def test_build_smart_context(self, server):
-        """Test building smart context."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            git_dir = Path(tmpdir) / ".git"
-            git_dir.mkdir()
-
-            # Create some test files
-            (Path(tmpdir) / "auth.py").write_text("def authenticate(): pass")
-            (Path(tmpdir) / "test_auth.py").write_text("def test_auth(): pass")
-            (Path(tmpdir) / "requirements.txt").write_text("fastapi==0.1.0\n")
-
-            repo_id = server.open_repository(tmpdir)
-
-            context = server.build_smart_context(
-                repo_id,
-                task_description="add authentication",
-                include_tests=True,
-                include_docs=False,
-                include_dependencies=True,
-                max_files=10,
-            )
-
-            assert context["task"] == "add authentication"
-            assert context["repository"]["path"] == tmpdir
-            assert isinstance(context["relevant_files"], list)
-            assert isinstance(context["tests"], list)
-            assert isinstance(context["dependencies"], list)
-
     def test_list_tools(self, server):
         """Test listing available tools."""
         tools = server.list_tools()
 
         assert isinstance(tools, list)
-        assert len(tools) >= 9  # Should have at least 9 core tools
+        assert len(tools) >= 8  # Should have at least 8 core tools
 
         tool_names = {tool.name for tool in tools}
 
         # Check for our key tools that actually exist
         assert "open_repository" in tool_names
         assert "deep_research_package" in tool_names
-        assert "build_smart_context" in tool_names
         assert "grep_ast" in tool_names  # Replaced semantic_search with grep_ast
         assert "review_diff" in tool_names
         assert "extract_symbols" in tool_names
@@ -139,13 +109,3 @@ class TestMCPServerIntegration:
         # Test instantiation of parameter models
         params = DeepResearchParams(package_name="fastapi")
         assert params.package_name == "fastapi"
-
-        params = BuildContextParams(
-            repo_id="test",
-            task_description="Add auth",
-            include_tests=True,
-            include_docs=True,
-            include_dependencies=True,
-            max_files=20,
-        )
-        assert params.task_description == "Add auth"

@@ -499,17 +499,6 @@ class KitServerLogic:
         ]
 
 
-class BuildContextParams(BaseModel):
-    """Build comprehensive context for a development task."""
-
-    repo_id: str
-    task_description: str
-    include_tests: bool = True
-    include_docs: bool = True
-    include_dependencies: bool = True
-    max_files: int = 20
-
-
 class DeepResearchParams(BaseModel):
     """Deep research documentation for a package."""
 
@@ -604,10 +593,12 @@ class LocalDevServerLogic(KitServerLogic):
                 try:
                     researcher = DeepResearch(config)
                     doc_snippets = doc_result.get("documentation", {}).get("snippets", [])[:5]
-                    context = "\n\n".join([
-                        f"{s.get('title', 'Example')}: {s.get('description', '')}\n{s.get('code', '')[:500]}"
-                        for s in doc_snippets
-                    ])
+                    context = "\n\n".join(
+                        [
+                            f"{s.get('title', 'Example')}: {s.get('description', '')}\n{s.get('code', '')[:500]}"
+                            for s in doc_snippets
+                        ]
+                    )
 
                     research_query = f"""Based on this official documentation for {package_name}:
 
@@ -663,98 +654,14 @@ Answer this specific question: {query}"""
 
         return response
 
-
-    def build_smart_context(
-        self,
-        repo_id: str,
-        task_description: str,
-        include_tests: bool,
-        include_docs: bool,
-        include_dependencies: bool,
-        max_files: int,
-    ) -> Dict[str, Any]:
-        """Build comprehensive context for a development task."""
-        repo = self.get_repo(repo_id)
-
-        context: Dict[str, Any] = {
-            "task": task_description,
-            "repository": {"path": repo.repo_path, "branch": repo.current_branch, "sha": repo.current_sha},
-            "relevant_files": [],
-            "symbols": [],
-            "tests": [],
-            "documentation": [],
-            "dependencies": [],
-        }
-
-        keywords = task_description.lower().split()
-
-        for file_info in repo.get_file_tree()[:max_files]:
-            if file_info.get("is_dir"):
-                continue
-
-            file_path = file_info["path"]
-
-            # Check if file might be relevant
-            if any(keyword in file_path.lower() for keyword in keywords):
-                context["relevant_files"].append({"path": file_path, "size": file_info.get("size", 0)})
-
-                # Extract symbols from relevant files
-                try:
-                    symbols = repo.extract_symbols(file_path)
-                    context["symbols"].extend(
-                        [
-                            {"file": file_path, "name": s["name"], "type": s["type"]}
-                            for s in symbols[:5]  # Limit symbols per file
-                        ]
-                    )
-                except Exception:
-                    pass
-
-        # Find tests if requested
-        if include_tests:
-            test_patterns = ["test_*.py", "*_test.py", "*.test.js", "*.spec.js"]
-            for file_info in repo.get_file_tree():
-                if any(file_info["path"].endswith(pattern.replace("*", "")) for pattern in test_patterns):
-                    context["tests"].append(file_info["path"])
-
-        # Get dependencies if requested
-        if include_dependencies:
-            requirements_file = Path(repo.repo_path) / "requirements.txt"
-            if requirements_file.exists():
-                try:
-                    deps = []
-                    with open(requirements_file, "r") as f:
-                        for line in f:
-                            line = line.strip()
-                            if line and not line.startswith("#"):
-                                # Simple parsing of requirement lines
-                                if "==" in line:
-                                    name, version = line.split("==")
-                                    deps.append({"name": name.strip(), "version": version.strip()})
-                                elif ">=" in line:
-                                    name = line.split(">=")[0]
-                                    deps.append({"name": name.strip(), "version": "latest"})
-                                else:
-                                    deps.append({"name": line, "version": "any"})
-                    context["dependencies"] = deps[:10]
-                except Exception as e:
-                    logger.warning(f"Failed to parse requirements.txt: {e}")
-                    context["dependencies"] = []
-            else:
-                context["dependencies"] = []
-
-        # Cache context
-        cache_key = f"{repo_id}:{task_description[:50]}"
-        self._context_cache[cache_key] = context
-
-        return context
-
     def _internal_resolve_library_id(self, query: str) -> Dict[str, Any]:
         """INTERNAL: Resolve library ID - not exposed as a tool."""
         doc_service = DocumentationService(UpstashProvider())
         return doc_service.search_packages(query)
 
-    def _internal_fetch_library_docs(self, library_id: str, tokens: int = 5000, topic: Optional[str] = None) -> Dict[str, Any]:
+    def _internal_fetch_library_docs(
+        self, library_id: str, tokens: int = 5000, topic: Optional[str] = None
+    ) -> Dict[str, Any]:
         """INTERNAL: Fetch docs directly - not exposed as a tool."""
         doc_service = DocumentationService(UpstashProvider())
         return doc_service.get_documentation(library_id, tokens=tokens, topic=topic)
@@ -771,12 +678,6 @@ Answer this specific question: {query}"""
                 name="deep_research_package",
                 description="Get real-time documentation for any package/library with optional Q&A",
                 inputSchema=DeepResearchParams.model_json_schema(),
-            ),
-            # Smart context building
-            Tool(
-                name="build_smart_context",
-                description="Build comprehensive context for a development task",
-                inputSchema=BuildContextParams.model_json_schema(),
             ),
         ]
 
@@ -806,18 +707,6 @@ async def serve():
             if name == "deep_research_package":
                 research_params = DeepResearchParams(**arguments)
                 result = logic.deep_research_package(research_params.package_name, research_params.query)
-                return [TextContent(type="text", text=json.dumps(result, indent=2))]
-
-            elif name == "build_smart_context":
-                build_params = BuildContextParams(**arguments)
-                result = logic.build_smart_context(
-                    build_params.repo_id,
-                    build_params.task_description,
-                    build_params.include_tests,
-                    build_params.include_docs,
-                    build_params.include_dependencies,
-                    build_params.max_files,
-                )
                 return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
             # For all other tools, delegate to parent class handling
