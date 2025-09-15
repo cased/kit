@@ -63,11 +63,17 @@ class TestLocalDevServerLogic:
         result = server.deep_research_package("fastapi", query="What are the main features?")
 
         assert result["package"] == "fastapi"
-        assert "model" in result
-        assert "execution_time" in result
-        assert "documentation" in result
-        # Documentation can be either a string (from LLM) or dict (from Context7)
-        assert isinstance(result["documentation"], (str, dict))
+        assert "status" in result
+        assert "source" in result
+        assert "provider" in result
+        assert "version" in result
+        # Documentation is now a dict from Context7 or None if not found
+        if result["status"] == "success":
+            assert "documentation" in result
+            assert isinstance(result["documentation"], dict)
+        else:
+            # If not found, should have guidance
+            assert "available_libraries" in result or "documentation" in result
 
     def test_build_smart_context(self, server):
         """Test building smart context."""

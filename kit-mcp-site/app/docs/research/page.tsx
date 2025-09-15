@@ -37,9 +37,8 @@ export default function ResearchPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Combines real-time documentation from Context7 with LLM synthesis for the most accurate,
-              up-to-date package information. Context7 fetches current docs which are then enhanced
-              by AI for comprehensive coverage.
+              Fetches real-time documentation from Context7's aggregated sources. When you provide a
+              specific query, the documentation is enhanced with LLM synthesis for comprehensive answers.
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -49,22 +48,21 @@ export default function ResearchPage() {
                   <li>• Official package documentation</li>
                   <li>• Latest API references</li>
                   <li>• Real code examples</li>
-                  <li>• Community resources</li>
-                  <li>• LLM knowledge synthesis</li>
-                  <li>• Version-specific information</li>
+                  <li>• LLM synthesis (when query provided)</li>
+                  <li className="text-xs text-muted-foreground/70 italic">• More sources coming soon</li>
                 </ul>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">How It Works:</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Context7 fetches current docs</li>
-                  <li>• Aggregates multiple sources</li>
-                  <li>• LLM synthesizes & enhances</li>
-                  <li>• Returns comprehensive data</li>
+                  <li>• Searches Context7's index</li>
+                  <li>• Fetches real documentation</li>
+                  <li>• Returns code examples & docs</li>
+                  <li>• Optionally enhances with LLM</li>
                 </ul>
                 <div className="mt-3 p-2 bg-blue-50 rounded">
                   <p className="text-xs text-blue-700">
-                    <strong>✨ Key Benefit:</strong> Real docs + AI enhancement
+                    <strong>✨ Key Benefit:</strong> Real-time docs, always current
                   </p>
                 </div>
               </div>
