@@ -50,7 +50,7 @@ export default function QuickstartPage() {
               <CardContent className="p-4">
                 <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm">
                   <pre className="text-white">
-                    <code>pip install cased-kit</code>
+                    <code>pip install "cased-kit>=2.0.0"</code>
                   </pre>
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
@@ -65,7 +65,7 @@ export default function QuickstartPage() {
               <CardContent className="p-4">
                 <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm">
                   <pre className="text-white">
-                    <code>uv tool install cased-kit</code>
+                    <code>uv tool install "cased-kit>=2.0.0"</code>
                   </pre>
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
@@ -80,7 +80,7 @@ export default function QuickstartPage() {
               <CardContent className="p-4">
                 <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm">
                   <pre className="text-white">
-                    <code>pipx install cased-kit</code>
+                    <code>pipx install "cased-kit>=2.0.0"</code>
                   </pre>
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">

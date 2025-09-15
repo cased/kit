@@ -140,7 +140,7 @@ export default function Home() {
             <div className="border border-gray-600 bg-black p-3 font-mono text-sm rounded-lg">
               <div className="flex items-center justify-between">
                 <code className="text-white text-xs sm:text-sm font-bold">
-                  uvx --from cased-kit kit-dev-mcp
+                  uvx --from "cased-kit>=2.0.0" kit-dev-mcp
                 </code>
                 <Link 
                   href="/docs"
