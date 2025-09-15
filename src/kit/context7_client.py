@@ -53,13 +53,30 @@ class Context7Client:
             raise ValueError(f"Topic too long: {topic[:50]}...")
 
         try:
-            # First, try to fetch from Context7's public endpoint
-            url = f"{self.base_url}/{package_name}"
-            if topic:
-                # Validate topic similarly
-                if not re.match(r"^[a-zA-Z0-9._/-]+$", topic):
-                    raise ValueError(f"Invalid topic format: {topic}")
-                url = f"{url}/{topic}"
+            # Map common packages to their Context7 paths
+            package_mapping = {
+                "nextjs": "vercel/next.js",
+                "next.js": "vercel/next.js",
+                "next": "vercel/next.js",
+                "fastapi": "fastapi",
+                "django": "django/django",
+                "flask": "pallets/flask",
+                "react": "facebook/react",
+                "vue": "vuejs/core",
+                "svelte": "sveltejs/svelte",
+                "express": "expressjs/express",
+                "numpy": "numpy/numpy",
+                "pandas": "pandas-dev/pandas",
+                "tensorflow": "tensorflow/tensorflow",
+                "pytorch": "pytorch/pytorch",
+                "torch": "pytorch/pytorch",
+            }
+
+            # Get the mapped package path or use the original
+            mapped_package = package_mapping.get(package_name.lower(), package_name)
+
+            # Try to fetch from Context7's llms.txt endpoint
+            url = f"{self.base_url}/{mapped_package}/llms.txt"
 
             # Add retry limits and proper timeout configuration
             with httpx.Client(
@@ -75,12 +92,15 @@ class Context7Client:
                 )
 
                 if response.status_code == 200:
-                    # Parse the response - Context7 may return HTML or JSON
+                    # Parse the response - Context7 may return different formats
                     content_type = response.headers.get("content-type", "")
 
                     if "application/json" in content_type:
                         data = response.json()
                         return self._format_context7_response(data, package_name)
+                    elif url.endswith("/llms.txt") and response.text.startswith("================"):
+                        # LLMs.txt format with code snippets
+                        return self._parse_llms_txt(response.text, package_name)
                     else:
                         # HTML response - extract documentation sections
                         return self._parse_html_docs(response.text, package_name)
@@ -114,6 +134,50 @@ class Context7Client:
                 "sources": data.get("sources", []),
                 "last_updated": data.get("updated", ""),
                 "snippets": data.get("snippets", []),
+            },
+        }
+
+    def _parse_llms_txt(self, content: str, package_name: str) -> Dict[str, Any]:
+        """Parse llms.txt format documentation from Context7."""
+        snippets = []
+        current_snippet = {}
+
+        lines = content.split('\n')
+        for line in lines:
+            if line.startswith("TITLE:"):
+                if current_snippet:
+                    snippets.append(current_snippet)
+                current_snippet = {"title": line[6:].strip()}
+            elif line.startswith("DESCRIPTION:"):
+                current_snippet["description"] = line[12:].strip()
+            elif line.startswith("SOURCE:"):
+                current_snippet["source"] = line[7:].strip()
+            elif line.startswith("LANGUAGE:"):
+                current_snippet["language"] = line[9:].strip()
+            elif line.startswith("CODE:"):
+                # Start collecting code
+                current_snippet["code"] = []
+            elif "code" in current_snippet and line and not line.startswith("==="):
+                current_snippet["code"].append(line)
+
+        # Add last snippet
+        if current_snippet:
+            snippets.append(current_snippet)
+
+        # Join code lines
+        for snippet in snippets:
+            if "code" in snippet:
+                snippet["code"] = "\n".join(snippet["code"]).strip()
+
+        return {
+            "package": package_name,
+            "source": "context7",
+            "status": "success",
+            "documentation": {
+                "overview": f"Code snippets and documentation for {package_name} from Context7",
+                "sources": ["context7.com/llms.txt"],
+                "snippets": snippets[:10],  # Limit to first 10 snippets
+                "total_snippets": len(snippets),
             },
         }
 
