@@ -33,16 +33,14 @@ class TestOllamaConfig:
         config = OllamaConfig()
         assert config.model == "qwen2.5-coder:latest"
         assert config.base_url == "http://localhost:11434"
-        assert config.temperature == 0.7
         assert config.max_tokens == 1000
         assert config.api_key == "ollama"
 
     def test_ollama_config_custom_values(self):
         """Test OllamaConfig with custom values."""
-        config = OllamaConfig(model="codellama:latest", base_url="http://custom:8080", temperature=0.1, max_tokens=2000)
+        config = OllamaConfig(model="codellama:latest", base_url="http://custom:8080", max_tokens=2000)
         assert config.model == "codellama:latest"
         assert config.base_url == "http://custom:8080"
-        assert config.temperature == 0.1
         assert config.max_tokens == 2000
 
     def test_ollama_config_url_validation(self):
@@ -136,7 +134,7 @@ class TestOllamaSummarizer:
         mock_session_instance.post.return_value = mock_response
         mock_session.return_value = mock_session_instance
 
-        config = OllamaConfig(model="codellama:latest", temperature=0.1, max_tokens=500)
+        config = OllamaConfig(model="codellama:latest", max_tokens=500)
         summarizer = Summarizer(repo=mock_repo, config=config)
 
         summary = summarizer.summarize_function("test_file.py", "hello")
@@ -146,7 +144,6 @@ class TestOllamaSummarizer:
         # Verify the API call parameters
         call_args = mock_session_instance.post.call_args
         assert call_args[1]["json"]["model"] == "codellama:latest"
-        assert call_args[1]["json"]["temperature"] == 0.1
         assert call_args[1]["json"]["num_predict"] == 500
 
     @patch("requests.Session")
@@ -208,7 +205,6 @@ class TestOllamaPRReview:
             model="llama3.2:latest",
             api_key="ollama",
             max_tokens=2000,
-            temperature=0.1,
             api_base_url="http://localhost:11434",
         )
 
@@ -343,7 +339,7 @@ Key features:
         )
 
         # Create Ollama config for DeepSeek R1
-        config = OllamaConfig(model="deepseek-r1:latest", base_url="http://localhost:11434", temperature=0.2)
+        config = OllamaConfig(model="deepseek-r1:latest", base_url="http://localhost:11434")
 
         with patch("requests.Session", return_value=mock_session):
             summarizer = Summarizer(repo=mock_repo, config=config)

@@ -351,3 +351,44 @@ body.kit-homepage {
 :root[data-theme='dark'] .card-body {
   color: var(--sl-color-white); /* Use a light color for text on dark card */
 }
+
+/* MCP Site Announcement Banner */
+.mcp-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mcp-banner a {
+  color: white;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+
+.mcp-banner a:hover {
+  opacity: 0.9;
+}
+
+.mcp-banner .badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Push down the main header when banner is present */
+.mcp-banner ~ header {
+  top: 48px;
+}

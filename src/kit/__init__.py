@@ -3,7 +3,7 @@ A modular toolkit for LLM-powered codebase understanding.
 """
 
 __author__ = "cased"
-__version__ = "1.9.3"
+__version__ = "2.0.0rc4"
 
 from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
@@ -101,7 +101,6 @@ __all__ = [
     "DocstringIndexer",
     "SummarySearcher",
     "ContextAssembler",
-    "DependencyAnalyzer",
     "TreeSitterSymbolExtractor",
     "get_tool_schemas",
     # Conditionally add Summarizer related classes if they were imported

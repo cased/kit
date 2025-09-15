@@ -686,7 +686,6 @@ def test_config_custom_openai_provider():
                 "api_key": "together_api_key",
                 "api_base_url": "https://api.together.xyz/v1",
                 "max_tokens": 4000,
-                "temperature": 0.1,
             },
         }
         yaml.dump(config_data, f)
@@ -700,7 +699,6 @@ def test_config_custom_openai_provider():
         assert config.llm.api_base_url == "https://api.together.xyz/v1"
         assert config.llm.model == "meta-llama/Llama-3.3-70B-Instruct-Turbo"
         assert config.llm.max_tokens == 4000
-        assert config.llm.temperature == 0.1
     finally:
         import os
 

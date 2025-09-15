@@ -78,21 +78,26 @@ const usages = await repo.usages("authenticate");
 const deps = await repo.dependencies("src/main.ts");
 ```
 
-### Semantic Search
+### AST Pattern Search
 
 ```typescript
-// Perform semantic search
-const results = await repo.searchSemantic("authentication logic", {
-  topK: 10,
-  embeddingModel: "all-MiniLM-L6-v2",
-  chunkBy: "symbols",
-  buildIndex: true, // Build index on first run
+// Search for async functions
+const asyncFuncs = await repo.grepAst("async def", {
+  mode: "simple",
+  filePattern: "**/*.py",
+  maxResults: 20,
 });
 
-// Results include score and content
-results.forEach((result) => {
-  console.log(`${result.file} (score: ${result.score})`);
-  console.log(result.content);
+// Find error handling blocks
+const tryBlocks = await repo.grepAst('{"type": "try_statement"}', {
+  mode: "pattern",
+  maxResults: 10,
+});
+
+// Results include file, line, and matched code
+asyncFuncs.forEach((result) => {
+  console.log(`${result.file}:${result.line} - ${result.type}`);
+  console.log(result.text);
 });
 ```
 

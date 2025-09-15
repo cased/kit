@@ -249,7 +249,7 @@ def test_summarize_file_openai(mock_openai_constructor, mock_repo, temp_code_fil
     mock_openai_client.chat.completions.create.return_value = mock_response
     mock_openai_constructor.return_value = mock_openai_client
 
-    config = OpenAIConfig(api_key="test_openai_key", model="gpt-test", temperature=0.5, max_tokens=100)
+    config = OpenAIConfig(api_key="test_openai_key", model="gpt-test", max_tokens=100)
     summarizer = Summarizer(repo=mock_repo, config=config)
 
     file_to_summarize = "sample_code.py"
@@ -267,7 +267,6 @@ def test_summarize_file_openai(mock_openai_constructor, mock_repo, temp_code_fil
             {"role": "system", "content": expected_system_prompt},
             {"role": "user", "content": expected_user_prompt},
         ],
-        temperature=0.5,
         max_tokens=100,
     )
 
@@ -335,7 +334,7 @@ def test_summarize_file_anthropic(mock_anthropic_constructor, mock_repo, temp_co
     mock_anthropic_client.messages.create.return_value = mock_response
     mock_anthropic_constructor.return_value = mock_anthropic_client
 
-    config = AnthropicConfig(api_key="test_anthropic_key", model="claude-test", temperature=0.6, max_tokens=150)
+    config = AnthropicConfig(api_key="test_anthropic_key", model="claude-test", max_tokens=150)
     summarizer = Summarizer(repo=mock_repo, config=config)
 
     file_to_summarize = "sample_anthropic_code.py"
@@ -351,7 +350,6 @@ def test_summarize_file_anthropic(mock_anthropic_constructor, mock_repo, temp_co
         model="claude-test",
         system=expected_system_prompt,
         messages=[{"role": "user", "content": expected_user_prompt}],
-        temperature=0.6,
         max_tokens=150,
     )
 
@@ -377,7 +375,7 @@ def test_summarize_file_google(mock_google_client_constructor, mock_repo, temp_c
     mock_google_client_instance.models.generate_content.return_value = mock_response
     mock_google_client_constructor.return_value = mock_google_client_instance
 
-    config = GoogleConfig(api_key="test_google_key", model="gemini-file-test", temperature=0.6, max_output_tokens=110)
+    config = GoogleConfig(api_key="test_google_key", model="gemini-file-test", max_output_tokens=110)
     summarizer = Summarizer(repo=mock_repo, config=config)
 
     summary = summarizer.summarize_file(temp_code_file)
@@ -389,7 +387,7 @@ def test_summarize_file_google(mock_google_client_constructor, mock_repo, temp_c
     # The actual implementation uses this format for Google clients
     expected_user_prompt = f"Summarize the following code from the file '{temp_code_file}'. Provide a high-level overview of its purpose, key components, and functionality. Focus on what the code does, not just how it's written. The code is:\n\n```\n{mock_file_content}\n```"
 
-    expected_generation_params = {"temperature": 0.6, "max_output_tokens": 110}
+    expected_generation_params = {"max_output_tokens": 110}
 
     mock_google_client_instance.models.generate_content.assert_called_once_with(
         model="gemini-file-test", contents=expected_user_prompt, generation_config=expected_generation_params
@@ -414,7 +412,7 @@ def test_summarize_function_openai(mock_openai_constructor, mock_repo):
     mock_openai_client.chat.completions.create.return_value = mock_response
     mock_openai_constructor.return_value = mock_openai_client
 
-    config = OpenAIConfig(api_key="test_openai_key", model="gpt-func-test", temperature=0.4, max_tokens=90)
+    config = OpenAIConfig(api_key="test_openai_key", model="gpt-func-test", max_tokens=90)
     summarizer = Summarizer(repo=mock_repo, config=config)
 
     file_path = "src/module.py"
@@ -432,7 +430,6 @@ def test_summarize_function_openai(mock_openai_constructor, mock_repo):
             {"role": "system", "content": expected_system_prompt},
             {"role": "user", "content": expected_user_prompt},
         ],
-        temperature=0.4,
         max_tokens=90,
     )
 
@@ -490,7 +487,7 @@ def test_summarize_function_anthropic(mock_anthropic_constructor, mock_repo):
     mock_anthropic_client.messages.create.return_value = mock_response
     mock_anthropic_constructor.return_value = mock_anthropic_client
 
-    config = AnthropicConfig(api_key="test_anthropic_key", model="claude-func-test", temperature=0.5, max_tokens=100)
+    config = AnthropicConfig(api_key="test_anthropic_key", model="claude-func-test", max_tokens=100)
     summarizer = Summarizer(repo=mock_repo, config=config)
 
     file_path = "src/greetings.py"
@@ -506,7 +503,6 @@ def test_summarize_function_anthropic(mock_anthropic_constructor, mock_repo):
         model="claude-func-test",
         system=expected_system_prompt,
         messages=[{"role": "user", "content": expected_user_prompt}],
-        temperature=0.5,
         max_tokens=100,
     )
 
@@ -529,7 +525,7 @@ def test_summarize_function_google(mock_google_client_constructor, mock_repo):
     mock_google_client_instance.models.generate_content.return_value = mock_response
     mock_google_client_constructor.return_value = mock_google_client_instance
 
-    config = GoogleConfig(api_key="test_google_key", model="gemini-func-test", temperature=0.3, max_output_tokens=100)
+    config = GoogleConfig(api_key="test_google_key", model="gemini-func-test", max_output_tokens=100)
     summarizer = Summarizer(repo=mock_repo, config=config)
 
     file_path = "src/calculations.py"
@@ -542,7 +538,7 @@ def test_summarize_function_google(mock_google_client_constructor, mock_repo):
     # The actual implementation only uses the user prompt for Google client
     expected_user_prompt = f"Summarize the following function named '{function_name}' from the file '{file_path}'. Describe its purpose, parameters, and return value. The function definition is:\n\n```\n{mock_func_code}\n```"
 
-    expected_generation_params = {"temperature": 0.3, "max_output_tokens": 100}
+    expected_generation_params = {"max_output_tokens": 100}
 
     mock_google_client_instance.models.generate_content.assert_called_once_with(
         model="gemini-func-test", contents=expected_user_prompt, generation_config=expected_generation_params
@@ -569,7 +565,7 @@ def test_summarize_class_openai(mock_openai_constructor, mock_repo):
     mock_openai_client.chat.completions.create.return_value = mock_response
     mock_openai_constructor.return_value = mock_openai_client
 
-    config = OpenAIConfig(api_key="test_openai_key", model="gpt-class-test", temperature=0.3, max_tokens=110)
+    config = OpenAIConfig(api_key="test_openai_key", model="gpt-class-test", max_tokens=110)
     summarizer = Summarizer(repo=mock_repo, config=config)
 
     file_path = "src/data_model.py"
@@ -587,7 +583,6 @@ def test_summarize_class_openai(mock_openai_constructor, mock_repo):
             {"role": "system", "content": expected_system_prompt},
             {"role": "user", "content": expected_user_prompt},
         ],
-        temperature=0.3,
         max_tokens=110,
     )
 
@@ -645,7 +640,7 @@ def test_summarize_class_anthropic(mock_anthropic_constructor, mock_repo):
     mock_anthropic_client.messages.create.return_value = mock_response
     mock_anthropic_constructor.return_value = mock_anthropic_client
 
-    config = AnthropicConfig(api_key="test_anthropic_key", model="claude-class-test", temperature=0.4, max_tokens=120)
+    config = AnthropicConfig(api_key="test_anthropic_key", model="claude-class-test", max_tokens=120)
     summarizer = Summarizer(repo=mock_repo, config=config)
 
     file_path = "src/processing.py"
@@ -661,7 +656,6 @@ def test_summarize_class_anthropic(mock_anthropic_constructor, mock_repo):
         model="claude-class-test",
         system=expected_system_prompt,
         messages=[{"role": "user", "content": expected_user_prompt}],
-        temperature=0.4,
         max_tokens=120,
     )
 
@@ -683,7 +677,7 @@ def test_summarize_class_google(mock_google_client_constructor, mock_repo):
     mock_google_client_instance.models.generate_content.return_value = mock_response
     mock_google_client_constructor.return_value = mock_google_client_instance
 
-    config = GoogleConfig(api_key="test_google_key", model="gemini-class-test", temperature=0.5, max_output_tokens=130)
+    config = GoogleConfig(api_key="test_google_key", model="gemini-class-test", max_output_tokens=130)
     summarizer = Summarizer(repo=mock_repo, config=config)
 
     file_path = "src/utils.py"
@@ -696,7 +690,7 @@ def test_summarize_class_google(mock_google_client_constructor, mock_repo):
     # The actual implementation only uses the user prompt for Google client
     expected_user_prompt = f"Summarize the following class named '{class_name}' from the file '{file_path}'. Describe its purpose, key attributes, and main methods. The class definition is:\n\n```\n{mock_class_code}\n```"
 
-    expected_generation_params = {"temperature": 0.5, "max_output_tokens": 130}
+    expected_generation_params = {"max_output_tokens": 130}
 
     mock_google_client_instance.models.generate_content.assert_called_once_with(
         model="gemini-class-test", contents=expected_user_prompt, generation_config=expected_generation_params

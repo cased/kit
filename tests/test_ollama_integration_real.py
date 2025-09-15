@@ -70,9 +70,7 @@ class TestOllamaIntegration:
     @pytest.fixture
     def ollama_config(self):
         """Create Ollama configuration for testing."""
-        return OllamaConfig(
-            model="qwen2.5-coder:latest", base_url="http://localhost:11434", temperature=0.1, max_tokens=500
-        )
+        return OllamaConfig(model="qwen2.5-coder:latest", base_url="http://localhost:11434", max_tokens=500)
 
     @pytest.fixture
     def test_repo(self, tmp_path):
@@ -169,7 +167,6 @@ class MathUtils:
                 api_key="ollama",
                 api_base_url="http://localhost:11434",
                 max_tokens=1000,
-                temperature=0.1,
             ),
         )
 
@@ -254,7 +251,6 @@ class TestOllamaErrorHandling:
         config = OllamaConfig(
             model="qwen2.5-coder:latest",
             base_url="http://localhost:9999",  # Wrong port
-            temperature=0.1,
             max_tokens=100,
         )
 
@@ -279,9 +275,7 @@ class TestOllamaErrorHandling:
     def test_ollama_invalid_model(self, skip_if_no_ollama, tmp_path):
         """Test behavior with invalid model name."""
         # Create config with non-existent model
-        config = OllamaConfig(
-            model="nonexistent-model:latest", base_url="http://localhost:11434", temperature=0.1, max_tokens=100
-        )
+        config = OllamaConfig(model="nonexistent-model:latest", base_url="http://localhost:11434", max_tokens=100)
 
         # Create a test file
         test_file = tmp_path / "test.py"

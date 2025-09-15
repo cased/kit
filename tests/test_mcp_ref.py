@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from kit.mcp.server import KitServerLogic
+from kit.mcp.dev_server import KitServerLogic
 
 
 @pytest.fixture
@@ -194,18 +194,18 @@ class TestMCPRefParameter:
         result = logic.find_symbol_usages(repo_id, "hello")
         assert isinstance(result, list)
 
-    def test_tools_list_includes_git_info(self):
-        """Test that tools list includes get_git_info tool."""
+    def test_tools_list_includes_review_diff(self):
+        """Test that tools list includes review_diff tool."""
         logic = KitServerLogic()
 
         tools = logic.list_tools()
         tool_names = [tool.name for tool in tools]
 
-        assert "get_git_info" in tool_names
+        assert "review_diff" in tool_names
 
     def test_open_repository_params_includes_ref(self):
         """Test that OpenRepoParams includes ref parameter."""
-        from kit.mcp.server import OpenRepoParams
+        from kit.mcp.dev_server import OpenRepoParams
 
         # Test creating params with ref
         params = OpenRepoParams(path_or_url=".", ref="main")
@@ -219,7 +219,7 @@ class TestMCPRefParameter:
 
     def test_git_info_params(self):
         """Test GitInfoParams model."""
-        from kit.mcp.server import GitInfoParams
+        from kit.mcp.dev_server import GitInfoParams
 
         params = GitInfoParams(repo_id="test-repo-id")
         assert params.repo_id == "test-repo-id"
@@ -227,7 +227,7 @@ class TestMCPRefParameter:
     @patch("tempfile.TemporaryDirectory")
     def test_open_repository_invalid_ref_error(self, mock_temp_dir):
         """Test that opening repository with invalid ref raises appropriate error."""
-        from kit.mcp.server import INVALID_PARAMS, MCPError
+        from kit.mcp.dev_server import INVALID_PARAMS, MCPError
 
         logic = KitServerLogic()
 
@@ -279,7 +279,7 @@ class TestMCPRefParameter:
 
     def test_call_tool_git_info_integration(self):
         """Test calling git_info tool through the tool interface."""
-        from kit.mcp.server import GitInfoParams
+        from kit.mcp.dev_server import GitInfoParams
 
         logic = KitServerLogic()
 
@@ -323,7 +323,7 @@ class TestMCPRefParameter:
             repo_id = logic.open_repository(temp_dir)
 
             # Test grep_code tool
-            from kit.mcp.server import GrepParams
+            from kit.mcp.dev_server import GrepParams
 
             GrepParams(repo_id=repo_id, pattern="hello")
             result = logic.grep_code(repo_id, "hello")
@@ -365,7 +365,7 @@ class TestMCPRefParameter:
 
     def test_grep_code_invalid_directory(self):
         """Test grep_code with invalid directory."""
-        from kit.mcp.server import INVALID_PARAMS, MCPError
+        from kit.mcp.dev_server import INVALID_PARAMS, MCPError
 
         logic = KitServerLogic()
 
@@ -389,7 +389,7 @@ class TestMCPRefParameter:
 
     def test_grep_params_model(self):
         """Test GrepParams model."""
-        from kit.mcp.server import GrepParams
+        from kit.mcp.dev_server import GrepParams
 
         # Test basic params
         params = GrepParams(repo_id="test-repo", pattern="TODO")
@@ -427,5 +427,4 @@ class TestMCPRefParameter:
 
         # Find the grep tool and check its description
         grep_tool = next(tool for tool in tools if tool.name == "grep_code")
-        assert "literal grep search" in grep_tool.description.lower()
-        assert "directory filtering" in grep_tool.description.lower()
+        assert "literal string search" in grep_tool.description.lower()

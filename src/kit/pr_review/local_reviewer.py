@@ -606,7 +606,6 @@ Focus on practical, actionable feedback. Be concise but specific.
             response = self._llm_client.messages.create(
                 model=self.config.llm_model,
                 max_tokens=self.config.llm_max_tokens,
-                temperature=self.config.llm_temperature,
                 messages=[{"role": "user", "content": enhanced_prompt}],
             )
 
@@ -643,7 +642,6 @@ Focus on practical, actionable feedback. Be concise but specific.
             response = self._llm_client.chat.completions.create(
                 model=self.config.llm_model,
                 max_tokens=self.config.llm_max_tokens,
-                temperature=self.config.llm_temperature,
                 messages=[{"role": "user", "content": enhanced_prompt}],
             )
 
@@ -674,7 +672,6 @@ Focus on practical, actionable feedback. Be concise but specific.
                 model=self.config.llm_model,
                 contents=enhanced_prompt,
                 config=types.GenerateContentConfig(
-                    temperature=self.config.llm_temperature,
                     max_output_tokens=self.config.llm_max_tokens,
                 ),
             )
@@ -731,7 +728,6 @@ Focus on practical, actionable feedback. Be concise but specific.
             response = await asyncio.to_thread(
                 self._llm_client.generate,
                 enhanced_prompt,
-                temperature=self.config.llm_temperature,
                 num_predict=self.config.llm_max_tokens,
             )
 

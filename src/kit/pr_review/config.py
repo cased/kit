@@ -6,7 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import yaml
+import yaml  # type: ignore
 
 
 class LLMProvider(Enum):
@@ -132,7 +132,6 @@ class LLMConfig:
     model: str
     api_key: str
     max_tokens: int = 4000
-    temperature: float = 0.1
     api_base_url: Optional[str] = None  # For local LLMs or custom OpenAI endpoints
 
 
@@ -170,7 +169,6 @@ class ReviewConfig:
     llm_model: Optional[str] = None  # Convenience accessor for llm.model
     llm_api_key: Optional[str] = None  # Convenience accessor for llm.api_key
     llm_api_base_url: Optional[str] = None  # Convenience accessor for llm.api_base_url
-    llm_temperature: Optional[float] = None  # Convenience accessor for llm.temperature
     llm_max_tokens: Optional[int] = None  # Convenience accessor for llm.max_tokens
 
     @classmethod
@@ -288,7 +286,6 @@ class ReviewConfig:
             model=llm_data.get("model", default_model),
             api_key=str(api_key),
             max_tokens=llm_data.get("max_tokens", 4000),
-            temperature=llm_data.get("temperature", 0.1),
             api_base_url=llm_data.get("api_base_url"),
         )
 
@@ -351,7 +348,6 @@ class ReviewConfig:
             llm_model=llm_config.model,
             llm_api_key=llm_config.api_key,
             llm_api_base_url=llm_config.api_base_url,
-            llm_temperature=llm_config.temperature,
             llm_max_tokens=llm_config.max_tokens,
         )
 
@@ -370,7 +366,6 @@ class ReviewConfig:
                 "model": "claude-sonnet-4-20250514",  # or "gpt-4o", "gemini-2.5-flash"
                 "api_key": "sk-your_api_key_here",
                 "max_tokens": 4000,
-                "temperature": 0.1,
                 # For custom OpenAI compatible providers (e.g., Together AI, OpenRouter, etc.)
                 # "api_base_url": "https://api.together.xyz/v1",  # Example: Together AI
                 # "api_base_url": "https://openrouter.ai/api/v1",  # Example: OpenRouter
@@ -422,7 +417,6 @@ class ReviewConfig:
 #   api_base_url: "http://localhost:11434"  # Default Ollama endpoint
 #   api_key: "ollama"  # Placeholder (Ollama doesn't use API keys)
 #   max_tokens: 2000
-#   temperature: 0.1
 
 # Example Google Gemini configuration:
 # llm:
@@ -430,7 +424,6 @@ class ReviewConfig:
 #   model: "gemini-2.5-flash"  # Or "gemini-2.5-pro" for more complex reasoning, "gemini-2.0-flash-lite" for speed
 #   api_key: "AIzaSy..."  # Get from https://aistudio.google.com/apikey
 #   max_tokens: 4000
-#   temperature: 0.1
 
 # Example OpenAI compatible provider configurations:
 #
@@ -441,7 +434,6 @@ class ReviewConfig:
 #   api_key: "your_together_api_key"
 #   api_base_url: "https://api.together.xyz/v1"
 #   max_tokens: 4000
-#   temperature: 0.1
 #
 # OpenRouter (https://openrouter.ai/):
 # llm:
@@ -450,7 +442,6 @@ class ReviewConfig:
 #   api_key: "your_openrouter_api_key"
 #   api_base_url: "https://openrouter.ai/api/v1"
 #   max_tokens: 4000
-#   temperature: 0.1
 #
 # Local OpenAI API server (e.g., text-generation-webui, vLLM):
 # llm:
@@ -459,7 +450,6 @@ class ReviewConfig:
 #   api_key: "not-used"  # Local servers often don't require API keys
 #   api_base_url: "http://localhost:8000/v1"
 #   max_tokens: 4000
-#   temperature: 0.1
 #
 # Groq (https://groq.com/):
 # llm:
@@ -468,7 +458,6 @@ class ReviewConfig:
 #   api_key: "your_groq_api_key"
 #   api_base_url: "https://api.groq.com/openai/v1"
 #   max_tokens: 4000
-#   temperature: 0.1
 """
 
         with open(config_path, "a") as f:

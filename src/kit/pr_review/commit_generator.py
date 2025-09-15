@@ -146,7 +146,7 @@ Generate only the commit message, nothing else."""
             response = self._llm_client.messages.create(
                 model=self.config.llm.model,
                 max_tokens=200,  # Short for commit messages
-                temperature=0.3,  # Slightly creative but consistent
+                # Temperature removed for better model compatibility
                 messages=[{"role": "user", "content": prompt}],
             )
 
@@ -183,7 +183,6 @@ Generate only the commit message, nothing else."""
                 model=self.config.llm.model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    temperature=0.3,
                     max_output_tokens=200,
                 ),
             )
@@ -219,7 +218,6 @@ Generate only the commit message, nothing else."""
             response = self._llm_client.chat.completions.create(
                 model=self.config.llm.model,
                 max_tokens=200,
-                temperature=0.3,
                 messages=[{"role": "user", "content": prompt}],
             )
 
@@ -266,7 +264,6 @@ Generate only the commit message, nothing else."""
             response = await asyncio.to_thread(
                 self._llm_client.generate,
                 prompt,
-                temperature=0.3,
                 num_predict=200,
             )
 

@@ -69,3 +69,8 @@ test-results/*.json
 .idea/
 
 .claude
+
+# kit-mcp-site Next.js artifacts
+kit-mcp-site/node_modules/
+kit-mcp-site/.next/
+kit-mcp-site/next-env.d.ts

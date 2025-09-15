@@ -5,12 +5,10 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union, runtime_checkable
 
-tiktoken: Optional[Any]
-
 try:
     import tiktoken
 except ImportError:
-    tiktoken = None
+    tiktoken = None  # type: ignore
 
 
 # Define a Protocol for LLM clients to help with type checking
@@ -54,8 +52,7 @@ class OpenAIConfig:
     """Configuration for OpenAI API access."""
 
     api_key: Optional[str] = field(default_factory=lambda: os.environ.get("OPENAI_API_KEY"))
-    model: str = "gpt-4o"
-    temperature: float = 0.7
+    model: str = "gpt-5"
     max_tokens: int = 1000  # Default max tokens for summary
     base_url: Optional[str] = None
 
@@ -72,7 +69,6 @@ class AnthropicConfig:
 
     api_key: Optional[str] = field(default_factory=lambda: os.environ.get("ANTHROPIC_API_KEY"))
     model: str = "claude-3-opus-20240229"
-    temperature: float = 0.7
     max_tokens: int = 1000  # Corresponds to Anthropic's max_tokens_to_sample
 
     def __post_init__(self):
@@ -88,7 +84,6 @@ class GoogleConfig:
 
     api_key: Optional[str] = field(default_factory=lambda: os.environ.get("GOOGLE_API_KEY"))
     model: str = "gemini-2.5-flash"
-    temperature: Optional[float] = 0.7
     max_output_tokens: Optional[int] = 1000  # Corresponds to Gemini's max_output_tokens
     model_kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)
 
@@ -105,7 +100,6 @@ class OllamaConfig:
 
     model: str = "qwen2.5-coder:latest"  # Latest code-specialized model (5.4M pulls)
     base_url: str = "http://localhost:11434"
-    temperature: float = 0.7
     max_tokens: int = 1000
     # Ollama doesn't require API keys, but we include this for compatibility
     api_key: str = "ollama"
@@ -210,7 +204,7 @@ class Summarizer:
                 model_name = self.config.model
             else:
                 # Default to a common model if no config or model specified
-                model_name = "gpt-4o"  # Default fallback
+                model_name = "gpt-5"  # Default fallback
 
         try:
             # Try to use tiktoken for accurate token counting
@@ -549,12 +543,17 @@ class Summarizer:
                 if prompt_token_count is not None and prompt_token_count > OPENAI_MAX_PROMPT_TOKENS:
                     summary = f"Summary generation failed: OpenAI prompt too large ({prompt_token_count} tokens). Limit is {OPENAI_MAX_PROMPT_TOKENS} tokens."
                 else:
-                    response = client.chat.completions.create(
-                        model=self.config.model,
-                        messages=messages_for_api,
-                        temperature=self.config.temperature,
-                        max_tokens=self.config.max_tokens,
-                    )
+                    # GPT-5 models use max_completion_tokens instead of max_tokens
+                    completion_params: Dict[str, Any] = {
+                        "model": self.config.model,
+                        "messages": messages_for_api,
+                    }
+                    if "gpt-5" in self.config.model.lower():
+                        completion_params["max_completion_tokens"] = self.config.max_tokens
+                    else:
+                        completion_params["max_tokens"] = self.config.max_tokens
+
+                    response = client.chat.completions.create(**completion_params)
                     summary = response.choices[0].message.content
                     if response.usage:
                         logger.debug(f"OpenAI API usage for {file_path}: {response.usage}")
@@ -564,7 +563,6 @@ class Summarizer:
                     system=system_prompt_text,
                     messages=[{"role": "user", "content": user_prompt_text}],
                     max_tokens=self.config.max_tokens,
-                    temperature=self.config.temperature,
                 )
                 summary = response.content[0].text
             elif isinstance(self.config, GoogleConfig):
@@ -577,8 +575,6 @@ class Summarizer:
                     self.config.model_kwargs.copy() if self.config.model_kwargs is not None else {}
                 )
 
-                if self.config.temperature is not None:
-                    generation_config_params["temperature"] = self.config.temperature
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
 
@@ -606,9 +602,7 @@ class Summarizer:
                 # Use Ollama's generate API with combined prompt
                 combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
                 try:
-                    raw_summary = client.generate(
-                        combined_prompt, temperature=self.config.temperature, num_predict=self.config.max_tokens
-                    )
+                    raw_summary = client.generate(combined_prompt, num_predict=self.config.max_tokens)
                     # Strip thinking tokens from reasoning models like DeepSeek R1
                     summary = _strip_thinking_tokens(raw_summary)
                     logger.debug(f"Ollama API response for {file_path}: {len(summary)} characters (after cleaning)")
@@ -711,12 +705,17 @@ class Summarizer:
                 if prompt_token_count is not None and prompt_token_count > OPENAI_MAX_PROMPT_TOKENS:
                     summary = f"Summary generation failed: OpenAI prompt too large ({prompt_token_count} tokens). Limit is {OPENAI_MAX_PROMPT_TOKENS} tokens."
                 else:
-                    response = client.chat.completions.create(
-                        model=self.config.model,
-                        messages=messages_for_api,
-                        temperature=self.config.temperature,
-                        max_tokens=self.config.max_tokens,
-                    )
+                    # GPT-5 models use max_completion_tokens instead of max_tokens
+                    completion_params: Dict[str, Any] = {
+                        "model": self.config.model,
+                        "messages": messages_for_api,
+                    }
+                    if "gpt-5" in self.config.model.lower():
+                        completion_params["max_completion_tokens"] = self.config.max_tokens
+                    else:
+                        completion_params["max_tokens"] = self.config.max_tokens
+
+                    response = client.chat.completions.create(**completion_params)
                     summary = response.choices[0].message.content
                     if response.usage:
                         logger.debug(f"OpenAI API usage for {function_name} in {file_path}: {response.usage}")
@@ -726,7 +725,6 @@ class Summarizer:
                     system=system_prompt_text,
                     messages=[{"role": "user", "content": user_prompt_text}],
                     max_tokens=self.config.max_tokens,
-                    temperature=self.config.temperature,
                 )
                 summary = response.content[0].text
                 # Anthropic usage might be in response.usage (confirm API docs)
@@ -741,8 +739,6 @@ class Summarizer:
                     self.config.model_kwargs.copy() if self.config.model_kwargs is not None else {}
                 )
 
-                if self.config.temperature is not None:
-                    generation_config_params["temperature"] = self.config.temperature
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
 
@@ -771,9 +767,7 @@ class Summarizer:
                 # Use Ollama's generate API with combined prompt
                 combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
                 try:
-                    raw_summary = client.generate(
-                        combined_prompt, temperature=self.config.temperature, num_predict=self.config.max_tokens
-                    )
+                    raw_summary = client.generate(combined_prompt, num_predict=self.config.max_tokens)
                     # Strip thinking tokens from reasoning models like DeepSeek R1
                     summary = _strip_thinking_tokens(raw_summary)
                     logger.debug(
@@ -878,12 +872,17 @@ class Summarizer:
                 if prompt_token_count is not None and prompt_token_count > OPENAI_MAX_PROMPT_TOKENS:
                     summary = f"Summary generation failed: OpenAI prompt too large ({prompt_token_count} tokens). Limit is {OPENAI_MAX_PROMPT_TOKENS} tokens."
                 else:
-                    response = client.chat.completions.create(
-                        model=self.config.model,
-                        messages=messages_for_api,
-                        temperature=self.config.temperature,
-                        max_tokens=self.config.max_tokens,
-                    )
+                    # GPT-5 models use max_completion_tokens instead of max_tokens
+                    completion_params: Dict[str, Any] = {
+                        "model": self.config.model,
+                        "messages": messages_for_api,
+                    }
+                    if "gpt-5" in self.config.model.lower():
+                        completion_params["max_completion_tokens"] = self.config.max_tokens
+                    else:
+                        completion_params["max_tokens"] = self.config.max_tokens
+
+                    response = client.chat.completions.create(**completion_params)
                     summary = response.choices[0].message.content
                     if response.usage:
                         logger.debug(f"OpenAI API usage for {class_name} in {file_path}: {response.usage}")
@@ -893,7 +892,6 @@ class Summarizer:
                     system=system_prompt_text,
                     messages=[{"role": "user", "content": user_prompt_text}],
                     max_tokens=self.config.max_tokens,
-                    temperature=self.config.temperature,
                 )
                 summary = response.content[0].text
                 # Anthropic usage might be in response.usage (confirm API docs)
@@ -908,8 +906,6 @@ class Summarizer:
                     self.config.model_kwargs.copy() if self.config.model_kwargs is not None else {}
                 )
 
-                if self.config.temperature is not None:
-                    generation_config_params["temperature"] = self.config.temperature
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
 
@@ -936,9 +932,7 @@ class Summarizer:
                 # Use Ollama's generate API with combined prompt
                 combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
                 try:
-                    raw_summary = client.generate(
-                        combined_prompt, temperature=self.config.temperature, num_predict=self.config.max_tokens
-                    )
+                    raw_summary = client.generate(combined_prompt, num_predict=self.config.max_tokens)
                     # Strip thinking tokens from reasoning models like DeepSeek R1
                     summary = _strip_thinking_tokens(raw_summary)
                     logger.debug(

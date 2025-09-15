@@ -10,6 +10,40 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-09-15
+
+### Major Release
+
+- **Kit Dev MCP Server**
+  - New enhanced MCP (Model Context Protocol) server for AI assistants
+  - Smart context building for development tasks
+  - Real-time file watching and change detection
+  - Documentation research for any package
+  - Integration with Cursor, Windsurf, Claude Code, and VS Code
+  - New documentation site at https://kit-mcp.cased.com
+
+- **Three-Part Architecture**
+  - Core Toolkit: Foundation library for building AI developer tools
+  - Kit Dev MCP: Enhanced MCP server for AI assistants
+  - AI PR Reviewer: Production-ready code review system
+
+### Breaking Changes
+
+- MCP server command changed from `kit-mcp` to `kit-dev-mcp`
+- Restructured MCP server implementation for enhanced capabilities
+- Removed temperature parameters from all LLM configurations for improved model compatibility
+  - Affects OpenAI, Anthropic, Google, and Ollama configurations
+  - Models now use their default temperature settings
+  - Improves compatibility with newer model versions that don't support custom temperature
+
+### Documentation
+
+- New dedicated MCP documentation site at https://kit-mcp.cased.com
+- Updated README with three-part architecture explanation
+- Enhanced examples and integration guides
+
+---
+
 ## [1.9.2] - 2025-01-14
 
 ### Bug Fixes
@@ -36,6 +70,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added test suite covering different tree-sitter API versions
   - Tests for both `matches()` and `captures()` API methods
   - Edge case handling for missing or non-functional APIs
+
+---
+
+## [1.9.1] - 2025-08-26
+
+### Bug Fixes
+
+- Fixed version number inconsistencies
 
 ---
 

@@ -79,9 +79,9 @@ export default defineConfig({
           autogenerate: { directory: "api" },
         },
         {
-          label: " MCP",
+          label: "🚀 Kit Dev MCP",
           items: [
-            "mcp/using-kit-with-mcp",
+            "mcp/kit-dev-mcp",
           ],
         },
         {

@@ -641,7 +641,6 @@ class AgenticPRReviewer:
                         lambda: self._llm_client.messages.create(
                             model=self.config.llm.model,
                             max_tokens=self.config.llm.max_tokens,
-                            temperature=self.config.llm.temperature,
                             tools=tools,
                             messages=messages,
                         ),
@@ -798,7 +797,6 @@ class AgenticPRReviewer:
                         lambda: self._llm_client.chat.completions.create(
                             model=self.config.llm.model,
                             max_tokens=self.config.llm.max_tokens,
-                            temperature=self.config.llm.temperature,
                             tools=tools,
                             messages=messages,
                         ),

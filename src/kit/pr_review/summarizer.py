@@ -163,7 +163,7 @@ class PRSummarizer(PRReviewer):
             response = self._llm_client.messages.create(
                 model=self.config.llm.model,
                 max_tokens=min(self.config.llm.max_tokens, 1000),  # Cap for summaries
-                temperature=0.2,  # Lower temperature for consistent summaries
+                # Lower temperature removed for better model compatibility
                 messages=[{"role": "user", "content": summary_prompt}],
             )
 
@@ -200,7 +200,7 @@ class PRSummarizer(PRReviewer):
                 model=self.config.llm.model,
                 contents=summary_prompt,
                 config=types.GenerateContentConfig(
-                    temperature=0.2,  # Lower temperature for consistent summaries
+                    # Lower temperature removed for better model compatibility
                     max_output_tokens=min(self.config.llm.max_tokens, 1000),  # Cap for summaries
                 ),
             )
@@ -236,7 +236,7 @@ class PRSummarizer(PRReviewer):
             response = self._llm_client.chat.completions.create(
                 model=self.config.llm.model,
                 max_tokens=min(self.config.llm.max_tokens, 1000),  # Cap for summaries
-                temperature=0.2,  # Lower temperature for consistent summaries
+                # Lower temperature removed for better model compatibility
                 messages=[{"role": "user", "content": summary_prompt}],
             )
 
@@ -283,7 +283,7 @@ class PRSummarizer(PRReviewer):
             response = await asyncio.to_thread(
                 self._llm_client.generate,
                 summary_prompt,
-                temperature=0.2,  # Lower temperature for consistent summaries
+                # Lower temperature removed for better model compatibility
                 num_predict=min(self.config.llm.max_tokens, 1000),  # Cap for summaries
             )
 
