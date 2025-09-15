@@ -31,7 +31,13 @@ def test_detect_provider_from_model():
     assert _detect_provider_from_model("gpt-4o") == LLMProvider.OPENAI
     assert _detect_provider_from_model("gpt-4.1-nano") == LLMProvider.OPENAI
     assert _detect_provider_from_model("gpt-3.5-turbo") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("gpt-5") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("gpt-5-mini") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("gpt-5-nano") == LLMProvider.OPENAI
     assert _detect_provider_from_model("o1-preview") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("o3") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("o3-mini") == LLMProvider.OPENAI
+    assert _detect_provider_from_model("o3-medium") == LLMProvider.OPENAI
     assert _detect_provider_from_model("text-davinci-003") == LLMProvider.OPENAI
 
     # Anthropic models
@@ -1422,6 +1428,9 @@ def test_helicone_api_integration():
 
     from kit.pr_review.cost_tracker import CostTracker
 
+    # Clear the cache first to ensure test isolation
+    CostTracker._fetch_pricing_with_cache.cache_clear()
+
     # Mock successful API response
     mock_response = MagicMock()
     mock_response.json.return_value = {
@@ -1451,6 +1460,9 @@ def test_helicone_api_integration():
         tracker.track_llm_usage(LLMProvider.OPENAI, "gpt-4o", 1000, 1000)
         expected_cost = (1000 / 1_000_000) * 5.0 + (1000 / 1_000_000) * 15.0
         assert abs(tracker.breakdown.llm_cost_usd - expected_cost) < 0.0001
+
+    # Clear cache again to avoid affecting other tests
+    CostTracker._fetch_pricing_with_cache.cache_clear()
 
 
 def test_helicone_api_fallback():

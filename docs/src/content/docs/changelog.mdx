@@ -10,7 +10,7 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2025-09-03
+## [2.0.0] - 2025-09-15
 
 ### Major Release
 
@@ -18,10 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New enhanced MCP (Model Context Protocol) server for AI assistants
   - Smart context building for development tasks
   - Real-time file watching and change detection
-  - Semantic code search with AI embeddings
   - Documentation research for any package
   - Integration with Cursor, Windsurf, Claude Code, and VS Code
-  - New documentation site at https://kit-dev.cased.com
+  - New documentation site at https://kit-mcp.cased.com
 
 - **Three-Part Architecture**
   - Core Toolkit: Foundation library for building AI developer tools
@@ -35,15 +34,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- New dedicated MCP documentation site at https://kit-dev.cased.com
+- New dedicated MCP documentation site at https://kit-mcp.cased.com
 - Updated README with three-part architecture explanation
 - Enhanced examples and integration guides
+
+---
+
+## [1.9.2] - 2025-01-14
+
+### Bug Fixes
+
+- **Tree-sitter API Compatibility**: Fixed AttributeError with `Query.captures` method across different tree-sitter versions
+  - Added robust fallback mechanism between `matches()` and `captures()` APIs
+  - Improved error handling for various tree-sitter API surfaces
+  - Ensures compatibility with tree-sitter >= 0.23.2
+
+- **Test Isolation**: Fixed cache isolation issue in `test_helicone_api_integration`
+  - Added proper LRU cache clearing for test isolation
+  - Prevents test failures due to cached pricing data
+
+### New Features
+
+- **Extended OpenAI Model Support**
+  - Added support for GPT-5 models: `gpt-5`, `gpt-5-mini`, `gpt-5-nano`
+  - Added support for O3 series models: `o3`, `o3-mini`, `o3-medium`
+  - Enhanced model detection patterns for future OpenAI model families
+
+### Testing
+
+- **Comprehensive Tree-sitter Compatibility Tests**
+  - Added test suite covering different tree-sitter API versions
+  - Tests for both `matches()` and `captures()` API methods
+  - Edge case handling for missing or non-functional APIs
+
+---
 
 ## [1.9.1] - 2025-08-26
 
 ### Bug Fixes
 
 - Fixed version number inconsistencies
+
+---
 
 ## [1.9.0] - 2025-08-19
 
