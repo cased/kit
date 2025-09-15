@@ -90,7 +90,6 @@ class MatrixTester:
             model=model,
             api_key=api_key,
             max_tokens=self.base_config.llm.max_tokens,
-            temperature=self.base_config.llm.temperature,
         )
 
         return ReviewConfig(
@@ -421,7 +420,6 @@ Format as JSON:
                         response = client.messages.create(
                             model=judge_model,
                             max_tokens=2000,
-                            temperature=0.1,
                             messages=[{"role": "user", "content": judging_prompt}],
                         )
                         content = response.content[0].text
@@ -440,7 +438,6 @@ Format as JSON:
                         response = openai_client.chat.completions.create(
                             model=judge_model,
                             max_tokens=2000,
-                            temperature=0.1,
                             messages=[{"role": "user", "content": judging_prompt}],
                         )
                         content = response.choices[0].message.content

@@ -104,7 +104,6 @@ Be thorough but concise. Focus on accuracy and usefulness."""
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    "temperature": self.config.temperature,
                 }
                 if "gpt-5" in self.config.model.lower():
                     completion_params["max_completion_tokens"] = self.config.max_tokens
@@ -118,7 +117,6 @@ Be thorough but concise. Focus on accuracy and usefulness."""
                 response = self._llm_client.messages.create(
                     model=self.config.model,
                     max_tokens=self.config.max_tokens,
-                    temperature=self.config.temperature,
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}],
                 )

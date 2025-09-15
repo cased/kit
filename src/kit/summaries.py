@@ -53,7 +53,6 @@ class OpenAIConfig:
 
     api_key: Optional[str] = field(default_factory=lambda: os.environ.get("OPENAI_API_KEY"))
     model: str = "gpt-5"
-    temperature: float = 0.7
     max_tokens: int = 1000  # Default max tokens for summary
     base_url: Optional[str] = None
 
@@ -70,7 +69,6 @@ class AnthropicConfig:
 
     api_key: Optional[str] = field(default_factory=lambda: os.environ.get("ANTHROPIC_API_KEY"))
     model: str = "claude-3-opus-20240229"
-    temperature: float = 0.7
     max_tokens: int = 1000  # Corresponds to Anthropic's max_tokens_to_sample
 
     def __post_init__(self):
@@ -86,7 +84,6 @@ class GoogleConfig:
 
     api_key: Optional[str] = field(default_factory=lambda: os.environ.get("GOOGLE_API_KEY"))
     model: str = "gemini-2.5-flash"
-    temperature: Optional[float] = 0.7
     max_output_tokens: Optional[int] = 1000  # Corresponds to Gemini's max_output_tokens
     model_kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)
 
@@ -103,7 +100,6 @@ class OllamaConfig:
 
     model: str = "qwen2.5-coder:latest"  # Latest code-specialized model (5.4M pulls)
     base_url: str = "http://localhost:11434"
-    temperature: float = 0.7
     max_tokens: int = 1000
     # Ollama doesn't require API keys, but we include this for compatibility
     api_key: str = "ollama"
@@ -551,7 +547,6 @@ class Summarizer:
                     completion_params = {
                         "model": self.config.model,
                         "messages": messages_for_api,
-                        "temperature": self.config.temperature,
                     }
                     if "gpt-5" in self.config.model.lower():
                         completion_params["max_completion_tokens"] = self.config.max_tokens
@@ -568,7 +563,6 @@ class Summarizer:
                     system=system_prompt_text,
                     messages=[{"role": "user", "content": user_prompt_text}],
                     max_tokens=self.config.max_tokens,
-                    temperature=self.config.temperature,
                 )
                 summary = response.content[0].text
             elif isinstance(self.config, GoogleConfig):
@@ -581,8 +575,6 @@ class Summarizer:
                     self.config.model_kwargs.copy() if self.config.model_kwargs is not None else {}
                 )
 
-                if self.config.temperature is not None:
-                    generation_config_params["temperature"] = self.config.temperature
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
 
@@ -611,7 +603,7 @@ class Summarizer:
                 combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
                 try:
                     raw_summary = client.generate(
-                        combined_prompt, temperature=self.config.temperature, num_predict=self.config.max_tokens
+                        combined_prompt, num_predict=self.config.max_tokens
                     )
                     # Strip thinking tokens from reasoning models like DeepSeek R1
                     summary = _strip_thinking_tokens(raw_summary)
@@ -719,7 +711,6 @@ class Summarizer:
                     completion_params = {
                         "model": self.config.model,
                         "messages": messages_for_api,
-                        "temperature": self.config.temperature,
                     }
                     if "gpt-5" in self.config.model.lower():
                         completion_params["max_completion_tokens"] = self.config.max_tokens
@@ -736,7 +727,6 @@ class Summarizer:
                     system=system_prompt_text,
                     messages=[{"role": "user", "content": user_prompt_text}],
                     max_tokens=self.config.max_tokens,
-                    temperature=self.config.temperature,
                 )
                 summary = response.content[0].text
                 # Anthropic usage might be in response.usage (confirm API docs)
@@ -751,8 +741,6 @@ class Summarizer:
                     self.config.model_kwargs.copy() if self.config.model_kwargs is not None else {}
                 )
 
-                if self.config.temperature is not None:
-                    generation_config_params["temperature"] = self.config.temperature
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
 
@@ -782,7 +770,7 @@ class Summarizer:
                 combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
                 try:
                     raw_summary = client.generate(
-                        combined_prompt, temperature=self.config.temperature, num_predict=self.config.max_tokens
+                        combined_prompt, num_predict=self.config.max_tokens
                     )
                     # Strip thinking tokens from reasoning models like DeepSeek R1
                     summary = _strip_thinking_tokens(raw_summary)
@@ -892,7 +880,6 @@ class Summarizer:
                     completion_params = {
                         "model": self.config.model,
                         "messages": messages_for_api,
-                        "temperature": self.config.temperature,
                     }
                     if "gpt-5" in self.config.model.lower():
                         completion_params["max_completion_tokens"] = self.config.max_tokens
@@ -909,7 +896,6 @@ class Summarizer:
                     system=system_prompt_text,
                     messages=[{"role": "user", "content": user_prompt_text}],
                     max_tokens=self.config.max_tokens,
-                    temperature=self.config.temperature,
                 )
                 summary = response.content[0].text
                 # Anthropic usage might be in response.usage (confirm API docs)
@@ -924,8 +910,6 @@ class Summarizer:
                     self.config.model_kwargs.copy() if self.config.model_kwargs is not None else {}
                 )
 
-                if self.config.temperature is not None:
-                    generation_config_params["temperature"] = self.config.temperature
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
 
@@ -953,7 +937,7 @@ class Summarizer:
                 combined_prompt = f"{system_prompt_text}\n\n{user_prompt_text}"
                 try:
                     raw_summary = client.generate(
-                        combined_prompt, temperature=self.config.temperature, num_predict=self.config.max_tokens
+                        combined_prompt, num_predict=self.config.max_tokens
                     )
                     # Strip thinking tokens from reasoning models like DeepSeek R1
                     summary = _strip_thinking_tokens(raw_summary)

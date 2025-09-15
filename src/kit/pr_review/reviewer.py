@@ -314,7 +314,6 @@ class PRReviewer:
             response = self._llm_client.messages.create(
                 model=self.config.llm.model,
                 max_tokens=self.config.llm.max_tokens,
-                temperature=self.config.llm.temperature,
                 messages=[{"role": "user", "content": enhanced_prompt}],
             )
 
@@ -352,8 +351,7 @@ class PRReviewer:
                 model=self.config.llm.model,
                 contents=enhanced_prompt,
                 config=types.GenerateContentConfig(
-                    temperature=self.config.llm.temperature,
-                    max_output_tokens=self.config.llm.max_tokens,
+                        max_output_tokens=self.config.llm.max_tokens,
                 ),
             )
 
@@ -412,7 +410,6 @@ class PRReviewer:
             response = self._llm_client.chat.completions.create(
                 model=self.config.llm.model,
                 max_tokens=self.config.llm.max_tokens,
-                temperature=self.config.llm.temperature,
                 messages=[{"role": "user", "content": enhanced_prompt}],
             )
 
@@ -459,7 +456,6 @@ class PRReviewer:
             response = await asyncio.to_thread(
                 self._llm_client.generate,
                 enhanced_prompt,
-                temperature=self.config.llm.temperature,
                 num_predict=self.config.llm.max_tokens,
             )
 

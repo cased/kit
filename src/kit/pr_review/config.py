@@ -132,7 +132,6 @@ class LLMConfig:
     model: str
     api_key: str
     max_tokens: int = 4000
-    temperature: float = 0.1
     api_base_url: Optional[str] = None  # For local LLMs or custom OpenAI endpoints
 
 
@@ -170,7 +169,6 @@ class ReviewConfig:
     llm_model: Optional[str] = None  # Convenience accessor for llm.model
     llm_api_key: Optional[str] = None  # Convenience accessor for llm.api_key
     llm_api_base_url: Optional[str] = None  # Convenience accessor for llm.api_base_url
-    llm_temperature: Optional[float] = None  # Convenience accessor for llm.temperature
     llm_max_tokens: Optional[int] = None  # Convenience accessor for llm.max_tokens
 
     @classmethod
@@ -288,7 +286,6 @@ class ReviewConfig:
             model=llm_data.get("model", default_model),
             api_key=str(api_key),
             max_tokens=llm_data.get("max_tokens", 4000),
-            temperature=llm_data.get("temperature", 0.1),
             api_base_url=llm_data.get("api_base_url"),
         )
 
@@ -351,7 +348,6 @@ class ReviewConfig:
             llm_model=llm_config.model,
             llm_api_key=llm_config.api_key,
             llm_api_base_url=llm_config.api_base_url,
-            llm_temperature=llm_config.temperature,
             llm_max_tokens=llm_config.max_tokens,
         )
 
@@ -370,7 +366,6 @@ class ReviewConfig:
                 "model": "claude-sonnet-4-20250514",  # or "gpt-4o", "gemini-2.5-flash"
                 "api_key": "sk-your_api_key_here",
                 "max_tokens": 4000,
-                "temperature": 0.1,
                 # For custom OpenAI compatible providers (e.g., Together AI, OpenRouter, etc.)
                 # "api_base_url": "https://api.together.xyz/v1",  # Example: Together AI
                 # "api_base_url": "https://openrouter.ai/api/v1",  # Example: OpenRouter
