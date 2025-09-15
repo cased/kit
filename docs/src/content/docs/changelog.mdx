@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - MCP server command changed from `kit-mcp` to `kit-dev-mcp`
 - Restructured MCP server implementation for enhanced capabilities
+- Removed temperature parameters from all LLM configurations for improved model compatibility
+  - Affects OpenAI, Anthropic, Google, and Ollama configurations
+  - Models now use their default temperature settings
+  - Improves compatibility with newer model versions that don't support custom temperature
 
 ### Documentation
 
