@@ -260,7 +260,10 @@ Add a stanza like this to your MCP configuration:
       "command": "uvx",
       "args": ["--from", "cased-kit", "kit-dev-mcp"],
       "env": {
-        "KIT_GITHUB_TOKEN": "ghp_your_token_here"  // Optional: for private repos
+        "KIT_GITHUB_TOKEN": "ghp_your_token_here",  // Optional: for private repos
+        "OPENAI_API_KEY": "sk-...",  // Optional: for LLM synthesis
+        "ANTHROPIC_API_KEY": "sk-ant-...",  // Optional: for LLM synthesis
+        "UPSTASH_API_KEY": "..."  // Optional: for enhanced documentation access
       }
     }
   }
@@ -276,7 +279,10 @@ If you have installed `cased-kit` with `pip` or some other method, you can invok
   "mcpServers": {
     "kit-dev-mcp": {
       "command": "python",
-      "args": ["-m", "kit.mcp.dev"]
+      "args": ["-m", "kit.mcp.dev"],
+      "env": {
+        // Same optional environment variables as above
+      }
     }
   }
 }

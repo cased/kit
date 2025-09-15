@@ -34,6 +34,7 @@ from pydantic import BaseModel, Field
 
 from .. import __version__ as KIT_VERSION
 from ..ast_search import ASTSearcher
+from ..doc_providers import DocumentationService, UpstashProvider
 from ..pr_review.config import ReviewConfig
 from ..pr_review.local_reviewer import LocalDiffReviewer
 from ..repository import Repository
@@ -509,10 +510,10 @@ class BuildContextParams(BaseModel):
 
 
 class DeepResearchParams(BaseModel):
-    """Deep research documentation for a package (using LLM)."""
+    """Deep research documentation for a package."""
 
-    package_name: str
-    query: str = Field(default="", description="Specific question about the package")
+    package_name: str = Field(description="Package or library name (e.g., 'react', 'django', 'tensorflow')")
+    query: Optional[str] = Field(default=None, description="Specific question or topic about the package")
 
 
 class LocalDevServerLogic(KitServerLogic):
@@ -535,104 +536,131 @@ class LocalDevServerLogic(KitServerLogic):
             logger.error(f"Failed to open repository: {e}")
             raise
 
-    def deep_research_package(self, package_name: str, query: str = "") -> Dict[str, Any]:
-        """Perform deep research on a package using Context7 + LLM synthesis."""
-        import json
+    def deep_research_package(self, package_name: str, query: Optional[str] = None) -> Dict[str, Any]:
+        """Deep research on a package - combines real docs + optional LLM synthesis."""
         import os
-
-        from ..context7_client import Context7Client, integrate_with_llm
         from ..deep_research import DeepResearch
         from ..summaries import AnthropicConfig, LLMError, OpenAIConfig
 
-        # First, try to fetch real documentation from Context7
-        context7 = Context7Client()
-        context7_docs = context7.fetch_documentation(package_name, topic=query if query else None)
+        # Initialize documentation service (using our abstracted provider)
+        doc_service = DocumentationService(UpstashProvider())
 
-        # Check if we have LLM config for synthesis
-        config: Optional[Union[OpenAIConfig, AnthropicConfig]] = None
-        if os.environ.get("OPENAI_API_KEY"):
-            config = OpenAIConfig(model="gpt-5")
-        elif os.environ.get("ANTHROPIC_API_KEY"):
-            config = AnthropicConfig(model="claude-3-haiku-20240307")
+        # Try different strategies to get documentation
+        library_id = package_name
+        doc_result = None
+        search_results = {"results": []}
 
-        # If Context7 returned good data and we have no LLM, return Context7 data
-        if context7_docs.get("status") == "success" and not config:
-            return {
-                "package": package_name,
-                "source": "context7",
-                "model": "none",
-                "execution_time": 0,
-                "documentation": context7_docs.get("documentation", {}),
-                "message": "Using Context7 aggregated documentation (no LLM synthesis)",
-            }
-
-        # If no LLM config and Context7 failed, return helpful message
-        if not config:
-            return {
-                "package": package_name,
-                "source": "none",
-                "model": "none",
-                "execution_time": 0,
-                "documentation": "No documentation sources available. To get comprehensive docs, either set OPENAI_API_KEY/ANTHROPIC_API_KEY for LLM synthesis, or ensure Context7 is accessible.",
-            }
-
-        try:
-            researcher = DeepResearch(config)
-        except LLMError as e:
-            # If LLM fails but Context7 worked, return Context7 data
-            if context7_docs.get("status") == "success":
-                return {
-                    "package": package_name,
-                    "source": "context7",
-                    "model": "error",
-                    "execution_time": 0,
-                    "documentation": context7_docs.get("documentation", {}),
-                    "error": f"LLM error: {e}, using Context7 data only",
-                }
-            return {
-                "package": package_name,
-                "source": "error",
-                "model": "error",
-                "execution_time": 0,
-                "documentation": f"LLM configuration error: {e}",
-            }
-
-        # Build the research query, including Context7 data if available
-        context_info = ""
-        if context7_docs.get("status") == "success":
-            context_info = f"\n\nContext7 provided this real documentation:\n{json.dumps(context7_docs.get('documentation', {}), indent=2)[:2000]}\n\nPlease synthesize and enhance this information."
-
-        if query:
-            research_query = f"Tell me about the {package_name} package, specifically: {query}{context_info}"
+        # Strategy 0: If it already looks like a library ID (contains / or starts with /), try it directly
+        if "/" in package_name or package_name.startswith("/"):
+            library_id = package_name
+            doc_result = doc_service.get_documentation(library_id, tokens=5000, topic=query)
+            if doc_result and doc_result.get("status") == "success":
+                # Found it directly, no need to search
+                search_results = {"results": [], "note": "Used provided library ID directly"}
+            else:
+                # Didn't work, proceed with search
+                search_results = doc_service.search_packages(package_name)
         else:
-            research_query = f"""Provide comprehensive information about the {package_name} Python package including:
-            - What it does and its main use cases
-            - Key features and capabilities
-            - Basic usage examples
-            - Common patterns and best practices
-            - Important classes/functions to know about{context_info}"""
+            # Normal package name, start with search
+            search_results = doc_service.search_packages(package_name)
 
-        result = researcher.research(research_query)
+        # Strategy 1: If we got search results, try each result until one works
+        if search_results.get("results") and len(search_results["results"]) > 0:
+            for result in search_results["results"][:3]:  # Try top 3 results
+                library_id = result.get("id", package_name)
+                doc_result = doc_service.get_documentation(library_id, tokens=5000, topic=query)
+                if doc_result and doc_result.get("status") == "success":
+                    break  # Found working documentation
 
-        # Integrate Context7 docs with LLM response
-        if context7_docs.get("status") == "success":
-            final_result = integrate_with_llm(context7_docs, result.answer)
-            return {
-                "package": package_name,
-                "source": "context7+llm",
-                "model": result.model,
-                "execution_time": result.execution_time,
-                "documentation": final_result,
+        # Strategy 2: If that didn't work and package doesn't have /, try common pattern
+        if (not doc_result or doc_result.get("status") != "success") and "/" not in package_name:
+            # Try common pattern: package/package (works for django/django, redis/redis, etc.)
+            library_id = f"{package_name}/{package_name}"
+            doc_result = doc_service.get_documentation(library_id, tokens=5000, topic=query)
+
+        # If still no docs, we'll return the search results for the agent to choose from
+        if not doc_result:
+            doc_result = {"status": "not_found"}
+
+        # Check if we got useful documentation
+        has_real_docs = (
+            doc_result.get("status") == "success"
+            and doc_result.get("documentation")
+            and doc_result.get("documentation", {}).get("snippets")
+        )
+
+        # If we got good docs and user has a specific query, optionally enhance with LLM
+        if has_real_docs and query and (os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")):
+            # Use LLM to synthesize an answer based on the real docs
+            config = None
+            if os.environ.get("OPENAI_API_KEY"):
+                config = OpenAIConfig(model="gpt-4o", max_tokens=2000)
+            elif os.environ.get("ANTHROPIC_API_KEY"):
+                config = AnthropicConfig(model="claude-3-5-sonnet-20241022", max_tokens=2000)
+
+            if config:
+                try:
+                    researcher = DeepResearch(config)
+                    doc_snippets = doc_result.get("documentation", {}).get("snippets", [])[:5]
+                    context = "\n\n".join([
+                        f"{s.get('title', 'Example')}: {s.get('description', '')}\n{s.get('code', '')[:500]}"
+                        for s in doc_snippets
+                    ])
+
+                    research_query = f"""Based on this official documentation for {package_name}:
+
+{context}
+
+Answer this specific question: {query}"""
+
+                    llm_result = researcher.research(research_query)
+
+                    return {
+                        "package": package_name,
+                        "query": query,
+                        "status": "success",
+                        "documentation": doc_result.get("documentation"),
+                        "answer": llm_result.answer,
+                        "source": "real_docs+llm",
+                        "provider": doc_result.get("provider"),
+                        "version": KIT_VERSION,
+                    }
+                except Exception as e:
+                    # If LLM fails, still return the real docs
+                    pass
+
+        # Return comprehensive response
+        response = {
+            "package": package_name,
+            "query": query,
+            "library_id_attempted": library_id,
+            "status": doc_result.get("status") if doc_result else "not_found",
+            "source": "real_docs",
+            "provider": doc_result.get("provider") if doc_result else "UpstashProvider",
+            "version": KIT_VERSION,
+        }
+
+        if has_real_docs:
+            # Success - we found documentation
+            response["documentation"] = doc_result.get("documentation")
+            response["resolution_method"] = "automatic"
+        else:
+            # No docs found - provide rich information and PROMPT FOR RETRY
+            response["available_libraries"] = search_results.get("results", [])
+            response["action_required"] = "CALL_AGAIN_WITH_LIBRARY_ID"
+            response["resolution_guidance"] = {
+                "message": f"Multiple libraries found for '{package_name}'. Please call deep_research_package again with the specific library ID.",
+                "instruction": "Call deep_research_package with package_name set to one of the library IDs below",
+                "search_found": f"{len(search_results.get('results', []))} potential matches",
+                "recommended_id": search_results["results"][0]["id"] if search_results.get("results") else None,
+                "selection_criteria": {
+                    "trust_score": "Higher scores (7-10) are more authoritative",
+                    "code_snippets": "More snippets mean better documentation",
+                },
             }
 
-        # Just LLM response if Context7 didn't work
-        return {
-            "package": package_name,
-            "source": "llm_only",
-            "model": result.model,
-            "execution_time": result.execution_time,
-            "documentation": result.answer,
-        }
+        return response
+
 
     def build_smart_context(
         self,
@@ -719,6 +747,16 @@ class LocalDevServerLogic(KitServerLogic):
 
         return context
 
+    def _internal_resolve_library_id(self, query: str) -> Dict[str, Any]:
+        """INTERNAL: Resolve library ID - not exposed as a tool."""
+        doc_service = DocumentationService(UpstashProvider())
+        return doc_service.search_packages(query)
+
+    def _internal_fetch_library_docs(self, library_id: str, tokens: int = 5000, topic: Optional[str] = None) -> Dict[str, Any]:
+        """INTERNAL: Fetch docs directly - not exposed as a tool."""
+        doc_service = DocumentationService(UpstashProvider())
+        return doc_service.get_documentation(library_id, tokens=tokens, topic=topic)
+
     def list_tools(self) -> List[Tool]:
         """List all available tools."""
         # Get base tools from parent class
@@ -726,10 +764,10 @@ class LocalDevServerLogic(KitServerLogic):
 
         # Add our enhanced development tools
         dev_tools = [
-            # Documentation and research
+            # Combined documentation tool (wraps Context7-like functionality)
             Tool(
                 name="deep_research_package",
-                description="Deep research documentation for any package (using LLM to provide comprehensive answers)",
+                description="Get real-time documentation for any package/library with optional Q&A",
                 inputSchema=DeepResearchParams.model_json_schema(),
             ),
             # Smart context building
@@ -739,6 +777,9 @@ class LocalDevServerLogic(KitServerLogic):
                 inputSchema=BuildContextParams.model_json_schema(),
             ),
         ]
+
+        # Note: We DON'T expose _internal_resolve_library_id or _internal_fetch_library_docs
+        # Those are only used internally by deep_research_package
 
         # Return combined tools
         return parent_tools + dev_tools
@@ -753,6 +794,12 @@ async def serve():
     async def call_tool(name: str, arguments: dict) -> List[TextContent]:
         """Handle tool calls."""
         try:
+            # Handle internal tools (not for direct user access)
+            if name.startswith("_internal_"):
+                # These tools can only be called by our own code, not directly by users
+                # You could add additional validation here if needed
+                pass
+
             # Handle development-specific tools
             if name == "deep_research_package":
                 research_params = DeepResearchParams(**arguments)

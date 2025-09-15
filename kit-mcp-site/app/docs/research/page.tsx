@@ -92,21 +92,23 @@ deep_research_package({
   "package_name": "fastapi"
 })
 
-# Returns comprehensive documentation:
+# Returns real-time documentation + synthesis:
 {
   "package": "fastapi",
-  "overview": "FastAPI is a modern, fast web framework...",
-  "installation": "pip install fastapi uvicorn[standard]",
-  "core_features": [
-    "Automatic API documentation",
-    "Type hints support",
-    "Async/await support",
-    "Data validation with Pydantic"
-  ],
-  "basic_usage": "from fastapi import FastAPI...",
-  "common_patterns": [...],
-  "best_practices": [...],
-  "troubleshooting": [...]
+  "status": "success",
+  "documentation": {
+    "snippets": [
+      {
+        "title": "FastAPI Quickstart",
+        "description": "Basic FastAPI application setup",
+        "code": "from fastapi import FastAPI..."
+      }
+    ],
+    "total_snippets": 47
+  },
+  "source": "real_docs",
+  "provider": "UpstashProvider",
+  "version": "2.0.0"
 }`}</pre>
                 </div>
               </CardContent>
@@ -125,21 +127,21 @@ deep_research_package({
                   <pre className="text-white">
 {`# Research specific aspect of a package
 deep_research_package({
-  "package_name": "fastapi authentication oauth2"
+  "package_name": "fastapi",
+  "query": "how to implement OAuth2 authentication"
 })
 
-# Returns focused documentation:
+# Returns real docs + LLM synthesis:
 {
-  "topic": "FastAPI OAuth2 Authentication",
-  "overview": "OAuth2 implementation in FastAPI...",
-  "setup_steps": [...],
-  "code_examples": {
-    "basic_oauth2": "...",
-    "jwt_tokens": "...",
-    "password_flow": "..."
+  "package": "fastapi",
+  "query": "how to implement OAuth2 authentication",
+  "status": "success",
+  "documentation": {
+    "snippets": [...] // Real FastAPI OAuth2 code examples
   },
-  "security_considerations": [...],
-  "common_issues": [...]
+  "answer": "To implement OAuth2 in FastAPI, you can use the built-in security utilities...",
+  "source": "real_docs+llm",
+  "provider": "UpstashProvider"
 }`}</pre>
                 </div>
               </CardContent>

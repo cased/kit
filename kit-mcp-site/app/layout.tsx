@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kit Dev MCP - Production-Grade Code Intelligence for AI",
+  title: "kit-dev MCP - the best MCP server for coding with AI agents",
   description: "Supercharge your AI assistant with real-time file watching, deep documentation research, and smart context building. 100% local, private, and free. From Cased.",
   icons: {
     icon: '/favicon.svg',

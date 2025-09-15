@@ -27,7 +27,7 @@ class ResearchResult:
 
 
 class DeepResearch:
-    """Simple LLM-based research for comprehensive answers."""
+    """LLM-based research for comprehensive answers."""
 
     def __init__(self, config: Optional[Union[OpenAIConfig, AnthropicConfig, GoogleConfig, OllamaConfig]] = None):
         """Initialize with LLM config."""
@@ -113,6 +113,10 @@ Be thorough but concise. Focus on accuracy and usefulness."""
                 response = self._llm_client.chat.completions.create(**completion_params)
                 answer = response.choices[0].message.content
 
+                # Handle None or empty responses
+                if not answer:
+                    answer = "The LLM returned an empty response. Please try again."
+
             elif isinstance(self.config, AnthropicConfig):
                 response = self._llm_client.messages.create(
                     model=self.config.model,
@@ -121,6 +125,10 @@ Be thorough but concise. Focus on accuracy and usefulness."""
                     messages=[{"role": "user", "content": user_prompt}],
                 )
                 answer = response.content[0].text
+
+                # Handle None or empty responses
+                if not answer:
+                    answer = "The LLM returned an empty response. Please try again."
 
             elif isinstance(self.config, GoogleConfig):
                 response = self._llm_client.generate_content(f"{system_prompt}\n\n{user_prompt}")
@@ -144,7 +152,7 @@ Be thorough but concise. Focus on accuracy and usefulness."""
             model = self.config.model if self.config else "none"
 
         except Exception as e:
-            logger.error(f"LLM call failed: {e}")
+            logger.warning(f"LLM call failed: {e}")
             answer = f"Unable to research: {e}"
             model = "error"
 
