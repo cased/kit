@@ -1,7 +1,7 @@
 """Test tree-sitter API compatibility handling."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
 from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
 
 
@@ -14,15 +14,28 @@ class TestTreeSitterCompatibility:
 
         # Mock query with matches() method
         mock_query = Mock()
-        mock_query.matches = Mock(return_value=[
-            (0, {"name": [Mock(text=b"test", start_point=(0, 9), end_point=(0, 13), start_byte=9, end_byte=13)],
-                 "definition.function": [Mock(text=b"function test() { return 42; }",
-                                             start_point=(0, 0), end_point=(0, 30),
-                                             start_byte=0, end_byte=30)]})
-        ])
+        mock_query.matches = Mock(
+            return_value=[
+                (
+                    0,
+                    {
+                        "name": [Mock(text=b"test", start_point=(0, 9), end_point=(0, 13), start_byte=9, end_byte=13)],
+                        "definition.function": [
+                            Mock(
+                                text=b"function test() { return 42; }",
+                                start_point=(0, 0),
+                                end_point=(0, 30),
+                                start_byte=0,
+                                end_byte=30,
+                            )
+                        ],
+                    },
+                )
+            ]
+        )
 
-        with patch.object(TreeSitterSymbolExtractor, 'get_query', return_value=mock_query):
-            with patch.object(TreeSitterSymbolExtractor, 'get_parser') as mock_parser:
+        with patch.object(TreeSitterSymbolExtractor, "get_query", return_value=mock_query):
+            with patch.object(TreeSitterSymbolExtractor, "get_parser") as mock_parser:
                 mock_tree = Mock()
                 mock_tree.root_node = Mock()
                 mock_parser.return_value.parse.return_value = mock_tree
@@ -39,16 +52,25 @@ class TestTreeSitterCompatibility:
         code = "interface User { id: number; }"
 
         # Mock query without matches() but with captures()
-        mock_query = Mock(spec=['captures', 'capture_count'])
-        mock_query.captures = Mock(return_value=[
-            ("name", Mock(text=b"User", start_point=(0, 10), end_point=(0, 14), start_byte=10, end_byte=14)),
-            ("definition.interface", Mock(text=b"interface User { id: number; }",
-                                        start_point=(0, 0), end_point=(0, 30),
-                                        start_byte=0, end_byte=30))
-        ])
+        mock_query = Mock(spec=["captures", "capture_count"])
+        mock_query.captures = Mock(
+            return_value=[
+                ("name", Mock(text=b"User", start_point=(0, 10), end_point=(0, 14), start_byte=10, end_byte=14)),
+                (
+                    "definition.interface",
+                    Mock(
+                        text=b"interface User { id: number; }",
+                        start_point=(0, 0),
+                        end_point=(0, 30),
+                        start_byte=0,
+                        end_byte=30,
+                    ),
+                ),
+            ]
+        )
 
-        with patch.object(TreeSitterSymbolExtractor, 'get_query', return_value=mock_query):
-            with patch.object(TreeSitterSymbolExtractor, 'get_parser') as mock_parser:
+        with patch.object(TreeSitterSymbolExtractor, "get_query", return_value=mock_query):
+            with patch.object(TreeSitterSymbolExtractor, "get_parser") as mock_parser:
                 mock_tree = Mock()
                 mock_tree.root_node = Mock()
                 mock_parser.return_value.parse.return_value = mock_tree
@@ -67,15 +89,18 @@ class TestTreeSitterCompatibility:
         # Mock query where matches() exists but fails
         mock_query = Mock()
         mock_query.matches = Mock(side_effect=AttributeError("'Query' object has no attribute 'matches'"))
-        mock_query.captures = Mock(return_value=[
-            ("name", Mock(text=b"Test", start_point=(0, 6), end_point=(0, 10), start_byte=6, end_byte=10)),
-            ("definition.class", Mock(text=b"class Test {}",
-                                    start_point=(0, 0), end_point=(0, 13),
-                                    start_byte=0, end_byte=13))
-        ])
+        mock_query.captures = Mock(
+            return_value=[
+                ("name", Mock(text=b"Test", start_point=(0, 6), end_point=(0, 10), start_byte=6, end_byte=10)),
+                (
+                    "definition.class",
+                    Mock(text=b"class Test {}", start_point=(0, 0), end_point=(0, 13), start_byte=0, end_byte=13),
+                ),
+            ]
+        )
 
-        with patch.object(TreeSitterSymbolExtractor, 'get_query', return_value=mock_query):
-            with patch.object(TreeSitterSymbolExtractor, 'get_parser') as mock_parser:
+        with patch.object(TreeSitterSymbolExtractor, "get_query", return_value=mock_query):
+            with patch.object(TreeSitterSymbolExtractor, "get_parser") as mock_parser:
                 mock_tree = Mock()
                 mock_tree.root_node = Mock()
                 mock_parser.return_value.parse.return_value = mock_tree
@@ -97,8 +122,8 @@ class TestTreeSitterCompatibility:
         mock_query.matches = Mock(side_effect=AttributeError("No matches"))
         mock_query.captures = Mock(side_effect=AttributeError("No captures"))
 
-        with patch.object(TreeSitterSymbolExtractor, 'get_query', return_value=mock_query):
-            with patch.object(TreeSitterSymbolExtractor, 'get_parser') as mock_parser:
+        with patch.object(TreeSitterSymbolExtractor, "get_query", return_value=mock_query):
+            with patch.object(TreeSitterSymbolExtractor, "get_parser") as mock_parser:
                 mock_tree = Mock()
                 mock_tree.root_node = Mock()
                 mock_parser.return_value.parse.return_value = mock_tree
@@ -116,8 +141,8 @@ class TestTreeSitterCompatibility:
         # Mock query with no matches or captures methods
         mock_query = Mock(spec=[])  # Empty spec means no methods
 
-        with patch.object(TreeSitterSymbolExtractor, 'get_query', return_value=mock_query):
-            with patch.object(TreeSitterSymbolExtractor, 'get_parser') as mock_parser:
+        with patch.object(TreeSitterSymbolExtractor, "get_query", return_value=mock_query):
+            with patch.object(TreeSitterSymbolExtractor, "get_parser") as mock_parser:
                 mock_tree = Mock()
                 mock_tree.root_node = Mock()
                 mock_parser.return_value.parse.return_value = mock_tree
