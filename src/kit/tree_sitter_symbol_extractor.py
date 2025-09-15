@@ -446,7 +446,7 @@ class TreeSitterSymbolExtractor:
 
                 # Now extract symbol name as before
                 symbol_name = (
-                    actual_name_node.text.decode() if hasattr(actual_name_node, "text") else str(actual_name_node)
+                    actual_name_node.text.decode() if hasattr(actual_name_node, "text") and actual_name_node.text else str(actual_name_node)
                 )
                 # HCL: Strip quotes from string literals
                 if ext == ".tf" and hasattr(actual_name_node, "type") and actual_name_node.type == "string_lit":
@@ -465,8 +465,8 @@ class TreeSitterSymbolExtractor:
                         type_node = captures.get("type")
                         if type_node:
                             if isinstance(type_node, list):
-                                type_node = type_node[0] if type_node else None
-                            if type_node and hasattr(type_node, "text"):
+                                type_node = type_node[0] if len(type_node) > 0 else None
+                            if type_node and hasattr(type_node, "text") and type_node.text:
                                 type_name = type_node.text.decode()
                                 if hasattr(type_node, "type") and type_node.type == "string_lit":
                                     if len(type_name) >= 2 and type_name.startswith('"') and type_name.endswith('"'):
