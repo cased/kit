@@ -24,7 +24,7 @@ An enhanced MCP (Model Context Protocol) server that gives Cursor, Windsurf, Cla
 - Symbol extraction and dependency analysis
 - And much more
 
-[**→ Explore Kit Dev MCP Documentation**](https://kit-dev.cased.com)
+[**→ Explore Kit Dev MCP Documentation**](https://kit-mcp.cased.com)
 
 ### 3. **AI PR Reviewer** - Production-Ready Code Reviews
 A complete, customizable pull request reviewer that rivals paid services:
@@ -247,7 +247,7 @@ The `kit` tool includes an enhanced MCP (Model Context Protocol) server called *
 - Symbol extraction and dependency analysis
 - Integration with Cursor, Windsurf, Claude Code, and VS Code
 
-**[→ Full Kit Dev MCP Documentation](https://kit-dev.cased.com)**
+**[→ Full Kit Dev MCP Documentation](https://kit-mcp.cased.com)**
 
 ### Quick Setup
 
@@ -346,7 +346,7 @@ kit commit      # Analyze and commit with AI-generated message
 Explore the **[Full Documentation](https://kit.cased.com)** for detailed usage, advanced features, and practical examples.
 Full REST documentation is also available.
 
-**[Kit Dev MCP Documentation](https://kit-dev.cased.com)** - Complete guide for the enhanced MCP server
+**[Kit Dev MCP Documentation](https://kit-mcp.cased.com)** - Complete guide for the enhanced MCP server
 
 📝 **[Changelog](https://kit.cased.com/changelog)** - Track all changes and improvements across kit releases
 
