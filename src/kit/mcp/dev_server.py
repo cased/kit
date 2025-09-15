@@ -145,7 +145,7 @@ class GrepASTParams(BaseModel):
 
 
 class KitServerLogic:
-    def __init__(self):
+    def __init__(self) -> None:
         self._repos: Dict[str, Repository] = {}
 
     def open_repository(self, path_or_url: str, github_token: Optional[str] = None, ref: Optional[str] = None) -> str:
@@ -518,7 +518,7 @@ class DeepResearchParams(BaseModel):
 class LocalDevServerLogic(KitServerLogic):
     """Enhanced MCP server logic for development."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._test_results: Dict[str, Dict] = {}
         self._context_cache: Dict[str, Any] = {}

@@ -544,7 +544,7 @@ class Summarizer:
                     summary = f"Summary generation failed: OpenAI prompt too large ({prompt_token_count} tokens). Limit is {OPENAI_MAX_PROMPT_TOKENS} tokens."
                 else:
                     # GPT-5 models use max_completion_tokens instead of max_tokens
-                    completion_params = {
+                    completion_params: Dict[str, Any] = {
                         "model": self.config.model,
                         "messages": messages_for_api,
                     }
@@ -708,7 +708,7 @@ class Summarizer:
                     summary = f"Summary generation failed: OpenAI prompt too large ({prompt_token_count} tokens). Limit is {OPENAI_MAX_PROMPT_TOKENS} tokens."
                 else:
                     # GPT-5 models use max_completion_tokens instead of max_tokens
-                    completion_params = {
+                    completion_params: Dict[str, Any] = {
                         "model": self.config.model,
                         "messages": messages_for_api,
                     }
@@ -877,7 +877,7 @@ class Summarizer:
                     summary = f"Summary generation failed: OpenAI prompt too large ({prompt_token_count} tokens). Limit is {OPENAI_MAX_PROMPT_TOKENS} tokens."
                 else:
                     # GPT-5 models use max_completion_tokens instead of max_tokens
-                    completion_params = {
+                    completion_params: Dict[str, Any] = {
                         "model": self.config.model,
                         "messages": messages_for_api,
                     }
