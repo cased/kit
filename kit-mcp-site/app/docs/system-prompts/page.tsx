@@ -26,7 +26,7 @@ export default function SystemPromptsPage() {
         </p>
       </div>
 
-      <Card className="neo-card my-8">
+      <Card className="neo-card my-8 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
         <CardHeader>
           <CardTitle>Recommended System Prompts</CardTitle>
         </CardHeader>
@@ -44,8 +44,10 @@ export default function SystemPromptsPage() {
                 <p className="text-sm text-muted-foreground mb-2">
                   Add this to your project's instructions or conversation context:
                 </p>
-                <Card className="neo-card border-2 border-black bg-black p-4">
-                  <pre className="text-red-400 text-sm overflow-x-auto">
+                <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+                  <CardContent className="p-0">
+                    <div className="bg-black p-4 rounded-lg">
+                      <pre className="text-red-400 text-sm overflow-x-auto">
                     <code>{`# Kit MCP Usage Guidelines
 
 When working with code in this project, always:
@@ -71,7 +73,9 @@ When working with code in this project, always:
    - Build smart context for complex tasks
 
 Remember: Better context = Better code suggestions`}</code>
-                  </pre>
+                      </pre>
+                    </div>
+                  </CardContent>
                 </Card>
               </div>
             </TabsContent>
@@ -82,8 +86,10 @@ Remember: Better context = Better code suggestions`}</code>
                 <p className="text-sm text-muted-foreground mb-2">
                   Add to your .cursorrules file in your project root:
                 </p>
-                <Card className="neo-card border-2 border-black bg-black p-4">
-                  <pre className="text-red-400 text-sm overflow-x-auto">
+                <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+                  <CardContent className="p-0">
+                    <div className="bg-black p-4 rounded-lg">
+                      <pre className="text-red-400 text-sm overflow-x-auto">
                     <code>{`# .cursorrules - Kit MCP Integration
 
 ## Available MCP Tools
@@ -113,7 +119,9 @@ For any code task:
 6. Then provide solution
 
 This ensures accurate, context-aware suggestions.`}</code>
-                  </pre>
+                      </pre>
+                    </div>
+                  </CardContent>
                 </Card>
               </div>
             </TabsContent>
@@ -124,8 +132,10 @@ This ensures accurate, context-aware suggestions.`}</code>
                 <p className="text-sm text-muted-foreground mb-2">
                   Generic prompt that works with any AI that supports MCP:
                 </p>
-                <Card className="neo-card border-2 border-black bg-black p-4">
-                  <pre className="text-red-400 text-sm overflow-x-auto">
+                <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+                  <CardContent className="p-0">
+                    <div className="bg-black p-4 rounded-lg">
+                      <pre className="text-red-400 text-sm overflow-x-auto">
                     <code>{`You have access to kit-dev-mcp server with powerful code intelligence tools.
 
 MANDATORY WORKFLOW for code tasks:
@@ -148,7 +158,9 @@ TOOL DESCRIPTIONS:
 
 Always use these tools proactively. Don't wait to be asked.
 Better context = Better code.`}</code>
-                  </pre>
+                      </pre>
+                    </div>
+                  </CardContent>
                 </Card>
               </div>
             </TabsContent>
@@ -161,9 +173,10 @@ Better context = Better code.`}</code>
         <p className="text-muted-foreground mb-4">
           Run this script to automatically add Kit optimization to your project:
         </p>
-        <Card className="neo-card">
+        <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <CardContent className="p-4">
-            <pre className="border-2 border-black bg-black text-white p-4 rounded-lg text-sm overflow-x-auto">
+            <div className="border-2 border-black bg-black text-white p-4 rounded-lg">
+              <pre className="text-sm overflow-x-auto">
               <code>{`#!/bin/bash
 # kit-optimize.sh - Add Kit MCP prompts to your project
 
@@ -187,7 +200,8 @@ EOF
 
 echo "✅ Created .kit-prompts.md"
 echo "📝 Include this file in your AI conversations for better results!"`}</code>
-            </pre>
+              </pre>
+            </div>
           </CardContent>
         </Card>
       </div>

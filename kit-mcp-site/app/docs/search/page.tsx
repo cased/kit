@@ -243,30 +243,6 @@ grep_ast(
           </TabsContent>
         </Tabs>
       </div>
-
-      <div className="my-8">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4">Performance Tips</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <CardContent className="p-4">
-              <Code2 className="h-4 w-4 text-red-500 mb-2" />
-              <strong className="text-sm">Use file filters</strong>
-              <p className="text-xs text-muted-foreground mt-1">
-                Limit search to specific file types for faster results
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="neo-card border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <CardContent className="p-4">
-              <Zap className="h-4 w-4 text-red-500 mb-2" />
-              <strong className="text-sm">Semantic search is cached</strong>
-              <p className="text-xs text-muted-foreground mt-1">
-                First search indexes the repo, subsequent searches are instant
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
     </div>
   );
 }
