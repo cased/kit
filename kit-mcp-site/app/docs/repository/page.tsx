@@ -50,31 +50,31 @@ export default function RepositoryPage() {
               </p>
               <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm mt-2">
                 <code className="text-white text-xs">
-                  get_file_tree(repo_id="...", path="/src")
+                  get_file_tree(repo_id="...")
                 </code>
               </div>
             </div>
-            
+
             <div>
-              <h4 className="font-mono-accent text-red-600 font-semibold">get_file_content</h4>
+              <h4 className="font-mono-accent text-red-600 font-semibold">grep_code</h4>
               <p className="text-sm text-muted-foreground mt-1">
-                Read one or multiple files from the repository
+                Fast literal string search across repository files
               </p>
               <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm mt-2">
                 <code className="text-white text-xs">
-                  get_file_content(repo_id="...", file_path="main.py")
+                  grep_code(repo_id="...", pattern="TODO")
                 </code>
               </div>
             </div>
-            
+
             <div>
-              <h4 className="font-mono-accent text-red-600 font-semibold">get_file_content_multi</h4>
+              <h4 className="font-mono-accent text-red-600 font-semibold">extract_symbols</h4>
               <p className="text-sm text-muted-foreground mt-1">
-                Read multiple files in a single efficient operation (batch reading)
+                Extract symbols (functions, classes, etc.) from a file
               </p>
               <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm mt-2">
                 <code className="text-white text-xs">
-                  get_file_content_multi(repo_id="...", file_paths=["main.py", "utils.py"])
+                  extract_symbols(repo_id="...", file_path="main.py")
                 </code>
               </div>
             </div>
@@ -165,7 +165,7 @@ open_repository(path="https://github.com/org/private-repo")`}</code>
       </div>
 
       <div className="my-8">
-        <h2 className="text-2xl font-bold mb-4">Working with Files</h2>
+        <h2 className="text-2xl font-bold mb-4">Working with Code</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="neo-card">
             <CardHeader>
@@ -188,25 +188,25 @@ open_repository(path="https://github.com/org/private-repo")`}</code>
               </p>
             </CardContent>
           </Card>
-          
+
           <Card className="neo-card">
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
                 <FileCode2 className="h-4 w-4 mr-2 text-red-500" />
-                Batch Reading
+                Code Search
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-3">
-                Read multiple files efficiently:
+                Search for patterns in code:
               </p>
               <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm">
                 <code className="text-white text-xs">
-                  get_file_content_multi(...)
+                  grep_code(repo_id="...", pattern="TODO")
                 </code>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Single operation for multiple files - much faster!
+                Fast literal string search across all files
               </p>
             </CardContent>
           </Card>
@@ -214,32 +214,32 @@ open_repository(path="https://github.com/org/private-repo")`}</code>
       </div>
 
       <div className="my-8">
-        <h2 className="text-2xl font-bold mb-4">Repository Metadata</h2>
+        <h2 className="text-2xl font-bold mb-4">Code Analysis Tools</h2>
         <Card className="neo-card">
           <CardContent className="p-6">
             <p className="text-muted-foreground mb-4">
-              When you open a repository, Kit provides access to Git metadata:
+              Additional tools for analyzing and understanding code:
             </p>
             <div className="space-y-3">
               <div className="flex items-start">
-                <GitBranch className="h-4 w-4 text-red-500 mr-2 mt-1" />
+                <FileCode2 className="h-4 w-4 text-red-500 mr-2 mt-1" />
                 <div>
-                  <strong className="text-sm">Current Branch</strong>
-                  <p className="text-xs text-muted-foreground">Access via repository.current_branch</p>
+                  <strong className="text-sm">find_symbol_usages</strong>
+                  <p className="text-xs text-muted-foreground">Find where symbols are used across the codebase</p>
                 </div>
               </div>
               <div className="flex items-start">
                 <GitBranch className="h-4 w-4 text-red-500 mr-2 mt-1" />
                 <div>
-                  <strong className="text-sm">Current SHA</strong>
-                  <p className="text-xs text-muted-foreground">Access via repository.current_sha</p>
+                  <strong className="text-sm">review_diff</strong>
+                  <p className="text-xs text-muted-foreground">Review git diffs with AI-powered analysis</p>
                 </div>
               </div>
               <div className="flex items-start">
                 <Globe className="h-4 w-4 text-red-500 mr-2 mt-1" />
                 <div>
-                  <strong className="text-sm">Remote URL</strong>
-                  <p className="text-xs text-muted-foreground">Access via repository.remote_url</p>
+                  <strong className="text-sm">grep_ast</strong>
+                  <p className="text-xs text-muted-foreground">Search code using AST patterns for semantic search</p>
                 </div>
               </div>
             </div>
@@ -260,17 +260,17 @@ open_repository(path="https://github.com/org/private-repo")`}</code>
           </Card>
           <Card className="neo-card">
             <CardContent className="p-4">
-              <strong className="text-sm">2. Use file trees for navigation</strong>
+              <strong className="text-sm">2. Use grep_code for searching</strong>
               <p className="text-xs text-muted-foreground mt-1">
-                get_file_tree helps understand structure before reading files
+                Fast literal string search is great for finding TODOs, imports, and specific code patterns
               </p>
             </CardContent>
           </Card>
           <Card className="neo-card">
             <CardContent className="p-4">
-              <strong className="text-sm">3. Use batch operations for efficiency</strong>
+              <strong className="text-sm">3. Use grep_ast for semantic search</strong>
               <p className="text-xs text-muted-foreground mt-1">
-                get_file_content_multi is much faster than multiple individual get_file_content calls
+                AST patterns let you find code by structure, not just text
               </p>
             </CardContent>
           </Card>
