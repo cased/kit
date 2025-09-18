@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Terminal, 
-  Shield, 
-  GitBranch, 
+import {
+  Terminal,
+  Shield,
+  GitBranch,
   Eye,
   Search,
   BookOpen,
@@ -16,10 +16,12 @@ import {
   CheckCircle,
   Github,
   FileCode2,
+  FileText,
   Activity,
   Lock,
   RefreshCw,
-  Layers
+  Layers,
+  Package
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -48,7 +50,12 @@ export default function Home() {
     {
       icon: <BookOpen className="h-5 w-5" />,
       title: "Deep Documentation Research",
-      description: "LLM-powered comprehensive documentation research. Get detailed answers about any package using AI. Local LLM support available."
+      description: "Multi-source documentation with Chroma Package Search + Context7. Get source code and docs in one query."
+    },
+    {
+      icon: <Package className="h-5 w-5" />,
+      title: "Chroma Package Search",
+      description: "Search source code of popular packages with regex patterns, semantic search, and file reading"
     },
     {
       icon: <FileCode2 className="h-5 w-5" />,
@@ -74,7 +81,10 @@ export default function Home() {
 
   const tools = [
     { name: "open_repository", description: "Open local and remote repositories" },
-    { name: "deep_research_package", description: "Comprehensive package documentation using LLM" },
+    { name: "deep_research_package", description: "Multi-source package docs (Chroma + Context7)" },
+    { name: "package_search_grep", description: "Regex search in package source code" },
+    { name: "package_search_hybrid", description: "Semantic search with optional regex" },
+    { name: "package_search_read_file", description: "Read files from packages" },
     { name: "get_file_tree", description: "Structured file navigation" },
     { name: "extract_symbols", description: "Fast symbol extraction with caching" },
     { name: "grep_code", description: "Fast literal search with smart filtering" },
@@ -195,6 +205,73 @@ export default function Home() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* New Package Search Section */}
+      <section className="container px-4 py-12 neo-section bg-gradient-to-br from-purple-50 to-blue-50">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-8">
+            <Badge className="neo-badge bg-purple-500 text-white mb-4">NEW</Badge>
+            <h2 className="text-3xl font-bold">Chroma Package Search Integration</h2>
+            <p className="mt-3 text-lg text-muted-foreground">
+              Search and explore source code from popular packages directly through MCP.
+              Now integrated with deep_research_package for comprehensive multi-source documentation.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <Card className="border-2 border-purple-500 bg-white shadow-[4px_4px_0px_0px_rgba(147,51,234,1)]">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <Search className="h-5 w-5 text-purple-500" />
+                  <CardTitle className="text-base">package_search_grep</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Regex pattern matching to find code patterns across package source files
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-purple-500 bg-white shadow-[4px_4px_0px_0px_rgba(147,51,234,1)]">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <Sparkles className="h-5 w-5 text-purple-500" />
+                  <CardTitle className="text-base">package_search_hybrid</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Semantic search with optional regex filtering for intelligent exploration
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-purple-500 bg-white shadow-[4px_4px_0px_0px_rgba(147,51,234,1)]">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <FileText className="h-5 w-5 text-purple-500" />
+                  <CardTitle className="text-base">package_search_read_file</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Read specific files or line ranges from package source code
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-center">
+            <Button size="lg" className="neo-button bg-purple-500 hover:bg-purple-600 text-white" asChild>
+              <Link href="/docs/package-search">
+                Explore Package Search
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -448,7 +525,7 @@ export default function Home() {
                 </div>
                 
                 <div>
-                  <h3 className="font-semibold text-lg mb-4 text-muted-foreground">Closed source toys</h3>
+                  <h3 className="font-semibold text-lg mb-4 text-muted-foreground">Closed source alts</h3>
                   <ul className="space-y-2 text-muted-foreground">
                     <li className="flex items-start">
                       <CheckCircle className="h-5 w-5 text-gray-400 mr-2 flex-shrink-0 mt-0.5" />

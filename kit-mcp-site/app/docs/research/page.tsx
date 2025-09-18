@@ -30,39 +30,46 @@ export default function ResearchPage() {
                 <Brain className="h-5 w-5 text-purple-500" />
                 Multi-Source Documentation Research
               </CardTitle>
-              <Badge className="neo-badge bg-purple-100 text-purple-800">
-                Enhanced with Context7
-              </Badge>
+              <div className="flex gap-2">
+                <Badge className="neo-badge bg-purple-100 text-purple-800">
+                  Context7
+                </Badge>
+                <Badge className="neo-badge bg-blue-100 text-blue-800">
+                  Chroma Package Search
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Fetches real-time documentation from Context7's aggregated sources. When you provide a
-              specific query, the documentation is enhanced with LLM synthesis for comprehensive answers.
+              Combines multiple documentation sources for comprehensive package research. Uses Chroma Package Search
+              for source code exploration and Context7 for documentation aggregation. When you provide a
+              specific query, results are enhanced with LLM synthesis for comprehensive answers.
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <h4 className="font-semibold mb-2">Documentation Sources:</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Context7 real-time docs aggregation</li>
+                  <li>• <strong>Chroma Package Search:</strong> Source code exploration</li>
+                  <li>• <strong>Context7:</strong> Real-time docs aggregation</li>
                   <li>• Official package documentation</li>
                   <li>• Latest API references</li>
-                  <li>• Real code examples</li>
+                  <li>• Real code examples from repositories</li>
                   <li>• LLM synthesis (when query provided)</li>
-                  <li className="text-xs text-muted-foreground/70 italic">• More sources coming soon</li>
                 </ul>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">How It Works:</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Searches Context7's index</li>
-                  <li>• Fetches real documentation</li>
+                  <li>• Searches package source code via Chroma</li>
+                  <li>• Fetches documentation from Context7</li>
+                  <li>• Combines both sources intelligently</li>
                   <li>• Returns code examples & docs</li>
                   <li>• Optionally enhances with LLM</li>
                 </ul>
                 <div className="mt-3 p-2 bg-blue-50 rounded">
                   <p className="text-xs text-blue-700">
-                    <strong>✨ Key Benefit:</strong> Real-time docs, always current
+                    <strong>✨ Key Benefit:</strong> Both source code and docs in one query
                   </p>
                 </div>
               </div>
@@ -104,8 +111,15 @@ deep_research_package({
     ],
     "total_snippets": 47
   },
-  "source": "real_docs",
-  "provider": "UpstashProvider",
+  "chroma_results": [
+    {
+      "file_path": "fastapi/applications.py",
+      "line_number": 45,
+      "content": "class FastAPI(Starlette):"
+    }
+  ],
+  "source": "multi_source",
+  "providers": ["ChromaPackageSearch", "UpstashProvider"],
   "version": "2.0.0"
 }`}</pre>
                 </div>
@@ -137,9 +151,15 @@ deep_research_package({
   "documentation": {
     "snippets": [...] // Real FastAPI OAuth2 code examples
   },
+  "chroma_results": [
+    {
+      "file_path": "fastapi/security/oauth2.py",
+      "snippet": "OAuth2 implementation details..."
+    }
+  ],
   "answer": "To implement OAuth2 in FastAPI, you can use the built-in security utilities...",
-  "source": "real_docs+llm",
-  "provider": "UpstashProvider"
+  "source": "multi_source+llm",
+  "providers": ["ChromaPackageSearch", "UpstashProvider"]
 }`}</pre>
                 </div>
               </CardContent>
@@ -187,12 +207,17 @@ deep_research_package({
           <CardContent className="p-4">
             <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm">
               <pre className="text-white">
-{`# Set up your LLM provider (choose one)
+{`# Set up your providers (optional but recommended)
 
+# For source code search (Chroma Package Search)
+export CHROMA_PACKAGE_SEARCH_API_KEY="your-chroma-key"
+# Get from: https://cloud.trychroma.com
+
+# For LLM synthesis (choose one)
 # Option 1: OpenAI
 export OPENAI_API_KEY="your-openai-key"
 
-# Option 2: Anthropic  
+# Option 2: Anthropic
 export ANTHROPIC_API_KEY="your-anthropic-key"
 
 # Option 3: Ollama (free, local)
@@ -200,11 +225,10 @@ export ANTHROPIC_API_KEY="your-anthropic-key"
 # Pull model: ollama pull qwen2.5-coder:latest
 # No API key needed!
 
-# Option 4: Pass API key directly
+# The tool will use all available providers automatically
 deep_research_package({
   "package_name": "numpy",
-  "api_key": "your-api-key",  # Optional
-  "model": "gpt-4"  # Optional, auto-detects by default
+  "query": "FFT implementation"  # Optional
 })`}</pre>
             </div>
           </CardContent>

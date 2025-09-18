@@ -17,6 +17,7 @@ const sidebarItems = [
       { href: "/docs/repository", label: "Repository Management", icon: FileCode },
       { href: "/docs/symbols", label: "Symbol Extraction", icon: Zap },
       { href: "/docs/search", label: "Code Search", icon: Search },
+      { href: "/docs/package-search", label: "Package Search", icon: Search },
       { href: "/docs/research", label: "Documentation Research", icon: Book },
     ]
   },

@@ -64,7 +64,8 @@ class TestLocalDevServerLogic:
         assert result["package"] == "fastapi"
         assert "status" in result
         assert "source" in result
-        assert "provider" in result
+        assert "providers" in result  # Changed from provider to providers
+        assert isinstance(result["providers"], list)  # Providers is now a list
         assert "version" in result
         # Documentation is now a dict from Context7 or None if not found
         if result["status"] == "success":

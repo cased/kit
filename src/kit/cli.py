@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import List, Optional, Union
 
+import httpx
 import typer
 
 from . import __version__
@@ -39,6 +40,11 @@ def main(
     • [cyan]search[/]     - Find patterns across codebase
     • [cyan]search-semantic[/] - AI-powered semantic code search
     • [cyan]file-tree[/]  - Repository structure overview
+
+    [bold purple]📦 Package Search Commands:[/]
+    • [cyan]package-search-grep[/] - Regex search in package source code
+    • [cyan]package-search-hybrid[/] - Semantic + regex search in packages
+    • [cyan]package-search-read[/] - Read files from packages
 
     [bold magenta]🔧 Utility Commands:[/]
     • [cyan]serve[/]      - Start REST API server
@@ -1724,6 +1730,141 @@ def search_semantic(
     except Exception as e:
         typer.secho(f"❌ Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+
+
+@app.command("package-search-grep")
+def package_search_grep_cmd(
+    package: str = typer.Argument(..., help="Package name to search (e.g., 'numpy', 'django')"),
+    pattern: str = typer.Argument(..., help="Regex pattern to search for"),
+    max_results: int = typer.Option(20, "--max-results", "-m", help="Maximum number of results"),
+    file_pattern: Optional[str] = typer.Option(
+        None, "--file-pattern", "-f", help="Filter files by glob pattern (e.g., '*.py')"
+    ),
+    case_sensitive: bool = typer.Option(True, "--case-sensitive/--ignore-case", "-c/-i", help="Case sensitivity"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+):
+    """
+    Search package source code using regex patterns.
+
+    Examples:
+        kit package-search-grep numpy "def.*fft"
+        kit package-search-grep fastapi "async def" --max-results 10
+        kit package-search-grep django "@login_required" -f "*.py"
+    """
+    try:
+        from .package_search import ChromaPackageSearch
+
+        client = ChromaPackageSearch()
+        results = client.grep(
+            package=package,
+            pattern=pattern,
+            max_results=max_results,
+            file_pattern=file_pattern,
+            case_sensitive=case_sensitive,
+        )
+
+        if json_output:
+            typer.echo(json.dumps(results, indent=2))
+        else:
+            typer.echo(f"Found {len(results)} matches in {package}:")
+            for i, result in enumerate(results[:max_results], 1):
+                file_path = result.get("file_path", "unknown")
+                line_num = result.get("line_number", "?")
+                content = result.get("content", "")
+                typer.echo(f"\n{i}. {file_path}:{line_num}")
+                typer.echo(f"   {content[:100]}...")
+
+    except ValueError as e:
+        handle_cli_error(e, "Package search error", "Check your API key and package name")
+    except Exception as e:
+        handle_cli_error(e, "Unexpected error")
+
+
+@app.command("package-search-hybrid")
+def package_search_hybrid_cmd(
+    package: str = typer.Argument(..., help="Package name to search"),
+    query: str = typer.Argument(..., help="Semantic search query"),
+    regex_filter: Optional[str] = typer.Option(None, "--regex", "-r", help="Optional regex filter"),
+    max_results: int = typer.Option(10, "--max-results", "-m", help="Maximum number of results"),
+    file_pattern: Optional[str] = typer.Option(None, "--file-pattern", "-f", help="Filter files by glob pattern"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+):
+    """
+    Semantic search with optional regex filtering in package source code.
+
+    Examples:
+        kit package-search-hybrid numpy "fast fourier transform"
+        kit package-search-hybrid django "authentication middleware" --regex "class.*Middleware"
+        kit package-search-hybrid tensorflow "gradient computation"
+    """
+    try:
+        from .package_search import ChromaPackageSearch
+
+        client = ChromaPackageSearch()
+        results = client.hybrid_search(
+            package=package,
+            query=query,
+            regex_filter=regex_filter,
+            max_results=max_results,
+            file_pattern=file_pattern,
+        )
+
+        if json_output:
+            typer.echo(json.dumps(results, indent=2))
+        else:
+            typer.echo(f"Found {len(results)} relevant snippets in {package}:")
+            for i, result in enumerate(results[:max_results], 1):
+                file_path = result.get("file_path", "unknown")
+                snippet = result.get("snippet", result.get("content", ""))[:200]
+                typer.echo(f"\n{i}. {file_path}")
+                typer.echo(f"   {snippet}...")
+
+    except ValueError as e:
+        handle_cli_error(e, "Package search error", "Check your API key and package name")
+    except Exception as e:
+        handle_cli_error(e, "Unexpected error")
+
+
+@app.command("package-search-read")
+def package_search_read_cmd(
+    package: str = typer.Argument(..., help="Package name"),
+    file_path: str = typer.Argument(..., help="Path to file within package"),
+    start_line: Optional[int] = typer.Option(None, "--start", "-s", help="Starting line number"),
+    end_line: Optional[int] = typer.Option(None, "--end", "-e", help="Ending line number"),
+):
+    """
+    Read a specific file from a package.
+
+    Examples:
+        kit package-search-read numpy numpy/__init__.py
+        kit package-search-read requests requests/models.py --start 100 --end 200
+        kit package-search-read django django/contrib/auth/middleware.py
+    """
+    try:
+        from .package_search import ChromaPackageSearch
+
+        client = ChromaPackageSearch()
+        content = client.read_file(
+            package=package,
+            file_path=file_path,
+            start_line=start_line,
+            end_line=end_line,
+        )
+
+        typer.echo(content)
+
+    except ValueError as e:
+        handle_cli_error(e, "Package search error", "Check your API key, package name, and file path")
+    except httpx.ReadTimeout:
+        typer.secho("⏱️ Request timed out. The Chroma API may be slow for this package.", fg=typer.colors.YELLOW)
+        typer.secho("   Try again with a smaller file or different package.", fg=typer.colors.BRIGHT_BLACK)
+        raise typer.Exit(1)
+    except httpx.RemoteProtocolError as e:
+        typer.secho(f"⚠️ Connection issue: {e}", fg=typer.colors.YELLOW)
+        typer.secho("   The Chroma API may be having issues. Try again later.", fg=typer.colors.BRIGHT_BLACK)
+        raise typer.Exit(1)
+    except Exception as e:
+        handle_cli_error(e, "Unexpected error")
 
 
 def handle_cli_error(error: Exception, error_type: str = "Error", help_text: Optional[str] = None) -> None:

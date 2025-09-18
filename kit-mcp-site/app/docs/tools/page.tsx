@@ -21,12 +21,55 @@ const tools = [
     tools: [
       {
         name: "deep_research_package",
-        description: "Get comprehensive package documentation using LLM knowledge",
+        description: "Get comprehensive package documentation using multiple sources (Chroma + Context7)",
         parameters: ["package_name", "query"],
         naturalLanguage: "Using Kit, research the documentation for React hooks",
         example: `deep_research_package({
   "package_name": "react",
   "query": "How do hooks work?"  // optional specific question
+})`
+      }
+    ]
+  },
+  {
+    category: "Package Search (Chroma)",
+    icon: <Search className="h-5 w-5" />,
+    tools: [
+      {
+        name: "package_search_grep",
+        description: "Use regex pattern matching to retrieve lines from package source code",
+        parameters: ["package", "pattern", "max_results", "file_pattern", "case_sensitive"],
+        naturalLanguage: "Using Kit, search for async functions in FastAPI source code",
+        example: `package_search_grep({
+  "package": "fastapi",
+  "pattern": "async def \\\\w+",
+  "max_results": 20,
+  "file_pattern": "*.py",  // optional
+  "case_sensitive": true  // optional
+})`
+      },
+      {
+        name: "package_search_hybrid",
+        description: "Semantic search with optional regex filtering for intelligent code exploration",
+        parameters: ["package", "query", "regex_filter", "max_results", "file_pattern"],
+        naturalLanguage: "Using Kit, find HTTP connection pooling code in requests",
+        example: `package_search_hybrid({
+  "package": "requests",
+  "query": "HTTP connection pooling and retry logic",
+  "regex_filter": "class.*Adapter",  // optional
+  "max_results": 15
+})`
+      },
+      {
+        name: "package_search_read_file",
+        description: "Read specific lines from a file in a code package",
+        parameters: ["package", "file_path", "start_line", "end_line"],
+        naturalLanguage: "Using Kit, read the models.py file from requests package",
+        example: `package_search_read_file({
+  "package": "requests",
+  "file_path": "requests/models.py",
+  "start_line": 100,  // optional
+  "end_line": 200  // optional
 })`
       }
     ]

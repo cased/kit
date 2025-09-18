@@ -441,6 +441,83 @@ feat(auth): add JWT token validation middleware
 Commit? [y/N]: y
 ```
 
+#### `kit package-search-grep`
+
+Search through source code of popular packages using regex patterns (requires Chroma API key).
+
+```bash
+kit package-search-grep <package> <pattern> [OPTIONS]
+```
+
+**Options:**
+- `--max-results, -m <count>`: Maximum number of results (default: 20)
+- `--file-pattern, -f <pattern>`: Filter files by glob pattern (e.g., '*.py')
+- `--case-sensitive, -c` / `--ignore-case, -i`: Case sensitivity
+- `--json, -j`: Output as JSON
+
+**Examples:**
+
+```bash
+# Find all async functions in FastAPI
+kit package-search-grep fastapi "async def \w+" --max-results 10
+
+# Search for decorators in Flask
+kit package-search-grep flask "@app\\.route" -f "*.py"
+
+# Find FFT functions in numpy
+kit package-search-grep numpy "def.*fft" --json
+```
+
+#### `kit package-search-hybrid`
+
+Perform semantic search in package source code with optional regex filtering.
+
+```bash
+kit package-search-hybrid <package> <query> [OPTIONS]
+```
+
+**Options:**
+- `--max-results, -m <count>`: Maximum results (default: 20)
+- `--regex-filter, -r <pattern>`: Filter with regex pattern
+- `--file-pattern, -f <pattern>`: Filter files by glob pattern
+- `--json, -j`: Output as JSON
+
+**Examples:**
+
+```bash
+# Find HTTP functionality in requests
+kit package-search-hybrid requests "HTTP connection pooling and retry logic"
+
+# Search with regex filter
+kit package-search-hybrid numpy "fast fourier transform" -r "def.*fft"
+```
+
+#### `kit package-search-read`
+
+Read specific files from package source code.
+
+```bash
+kit package-search-read <package> <file-path> [OPTIONS]
+```
+
+**Options:**
+- `--start-line, -s <line>`: Starting line number
+- `--end-line, -e <line>`: Ending line number
+- `--json, -j`: Output as JSON
+
+**Examples:**
+
+```bash
+# Read entire file
+kit package-search-read requests "requests/models.py"
+
+# Read specific lines
+kit package-search-read flask "flask/app.py" -s 100 -e 200
+```
+
+**Configuration:**
+Set the `CHROMA_PACKAGE_SEARCH_API_KEY` environment variable or get a key from [Chroma Cloud](https://cloud.trychroma.com).
+
 ### Content Processing
 
 #### `kit context`
