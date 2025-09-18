@@ -536,6 +536,7 @@ class PackageSearchReadFileParams(BaseModel):
     file_path: str = Field(description="Path to the file within the package")
     start_line: Optional[int] = Field(default=None, description="Starting line number (1-indexed)")
     end_line: Optional[int] = Field(default=None, description="Ending line number (inclusive)")
+    filename_sha256: Optional[str] = Field(default=None, description="SHA256 hash of the file (auto-fetched if not provided)")
 
 
 class LocalDevServerLogic(KitServerLogic):
@@ -828,12 +829,18 @@ Answer this specific question: {query}"""
             raise MCPError(INTERNAL_ERROR, f"Hybrid search failed: {e}")
 
     def package_search_read_file(
-        self, package: str, file_path: str, start_line: Optional[int] = None, end_line: Optional[int] = None
+        self, package: str, file_path: str, start_line: Optional[int] = None, end_line: Optional[int] = None, filename_sha256: Optional[str] = None
     ) -> str:
         """Read a specific file from a package."""
         try:
             client = self._get_package_search()
-            content = client.read_file(package=package, file_path=file_path, start_line=start_line, end_line=end_line)
+            content = client.read_file(
+                package=package,
+                file_path=file_path,
+                start_line=start_line,
+                end_line=end_line,
+                filename_sha256=filename_sha256
+            )
             return content
         except ValueError as e:
             raise MCPError(INVALID_PARAMS, str(e))
@@ -942,6 +949,7 @@ async def serve():
                     file_path=pkg_read_params.file_path,
                     start_line=pkg_read_params.start_line,
                     end_line=pkg_read_params.end_line,
+                    filename_sha256=pkg_read_params.filename_sha256,
                 )
                 return [TextContent(type="text", text=result)]  # Return as plain text, not JSON
 

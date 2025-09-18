@@ -83,7 +83,7 @@ class TestPackageSearchMCP:
 
         # Check client call
         mock_client.read_file.assert_called_once_with(
-            package="requests", file_path="requests/models.py", start_line=None, end_line=None
+            package="requests", file_path="requests/models.py", start_line=None, end_line=None, filename_sha256=None
         )
 
     @patch("kit.mcp.dev_server.ChromaPackageSearch")
