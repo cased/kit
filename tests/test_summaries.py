@@ -29,7 +29,14 @@ if "google" not in sys.modules:
 if "google.genai" not in sys.modules:
     genai_dummy = types.ModuleType("genai")
     genai_dummy.Client = MagicMock()  # type: ignore[attr-defined]
+
+    # Mock the types submodule with GenerateContentConfig
+    genai_types_dummy = types.ModuleType("types")
+    genai_types_dummy.GenerateContentConfig = MagicMock()  # type: ignore[attr-defined]
+    genai_dummy.types = genai_types_dummy  # type: ignore[attr-defined]
+
     sys.modules["google.genai"] = genai_dummy
+    sys.modules["google.genai.types"] = genai_types_dummy
     # Attach submodule to parent "google"
     sys.modules["google"].genai = genai_dummy  # type: ignore[attr-defined]
 
@@ -387,11 +394,19 @@ def test_summarize_file_google(mock_google_client_constructor, mock_repo, temp_c
     # The actual implementation uses this format for Google clients
     expected_user_prompt = f"Summarize the following code from the file '{temp_code_file}'. Provide a high-level overview of its purpose, key components, and functionality. Focus on what the code does, not just how it's written. The code is:\n\n```\n{mock_file_content}\n```"
 
-    expected_generation_params = {"max_output_tokens": 110}
+    # With the fix, we expect a GenerateContentConfig object to be created
+    from google.genai.types import GenerateContentConfig
 
-    mock_google_client_instance.models.generate_content.assert_called_once_with(
-        model="gemini-file-test", contents=expected_user_prompt, generation_config=expected_generation_params
-    )
+    mock_google_client_instance.models.generate_content.assert_called_once()
+    call_args = mock_google_client_instance.models.generate_content.call_args
+
+    # Verify the correct parameters were passed
+    assert call_args[1]["model"] == "gemini-file-test"
+    assert call_args[1]["contents"] == expected_user_prompt
+
+    # Verify that config parameter was used with GenerateContentConfig object
+    assert "config" in call_args[1]
+    # The config should be a GenerateContentConfig object (mocked)
 
     assert summary == "This is a Google file summary."
 
@@ -538,11 +553,16 @@ def test_summarize_function_google(mock_google_client_constructor, mock_repo):
     # The actual implementation only uses the user prompt for Google client
     expected_user_prompt = f"Summarize the following function named '{function_name}' from the file '{file_path}'. Describe its purpose, parameters, and return value. The function definition is:\n\n```\n{mock_func_code}\n```"
 
-    expected_generation_params = {"max_output_tokens": 100}
+    # With the fix, we expect a GenerateContentConfig object to be created
+    mock_google_client_instance.models.generate_content.assert_called_once()
+    call_args = mock_google_client_instance.models.generate_content.call_args
 
-    mock_google_client_instance.models.generate_content.assert_called_once_with(
-        model="gemini-func-test", contents=expected_user_prompt, generation_config=expected_generation_params
-    )
+    # Verify the correct parameters were passed
+    assert call_args[1]["model"] == "gemini-func-test"
+    assert call_args[1]["contents"] == expected_user_prompt
+
+    # Verify that config parameter was used instead of generation_config
+    assert "config" in call_args[1]
 
     assert summary == "This is a Google function summary."
 
@@ -690,13 +710,75 @@ def test_summarize_class_google(mock_google_client_constructor, mock_repo):
     # The actual implementation only uses the user prompt for Google client
     expected_user_prompt = f"Summarize the following class named '{class_name}' from the file '{file_path}'. Describe its purpose, key attributes, and main methods. The class definition is:\n\n```\n{mock_class_code}\n```"
 
-    expected_generation_params = {"max_output_tokens": 130}
+    # With the fix, we expect a GenerateContentConfig object to be created
+    mock_google_client_instance.models.generate_content.assert_called_once()
+    call_args = mock_google_client_instance.models.generate_content.call_args
 
-    mock_google_client_instance.models.generate_content.assert_called_once_with(
-        model="gemini-class-test", contents=expected_user_prompt, generation_config=expected_generation_params
-    )
+    # Verify the correct parameters were passed
+    assert call_args[1]["model"] == "gemini-class-test"
+    assert call_args[1]["contents"] == expected_user_prompt
+
+    # Verify that config parameter was used instead of generation_config
+    assert "config" in call_args[1]
 
     assert summary == "This is a Google class summary."
+
+
+# --- Test for Issue #137: generation_config parameter fix ---
+
+
+@patch("google.genai.Client", create=True)
+def test_google_gemini_generation_config_fix(mock_google_client_constructor, mock_repo):
+    """Test that Google Gemini API is called with 'config' parameter instead of 'generation_config'.
+
+    This test ensures issue #137 is fixed - the TypeError about unexpected 'generation_config'
+    keyword argument should not occur with newer google-genai SDK versions.
+    """
+    if kit_s_genai is None:
+        pytest.skip("google.genai not available to kit.summaries")
+
+    # Setup mock client
+    mock_google_client_instance = MagicMock()
+    mock_response = MagicMock()
+    mock_response.text = "Test summary response"
+
+    # Ensure prompt_feedback doesn't trigger blocking logic
+    mock_response.prompt_feedback = None
+
+    mock_google_client_instance.models.generate_content.return_value = mock_response
+    mock_google_client_constructor.return_value = mock_google_client_instance
+
+    # Setup mock repo
+    mock_repo.get_file_content.return_value = "print('test code')"
+
+    # Create config with max_output_tokens to trigger the config object creation
+    config = GoogleConfig(
+        api_key="test_api_key",
+        model="gemini-2.0-flash-exp",
+        max_output_tokens=150
+    )
+    summarizer = Summarizer(repo=mock_repo, config=config)
+
+    # Call summarize_file which should use the fixed parameter name
+    result = summarizer.summarize_file("test.py")
+
+    # Verify the call was made
+    mock_google_client_instance.models.generate_content.assert_called_once()
+    call_args = mock_google_client_instance.models.generate_content.call_args
+
+    # CRITICAL: Verify 'config' parameter is used, NOT 'generation_config'
+    assert "config" in call_args[1], "Should use 'config' parameter"
+    assert "generation_config" not in call_args[1], "Should NOT use 'generation_config' parameter (causes TypeError)"
+
+    # Verify the config object is passed (should be the mocked GenerateContentConfig)
+    config_param = call_args[1]["config"]
+    assert config_param is not None, "config parameter should not be None when max_output_tokens is set"
+
+    # Verify other expected parameters
+    assert call_args[1]["model"] == "gemini-2.0-flash-exp"
+    assert "contents" in call_args[1]
+
+    assert result == "Test summary response"
 
 
 # --- Test Helper for Mocking Summarizer ---
