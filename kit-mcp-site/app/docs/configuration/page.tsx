@@ -94,7 +94,7 @@ export GOOGLE_API_KEY="AI..."</code>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-3">
                 API key for Chroma Package Search - enables searching through source code of popular packages.
-                Get your key from <a href="https://cloud.trychroma.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Chroma Cloud</a>.
+                Get your key from <a href="https://trychroma.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Chroma Cloud</a>.
               </p>
               <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
                 <code className="text-white">export CHROMA_PACKAGE_SEARCH_API_KEY="your_api_key"</code>
