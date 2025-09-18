@@ -461,8 +461,8 @@ kit package-search-grep <package> <pattern> [OPTIONS]
 # Find all async functions in FastAPI
 kit package-search-grep fastapi "async def \w+" --max-results 10
 
-# Search for decorators in Django
-kit package-search-grep django "@login_required" -f "*.py"
+# Search for decorators in Flask
+kit package-search-grep flask "@app\\.route" -f "*.py"
 
 # Find FFT functions in numpy
 kit package-search-grep numpy "def.*fft" --json
@@ -485,8 +485,8 @@ kit package-search-hybrid <package> <query> [OPTIONS]
 **Examples:**
 
 ```bash
-# Find authentication code in Django
-kit package-search-hybrid django "user authentication and session management"
+# Find HTTP functionality in requests
+kit package-search-hybrid requests "HTTP connection pooling and retry logic"
 
 # Search with regex filter
 kit package-search-hybrid numpy "fast fourier transform" -r "def.*fft"

@@ -150,8 +150,8 @@ package_search_grep({
 
 # Search for specific decorators
 package_search_grep({
-  "package": "django",
-  "pattern": "@login_required",
+  "package": "flask",
+  "pattern": "@app\\.route",
   "case_sensitive": true
 })`}</pre>
                 </div>
@@ -169,10 +169,10 @@ package_search_grep({
               <CardContent className="p-4">
                 <div className="border-2 border-black bg-black rounded-lg p-4 font-mono text-sm">
                   <pre className="text-white">
-{`# Find authentication-related code
+{`# Find HTTP-related functionality
 package_search_hybrid({
-  "package": "django",
-  "query": "user authentication and session management",
+  "package": "requests",
+  "query": "HTTP connection pooling and retry logic",
   "max_results": 15
 })
 
@@ -276,7 +276,7 @@ deep_research_package({
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { lang: "Python", packages: ["numpy", "django", "fastapi", "requests", "pandas", "tensorflow", "pytorch"] },
+            { lang: "Python", packages: ["numpy", "flask", "fastapi", "requests", "pandas", "tensorflow", "pytorch"] },
             { lang: "JavaScript", packages: ["react", "vue", "express", "next.js", "node"] },
             { lang: "TypeScript", packages: ["@types/*", "typescript"] },
             { lang: "More", packages: ["And many others..."] }

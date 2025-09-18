@@ -699,7 +699,7 @@ Answer this specific question: {query}"""
 
                     llm_result = researcher.research(research_query)
 
-                    response = {
+                    llm_response: Dict[str, Any] = {
                         "package": package_name,
                         "query": query,
                         "status": "success",
@@ -710,21 +710,24 @@ Answer this specific question: {query}"""
                     }
 
                     # Add provider information
+                    inner_providers: List[str] = []
                     if use_chroma:
-                        response["providers"].append("ChromaPackageSearch")
-                        response["chroma_results"] = chroma_results[:3] if chroma_results else []
+                        inner_providers.append("ChromaPackageSearch")
+                        llm_response["chroma_results"] = chroma_results[:3] if chroma_results else []
 
                     if has_real_docs:
-                        response["providers"].append(doc_result.get("provider", "UpstashProvider"))
-                        response["documentation"] = doc_result.get("documentation")
+                        inner_providers.append(doc_result.get("provider", "UpstashProvider"))
+                        llm_response["documentation"] = doc_result.get("documentation")
 
-                    return response
+                    llm_response["providers"] = inner_providers
+
+                    return llm_response
                 except Exception:
                     # If LLM fails, still return the real docs
                     pass
 
         # Return comprehensive response
-        response = {
+        response: Dict[str, Any] = {
             "package": package_name,
             "query": query,
             "library_id_attempted": library_id,
@@ -735,23 +738,26 @@ Answer this specific question: {query}"""
         }
 
         # Add provider information
+        providers_list: List[str] = []
         if use_chroma and chroma_results:
-            response["providers"].append("ChromaPackageSearch")
+            providers_list.append("ChromaPackageSearch")
             response["chroma_results"] = chroma_results[:5] if chroma_results else []
 
         if doc_result:
-            response["providers"].append(doc_result.get("provider", "UpstashProvider"))
+            providers_list.append(doc_result.get("provider", "UpstashProvider"))
+
+        response["providers"] = providers_list
 
         if has_real_docs or use_chroma:
             # Success - we found documentation or source code
-            if has_real_docs:
+            if has_real_docs and doc_result:
                 response["documentation"] = doc_result.get("documentation")
             response["resolution_method"] = "automatic"
         else:
             # No docs found - provide rich information and PROMPT FOR RETRY
             response["available_libraries"] = search_results.get("results", [])
             response["action_required"] = "CALL_AGAIN_WITH_LIBRARY_ID"
-            response["resolution_guidance"] = {
+            resolution_guidance: Dict[str, Any] = {
                 "message": f"Multiple libraries found for '{package_name}'. Please call deep_research_package again with the specific library ID.",
                 "instruction": "Call deep_research_package with package_name set to one of the library IDs below",
                 "search_found": f"{len(search_results.get('results', []))} potential matches",
@@ -761,6 +767,7 @@ Answer this specific question: {query}"""
                     "code_snippets": "More snippets mean better documentation",
                 },
             }
+            response["resolution_guidance"] = resolution_guidance
 
         return response
 
@@ -777,7 +784,7 @@ Answer this specific question: {query}"""
         max_results: int = 100,
         file_pattern: Optional[str] = None,
         case_sensitive: bool = True,
-    ) -> List[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """Search package code using regex patterns."""
         try:
             client = self._get_package_search()
@@ -802,7 +809,7 @@ Answer this specific question: {query}"""
         regex_filter: Optional[str] = None,
         max_results: int = 20,
         file_pattern: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """Search package code using semantic search with optional regex filtering."""
         try:
             client = self._get_package_search()
@@ -907,34 +914,34 @@ async def serve():
 
             # Handle package search tools
             elif name == "package_search_grep":
-                grep_params = PackageSearchGrepParams(**arguments)
+                pkg_grep_params = PackageSearchGrepParams(**arguments)
                 result = logic.package_search_grep(
-                    package=grep_params.package,
-                    pattern=grep_params.pattern,
-                    max_results=grep_params.max_results,
-                    file_pattern=grep_params.file_pattern,
-                    case_sensitive=grep_params.case_sensitive,
+                    package=pkg_grep_params.package,
+                    pattern=pkg_grep_params.pattern,
+                    max_results=pkg_grep_params.max_results,
+                    file_pattern=pkg_grep_params.file_pattern,
+                    case_sensitive=pkg_grep_params.case_sensitive,
                 )
                 return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
             elif name == "package_search_hybrid":
-                hybrid_params = PackageSearchHybridParams(**arguments)
+                pkg_hybrid_params = PackageSearchHybridParams(**arguments)
                 result = logic.package_search_hybrid(
-                    package=hybrid_params.package,
-                    query=hybrid_params.query,
-                    regex_filter=hybrid_params.regex_filter,
-                    max_results=hybrid_params.max_results,
-                    file_pattern=hybrid_params.file_pattern,
+                    package=pkg_hybrid_params.package,
+                    query=pkg_hybrid_params.query,
+                    regex_filter=pkg_hybrid_params.regex_filter,
+                    max_results=pkg_hybrid_params.max_results,
+                    file_pattern=pkg_hybrid_params.file_pattern,
                 )
                 return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
             elif name == "package_search_read_file":
-                read_params = PackageSearchReadFileParams(**arguments)
+                pkg_read_params = PackageSearchReadFileParams(**arguments)
                 result = logic.package_search_read_file(
-                    package=read_params.package,
-                    file_path=read_params.file_path,
-                    start_line=read_params.start_line,
-                    end_line=read_params.end_line,
+                    package=pkg_read_params.package,
+                    file_path=pkg_read_params.file_path,
+                    start_line=pkg_read_params.start_line,
+                    end_line=pkg_read_params.end_line,
                 )
                 return [TextContent(type="text", text=result)]  # Return as plain text, not JSON
 

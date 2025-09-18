@@ -52,11 +52,11 @@ const tools = [
         name: "package_search_hybrid",
         description: "Semantic search with optional regex filtering for intelligent code exploration",
         parameters: ["package", "query", "regex_filter", "max_results", "file_pattern"],
-        naturalLanguage: "Using Kit, find authentication code in Django",
+        naturalLanguage: "Using Kit, find HTTP connection pooling code in requests",
         example: `package_search_hybrid({
-  "package": "django",
-  "query": "user authentication and session management",
-  "regex_filter": "@login_required",  // optional
+  "package": "requests",
+  "query": "HTTP connection pooling and retry logic",
+  "regex_filter": "class.*Adapter",  // optional
   "max_results": 15
 })`
       },

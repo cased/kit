@@ -18,12 +18,13 @@ class ChromaPackageSearch:
 
     def __init__(self, api_key: Optional[str] = None):
         """Initialize with Chroma API key."""
-        self.api_key = api_key or os.environ.get("CHROMA_PACKAGE_SEARCH_API_KEY") or os.environ.get("CHROMA_API_KEY")
-        if not self.api_key:
+        api_key_value = api_key or os.environ.get("CHROMA_PACKAGE_SEARCH_API_KEY") or os.environ.get("CHROMA_API_KEY")
+        if not api_key_value:
             raise ValueError(
                 "Chroma Package Search API key not found. "
                 "Set CHROMA_PACKAGE_SEARCH_API_KEY or CHROMA_API_KEY environment variable."
             )
+        self.api_key: str = api_key_value
 
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for API requests."""
@@ -235,7 +236,7 @@ class ChromaPackageSearch:
                 else:
                     raise ValueError(f"Could not determine SHA256 for file '{file_path}'. File may not exist.")
 
-            arguments = {
+            arguments: Dict[str, Any] = {
                 "package_name": package,
                 "registry_name": registry_name,
                 "file_path": file_path,
