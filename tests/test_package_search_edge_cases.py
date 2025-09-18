@@ -34,11 +34,7 @@ class TestPackageSearchEdgeCases:
         mock_httpx.return_value.__enter__.return_value = mock_client
 
         # Test with special regex characters
-        results = client.grep(
-            package="test",
-            pattern="function\\(.*\\)",
-            max_results=10
-        )
+        results = client.grep(package="test", pattern="function\\(.*\\)", max_results=10)
 
         assert results == []
 
@@ -64,7 +60,7 @@ class TestPackageSearchEdgeCases:
         results = client.hybrid_search(
             package="test",
             query="",  # Empty query
-            max_results=10
+            max_results=10,
         )
 
         assert results == []
@@ -84,12 +80,7 @@ class TestPackageSearchEdgeCases:
 
         # Should raise error when can't get SHA256
         with pytest.raises(ValueError, match="Could not determine SHA256"):
-            client.read_file(
-                package="test",
-                file_path="test/file.py",
-                start_line=1,
-                end_line=10
-            )
+            client.read_file(package="test", file_path="test/file.py", start_line=1, end_line=10)
 
     @patch("kit.package_search.httpx.Client")
     def test_read_file_with_provided_sha256(self, mock_httpx, client):
@@ -110,7 +101,7 @@ class TestPackageSearchEdgeCases:
             file_path="test/file.py",
             filename_sha256="abc123",  # Provided directly
             start_line=1,
-            end_line=10
+            end_line=10,
         )
 
         assert content == "test content"
@@ -159,9 +150,7 @@ class TestPackageSearchEdgeCases:
         mock_response = MagicMock()
         mock_response.status_code = 429
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Too Many Requests",
-            request=MagicMock(),
-            response=mock_response
+            "Too Many Requests", request=MagicMock(), response=mock_response
         )
 
         mock_client = MagicMock()
@@ -222,13 +211,13 @@ class TestPackageSearchEdgeCases:
         mock_httpx.return_value.__enter__.return_value = mock_client
 
         # Test with all parameters
-        results = client.hybrid_search(
+        client.hybrid_search(
             package="test",
             query="search query",
             regex_filter="test.*pattern",
             max_results=25,
             file_pattern="*.py",
-            registry_name="custom_registry"
+            registry_name="custom_registry",
         )
 
         # Verify all parameters were passed

@@ -18,9 +18,10 @@ from typing import Optional
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from kit.package_search import ChromaPackageSearch
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+
+from kit.package_search import ChromaPackageSearch
 
 
 def setup_api_key(api_key: Optional[str] = None):
@@ -66,13 +67,13 @@ def test_cli_commands():
 
         if result.strip():
             if test["name"] == "Read file":
-                lines = result.split('\n')
+                lines = result.split("\n")
                 print(f"   ✅ Read {len(lines)} lines")
             else:
                 try:
                     data = json.loads(result)
                     print(f"   ✅ Got {len(data)} results")
-                except:
+                except:  # noqa: E722
                     print(f"   ✅ Got response: {result[:100]}...")
         else:
             print("   ⚠️ No results")
@@ -94,11 +95,7 @@ def test_python_client():
     print("\n📝 Testing grep...")
     try:
         start = time.time()
-        results = client.grep(
-            package="requests",
-            pattern="def get",
-            max_results=5
-        )
+        results = client.grep(package="requests", pattern="def get", max_results=5)
         elapsed = time.time() - start
 
         print(f"   ✅ Found {len(results)} results in {elapsed:.2f}s")
@@ -113,11 +110,7 @@ def test_python_client():
     print("\n📝 Testing hybrid search...")
     try:
         start = time.time()
-        results = client.hybrid_search(
-            package="requests",
-            query="session management",
-            max_results=5
-        )
+        results = client.hybrid_search(package="requests", query="session management", max_results=5)
         elapsed = time.time() - start
 
         print(f"   ✅ Found {len(results)} results in {elapsed:.2f}s")
@@ -133,14 +126,11 @@ def test_python_client():
     try:
         start = time.time()
         content = client.read_file(
-            package="requests",
-            file_path="src/requests/__version__.py",
-            start_line=1,
-            end_line=5
+            package="requests", file_path="src/requests/__version__.py", start_line=1, end_line=5
         )
         elapsed = time.time() - start
 
-        lines = content.split('\n') if content else []
+        lines = content.split("\n") if content else []
         print(f"   ✅ Read {len(lines)} lines in {elapsed:.2f}s")
         if content:
             print(f"   Preview: {content[:60]}...")
@@ -155,11 +145,7 @@ async def test_mcp_server():
     print("MCP SERVER TESTS")
     print("=" * 60)
 
-    server_params = StdioServerParameters(
-        command="python",
-        args=["-m", "kit.mcp.dev_server"],
-        env=dict(os.environ)
-    )
+    server_params = StdioServerParameters(command="python", args=["-m", "kit.mcp.dev_server"], env=dict(os.environ))
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -168,19 +154,14 @@ async def test_mcp_server():
 
                 # List tools
                 tools = await session.list_tools()
-                package_tools = [t for t in tools.tools if 'package_search' in t.name]
+                package_tools = [t for t in tools.tools if "package_search" in t.name]
                 print(f"\n✅ Found {len(package_tools)} package search tools")
 
                 # Test grep
                 print("\n📝 Testing MCP grep...")
                 try:
                     result = await session.call_tool(
-                        "package_search_grep",
-                        arguments={
-                            "package": "numpy",
-                            "pattern": "def array",
-                            "max_results": 3
-                        }
+                        "package_search_grep", arguments={"package": "numpy", "pattern": "def array", "max_results": 3}
                     )
 
                     if result.content:
@@ -202,8 +183,8 @@ async def test_mcp_server():
                             "package_name": "requests",
                             "research_goal": "How are HTTP headers handled?",
                             "max_search_depth": 2,
-                            "provider": "chroma"
-                        }
+                            "provider": "chroma",
+                        },
                     )
 
                     if result.content:
@@ -237,11 +218,7 @@ def test_performance():
         print(f"\n⏱️ Fetching {size} results...")
         try:
             start = time.time()
-            results = client.grep(
-                package="numpy",
-                pattern="import",
-                max_results=size
-            )
+            results = client.grep(package="numpy", pattern="import", max_results=size)
             elapsed = time.time() - start
 
             print(f"   ✅ Got {len(results)} results in {elapsed:.2f}s")
