@@ -392,6 +392,7 @@ class TestMCPIntegration:
 
         result = dev_server_logic.deep_research_package("django", query="what is django")
 
-        assert result["source"] == "real_docs+llm"
+        # Accept either source depending on whether Chroma is available
+        assert result["source"] in ["real_docs+llm", "multi_source+llm"]
         assert "answer" in result
         assert result["answer"] == "Django is a web framework"

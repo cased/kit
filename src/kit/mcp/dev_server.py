@@ -704,7 +704,7 @@ Answer this specific question: {query}"""
                         "query": query,
                         "status": "success",
                         "answer": llm_result.answer,
-                        "source": "multi_source+llm",
+                        "source": "multi_source+llm" if use_chroma else "real_docs+llm",
                         "providers": [],
                         "version": KIT_VERSION,
                     }
