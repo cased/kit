@@ -1801,15 +1801,16 @@ def package_search_hybrid_cmd(
     max_results: int = typer.Option(10, "--max-results", "-m", help="Maximum number of results"),
     file_pattern: Optional[str] = typer.Option(None, "--file-pattern", "-f", help="Filter files by glob pattern"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
-    plain: bool = typer.Option(False, "--plain", "-p", help="Output plain text without formatting"),
+    formatted: bool = typer.Option(False, "--formatted", "-F", help="Output with formatting and emojis (default is plain)"),
 ):
     """
-    Semantic search with optional regex filtering in package source code.
+    Semantic search with optional regex filtering in package source code (outputs plain text by default).
 
     Examples:
         kit package-search-hybrid numpy "fast fourier transform"
         kit package-search-hybrid django "authentication middleware" --regex "class.*Middleware"
-        kit package-search-hybrid tensorflow "gradient computation"
+        kit package-search-hybrid tensorflow "gradient computation" --formatted
+        kit package-search-hybrid requests "HTTP pooling" --json
     """
     try:
         from .package_search import ChromaPackageSearch
@@ -1825,20 +1826,20 @@ def package_search_hybrid_cmd(
 
         if json_output:
             typer.echo(json.dumps(results, indent=2))
-        elif plain:
-            # Plain output: just file:snippet
-            for result in results[:max_results]:
-                file_path = result.get("file_path", "unknown")
-                snippet = result.get("snippet", result.get("content", ""))[:200].strip()
-                typer.echo(f"{file_path}:{snippet}")
-        else:
-            # Formatted output with emojis
+        elif formatted:
+            # Formatted output with emojis (opt-in)
             typer.echo(f"🔎 Found {len(results)} relevant snippets in {package}:")
             for i, result in enumerate(results[:max_results], 1):
                 file_path = result.get("file_path", "unknown")
                 snippet = result.get("snippet", result.get("content", ""))[:200]
                 typer.echo(f"\n{i}. {file_path}")
                 typer.echo(f"   {snippet}...")
+        else:
+            # Default plain output: just file:snippet
+            for result in results[:max_results]:
+                file_path = result.get("file_path", "unknown")
+                snippet = result.get("snippet", result.get("content", ""))[:200].strip()
+                typer.echo(f"{file_path}:{snippet}")
 
     except ValueError as e:
         handle_cli_error(e, "Package search error", "Check your API key and package name")
