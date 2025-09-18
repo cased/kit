@@ -84,6 +84,27 @@ export GOOGLE_API_KEY="AI..."</code>
             </CardContent>
           </Card>
 
+          <Card className="neo-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" />
+                CHROMA_PACKAGE_SEARCH_API_KEY
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-3">
+                API key for Chroma Package Search - enables searching through source code of popular packages.
+                Get your key from <a href="https://cloud.trychroma.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Chroma Cloud</a>.
+              </p>
+              <div className="border-2 border-black bg-black rounded-lg p-3 font-mono text-sm">
+                <code className="text-white">export CHROMA_PACKAGE_SEARCH_API_KEY="your_api_key"</code>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Enables: package_search_grep, package_search_hybrid, package_search_read_file
+              </p>
+            </CardContent>
+          </Card>
+
         </div>
       </div>
 

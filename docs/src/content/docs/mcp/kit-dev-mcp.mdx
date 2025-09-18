@@ -63,7 +63,8 @@ Add to your Claude Desktop config:
       "command": "python",
       "args": ["-m", "kit.mcp.dev"],
       "env": {
-        "OPENAI_API_KEY": "sk-..."  // Optional for deep research
+        "OPENAI_API_KEY": "sk-...",  // Optional for deep research
+        "CHROMA_PACKAGE_SEARCH_API_KEY": "..."  // Optional for package source search
       }
     }
   }
@@ -84,6 +85,9 @@ The server provides many tools including:
 - **review_diff** - AI-powered diff reviews
 - **deep_research_package** - Comprehensive package documentation
 - **semantic_search** - Vector-based code search
+- **package_search_grep** - Search package source code with regex patterns
+- **package_search_hybrid** - Semantic search in package source code
+- **package_search_read_file** - Read specific files from packages
 
 ## Learn More
 

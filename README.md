@@ -168,6 +168,11 @@ kit summarize --update-pr-body https://github.com/owner/repo/pull/123
 # Generate intelligent commit messages from staged changes
 git add .  # Stage your changes first
 kit commit  # Analyze and commit with AI-generated message
+
+# Search package source code (requires Chroma API key)
+kit package-search-grep numpy "def.*fft" --max-results 10
+kit package-search-hybrid django "authentication middleware"
+kit package-search-read requests "requests/models.py"
 ```
 
 The CLI supports all major repository operations with Unix-friendly output for scripting and automation. See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehensive usage examples.
@@ -198,6 +203,11 @@ The CLI supports all major repository operations with Unix-friendly output for s
 *   **Analyze Code Dependencies:**
     *   Map import relationships between modules using `repo.get_dependency_analyzer()` to understand your codebase structure.
     *   Generate dependency reports and LLM-friendly context with `analyzer.generate_dependency_report()` and `analyzer.generate_llm_context()`.
+
+*   **Search Package Source Code (via Chroma):**
+    *   Search through popular package source code using `ChromaPackageSearch` for regex patterns and semantic queries.
+    *   Access source code from packages like numpy, django, fastapi, pandas, and more.
+    *   Integrated into Kit Dev MCP for seamless package exploration in AI assistants.
 
 *   **Repository Versioning & Historical Analysis:**
     *   Analyze repositories at specific commits, tags, or branches using the `ref` parameter.
@@ -244,6 +254,7 @@ The `kit` tool includes an enhanced MCP (Model Context Protocol) server called *
 - Real-time file watching and change detection
 - AST-based pattern matching (find async functions, error handlers, etc.)
 - Documentation research for any package
+- Package source code search via Chroma (search popular packages like numpy, django, fastapi)
 - Symbol extraction and dependency analysis
 - Integration with Cursor, Windsurf, Claude Code, and VS Code
 
@@ -263,7 +274,8 @@ Add a stanza like this to your MCP configuration:
         "KIT_GITHUB_TOKEN": "ghp_your_token_here",  // Optional: for private repos
         "OPENAI_API_KEY": "sk-...",  // Optional: for LLM synthesis
         "ANTHROPIC_API_KEY": "sk-ant-...",  // Optional: for LLM synthesis
-        "UPSTASH_API_KEY": "..."  // Optional: for enhanced documentation access
+        "UPSTASH_API_KEY": "...",  // Optional: for enhanced documentation access
+        "CHROMA_PACKAGE_SEARCH_API_KEY": "..."  // Optional: for package source search
       }
     }
   }

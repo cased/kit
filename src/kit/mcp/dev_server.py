@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field
 from .. import __version__ as KIT_VERSION
 from ..ast_search import ASTSearcher
 from ..doc_providers import DocumentationService, UpstashProvider
+from ..package_search import ChromaPackageSearch
 from ..pr_review.config import ReviewConfig
 from ..pr_review.local_reviewer import LocalDiffReviewer
 from ..repository import Repository
@@ -506,6 +507,37 @@ class DeepResearchParams(BaseModel):
     query: Optional[str] = Field(default=None, description="Specific question or topic about the package")
 
 
+class PackageSearchGrepParams(BaseModel):
+    """Parameters for package search grep."""
+
+    package: str = Field(description="Package name to search (e.g., 'numpy', 'django', 'tensorflow')")
+    pattern: str = Field(description="Regex pattern to search for")
+    max_results: int = Field(default=100, description="Maximum number of results to return")
+    file_pattern: Optional[str] = Field(
+        default=None, description="Optional glob pattern to filter files (e.g., '*.py')"
+    )
+    case_sensitive: bool = Field(default=True, description="Whether the search is case-sensitive")
+
+
+class PackageSearchHybridParams(BaseModel):
+    """Parameters for package search hybrid (semantic + regex)."""
+
+    package: str = Field(description="Package name to search")
+    query: str = Field(description="Semantic search query")
+    regex_filter: Optional[str] = Field(default=None, description="Optional regex pattern to filter results")
+    max_results: int = Field(default=20, description="Maximum number of results")
+    file_pattern: Optional[str] = Field(default=None, description="Optional glob pattern to filter files")
+
+
+class PackageSearchReadFileParams(BaseModel):
+    """Parameters for reading a file from a package."""
+
+    package: str = Field(description="Package name")
+    file_path: str = Field(description="Path to the file within the package")
+    start_line: Optional[int] = Field(default=None, description="Starting line number (1-indexed)")
+    end_line: Optional[int] = Field(default=None, description="Ending line number (inclusive)")
+
+
 class LocalDevServerLogic(KitServerLogic):
     """Enhanced MCP server logic for development."""
 
@@ -513,6 +545,7 @@ class LocalDevServerLogic(KitServerLogic):
         super().__init__()
         self._test_results: Dict[str, Dict] = {}
         self._context_cache: Dict[str, Any] = {}
+        self._package_search: Optional[ChromaPackageSearch] = None
 
     def open_repository(self, path_or_url: str, github_token: Optional[str] = None, ref: Optional[str] = None) -> str:
         """Open a repository."""
@@ -527,11 +560,44 @@ class LocalDevServerLogic(KitServerLogic):
             raise
 
     def deep_research_package(self, package_name: str, query: Optional[str] = None) -> Dict[str, Any]:
-        """Deep research on a package - combines real docs + optional LLM synthesis."""
+        """Deep research on a package - combines real docs + optional LLM synthesis.
+
+        Now supports multiple documentation providers:
+        1. Chroma Package Search - for source code exploration
+        2. Upstash/Context7 - for general documentation
+        """
         import os
 
         from ..deep_research import DeepResearch
         from ..summaries import AnthropicConfig, OpenAIConfig
+
+        # Check if we should use Chroma Package Search
+        use_chroma = False
+        chroma_results = None
+
+        if os.environ.get("CHROMA_PACKAGE_SEARCH_API_KEY") or os.environ.get("CHROMA_API_KEY"):
+            try:
+                # Try Chroma first for source code exploration
+                client = self._get_package_search()
+
+                # If user has a specific query, use hybrid search
+                if query:
+                    chroma_results = client.hybrid_search(package=package_name, query=query, max_results=5)
+                else:
+                    # Otherwise, get general overview with grep
+                    chroma_results = client.grep(
+                        package=package_name,
+                        pattern="(class|def|interface|function|const)\\s+\\w+",
+                        max_results=10,
+                        case_sensitive=True,
+                    )
+
+                if chroma_results:
+                    use_chroma = True
+            except Exception as e:
+                # Chroma failed, fall back to Context7
+                logger.debug(f"Chroma Package Search not available: {e}")
+                pass
 
         # Initialize documentation service (using our abstracted provider)
         doc_service = DocumentationService(UpstashProvider())
@@ -573,15 +639,19 @@ class LocalDevServerLogic(KitServerLogic):
         if not doc_result:
             doc_result = {"status": "not_found"}
 
-        # Check if we got useful documentation
+        # Check if we got useful documentation from either source
         has_real_docs = (
             doc_result.get("status") == "success"
             and doc_result.get("documentation")
             and doc_result.get("documentation", {}).get("snippets")
-        )
+        ) or use_chroma
 
         # If we got good docs and user has a specific query, optionally enhance with LLM
-        if has_real_docs and query and (os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")):
+        if (
+            (has_real_docs or use_chroma)
+            and query
+            and (os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"))
+        ):
             # Use LLM to synthesize an answer based on the real docs
             config: Union[OpenAIConfig, AnthropicConfig, None] = None
             if os.environ.get("OPENAI_API_KEY"):
@@ -592,13 +662,34 @@ class LocalDevServerLogic(KitServerLogic):
             if config:
                 try:
                     researcher = DeepResearch(config)
-                    doc_snippets = doc_result.get("documentation", {}).get("snippets", [])[:5]
-                    context = "\n\n".join(
-                        [
-                            f"{s.get('title', 'Example')}: {s.get('description', '')}\n{s.get('code', '')[:500]}"
-                            for s in doc_snippets
-                        ]
-                    )
+
+                    # Build context from available sources
+                    context_parts = []
+
+                    # Add Chroma results if available
+                    if use_chroma and chroma_results:
+                        context_parts.append("=== SOURCE CODE FROM CHROMA PACKAGE SEARCH ===")
+                        for i, result in enumerate(chroma_results[:5], 1):
+                            if "file_path" in result and "content" in result:
+                                context_parts.append(f"\nFile: {result['file_path']}")
+                                if "line_number" in result:
+                                    context_parts.append(f"Line {result['line_number']}: {result['content']}")
+                                else:
+                                    context_parts.append(result["content"][:500])
+                            elif "snippet" in result:
+                                context_parts.append(f"\nSnippet {i}:\n{result['snippet'][:500]}")
+
+                    # Add Context7 documentation if available
+                    if has_real_docs:
+                        doc_snippets = doc_result.get("documentation", {}).get("snippets", [])[:5]
+                        if doc_snippets:
+                            context_parts.append("\n\n=== DOCUMENTATION FROM CONTEXT7 ===")
+                            for s in doc_snippets:
+                                context_parts.append(
+                                    f"\n{s.get('title', 'Example')}: {s.get('description', '')}\n{s.get('code', '')[:500]}"
+                                )
+
+                    context = "\n".join(context_parts)
 
                     research_query = f"""Based on this official documentation for {package_name}:
 
@@ -608,16 +699,26 @@ Answer this specific question: {query}"""
 
                     llm_result = researcher.research(research_query)
 
-                    return {
+                    response = {
                         "package": package_name,
                         "query": query,
                         "status": "success",
-                        "documentation": doc_result.get("documentation"),
                         "answer": llm_result.answer,
-                        "source": "real_docs+llm",
-                        "provider": doc_result.get("provider"),
+                        "source": "multi_source+llm",
+                        "providers": [],
                         "version": KIT_VERSION,
                     }
+
+                    # Add provider information
+                    if use_chroma:
+                        response["providers"].append("ChromaPackageSearch")
+                        response["chroma_results"] = chroma_results[:3] if chroma_results else []
+
+                    if has_real_docs:
+                        response["providers"].append(doc_result.get("provider", "UpstashProvider"))
+                        response["documentation"] = doc_result.get("documentation")
+
+                    return response
                 except Exception:
                     # If LLM fails, still return the real docs
                     pass
@@ -627,15 +728,24 @@ Answer this specific question: {query}"""
             "package": package_name,
             "query": query,
             "library_id_attempted": library_id,
-            "status": doc_result.get("status") if doc_result else "not_found",
-            "source": "real_docs",
-            "provider": doc_result.get("provider") if doc_result else "UpstashProvider",
+            "status": "success" if (use_chroma or has_real_docs) else "not_found",
+            "source": "multi_source" if use_chroma else "real_docs",
+            "providers": [],
             "version": KIT_VERSION,
         }
 
-        if has_real_docs:
-            # Success - we found documentation
-            response["documentation"] = doc_result.get("documentation")
+        # Add provider information
+        if use_chroma and chroma_results:
+            response["providers"].append("ChromaPackageSearch")
+            response["chroma_results"] = chroma_results[:5] if chroma_results else []
+
+        if doc_result:
+            response["providers"].append(doc_result.get("provider", "UpstashProvider"))
+
+        if has_real_docs or use_chroma:
+            # Success - we found documentation or source code
+            if has_real_docs:
+                response["documentation"] = doc_result.get("documentation")
             response["resolution_method"] = "automatic"
         else:
             # No docs found - provide rich information and PROMPT FOR RETRY
@@ -653,6 +763,76 @@ Answer this specific question: {query}"""
             }
 
         return response
+
+    def _get_package_search(self) -> ChromaPackageSearch:
+        """Get or create the package search client."""
+        if self._package_search is None:
+            self._package_search = ChromaPackageSearch()
+        return self._package_search
+
+    def package_search_grep(
+        self,
+        package: str,
+        pattern: str,
+        max_results: int = 100,
+        file_pattern: Optional[str] = None,
+        case_sensitive: bool = True,
+    ) -> List[Dict[str, Any]]:
+        """Search package code using regex patterns."""
+        try:
+            client = self._get_package_search()
+            results = client.grep(
+                package=package,
+                pattern=pattern,
+                max_results=max_results,
+                file_pattern=file_pattern,
+                case_sensitive=case_sensitive,
+            )
+            return {"results": results}
+        except ValueError as e:
+            raise MCPError(INVALID_PARAMS, str(e))
+        except Exception as e:
+            logger.error(f"Package search grep error: {e}")
+            raise MCPError(INTERNAL_ERROR, f"Package search failed: {e}")
+
+    def package_search_hybrid(
+        self,
+        package: str,
+        query: str,
+        regex_filter: Optional[str] = None,
+        max_results: int = 20,
+        file_pattern: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search package code using semantic search with optional regex filtering."""
+        try:
+            client = self._get_package_search()
+            results = client.hybrid_search(
+                package=package,
+                query=query,
+                regex_filter=regex_filter,
+                max_results=max_results,
+                file_pattern=file_pattern,
+            )
+            return {"results": results}
+        except ValueError as e:
+            raise MCPError(INVALID_PARAMS, str(e))
+        except Exception as e:
+            logger.error(f"Package hybrid search error: {e}")
+            raise MCPError(INTERNAL_ERROR, f"Hybrid search failed: {e}")
+
+    def package_search_read_file(
+        self, package: str, file_path: str, start_line: Optional[int] = None, end_line: Optional[int] = None
+    ) -> str:
+        """Read a specific file from a package."""
+        try:
+            client = self._get_package_search()
+            content = client.read_file(package=package, file_path=file_path, start_line=start_line, end_line=end_line)
+            return content
+        except ValueError as e:
+            raise MCPError(INVALID_PARAMS, str(e))
+        except Exception as e:
+            logger.error(f"Package read file error: {e}")
+            raise MCPError(INTERNAL_ERROR, f"Failed to read file: {e}")
 
     def _internal_resolve_library_id(self, query: str) -> Dict[str, Any]:
         """INTERNAL: Resolve library ID - not exposed as a tool."""
@@ -678,6 +858,22 @@ Answer this specific question: {query}"""
                 name="deep_research_package",
                 description="Get real-time documentation for any package/library with optional Q&A",
                 inputSchema=DeepResearchParams.model_json_schema(),
+            ),
+            # Chroma Package Search tools
+            Tool(
+                name="package_search_grep",
+                description="Use regex pattern matching to retrieve relevant lines from package source code",
+                inputSchema=PackageSearchGrepParams.model_json_schema(),
+            ),
+            Tool(
+                name="package_search_hybrid",
+                description="Use semantic search with optional regex filtering to explore package source code",
+                inputSchema=PackageSearchHybridParams.model_json_schema(),
+            ),
+            Tool(
+                name="package_search_read_file",
+                description="Read specific lines from a single file in a code package",
+                inputSchema=PackageSearchReadFileParams.model_json_schema(),
             ),
         ]
 
@@ -708,6 +904,39 @@ async def serve():
                 research_params = DeepResearchParams(**arguments)
                 result = logic.deep_research_package(research_params.package_name, research_params.query)
                 return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+            # Handle package search tools
+            elif name == "package_search_grep":
+                grep_params = PackageSearchGrepParams(**arguments)
+                result = logic.package_search_grep(
+                    package=grep_params.package,
+                    pattern=grep_params.pattern,
+                    max_results=grep_params.max_results,
+                    file_pattern=grep_params.file_pattern,
+                    case_sensitive=grep_params.case_sensitive,
+                )
+                return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+            elif name == "package_search_hybrid":
+                hybrid_params = PackageSearchHybridParams(**arguments)
+                result = logic.package_search_hybrid(
+                    package=hybrid_params.package,
+                    query=hybrid_params.query,
+                    regex_filter=hybrid_params.regex_filter,
+                    max_results=hybrid_params.max_results,
+                    file_pattern=hybrid_params.file_pattern,
+                )
+                return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+            elif name == "package_search_read_file":
+                read_params = PackageSearchReadFileParams(**arguments)
+                result = logic.package_search_read_file(
+                    package=read_params.package,
+                    file_path=read_params.file_path,
+                    start_line=read_params.start_line,
+                    end_line=read_params.end_line,
+                )
+                return [TextContent(type="text", text=result)]  # Return as plain text, not JSON
 
             # For all other tools, delegate to parent class handling
             elif name in [
