@@ -536,7 +536,9 @@ class PackageSearchReadFileParams(BaseModel):
     file_path: str = Field(description="Path to the file within the package")
     start_line: Optional[int] = Field(default=None, description="Starting line number (1-indexed)")
     end_line: Optional[int] = Field(default=None, description="Ending line number (inclusive)")
-    filename_sha256: Optional[str] = Field(default=None, description="SHA256 hash of the file (auto-fetched if not provided)")
+    filename_sha256: Optional[str] = Field(
+        default=None, description="SHA256 hash of the file (auto-fetched if not provided)"
+    )
 
 
 class LocalDevServerLogic(KitServerLogic):
@@ -829,7 +831,12 @@ Answer this specific question: {query}"""
             raise MCPError(INTERNAL_ERROR, f"Hybrid search failed: {e}")
 
     def package_search_read_file(
-        self, package: str, file_path: str, start_line: Optional[int] = None, end_line: Optional[int] = None, filename_sha256: Optional[str] = None
+        self,
+        package: str,
+        file_path: str,
+        start_line: Optional[int] = None,
+        end_line: Optional[int] = None,
+        filename_sha256: Optional[str] = None,
     ) -> str:
         """Read a specific file from a package."""
         try:
@@ -839,7 +846,7 @@ Answer this specific question: {query}"""
                 file_path=file_path,
                 start_line=start_line,
                 end_line=end_line,
-                filename_sha256=filename_sha256
+                filename_sha256=filename_sha256,
             )
             return content
         except ValueError as e:
