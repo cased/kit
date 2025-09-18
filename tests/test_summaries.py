@@ -395,7 +395,6 @@ def test_summarize_file_google(mock_google_client_constructor, mock_repo, temp_c
     expected_user_prompt = f"Summarize the following code from the file '{temp_code_file}'. Provide a high-level overview of its purpose, key components, and functionality. Focus on what the code does, not just how it's written. The code is:\n\n```\n{mock_file_content}\n```"
 
     # With the fix, we expect a GenerateContentConfig object to be created
-    from google.genai.types import GenerateContentConfig
 
     mock_google_client_instance.models.generate_content.assert_called_once()
     call_args = mock_google_client_instance.models.generate_content.call_args
@@ -752,11 +751,7 @@ def test_google_gemini_generation_config_fix(mock_google_client_constructor, moc
     mock_repo.get_file_content.return_value = "print('test code')"
 
     # Create config with max_output_tokens to trigger the config object creation
-    config = GoogleConfig(
-        api_key="test_api_key",
-        model="gemini-2.0-flash-exp",
-        max_output_tokens=150
-    )
+    config = GoogleConfig(api_key="test_api_key", model="gemini-2.0-flash-exp", max_output_tokens=150)
     summarizer = Summarizer(repo=mock_repo, config=config)
 
     # Call summarize_file which should use the fixed parameter name

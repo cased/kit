@@ -578,7 +578,9 @@ class Summarizer:
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
 
-                config_obj = genai_types.GenerateContentConfig(**generation_config_params) if generation_config_params else None
+                config_obj = (
+                    genai_types.GenerateContentConfig(**generation_config_params) if generation_config_params else None
+                )
 
                 response = client.models.generate_content(
                     model=self.config.model, contents=user_prompt_text, config=config_obj
@@ -742,7 +744,9 @@ class Summarizer:
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
 
-                config_obj = genai_types.GenerateContentConfig(**generation_config_params) if generation_config_params else None
+                config_obj = (
+                    genai_types.GenerateContentConfig(**generation_config_params) if generation_config_params else None
+                )
 
                 response = client.models.generate_content(
                     model=self.config.model, contents=user_prompt_text, config=config_obj
@@ -909,7 +913,9 @@ class Summarizer:
                 if self.config.max_output_tokens is not None:
                     generation_config_params["max_output_tokens"] = self.config.max_output_tokens
 
-                config_obj = genai_types.GenerateContentConfig(**generation_config_params) if generation_config_params else None
+                config_obj = (
+                    genai_types.GenerateContentConfig(**generation_config_params) if generation_config_params else None
+                )
 
                 response = client.models.generate_content(
                     model=self.config.model, contents=user_prompt_text, config=config_obj

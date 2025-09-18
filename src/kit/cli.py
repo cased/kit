@@ -1801,7 +1801,9 @@ def package_search_hybrid_cmd(
     max_results: int = typer.Option(10, "--max-results", "-m", help="Maximum number of results"),
     file_pattern: Optional[str] = typer.Option(None, "--file-pattern", "-f", help="Filter files by glob pattern"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
-    formatted: bool = typer.Option(False, "--formatted", "-F", help="Output with formatting and emojis (default is plain)"),
+    formatted: bool = typer.Option(
+        False, "--formatted", "-F", help="Output with formatting and emojis (default is plain)"
+    ),
 ):
     """
     Semantic search with optional regex filtering in package source code (outputs plain text by default).
