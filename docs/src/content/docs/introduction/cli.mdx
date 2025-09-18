@@ -443,7 +443,7 @@ Commit? [y/N]: y
 
 #### `kit package-search-grep`
 
-Search through source code of popular packages using regex patterns (requires Chroma API key).
+Search through source code of popular packages using regex patterns (requires Chroma API key). Outputs in plain grep-style format by default for pipe-friendly scripting.
 
 ```bash
 kit package-search-grep <package> <pattern> [OPTIONS]
@@ -453,19 +453,23 @@ kit package-search-grep <package> <pattern> [OPTIONS]
 - `--max-results, -m <count>`: Maximum number of results (default: 20)
 - `--file-pattern, -f <pattern>`: Filter files by glob pattern (e.g., '*.py')
 - `--case-sensitive, -c` / `--ignore-case, -i`: Case sensitivity
-- `--json, -j`: Output as JSON
+- `--json, -j`: Output as JSON with full metadata
+- `--formatted, -F`: Output with formatting and emojis (default is plain like grep)
 
 **Examples:**
 
 ```bash
-# Find all async functions in FastAPI
+# Find all async functions in FastAPI (plain grep-style output)
 kit package-search-grep fastapi "async def \w+" --max-results 10
 
-# Search for decorators in Flask
-kit package-search-grep flask "@app\\.route" -f "*.py"
+# Search for decorators in Flask with pipe-friendly output
+kit package-search-grep flask "@app\\.route" -f "*.py" | head -5
 
-# Find FFT functions in numpy
-kit package-search-grep numpy "def.*fft" --json
+# Get structured JSON output for programmatic processing
+kit package-search-grep numpy "def.*fft" --json | jq '.[] | .file_path'
+
+# Pretty formatted output with emojis
+kit package-search-grep django "class.*Model" --formatted
 ```
 
 #### `kit package-search-hybrid`
@@ -480,7 +484,8 @@ kit package-search-hybrid <package> <query> [OPTIONS]
 - `--max-results, -m <count>`: Maximum results (default: 20)
 - `--regex-filter, -r <pattern>`: Filter with regex pattern
 - `--file-pattern, -f <pattern>`: Filter files by glob pattern
-- `--json, -j`: Output as JSON
+- `--json, -j`: Output as JSON with full metadata
+- `--plain, -p`: Output plain text without formatting
 
 **Examples:**
 
@@ -488,8 +493,11 @@ kit package-search-hybrid <package> <query> [OPTIONS]
 # Find HTTP functionality in requests
 kit package-search-hybrid requests "HTTP connection pooling and retry logic"
 
-# Search with regex filter
-kit package-search-hybrid numpy "fast fourier transform" -r "def.*fft"
+# Search with regex filter and JSON output
+kit package-search-hybrid numpy "fast fourier transform" -r "def.*fft" --json
+
+# Plain output for piping
+kit package-search-hybrid flask "route handling" --plain | head -10
 ```
 
 #### `kit package-search-read`
@@ -503,16 +511,20 @@ kit package-search-read <package> <file-path> [OPTIONS]
 **Options:**
 - `--start-line, -s <line>`: Starting line number
 - `--end-line, -e <line>`: Ending line number
-- `--json, -j`: Output as JSON
+- `--json, -j`: Output as JSON with metadata
+- `--plain, -p`: Output plain text without formatting
 
 **Examples:**
 
 ```bash
-# Read entire file
+# Read entire file with header
 kit package-search-read requests "requests/models.py"
 
-# Read specific lines
-kit package-search-read flask "flask/app.py" -s 100 -e 200
+# Read specific lines in plain format
+kit package-search-read flask "flask/app.py" -s 100 -e 200 --plain
+
+# Get JSON output with metadata
+kit package-search-read numpy "numpy/__init__.py" --json
 ```
 
 **Configuration:**

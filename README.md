@@ -170,7 +170,9 @@ git add .  # Stage your changes first
 kit commit  # Analyze and commit with AI-generated message
 
 # Search package source code (requires Chroma API key)
-kit package-search-grep numpy "def.*fft" --max-results 10
+kit package-search-grep numpy "def.*fft" --max-results 10  # Plain grep-style output
+kit package-search-grep numpy "def.*fft" --json           # Structured JSON output
+kit package-search-grep numpy "def.*fft" --formatted      # Pretty formatted output
 kit package-search-hybrid django "authentication middleware"
 kit package-search-read requests "requests/models.py"
 ```

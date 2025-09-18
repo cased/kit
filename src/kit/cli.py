@@ -1742,14 +1742,19 @@ def package_search_grep_cmd(
     ),
     case_sensitive: bool = typer.Option(True, "--case-sensitive/--ignore-case", "-c/-i", help="Case sensitivity"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+    formatted: bool = typer.Option(
+        False, "--formatted", "-F", help="Output with formatting and emojis (default is plain like grep)"
+    ),
 ):
     """
-    Search package source code using regex patterns.
+    Search package source code using regex patterns (outputs plain text like grep by default).
 
     Examples:
         kit package-search-grep numpy "def.*fft"
-        kit package-search-grep fastapi "async def" --max-results 10
+        kit package-search-grep fastapi "async def" | head -10
         kit package-search-grep django "@login_required" -f "*.py"
+        kit package-search-grep requests "class.*Response" --json
+        kit package-search-grep flask "route" --formatted
     """
     try:
         from .package_search import ChromaPackageSearch
@@ -1765,14 +1770,22 @@ def package_search_grep_cmd(
 
         if json_output:
             typer.echo(json.dumps(results, indent=2))
-        else:
-            typer.echo(f"Found {len(results)} matches in {package}:")
+        elif formatted:
+            # Formatted output with emojis (opt-in)
+            typer.echo(f"🔍 Found {len(results)} matches in {package}:")
             for i, result in enumerate(results[:max_results], 1):
                 file_path = result.get("file_path", "unknown")
                 line_num = result.get("line_number", "?")
                 content = result.get("content", "")
                 typer.echo(f"\n{i}. {file_path}:{line_num}")
                 typer.echo(f"   {content[:100]}...")
+        else:
+            # Default plain output like Unix grep: file:line:content
+            for result in results[:max_results]:
+                file_path = result.get("file_path", "unknown")
+                line_num = result.get("line_number", "?")
+                content = result.get("content", "").strip()
+                typer.echo(f"{file_path}:{line_num}:{content}")
 
     except ValueError as e:
         handle_cli_error(e, "Package search error", "Check your API key and package name")
@@ -1788,6 +1801,7 @@ def package_search_hybrid_cmd(
     max_results: int = typer.Option(10, "--max-results", "-m", help="Maximum number of results"),
     file_pattern: Optional[str] = typer.Option(None, "--file-pattern", "-f", help="Filter files by glob pattern"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+    plain: bool = typer.Option(False, "--plain", "-p", help="Output plain text without formatting"),
 ):
     """
     Semantic search with optional regex filtering in package source code.
@@ -1811,8 +1825,15 @@ def package_search_hybrid_cmd(
 
         if json_output:
             typer.echo(json.dumps(results, indent=2))
+        elif plain:
+            # Plain output: just file:snippet
+            for result in results[:max_results]:
+                file_path = result.get("file_path", "unknown")
+                snippet = result.get("snippet", result.get("content", ""))[:200].strip()
+                typer.echo(f"{file_path}:{snippet}")
         else:
-            typer.echo(f"Found {len(results)} relevant snippets in {package}:")
+            # Formatted output with emojis
+            typer.echo(f"🔎 Found {len(results)} relevant snippets in {package}:")
             for i, result in enumerate(results[:max_results], 1):
                 file_path = result.get("file_path", "unknown")
                 snippet = result.get("snippet", result.get("content", ""))[:200]
@@ -1831,6 +1852,8 @@ def package_search_read_cmd(
     file_path: str = typer.Argument(..., help="Path to file within package"),
     start_line: Optional[int] = typer.Option(None, "--start", "-s", help="Starting line number"),
     end_line: Optional[int] = typer.Option(None, "--end", "-e", help="Ending line number"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+    plain: bool = typer.Option(False, "--plain", "-p", help="Output plain text without formatting"),
 ):
     """
     Read a specific file from a package.
@@ -1851,7 +1874,24 @@ def package_search_read_cmd(
             end_line=end_line,
         )
 
-        typer.echo(content)
+        if json_output:
+            result = {
+                "package": package,
+                "file_path": file_path,
+                "start_line": start_line,
+                "end_line": end_line,
+                "content": content,
+            }
+            typer.echo(json.dumps(result, indent=2))
+        elif plain:
+            # Plain output: just the content
+            typer.echo(content)
+        else:
+            # Formatted output with header
+            lines = f"{start_line}-{end_line}" if start_line and end_line else "all"
+            typer.echo(f"📄 {package}/{file_path} (lines: {lines})")
+            typer.echo("-" * 60)
+            typer.echo(content)
 
     except ValueError as e:
         handle_cli_error(e, "Package search error", "Check your API key, package name, and file path")
