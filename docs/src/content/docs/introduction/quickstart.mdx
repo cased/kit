@@ -3,14 +3,12 @@ title: Quickstart
 ---
 
 ```bash
-git clone https://github.com/cased/kit.git
-cd kit
-uv venv .venv
-source .venv/bin/activate
-uv pip install -e .
+uv pip install cased-kit
+
+# With ML features for advanced analysis and vector search
+uv pip install 'cased-kit[all]'
 ```
 
-Now, you can use kit!
 kit ships with a demonstration repository at `tests/fixtures/` you can use to get started. 
 
 Try this simple Python script (e.g., save as `test_kit.py` in the `kit` directory you cloned):
