@@ -6,61 +6,27 @@
 
 Use `kit` to build things like code reviewers, code generators, even IDEs, all enriched with the right code context. Work with `kit` directly from Python, or with MCP + function calling, REST, or CLI.
 
-`kit` also ships with a [damn fine PR reviewer](https://kit.cased.com/pr-reviewer/) that works with your choice of LLM, at just the cost of tokens, showcasing the power of this library for building full products.
+Explore the **[full documentation](https://kit.cased.com)** for detailed usage, advanced features, and practical examples. Check out docs for kit's [local dev MCP server](https://kit-mcp.cased.com), too.
 
-Explore the **[Full Documentation](https://kit.cased.com)** for detailed usage, advanced features, and practical examples.
-
-## Three Powerful Components
-
-### 1. **Core Toolkit** - Build Your Own AI Developer Tools
-The foundation that powers everything: a production-ready library for codebase mapping, symbol extraction, and intelligent code search. Build your own code reviewers, generators, IDE plugins, or any LLM-powered development tool. Features a comprehensive CLI and Python API.
-
-### 2. **Kit Dev MCP** - Supercharge Your AI Assistant  
-An enhanced MCP (Model Context Protocol) server that gives Cursor, Windsurf, Claude Code, and VS Code super-powered context capabilities:
-- Smart context building for any development task
-- Real-time file watching and change detection  
-- AST-based pattern matching to find code by structure
-- Documentation research for any package
-- Symbol extraction and dependency analysis
-- And much more
-
-[**→ Explore Kit Dev MCP Documentation**](https://kit-mcp.cased.com)
-
-### 3. **AI PR Reviewer** - Production-Ready Code Reviews
-A complete, customizable pull request reviewer that rivals paid services:
-- Whole repo context analysis
-- Custom review profiles for your organization
-- Security vulnerability detection
-- Performance analysis
-- Works from CLI or CI/CD
-- Just pay for tokens
-
-[**→ Learn About PR Reviewer**](https://kit.cased.com/pr-reviewer/)
 
 ## Quick Installation
 
 ### Install from PyPI
 
 ```bash
-pip install cased-kit
+uv pip install cased-kit
 
-# With ML features for advanced code analysis (includes PyTorch, sentence-transformers)
-pip install cased-kit[ml]
-
-# Everything (including MCP server and all features)
-pip install cased-kit[all]
+# With ML features for advanced analysis and vector search
+uv pip install 'cased-kit[all]'
 ```
 
-### Install Globally with uv (Recommended for CLI usage)
+### Install Globally with uv (easiest for CLI usage)
 
 If you want to use the `kit` CLI globally without affecting your system Python, use `uv tool install`. This creates an isolated environment for `kit` while making the CLI available from anywhere:
 
 ```bash
 # Install the base kit CLI globally
 uv tool install cased-kit
-
-# With ML features for advanced code analysis (includes PyTorch, sentence-transformers)
-uv tool install cased-kit[ml]
 
 # Everything (including MCP server and all features)
 uv tool install cased-kit[all]
