@@ -6,20 +6,7 @@ Not sure **which `kit` feature to reach for**?  Use this page as a mental map of
 search-and-discovery tools – from plain-text grep all the way to LLM-powered
 semantic retrieval.
 
-## Decision table
-
-| Your goal | Best tool | One-liner | Docs |
-|-----------|-----------|-----------|------|
-| Find an exact string or regex | `repo.search_text()` | `repo.search_text("JWT", "*.go")` | [Text search](/docs/core-concepts/semantic-search#exact-keyword) |
-| Find code by structure (async functions, try blocks, etc.) | `ASTSearcher` | `searcher.search_pattern("async def")` | [AST search](/AST_SEARCH) |
-| List symbols in a file | `repo.extract_symbols()` | `repo.extract_symbols("src/db.py")` | [Repository API](/docs/core-concepts/repository-api) |
-| See where a function is used | `repo.find_symbol_usages()` | `repo.find_symbol_usages("login")` | ^ |
-| Get a concise overview of a file / function | `Summarizer` | `summarizer.summarize_file(path)` | [Code summarization](/docs/core-concepts/code-summarization) |
-| Semantic search over **raw code chunks** | `VectorSearcher` | `repo.search_semantic()` | [Semantic search](/docs/core-concepts/semantic-search) |
-| Semantic search over **LLM summaries** | `DocstringIndexer` + `SummarySearcher` | see below | [Docstring index](/docs/core-concepts/docstring-indexing) |
-| Build an LLM prompt with only the *relevant* code | `ContextAssembler` | `assembler.from_chunks(chunks)` | [Context assembly](/docs/core-concepts/context-assembly) |
-
-> **Tip:** You can mix-and-match. For instance, run a docstring search first,
+> **Tip:** You can mix-and-match different search approaches. For instance, run a docstring search first,
 > then feed the matching files into `ContextAssembler` for an LLM chat.
 
 ## Approaches in detail
