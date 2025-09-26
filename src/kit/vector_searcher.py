@@ -1,5 +1,6 @@
 import os
 import re
+import uuid
 from typing import Any, Dict, List, Optional
 
 try:
@@ -11,6 +12,12 @@ try:
 except ImportError:
     chromadb = None  # type: ignore[assignment]
     CloudClient = None  # type: ignore[assignment]
+
+try:
+    from qdrant_client import QdrantClient, models
+except ImportError:
+    QdrantClient = None  # type: ignore[misc,assignment]
+    models = None  # type: ignore[misc,assignment]
 
 
 class VectorDBBackend:
@@ -210,13 +217,118 @@ class ChromaCloudBackend(VectorDBBackend):
             pass
 
 
+class QdrantBackend(VectorDBBackend):
+    """Qdrant backend for vector search."""
+
+    def __init__(
+        self,
+        collection_name: Optional[str] = None,
+        url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        persist_dir: Optional[str] = None,
+    ):
+        if QdrantClient is None or models is None:
+            raise ImportError("qdrant-client is not installed. Run 'pip install qdrant-client'.")
+
+        self.is_local = persist_dir is not None
+        self.collection_name = collection_name or "kit_code_chunks"
+        self.vector_size: Optional[int] = None  # Will be set when we first add embeddings
+
+        if self.is_local:
+            self.client = QdrantClient(path=persist_dir)
+        else:
+            url = url or os.environ.get("QDRANT_URL", "http://localhost:6333")
+            api_key = api_key or os.environ.get("QDRANT_API_KEY")
+
+            self.client = QdrantClient(
+                url=url,
+                api_key=api_key,
+            )
+
+    def _ensure_collection_exists(self, vector_size: int):
+        """Create collection if it doesn't exist."""
+        if not self.client.collection_exists(self.collection_name):
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=models.VectorParams(size=vector_size, distance=models.Distance.COSINE),
+            )
+
+    def add(self, embeddings, metadatas, ids: Optional[List[str]] = None):
+        """Add embeddings to the collection."""
+        if not embeddings or not metadatas:
+            return
+
+        # Detect vector size from first embedding if not set
+        if self.vector_size is None:
+            self.vector_size = len(embeddings[0])
+            self._ensure_collection_exists(self.vector_size)
+
+        final_ids = ids
+        if final_ids is None:
+            final_ids = [str(uuid.uuid4()) for _ in range(len(metadatas))]
+        elif len(final_ids) != len(embeddings):
+            raise ValueError("The number of IDs must match the number of embeddings and metadatas.")
+
+        # Convert string IDs to deterministic UUIDs and store original IDs in payload
+        uuid_ids = []
+        for point_id in final_ids:
+            deterministic_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, point_id))
+            uuid_ids.append(deterministic_uuid)
+
+        points = []
+        for i, (embedding, metadata, point_id, original_id) in enumerate(
+            zip(embeddings, metadatas, uuid_ids, final_ids)
+        ):
+            payload = metadata.copy()
+            payload["original_id"] = original_id
+
+            points.append(models.PointStruct(id=point_id, vector=embedding, payload=payload))
+
+        self.client.upsert(collection_name=self.collection_name, points=points)
+
+    def query(self, embedding, top_k):
+        """Query the collection for similar vectors."""
+        search_result = self.client.query_points(
+            collection_name=self.collection_name, query=embedding, limit=top_k
+        ).points
+
+        hits = []
+        for hit in search_result:
+            metadata = hit.payload.copy()
+            metadata["score"] = hit.score
+            hits.append(metadata)
+
+        return hits
+
+    def persist(self):
+        """Persist data (Qdrant handles this automatically)."""
+        pass
+
+    def count(self) -> int:
+        """Get the number of vectors in the collection."""
+        return self.client.count(self.collection_name).count
+
+    def delete(self, ids: List[str]):
+        """Delete vectors by ID."""
+        if not ids:
+            return
+
+        uuid_ids = []
+        for original_id in ids:
+            deterministic_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, original_id))
+            uuid_ids.append(deterministic_uuid)
+
+        self.client.delete(collection_name=self.collection_name, points_selector=models.PointIdsList(points=uuid_ids))  # type: ignore[arg-type]
+
+
 def get_default_backend(persist_dir: Optional[str] = None, collection_name: Optional[str] = None) -> VectorDBBackend:
     """
     Factory function to create the appropriate backend based on environment configuration.
 
-    Checks KIT_USE_CHROMA_CLOUD environment variable to determine backend:
-    - If KIT_USE_CHROMA_CLOUD is "true" and CHROMA_API_KEY is set: uses ChromaCloudBackend
-    - Otherwise: uses local ChromaDBBackend
+    Backend selection priority:
+    1. If KIT_VECTOR_BACKEND is set to "qdrant": uses QdrantBackend
+    2. If KIT_USE_CHROMA_CLOUD is "true" and CHROMA_API_KEY is set: uses ChromaCloudBackend
+    3. Otherwise: uses local ChromaDBBackend
 
     Args:
         persist_dir: Directory for local persistence (ignored for cloud backend)
@@ -225,6 +337,21 @@ def get_default_backend(persist_dir: Optional[str] = None, collection_name: Opti
     Returns:
         VectorDBBackend instance
     """
+    # Check for explicit backend selection
+    backend_type = os.environ.get("KIT_VECTOR_BACKEND", "").lower()
+
+    if backend_type == "qdrant":
+        qdrant_url = os.environ.get("QDRANT_URL")
+        qdrant_api_key = os.environ.get("QDRANT_API_KEY")
+
+        if qdrant_url or qdrant_api_key:
+            return QdrantBackend(collection_name=collection_name, url=qdrant_url, api_key=qdrant_api_key)
+        else:
+            if persist_dir is None:
+                raise ValueError("persist_dir is required for local Qdrant backend")
+            return QdrantBackend(collection_name=collection_name, persist_dir=persist_dir)
+
+    # Fall back to Chroma backends
     use_cloud = os.environ.get("KIT_USE_CHROMA_CLOUD", "").lower() == "true"
 
     if use_cloud:
@@ -257,6 +384,7 @@ class VectorSearcher:
         if backend is None:
             backend = get_default_backend(self.persist_dir, collection_name="kit_code_chunks")
         self.backend = backend
+
         self.chunk_metadatas: List[Dict[str, Any]] = []
         self.chunk_embeddings: List[List[float]] = []
 
