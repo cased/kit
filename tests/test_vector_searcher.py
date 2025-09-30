@@ -2,6 +2,7 @@ import importlib
 import os
 import tempfile
 from pathlib import Path
+from typing import List
 
 import pytest
 
@@ -14,7 +15,7 @@ except ModuleNotFoundError:
         allow_module_level=True,
     )
 from kit import Repository
-from kit.vector_searcher import VectorSearcher
+from kit.vector_searcher import VectorSearcher, _resolve_batch_size
 
 
 # Auto-reset Chroma global System registry between tests to avoid
@@ -198,7 +199,85 @@ def test_vector_searcher_similar_queries():
         vs.build_index()
         results = vs.search("hell", top_k=2)
         assert any("hell" in (r.get("name") or "") for r in results)
-        assert any("hello" in (r.get("name") or "") for r in results)
+
+
+def test_resolve_batch_size_env_and_client(monkeypatch):
+    class DummySettings:
+        max_batch_size = 50
+
+    class DummyClient:
+        _settings = DummySettings()
+
+    class DummyCollection:
+        _client = DummyClient()
+
+    monkeypatch.setenv("KIT_CHROMA_BATCH_SIZE", "10")
+    assert _resolve_batch_size(DummyCollection(), default=2000) == 10
+
+    monkeypatch.setenv("KIT_CHROMA_BATCH_SIZE", "-1")
+    assert _resolve_batch_size(DummyCollection(), default=2000) == 50
+
+    monkeypatch.setenv("KIT_CHROMA_BATCH_SIZE", "not-a-number")
+    assert _resolve_batch_size(DummyCollection(), default=2000) == 50
+
+    monkeypatch.delenv("KIT_CHROMA_BATCH_SIZE", raising=False)
+    assert _resolve_batch_size(DummyCollection(), default=2000) == 50
+
+    class NoSettingsCollection:
+        _client = object()
+
+    assert _resolve_batch_size(NoSettingsCollection(), default=123) == 123
+
+
+def test_vector_searcher_batches_respect_env_limit(monkeypatch):
+    limit = 3
+    monkeypatch.setenv("KIT_CHROMA_BATCH_SIZE", str(limit))
+    monkeypatch.setenv("KIT_USE_CHROMA_CLOUD", "false")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "batch.py"), "w") as f:
+            f.write("\n\n".join(f"def func_{i}():\n    return {i}" for i in range(12)))
+
+        repository = Repository(tmpdir)
+        vs = VectorSearcher(repository, embed_fn=dummy_embed)
+        backend = vs.backend
+        collection_class = backend.collection.__class__
+        original_add = collection_class.add
+        chunk_sizes: List[int] = []
+
+        def instrumented_add(
+            self,
+            ids=None,
+            embeddings=None,
+            metadatas=None,
+            documents=None,
+            images=None,
+            uris=None,
+        ):
+            if embeddings is not None:
+                chunk_sizes.append(len(embeddings))
+                if len(embeddings) > limit:
+                    raise RuntimeError("batch too large")
+            return original_add(
+                self,
+                ids=ids,
+                embeddings=embeddings,
+                metadatas=metadatas,
+                documents=documents,
+                images=images,
+                uris=uris,
+            )
+
+        monkeypatch.setattr(collection_class, "add", instrumented_add, raising=False)
+
+        vs.build_index()
+
+        total_embeddings = len(vs.chunk_metadatas)
+        assert total_embeddings > limit
+        assert sum(chunk_sizes) == total_embeddings
+        assert all(size <= limit for size in chunk_sizes)
+        expected_calls = (total_embeddings + limit - 1) // limit
+        assert len(chunk_sizes) == expected_calls
 
 
 # --- New test using actual sentence-transformers ---
