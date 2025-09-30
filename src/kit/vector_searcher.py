@@ -1,6 +1,9 @@
+import logging
 import os
 import re
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 try:
     import chromadb
@@ -11,6 +14,32 @@ try:
 except ImportError:
     chromadb = None  # type: ignore[assignment]
     CloudClient = None  # type: ignore[assignment]
+
+
+def _resolve_batch_size(collection: Any, default: int = 2000) -> int:
+    """Derive a safe batch size for collection.add calls."""
+
+    env_value = os.environ.get("KIT_CHROMA_BATCH_SIZE")
+    if env_value:
+        try:
+            env_batch = int(env_value)
+            if env_batch > 0:
+                default = env_batch
+            else:
+                logger.warning("Ignoring non-positive KIT_CHROMA_BATCH_SIZE=%s", env_value)
+        except ValueError:
+            logger.warning("Ignoring invalid KIT_CHROMA_BATCH_SIZE=%s", env_value)
+
+    try:
+        client = getattr(collection, "_client", None)
+        settings = getattr(client, "_settings", None)
+        limit = getattr(settings, "max_batch_size", None)
+        if isinstance(limit, int) and limit > 0:
+            return min(default, limit)
+    except Exception:  # pragma: no cover - best effort only
+        pass
+
+    return max(1, default)
 
 
 class VectorDBBackend:
@@ -47,37 +76,29 @@ class ChromaDBBackend(VectorDBBackend):
         if final_collection_name is None:
             # Use a collection name scoped to persist_dir to avoid dimension clashes across multiple tests/processes
             final_collection_name = f"kit_code_chunks_{abs(hash(persist_dir))}"
-        self.collection = self.client.get_or_create_collection(final_collection_name)
+        self.collection_name = final_collection_name
+        self.collection = self.client.get_or_create_collection(self.collection_name)
+        self._batch_size = _resolve_batch_size(self.collection)
 
     def add(self, embeddings, metadatas, ids: Optional[List[str]] = None):
         # Skip adding if there is nothing to add (prevents ChromaDB error)
         if not embeddings or not metadatas:
             return
-        # Clear collection before adding (for index overwrite)
-        # This behavior of clearing the collection on 'add' might need review.
-        # If the goal is to truly overwrite, this is one way. If it's to append
-        # or update, this logic would need to change. For now, assuming overwrite.
-        if self.collection.count() > 0:  # Check if collection has items before deleting
-            try:
-                # Attempt to delete all existing documents. This is a common pattern for a full refresh.
-                # Chroma's API for deleting all can be tricky; using a non-empty ID match is a workaround.
-                # If a more direct `clear()` or `delete_all()` method becomes available, prefer that.
-                self.collection.delete(where={"source": {"$ne": "impossible_source_value_to_match_all"}})  # type: ignore[dict-item]
-                # Or, if you know a common metadata key, like 'file_path' from previous version:
-                # self.collection.delete(where={"file_path": {"$ne": "impossible_file_path"}})
-            except Exception:
-                # Log or handle cases where delete might fail or is not supported as expected.
-                # For instance, if the collection was empty, some backends might error on delete-all attempts.
-                # logger.warning(f"Could not clear collection before adding: {e}")
-                pass  # Continue to add, might result in duplicates if not truly cleared.
-
-        final_ids = ids
-        if final_ids is None:
-            final_ids = [str(i) for i in range(len(metadatas))]
-        elif len(final_ids) != len(embeddings):
+        if len(embeddings) != len(metadatas):
+            raise ValueError("Embeddings and metadatas must be the same length.")
+        if ids is not None and len(ids) != len(embeddings):
             raise ValueError("The number of IDs must match the number of embeddings and metadatas.")
 
-        self.collection.add(embeddings=embeddings, metadatas=metadatas, ids=final_ids)
+        self._reset_collection()
+
+        final_ids = ids or [str(i) for i in range(len(metadatas))]
+        batch_size = max(1, self._batch_size or len(embeddings))
+        for start in range(0, len(embeddings), batch_size):
+            end = start + batch_size
+            batch_embeddings = embeddings[start:end]
+            batch_metadatas = metadatas[start:end]
+            batch_ids = final_ids[start:end]
+            self.collection.add(embeddings=batch_embeddings, metadatas=batch_metadatas, ids=batch_ids)
 
     def query(self, embedding, top_k):
         if top_k <= 0:
@@ -109,6 +130,38 @@ class ChromaDBBackend(VectorDBBackend):
         except Exception:
             # Some Chroma versions require where filter; fall back to no-op
             pass
+
+    def _reset_collection(self) -> None:
+        """Ensure we start from a clean collection before bulk re-add."""
+        try:
+            if self.collection.count() > 0:
+                cleared = False
+                try:
+                    self.client.delete_collection(self.collection_name)
+                    cleared = True
+                except Exception:
+                    pass
+
+                if not cleared:
+                    try:
+                        self.collection.delete(where={"source": {"$ne": "__kit__never__"}})
+                        cleared = True
+                    except Exception:
+                        pass
+
+                if not cleared:
+                    try:
+                        existing = self.collection.get(include=[])
+                        ids = existing.get("ids") if isinstance(existing, dict) else None
+                        if ids:
+                            self.collection.delete(ids=list(ids))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        finally:
+            self.collection = self.client.get_or_create_collection(self.collection_name)
+            self._batch_size = _resolve_batch_size(self.collection)
 
 
 class ChromaCloudBackend(VectorDBBackend):
@@ -163,7 +216,9 @@ class ChromaCloudBackend(VectorDBBackend):
         )
 
         final_collection_name = collection_name or "kit_code_chunks"
-        self.collection = self.client.get_or_create_collection(final_collection_name)
+        self.collection_name = final_collection_name
+        self.collection = self.client.get_or_create_collection(self.collection_name)
+        self._batch_size = _resolve_batch_size(self.collection)
 
     def add(self, embeddings, metadatas, ids: Optional[List[str]] = None):
         # Skip adding if there is nothing to add (prevents ChromaDB error)
@@ -174,13 +229,19 @@ class ChromaCloudBackend(VectorDBBackend):
         # This preserves data across sessions and allows incremental updates
         # If you need to clear, manually delete the collection in the dashboard
 
-        final_ids = ids
-        if final_ids is None:
-            final_ids = [str(i) for i in range(len(metadatas))]
-        elif len(final_ids) != len(embeddings):
+        if len(embeddings) != len(metadatas):
+            raise ValueError("Embeddings and metadatas must be the same length.")
+        if ids is not None and len(ids) != len(embeddings):
             raise ValueError("The number of IDs must match the number of embeddings and metadatas.")
 
-        self.collection.add(embeddings=embeddings, metadatas=metadatas, ids=final_ids)
+        final_ids = ids or [str(i) for i in range(len(metadatas))]
+        batch_size = max(1, self._batch_size or len(embeddings))
+        for start in range(0, len(embeddings), batch_size):
+            end = start + batch_size
+            batch_embeddings = embeddings[start:end]
+            batch_metadatas = metadatas[start:end]
+            batch_ids = final_ids[start:end]
+            self.collection.add(embeddings=batch_embeddings, metadatas=batch_metadatas, ids=batch_ids)
 
     def query(self, embedding, top_k):
         if top_k <= 0:
