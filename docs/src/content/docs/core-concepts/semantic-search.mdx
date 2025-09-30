@@ -3,13 +3,13 @@ title: Semantic Searching
 ---
 import { Aside } from '@astrojs/starlight/components';
 
-Semantic search allows you to find code based on meaning rather than just keywords. Kit supports semantic code search using vector embeddings and ChromaDB (both local and cloud), enabling you to search for code using natural language queries.
+Semantic search allows you to find code based on meaning rather than just keywords. Kit supports semantic code search using vector embeddings with multiple vector database backends: ChromaDB (both local and cloud) and Qdrant, enabling you to search for code using natural language queries.
 
 ## How it works
 
 - Chunks your codebase (by symbols or lines)
 - Embeds each chunk using your chosen model (OpenAI, HuggingFace, etc)
-- Stores embeddings in a local ChromaDB vector database
+- Stores embeddings in a vector database (ChromaDB or Qdrant)
 - Lets you search for code using natural language or code-like queries
 
 ## Quick Start
@@ -261,9 +261,30 @@ To migrate from cloud to local:
 1. Unset `KIT_USE_CHROMA_CLOUD`
 2. Rebuild your indexes locally
 
-#### Other Backends
+#### Qdrant (Alternative Backend)
 
-While the `VectorDBBackend` interface is designed to support other vector databases, ChromaDB (local and cloud) is the primary focus for now. If you need other backends like Faiss, please raise an issue on the kit GitHub repository.
+Kit also supports [Qdrant](https://qdrant.tech/), a open-source, high-performance vector search engine that can be run locally or as a managed service.
+
+##### Prerequisites
+
+- Qdrant client library (`pip install qdrant-client`)
+- Python 3.10+
+- Qdrant server (local or remote)
+
+##### Configuration
+
+Set the following environment variables to use Qdrant:
+
+```bash
+# Required: Enable Qdrant backend
+export KIT_VECTOR_BACKEND="qdrant"
+
+# Optional: Remote Qdrant instance (defaults to local)
+export QDRANT_URL="http://localhost:6333"
+
+# Optional: API key for remote instances
+export QDRANT_API_KEY="your-api-key"
+```
 
 ## Usage Patterns
 
