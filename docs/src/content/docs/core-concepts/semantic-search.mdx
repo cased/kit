@@ -231,6 +231,18 @@ export KIT_USE_CHROMA_CLOUD="false"
 unset KIT_USE_CHROMA_CLOUD
 ```
 
+##### Controlling Batch Size
+
+Large repositories can exceed Chroma's API batch limits. Kit automatically
+detects the backend cap and defaults to batches of up to 2000 items, but you can
+override this with the `KIT_CHROMA_BATCH_SIZE` environment variable:
+
+```bash
+export KIT_CHROMA_BATCH_SIZE=1000  # send at most 1000 embeddings per add()
+```
+
+This applies to both local and cloud Chroma backends.
+
 ##### Benefits of Chroma Cloud
 
 - **Team Collaboration**: Share indexes across team members

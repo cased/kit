@@ -176,6 +176,7 @@ The CLI supports all major repository operations with Unix-friendly output for s
     *   Search through popular package source code using `ChromaPackageSearch` for regex patterns and semantic queries.
     *   Access source code from packages like numpy, django, fastapi, pandas, and more.
     *   Integrated into Kit Dev MCP for seamless package exploration in AI assistants.
+    *   Tune vector indexing batches with `KIT_CHROMA_BATCH_SIZE` when working with large repositories to stay under your Chroma deployment's limits (defaults to 2000 or the backend's own cap).
 
 *   **Repository Versioning & Historical Analysis:**
     *   Analyze repositories at specific commits, tags, or branches using the `ref` parameter.
