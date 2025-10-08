@@ -8,6 +8,7 @@ SAMPLES = {
     ".go": "package main\n\nfunc foo() {}\n\ntype Bar struct{}\n",
     ".java": "class Bar { void foo() {} }\n",
     ".rs": "fn foo() {}\nstruct Bar;\n",
+    ".zig": "pub fn foo() void {}\npub const Bar = struct {};\n",
 }
 
 

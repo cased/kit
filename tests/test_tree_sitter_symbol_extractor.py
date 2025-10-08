@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
 
 
@@ -185,3 +187,55 @@ enum Status {
         supported = TreeSitterSymbolExtractor.list_supported_languages()
         assert "dart" in supported
         assert ".dart" in supported["dart"]
+
+
+class TestZigSupport:
+    """Tests for Zig language support."""
+
+    def test_zig_basic_symbols(self):
+        """Test that Zig symbols are extracted correctly."""
+        zig_code = """
+const std = @import("std");
+
+pub fn add(a: i32, b: i32) i32 {
+    return a + b;
+}
+
+pub const Point = struct {
+    x: i32,
+    pub fn length(self: Point) i32 {
+        return self.x;
+    }
+};
+
+pub const Color = enum { Red, Green, Blue };
+
+pub const Value = union(enum) {
+    int: i32,
+    float: f32,
+};
+"""
+
+        parser = TreeSitterSymbolExtractor.get_parser(".zig")
+        query = TreeSitterSymbolExtractor.get_query(".zig")
+        if not parser or not query:
+            pytest.skip("Zig tree-sitter grammar not available")
+
+        symbols = TreeSitterSymbolExtractor.extract_symbols(".zig", zig_code)
+
+        assert len(symbols) >= 5
+
+        symbol_types = {s["type"] for s in symbols}
+        symbol_names = {s["name"] for s in symbols}
+
+        for expected_type in {"function", "struct", "enum", "union"}:
+            assert expected_type in symbol_types
+
+        for expected_name in {"add", "length", "Point", "Color", "Value"}:
+            assert expected_name in symbol_names
+
+    def test_zig_in_supported_languages(self):
+        """Ensure Zig is listed as a supported language."""
+        supported = TreeSitterSymbolExtractor.list_supported_languages()
+        assert "zig" in supported
+        assert ".zig" in supported["zig"]
