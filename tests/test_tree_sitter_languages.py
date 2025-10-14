@@ -11,6 +11,7 @@ LANG_SAMPLES = {
     "hcl": b'variable "foo" { default = 42 }\n',
     "c": b"int foo() { return 42; }\n",
     "dart": b"int foo() { return 42; }\n",
+    "zig": b"pub fn foo() void { }\n",
 }
 
 
