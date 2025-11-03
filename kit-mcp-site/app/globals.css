@@ -90,25 +90,6 @@
     background-position: 0 0, 2px 2px;
   }
   
-  
-  .dotted-pattern {
-    position: relative;
-  }
-  
-  .dotted-pattern::before {
-    content: '';
-    position: absolute;
-    top: -8px;
-    left: -8px;
-    right: -8px;
-    bottom: -8px;
-    background-image: radial-gradient(circle, currentColor 1px, transparent 1px);
-    background-size: 8px 8px;
-    opacity: 0.1;
-    pointer-events: none;
-    z-index: -1;
-  }
-  
   .neo-section {
     @apply relative overflow-hidden;
   }

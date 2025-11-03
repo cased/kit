@@ -38,7 +38,7 @@ export default function DocsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-white relative dotted-pattern">
+    <div className="min-h-screen bg-white relative">
       {/* Top Navigation */}
       <nav className="sticky top-0 z-50 w-full border-b-4 border-black bg-white">
         <div className="container flex h-16 items-center px-4">
