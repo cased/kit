@@ -94,7 +94,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-white relative dotted-pattern">
+    <div className="min-h-screen bg-white relative">
       {/* Subtle scan line effect */}
       <div className="scan-line pointer-events-none fixed inset-0 z-0 opacity-30"></div>
       {/* Navigation */}
