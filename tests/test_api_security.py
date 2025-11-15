@@ -1,6 +1,7 @@
 """Tests for REST API security features including URL sanitization and error handling."""
 
 import logging
+import os
 import subprocess
 import time
 from unittest.mock import MagicMock, patch
@@ -10,7 +11,7 @@ import pytest
 import requests
 from pydantic import BaseModel
 
-from kit.api.app import sanitize_url
+from kit.api.app import sanitize_url, validate_repo_url
 
 
 class RepoIn(BaseModel):
@@ -445,3 +446,171 @@ class TestIntegrationSecurity:
         response_data = response.json()
         assert "id" in response_data
         assert isinstance(response_data["id"], str)
+
+
+class TestURLAllowlist:
+    """Test repository URL allowlist functionality."""
+
+    def test_allowlist_disabled_by_default(self):
+        """Test that when no allowlist is configured, all URLs are allowed."""
+        from fastapi import HTTPException
+
+        # When ALLOWED_REPO_DOMAINS is empty, validation should pass
+        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", []):
+            # Should not raise any exception
+            validate_repo_url("https://github.com/user/repo")
+            validate_repo_url("https://evil.com/malicious/repo")
+            validate_repo_url("https://192.168.1.1/repo")
+            # Should also pass for local paths
+            validate_repo_url("/local/path/to/repo")
+
+    def test_allowlist_allows_configured_domains(self):
+        """Test that configured domains are allowed."""
+        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com", "gitlab.com"]):
+            # Should not raise exception
+            validate_repo_url("https://github.com/user/repo")
+            validate_repo_url("https://gitlab.com/org/project")
+
+    def test_allowlist_rejects_non_allowed_domains(self):
+        """Test that non-allowed domains are rejected."""
+        from fastapi import HTTPException
+
+        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com", "gitlab.com"]):
+            # Should raise HTTPException with 403
+            with pytest.raises(HTTPException) as exc_info:
+                validate_repo_url("https://evil.com/malicious/repo")
+
+            assert exc_info.value.status_code == 403
+            assert "evil.com" in exc_info.value.detail
+            assert "github.com" in exc_info.value.detail
+            assert "gitlab.com" in exc_info.value.detail
+
+    def test_allowlist_blocks_cloud_metadata_endpoints(self):
+        """Test that cloud metadata endpoints are blocked when allowlist is configured."""
+        from fastapi import HTTPException
+
+        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+            # AWS metadata endpoint
+            with pytest.raises(HTTPException) as exc_info:
+                validate_repo_url("http://169.254.169.254/latest/meta-data/")
+            assert exc_info.value.status_code == 403
+
+            # GCP metadata endpoint
+            with pytest.raises(HTTPException) as exc_info:
+                validate_repo_url("http://metadata.google.internal/")
+            assert exc_info.value.status_code == 403
+
+    def test_allowlist_blocks_localhost(self):
+        """Test that localhost is blocked when not in allowlist."""
+        from fastapi import HTTPException
+
+        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+            with pytest.raises(HTTPException) as exc_info:
+                validate_repo_url("http://localhost:3000/repo")
+            assert exc_info.value.status_code == 403
+
+            with pytest.raises(HTTPException) as exc_info:
+                validate_repo_url("http://127.0.0.1/repo")
+            assert exc_info.value.status_code == 403
+
+    def test_allowlist_blocks_private_ip_ranges(self):
+        """Test that private IP ranges are blocked when not in allowlist."""
+        from fastapi import HTTPException
+
+        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+            # Private IP ranges
+            private_ips = [
+                "http://10.0.0.1/repo",
+                "http://172.16.0.1/repo",
+                "http://192.168.1.1/repo",
+            ]
+
+            for ip in private_ips:
+                with pytest.raises(HTTPException) as exc_info:
+                    validate_repo_url(ip)
+                assert exc_info.value.status_code == 403
+
+    def test_allowlist_allows_local_paths(self):
+        """Test that local file paths bypass allowlist validation."""
+        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+            # Local paths should not be validated against allowlist
+            validate_repo_url("/local/path/to/repo")
+            validate_repo_url("./relative/path")
+            validate_repo_url("../parent/path")
+
+    def test_allowlist_handles_invalid_urls(self):
+        """Test that invalid URLs are handled gracefully."""
+        from fastapi import HTTPException
+
+        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+            # Missing hostname should raise 400
+            with pytest.raises(HTTPException) as exc_info:
+                validate_repo_url("http:///no-hostname")
+            assert exc_info.value.status_code == 400
+
+    def test_allowlist_logging_on_rejection(self, caplog):
+        """Test that URL rejections are logged with proper structure."""
+        from fastapi import HTTPException
+
+        with (
+            patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com", "gitlab.com"]),
+            caplog.at_level(logging.WARNING),
+        ):
+            try:
+                validate_repo_url("https://evil.com/malicious/repo")
+            except HTTPException:
+                pass  # Expected
+
+            # Check that rejection was logged
+            rejection_logs = [
+                r for r in caplog.records if hasattr(r, "event_type") and r.event_type == "url_rejected_by_allowlist"
+            ]
+            assert len(rejection_logs) > 0
+
+            log_record = rejection_logs[0]
+            assert hasattr(log_record, "hostname")
+            assert hasattr(log_record, "allowed_domains")
+            assert log_record.hostname == "evil.com"
+            assert log_record.allowed_domains == ["github.com", "gitlab.com"]
+
+    def test_allowlist_logging_on_validation_success(self, caplog):
+        """Test that successful URL validations are logged."""
+        with (
+            patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]),
+            caplog.at_level(logging.INFO),
+        ):
+            validate_repo_url("https://github.com/user/repo")
+
+            # Check that validation was logged
+            validation_logs = [
+                r for r in caplog.records if hasattr(r, "event_type") and r.event_type == "url_validated"
+            ]
+            assert len(validation_logs) > 0
+
+            log_record = validation_logs[0]
+            assert hasattr(log_record, "hostname")
+            assert log_record.hostname == "github.com"
+
+    def test_allowlist_integration_with_open_repo(self):
+        """Test that allowlist is enforced in the open_repo endpoint."""
+        from kit.api.app import RepoIn, open_repo
+        from fastapi import HTTPException
+
+        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+            # Allowed domain should work (assuming repo operations succeed)
+            with (
+                patch("kit.api.registry.registry.add") as mock_add,
+                patch("kit.api.registry.registry.get_repo") as mock_get_repo,
+            ):
+                mock_add.return_value = "test_repo_id"
+                mock_get_repo.return_value = MagicMock()
+
+                result = open_repo(RepoIn(path_or_url="https://github.com/user/repo"))
+                assert result["id"] == "test_repo_id"
+
+            # Non-allowed domain should be rejected before any git operations
+            with pytest.raises(HTTPException) as exc_info:
+                open_repo(RepoIn(path_or_url="https://evil.com/malicious/repo"))
+
+            assert exc_info.value.status_code == 403
+            assert "evil.com" in exc_info.value.detail

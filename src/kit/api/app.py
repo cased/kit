@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 from typing import Dict, List
 from urllib.parse import urlparse
@@ -18,6 +19,14 @@ from .registry import registry
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="kit API", version="0.1.0")
+
+# Optional security: allowlist of repository domains
+# Set KIT_ALLOWED_REPO_DOMAINS environment variable with comma-separated domains
+# Example: "github.com,gitlab.com,bitbucket.org"
+# If not set or empty, all domains are allowed (backward compatible)
+ALLOWED_REPO_DOMAINS = [
+    domain.strip() for domain in os.getenv("KIT_ALLOWED_REPO_DOMAINS", "").split(",") if domain.strip()
+]
 
 
 def sanitize_url(url: str) -> str:
@@ -39,6 +48,70 @@ def sanitize_url(url: str) -> str:
         return "[sanitized repository URL]"
 
 
+def validate_repo_url(url: str) -> None:
+    """Validate repository URL against allowlist if configured.
+
+    Raises:
+        HTTPException: If URL is not allowed by the allowlist configuration.
+    """
+    # If no allowlist is configured, allow all URLs (backward compatible)
+    if not ALLOWED_REPO_DOMAINS:
+        return
+
+    # Only validate remote URLs (http/https)
+    if not url.startswith(("http://", "https://")):
+        return
+
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+
+        if not hostname:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid repository URL: hostname not found"
+            )
+
+        # Check if hostname matches any allowed domain
+        if hostname not in ALLOWED_REPO_DOMAINS:
+            logger.warning(
+                f"Repository URL rejected by allowlist: {sanitize_url(url)}",
+                extra={
+                    "event_type": "url_rejected_by_allowlist",
+                    "hostname": hostname,
+                    "allowed_domains": ALLOWED_REPO_DOMAINS
+                }
+            )
+            raise HTTPException(
+                status_code=403,
+                detail=f"Repository domain '{hostname}' is not in the allowed domains list. "
+                       f"Allowed domains: {', '.join(ALLOWED_REPO_DOMAINS)}"
+            )
+
+        logger.info(
+            f"Repository URL validated: {sanitize_url(url)}",
+            extra={
+                "event_type": "url_validated",
+                "hostname": hostname
+            }
+        )
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is
+        raise
+    except Exception as e:
+        logger.error(
+            f"Error parsing repository URL: {str(e)}",
+            extra={
+                "event_type": "url_parse_error",
+                "error": str(e)
+            }
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid repository URL format: {str(e)}"
+        )
+
+
 class RepoIn(BaseModel):
     path_or_url: str
     github_token: str | None = None
@@ -52,6 +125,9 @@ class FilePathsIn(BaseModel):
 @app.post("/repository", status_code=201)
 def open_repo(body: RepoIn):
     """Register a repository path/URL and return its deterministic ID."""
+    # Validate URL against allowlist if configured
+    validate_repo_url(body.path_or_url)
+
     try:
         repo_id = registry.add(body.path_or_url, body.ref)
         _ = registry.get_repo(repo_id)

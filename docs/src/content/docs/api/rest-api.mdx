@@ -59,6 +59,41 @@ curl -X POST localhost:8000/repository \
 
 > **Authentication Note:** Unlike the Python API and MCP server, the REST API requires explicit `github_token` parameters and does not automatically check environment variables like `KIT_GITHUB_TOKEN`. This is by design to keep the HTTP API stateless and explicit.
 
+### Security: Repository URL Allowlist
+
+For production deployments, you can restrict which repository domains the API will accept by setting the `KIT_ALLOWED_REPO_DOMAINS` environment variable. This prevents Server-Side Request Forgery (SSRF) attacks where untrusted URLs could be used to access internal resources.
+
+**Configuration:**
+
+```bash
+# Allow only specific Git hosting providers
+export KIT_ALLOWED_REPO_DOMAINS="github.com,gitlab.com,bitbucket.org"
+
+# Start the server
+uvicorn kit.api.app:app
+```
+
+**Behavior:**
+
+- **Empty or unset** (default): All repository URLs are allowed (backward compatible)
+- **Configured**: Only URLs from the specified domains are accepted
+- **Local paths**: Always allowed regardless of allowlist configuration
+- **Blocked URLs**: Return HTTP 403 with a helpful error message listing allowed domains
+
+**Example error response** when allowlist is configured:
+
+```json
+{
+  "detail": "Repository domain 'evil.com' is not in the allowed domains list. Allowed domains: github.com, gitlab.com"
+}
+```
+
+**Use cases:**
+- Production deployments where only trusted Git hosts should be accessed
+- Preventing access to cloud metadata endpoints (169.254.169.254, metadata.google.internal)
+- Blocking localhost and private IP ranges
+- Defense-in-depth against SSRF attacks
+
 ## 2  Navigation
 
 | Method & path                                   | Purpose                    |
