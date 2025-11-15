@@ -455,8 +455,8 @@ class TestURLAllowlist:
         """Test that when no allowlist is configured, all URLs are allowed."""
         from fastapi import HTTPException
 
-        # When ALLOWED_REPO_DOMAINS is empty, validation should pass
-        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", []):
+        # When ALLOWED_REPO_PATTERNS is empty, validation should pass
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", []):
             # Should not raise any exception
             validate_repo_url("https://github.com/user/repo")
             validate_repo_url("https://evil.com/malicious/repo")
@@ -466,7 +466,7 @@ class TestURLAllowlist:
 
     def test_allowlist_allows_configured_domains(self):
         """Test that configured domains are allowed."""
-        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com", "gitlab.com"]):
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com", "gitlab.com"]):
             # Should not raise exception
             validate_repo_url("https://github.com/user/repo")
             validate_repo_url("https://gitlab.com/org/project")
@@ -475,13 +475,13 @@ class TestURLAllowlist:
         """Test that non-allowed domains are rejected."""
         from fastapi import HTTPException
 
-        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com", "gitlab.com"]):
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com", "gitlab.com"]):
             # Should raise HTTPException with 403
             with pytest.raises(HTTPException) as exc_info:
                 validate_repo_url("https://evil.com/malicious/repo")
 
             assert exc_info.value.status_code == 403
-            assert "evil.com" in exc_info.value.detail
+            assert "does not match any allowed pattern" in exc_info.value.detail
             assert "github.com" in exc_info.value.detail
             assert "gitlab.com" in exc_info.value.detail
 
@@ -489,7 +489,7 @@ class TestURLAllowlist:
         """Test that cloud metadata endpoints are blocked when allowlist is configured."""
         from fastapi import HTTPException
 
-        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com"]):
             # AWS metadata endpoint
             with pytest.raises(HTTPException) as exc_info:
                 validate_repo_url("http://169.254.169.254/latest/meta-data/")
@@ -504,7 +504,7 @@ class TestURLAllowlist:
         """Test that localhost is blocked when not in allowlist."""
         from fastapi import HTTPException
 
-        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com"]):
             with pytest.raises(HTTPException) as exc_info:
                 validate_repo_url("http://localhost:3000/repo")
             assert exc_info.value.status_code == 403
@@ -517,7 +517,7 @@ class TestURLAllowlist:
         """Test that private IP ranges are blocked when not in allowlist."""
         from fastapi import HTTPException
 
-        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com"]):
             # Private IP ranges
             private_ips = [
                 "http://10.0.0.1/repo",
@@ -532,7 +532,7 @@ class TestURLAllowlist:
 
     def test_allowlist_allows_local_paths(self):
         """Test that local file paths bypass allowlist validation."""
-        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com"]):
             # Local paths should not be validated against allowlist
             validate_repo_url("/local/path/to/repo")
             validate_repo_url("./relative/path")
@@ -542,7 +542,7 @@ class TestURLAllowlist:
         """Test that invalid URLs are handled gracefully."""
         from fastapi import HTTPException
 
-        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com"]):
             # Missing hostname should raise 400
             with pytest.raises(HTTPException) as exc_info:
                 validate_repo_url("http:///no-hostname")
@@ -553,7 +553,7 @@ class TestURLAllowlist:
         from fastapi import HTTPException
 
         with (
-            patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com", "gitlab.com"]),
+            patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com", "gitlab.com"]),
             caplog.at_level(logging.WARNING),
         ):
             try:
@@ -569,14 +569,14 @@ class TestURLAllowlist:
 
             log_record = rejection_logs[0]
             assert hasattr(log_record, "hostname")
-            assert hasattr(log_record, "allowed_domains")
+            assert hasattr(log_record, "allowed_patterns")
             assert log_record.hostname == "evil.com"
-            assert log_record.allowed_domains == ["github.com", "gitlab.com"]
+            assert log_record.allowed_patterns == ["github.com", "gitlab.com"]
 
     def test_allowlist_logging_on_validation_success(self, caplog):
         """Test that successful URL validations are logged."""
         with (
-            patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]),
+            patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com"]),
             caplog.at_level(logging.INFO),
         ):
             validate_repo_url("https://github.com/user/repo")
@@ -596,7 +596,7 @@ class TestURLAllowlist:
         from kit.api.app import RepoIn, open_repo
         from fastapi import HTTPException
 
-        with patch("kit.api.app.ALLOWED_REPO_DOMAINS", ["github.com"]):
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com"]):
             # Allowed domain should work (assuming repo operations succeed)
             with (
                 patch("kit.api.registry.registry.add") as mock_add,
@@ -613,4 +613,180 @@ class TestURLAllowlist:
                 open_repo(RepoIn(path_or_url="https://evil.com/malicious/repo"))
 
             assert exc_info.value.status_code == 403
-            assert "evil.com" in exc_info.value.detail
+            assert "does not match any allowed pattern" in exc_info.value.detail
+
+
+class TestWildcardPatternMatching:
+    """Test wildcard pattern matching for repository URL allowlisting."""
+
+    def test_exact_domain_match(self):
+        """Test exact domain matching without wildcards."""
+        from kit.api.app import matches_pattern
+
+        assert matches_pattern("https://github.com/user/repo", "github.com")
+        assert matches_pattern("http://github.com/org/project", "github.com")
+        assert not matches_pattern("https://gitlab.com/user/repo", "github.com")
+        assert not matches_pattern("https://api.github.com/user/repo", "github.com")
+
+    def test_wildcard_subdomain_match(self):
+        """Test wildcard subdomain patterns."""
+        from kit.api.app import matches_pattern
+
+        # *.github.com should match any subdomain
+        assert matches_pattern("https://api.github.com/user/repo", "*.github.com")
+        assert matches_pattern("https://gist.github.com/user/file", "*.github.com")
+        assert matches_pattern("https://raw.githubusercontent.com/file", "*.githubusercontent.com")
+
+        # Should NOT match the bare domain
+        assert not matches_pattern("https://github.com/user/repo", "*.github.com")
+
+        # Should NOT match different domains
+        assert not matches_pattern("https://gitlab.com/user/repo", "*.github.com")
+
+    def test_path_pattern_match(self):
+        """Test path-based wildcard patterns."""
+        from kit.api.app import matches_pattern
+
+        # github.com/myorg/* should match any repo under myorg
+        assert matches_pattern("https://github.com/myorg/repo1", "github.com/myorg/*")
+        assert matches_pattern("https://github.com/myorg/repo2", "github.com/myorg/*")
+        assert matches_pattern("https://github.com/myorg/repo/subpath", "github.com/myorg/*")
+
+        # Should NOT match different org
+        assert not matches_pattern("https://github.com/otherorg/repo", "github.com/myorg/*")
+
+        # Should NOT match different domain
+        assert not matches_pattern("https://gitlab.com/myorg/repo", "github.com/myorg/*")
+
+    def test_full_url_pattern_match(self):
+        """Test full URL patterns with scheme."""
+        from kit.api.app import matches_pattern
+
+        # https://github.com/myorg/* should match with scheme
+        assert matches_pattern("https://github.com/myorg/repo", "https://github.com/myorg/*")
+        assert matches_pattern("https://github.com/myorg/project", "https://github.com/myorg/*")
+
+        # Should NOT match http if pattern specifies https
+        assert not matches_pattern("http://github.com/myorg/repo", "https://github.com/myorg/*")
+
+    def test_wildcard_in_repo_name(self):
+        """Test wildcards in repository names."""
+        from kit.api.app import matches_pattern
+
+        # github.com/org/test-* should match repos starting with "test-"
+        assert matches_pattern("https://github.com/org/test-repo", "github.com/org/test-*")
+        assert matches_pattern("https://github.com/org/test-project", "github.com/org/test-*")
+        assert not matches_pattern("https://github.com/org/prod-repo", "github.com/org/test-*")
+
+    def test_validate_with_wildcard_patterns(self):
+        """Test validate_repo_url with wildcard patterns."""
+        from fastapi import HTTPException
+
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com/cased/*", "*.gitlab.com"]):
+            # Should allow repos under github.com/cased/
+            validate_repo_url("https://github.com/cased/repo1")
+            validate_repo_url("https://github.com/cased/repo2")
+
+            # Should allow any gitlab subdomain
+            validate_repo_url("https://api.gitlab.com/project")
+            validate_repo_url("https://gist.gitlab.com/snippet")
+
+            # Should reject other orgs on github
+            with pytest.raises(HTTPException) as exc_info:
+                validate_repo_url("https://github.com/otherorg/repo")
+            assert exc_info.value.status_code == 403
+
+            # Should reject bare gitlab.com (pattern is *.gitlab.com)
+            with pytest.raises(HTTPException) as exc_info:
+                validate_repo_url("https://gitlab.com/user/repo")
+            assert exc_info.value.status_code == 403
+
+    def test_org_scoped_allowlist(self):
+        """Test restricting to specific organization on a platform."""
+        from fastapi import HTTPException
+
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com/mycompany/*"]):
+            # Should allow company repos
+            validate_repo_url("https://github.com/mycompany/frontend")
+            validate_repo_url("https://github.com/mycompany/backend")
+            validate_repo_url("https://github.com/mycompany/mobile-app")
+
+            # Should reject other orgs
+            with pytest.raises(HTTPException) as exc_info:
+                validate_repo_url("https://github.com/competitor/repo")
+            assert exc_info.value.status_code == 403
+            assert "mycompany" in exc_info.value.detail
+
+    def test_multiple_wildcard_patterns(self):
+        """Test multiple patterns with different wildcard types."""
+        from fastapi import HTTPException
+
+        with patch(
+            "kit.api.app.ALLOWED_REPO_PATTERNS",
+            [
+                "github.com/cased/*",  # Organization repos
+                "*.internal.company.com",  # Internal subdomains
+                "gitlab.com/team/project-*",  # Specific project prefix
+            ],
+        ):
+            # Test each pattern
+            validate_repo_url("https://github.com/cased/comet")
+            validate_repo_url("https://git.internal.company.com/repo")
+            validate_repo_url("https://gitlab.com/team/project-alpha")
+
+            # Test rejections
+            with pytest.raises(HTTPException):
+                validate_repo_url("https://github.com/other/repo")
+
+            with pytest.raises(HTTPException):
+                validate_repo_url("https://external.company.com/repo")
+
+            with pytest.raises(HTTPException):
+                validate_repo_url("https://gitlab.com/team/service-alpha")
+
+    def test_wildcard_with_credentials_sanitized(self):
+        """Test that wildcard matching works with credential sanitization."""
+        from fastapi import HTTPException
+
+        with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com/cased/*"]):
+            # URL with credentials should still match pattern (after sanitization)
+            validate_repo_url("https://token:secret@github.com/cased/repo")
+
+            # Rejected URLs should also sanitize credentials in error
+            with pytest.raises(HTTPException) as exc_info:
+                validate_repo_url("https://token:secret@github.com/other/repo")
+
+            # Error message should not contain credentials
+            assert "token" not in exc_info.value.detail
+            assert "secret" not in exc_info.value.detail
+
+    def test_case_sensitivity(self):
+        """Test that pattern matching handles case correctly."""
+        from kit.api.app import matches_pattern
+
+        # fnmatch is case-sensitive by default on Unix
+        # But URLs/domains should be case-insensitive
+        assert matches_pattern("https://GitHub.com/user/repo", "github.com")
+        assert matches_pattern("https://github.com/User/Repo", "github.com/user/*")
+
+    def test_pattern_with_query_params(self):
+        """Test that patterns work with URLs containing query parameters."""
+        from kit.api.app import matches_pattern
+
+        assert matches_pattern("https://github.com/org/repo?ref=main", "github.com/org/*")
+        assert matches_pattern("https://api.github.com/repos/user/project?page=1", "*.github.com")
+
+    def test_logging_matched_pattern(self, caplog):
+        """Test that successful validation logs which pattern matched."""
+        with (
+            patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com/cased/*", "*.gitlab.com"]),
+            caplog.at_level(logging.INFO),
+        ):
+            validate_repo_url("https://github.com/cased/repo")
+
+            # Check that matched pattern was logged
+            validation_logs = [r for r in caplog.records if hasattr(r, "matched_pattern")]
+            assert len(validation_logs) > 0
+
+            log_record = validation_logs[0]
+            assert log_record.matched_pattern == "github.com/cased/*"
