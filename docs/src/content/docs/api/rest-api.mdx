@@ -59,6 +59,106 @@ curl -X POST localhost:8000/repository \
 
 > **Authentication Note:** Unlike the Python API and MCP server, the REST API requires explicit `github_token` parameters and does not automatically check environment variables like `KIT_GITHUB_TOKEN`. This is by design to keep the HTTP API stateless and explicit.
 
+### Security: Repository URL Allowlist
+
+For production deployments, you can restrict which repository URLs the API will accept by setting the `KIT_ALLOWED_REPO_PATTERNS` environment variable. This prevents Server-Side Request Forgery (SSRF) attacks where untrusted URLs could be used to access internal resources.
+
+**Pattern Matching Support:**
+
+The allowlist supports flexible wildcard patterns for fine-grained control:
+
+- **Exact domain**: `github.com` - matches only github.com
+- **Wildcard subdomain**: `*.github.com` - matches api.github.com, gist.github.com, etc. (but NOT github.com)
+- **Organization scoping**: `github.com/myorg/*` - matches only repos under github.com/myorg/
+- **Project prefix**: `github.com/team/project-*` - matches repos starting with "project-"
+- **Full URL pattern**: `https://github.com/myorg/*` - explicit scheme + path matching
+
+**Configuration Examples:**
+
+```bash
+# Allow only specific Git hosting providers (exact domains)
+export KIT_ALLOWED_REPO_PATTERNS="github.com,gitlab.com,bitbucket.org"
+
+# Restrict to specific organization on GitHub
+export KIT_ALLOWED_REPO_PATTERNS="github.com/mycompany/*"
+
+# Allow multiple organizations across platforms
+export KIT_ALLOWED_REPO_PATTERNS="github.com/org1/*,github.com/org2/*,gitlab.com/team/*"
+
+# Allow internal Git server subdomains
+export KIT_ALLOWED_REPO_PATTERNS="*.git.internal.company.com"
+
+# Mix of patterns: public platforms + internal servers + specific org
+export KIT_ALLOWED_REPO_PATTERNS="github.com/myorg/*,*.git.company.com,gitlab.company.com/*"
+
+# Start the server
+uvicorn kit.api.app:app
+```
+
+**Behavior:**
+
+- **Empty or unset** (default): All repository URLs are allowed (backward compatible)
+- **Configured**: Only URLs matching the specified patterns are accepted
+- **Local paths**: Always allowed regardless of allowlist configuration
+- **Blocked URLs**: Return HTTP 403 with helpful error message listing allowed patterns
+- **Case-insensitive**: Matching is case-insensitive for domains and paths
+- **Credential sanitization**: Credentials in URLs are never exposed in error messages or logs
+
+**Example error responses:**
+
+```json
+{
+  "detail": "Repository URL does not match any allowed pattern. Allowed patterns: github.com/myorg/*, gitlab.com/team/*"
+}
+```
+
+```json
+{
+  "detail": "Repository domain 'evil.com' is not in the allowed domains list. Allowed domains: github.com, gitlab.com"
+}
+```
+
+**Security Considerations:**
+
+⚠️ **Important**: Wildcard patterns can be powerful but require careful configuration to avoid unintended access:
+
+- `github.com/*` allows ALL repos on GitHub (likely too broad)
+- `github.com/myorg/*` restricts to your organization only (✅ recommended)
+- `*.github.com` matches subdomains but NOT the bare domain
+- Avoid overly broad patterns like `*` or `*/*` in production
+
+**Best Practices:**
+
+1. **Use organization scoping** when possible: `github.com/myorg/*` instead of just `github.com`
+2. **Be specific with wildcards**: Prefer `github.com/team/project-*` over `github.com/team/*` if you can
+3. **Test your patterns**: Use a staging environment to verify patterns match expected repos and reject others
+4. **Combine with authentication**: Allowlisting complements (but doesn't replace) proper Git authentication
+5. **Monitor rejections**: Check logs for `url_rejected_by_allowlist` events to detect misconfiguration
+
+**Common Pitfall: Wildcard Subdomain Ambiguity**
+
+```bash
+# ❌ This ONLY matches subdomains, NOT the bare domain
+export KIT_ALLOWED_REPO_PATTERNS="*.github.com"
+# Allows: https://api.github.com/repo
+# Blocks: https://github.com/repo (no subdomain!)
+
+# ✅ To allow both, use two patterns
+export KIT_ALLOWED_REPO_PATTERNS="github.com,*.github.com"
+
+# ✅ Or use organization scoping instead
+export KIT_ALLOWED_REPO_PATTERNS="github.com/myorg/*"
+```
+
+**Use Cases:**
+
+- **Production deployments**: Restrict to trusted Git hosts and specific organizations
+- **Multi-tenant environments**: Different allowlists per tenant/customer
+- **Compliance requirements**: Prevent access to unauthorized code repositories
+- **SSRF prevention**: Block cloud metadata endpoints (169.254.169.254, metadata.google.internal)
+- **Internal deployments**: Restrict to internal Git servers only (`*.git.company.com`)
+- **Defense-in-depth**: Layer with network controls and authentication
+
 ## 2  Navigation
 
 | Method & path                                   | Purpose                    |

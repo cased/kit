@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import fnmatch
 import logging
+import os
 import subprocess
 from typing import Dict, List
 from urllib.parse import urlparse
@@ -18,6 +20,25 @@ from .registry import registry
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="kit API", version="0.1.0")
+
+# Optional security: allowlist of repository URL patterns
+# Set KIT_ALLOWED_REPO_PATTERNS environment variable with comma-separated patterns
+#
+# Supported patterns:
+#   - Exact domain: "github.com" matches only github.com
+#   - Wildcard subdomain: "*.github.com" matches api.github.com, gist.github.com, etc.
+#   - Path pattern: "github.com/myorg/*" matches any repo under github.com/myorg/
+#   - Full URL pattern: "https://github.com/myorg/*" matches any repo URL under myorg
+#
+# Examples:
+#   - "github.com,gitlab.com" - Allow only these two domains
+#   - "github.com/myorg/*" - Allow only repos under github.com/myorg/
+#   - "*.trusted.org" - Allow all subdomains of trusted.org
+#
+# If not set or empty, all domains are allowed (backward compatible)
+ALLOWED_REPO_PATTERNS = [
+    pattern.strip() for pattern in os.getenv("KIT_ALLOWED_REPO_PATTERNS", "").split(",") if pattern.strip()
+]
 
 
 def sanitize_url(url: str) -> str:
@@ -39,6 +60,114 @@ def sanitize_url(url: str) -> str:
         return "[sanitized repository URL]"
 
 
+def matches_pattern(url: str, pattern: str) -> bool:
+    """Check if a URL matches a given pattern.
+
+    Supports:
+    - Exact domain match: "github.com"
+    - Wildcard subdomain: "*.github.com"
+    - Path patterns: "github.com/myorg/*"
+    - Full URL patterns: "https://github.com/myorg/*"
+
+    Note: Matching is case-insensitive for domains and paths.
+    """
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+
+    # If pattern looks like a URL (has scheme or path), match against full URL
+    if "://" in pattern or "/" in pattern:
+        # Normalize: ensure pattern has a scheme
+        if not pattern.startswith(("http://", "https://")):
+            # Add scheme to pattern for matching
+            pattern = f"https://{pattern}"
+
+        # Match against full URL (without credentials)
+        # Normalize to lowercase for case-insensitive matching
+        url_for_matching = sanitize_url(url).lower()
+        pattern = pattern.lower()
+
+        # Use fnmatch for wildcard support (*, ?)
+        return fnmatch.fnmatch(url_for_matching, pattern)
+
+    # Otherwise, match just the hostname (domain-only pattern)
+    # Normalize to lowercase for case-insensitive matching
+    return fnmatch.fnmatch(hostname, pattern.lower())
+
+
+def validate_repo_url(url: str) -> None:
+    """Validate repository URL against allowlist patterns if configured.
+
+    Supports wildcard patterns for flexible allowlisting:
+    - Domain: "github.com" (exact match)
+    - Subdomain wildcard: "*.github.com" (matches any subdomain)
+    - Path pattern: "github.com/myorg/*" (matches organization repos)
+    - Full URL: "https://github.com/myorg/*" (explicit scheme + path)
+
+    Raises:
+        HTTPException: If URL is not allowed by the allowlist configuration.
+    """
+    # If no allowlist is configured, allow all URLs (backward compatible)
+    if not ALLOWED_REPO_PATTERNS:
+        return
+
+    # Only validate remote URLs (http/https)
+    if not url.startswith(("http://", "https://")):
+        return
+
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+
+        if not hostname:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid repository URL: hostname not found"
+            )
+
+        # Check if URL matches any allowed pattern
+        for pattern in ALLOWED_REPO_PATTERNS:
+            if matches_pattern(url, pattern):
+                logger.info(
+                    f"Repository URL validated: {sanitize_url(url)}",
+                    extra={
+                        "event_type": "url_validated",
+                        "hostname": hostname,
+                        "matched_pattern": pattern
+                    }
+                )
+                return  # URL is allowed
+
+        # No pattern matched - reject the URL
+        logger.warning(
+            f"Repository URL rejected by allowlist: {sanitize_url(url)}",
+            extra={
+                "event_type": "url_rejected_by_allowlist",
+                "hostname": hostname,
+                "allowed_patterns": ALLOWED_REPO_PATTERNS
+            }
+        )
+        raise HTTPException(
+            status_code=403,
+            detail=f"Repository URL does not match any allowed pattern. "
+                   f"Allowed patterns: {', '.join(ALLOWED_REPO_PATTERNS)}"
+        )
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is
+        raise
+    except Exception as e:
+        logger.error(
+            f"Error parsing repository URL: {str(e)}",
+            extra={
+                "event_type": "url_parse_error",
+                "error": str(e)
+            }
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid repository URL format: {str(e)}"
+        )
+
+
 class RepoIn(BaseModel):
     path_or_url: str
     github_token: str | None = None
@@ -52,6 +181,9 @@ class FilePathsIn(BaseModel):
 @app.post("/repository", status_code=201)
 def open_repo(body: RepoIn):
     """Register a repository path/URL and return its deterministic ID."""
+    # Validate URL against allowlist if configured
+    validate_repo_url(body.path_or_url)
+
     try:
         repo_id = registry.add(body.path_or_url, body.ref)
         _ = registry.get_repo(repo_id)
