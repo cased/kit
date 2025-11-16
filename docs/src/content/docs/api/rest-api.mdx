@@ -61,7 +61,7 @@ curl -X POST localhost:8000/repository \
 
 ### Security: Repository URL Allowlist
 
-For production deployments, you can restrict which repository URLs the API will accept by setting the `KIT_ALLOWED_REPO_DOMAINS` environment variable. This prevents Server-Side Request Forgery (SSRF) attacks where untrusted URLs could be used to access internal resources.
+For production deployments, you can restrict which repository URLs the API will accept by setting the `KIT_ALLOWED_REPO_PATTERNS` environment variable. This prevents Server-Side Request Forgery (SSRF) attacks where untrusted URLs could be used to access internal resources.
 
 **Pattern Matching Support:**
 
@@ -77,19 +77,19 @@ The allowlist supports flexible wildcard patterns for fine-grained control:
 
 ```bash
 # Allow only specific Git hosting providers (exact domains)
-export KIT_ALLOWED_REPO_DOMAINS="github.com,gitlab.com,bitbucket.org"
+export KIT_ALLOWED_REPO_PATTERNS="github.com,gitlab.com,bitbucket.org"
 
 # Restrict to specific organization on GitHub
-export KIT_ALLOWED_REPO_DOMAINS="github.com/mycompany/*"
+export KIT_ALLOWED_REPO_PATTERNS="github.com/mycompany/*"
 
 # Allow multiple organizations across platforms
-export KIT_ALLOWED_REPO_DOMAINS="github.com/org1/*,github.com/org2/*,gitlab.com/team/*"
+export KIT_ALLOWED_REPO_PATTERNS="github.com/org1/*,github.com/org2/*,gitlab.com/team/*"
 
 # Allow internal Git server subdomains
-export KIT_ALLOWED_REPO_DOMAINS="*.git.internal.company.com"
+export KIT_ALLOWED_REPO_PATTERNS="*.git.internal.company.com"
 
 # Mix of patterns: public platforms + internal servers + specific org
-export KIT_ALLOWED_REPO_DOMAINS="github.com/myorg/*,*.git.company.com,gitlab.company.com/*"
+export KIT_ALLOWED_REPO_PATTERNS="github.com/myorg/*,*.git.company.com,gitlab.company.com/*"
 
 # Start the server
 uvicorn kit.api.app:app
@@ -139,15 +139,15 @@ uvicorn kit.api.app:app
 
 ```bash
 # ❌ This ONLY matches subdomains, NOT the bare domain
-export KIT_ALLOWED_REPO_DOMAINS="*.github.com"
+export KIT_ALLOWED_REPO_PATTERNS="*.github.com"
 # Allows: https://api.github.com/repo
 # Blocks: https://github.com/repo (no subdomain!)
 
 # ✅ To allow both, use two patterns
-export KIT_ALLOWED_REPO_DOMAINS="github.com,*.github.com"
+export KIT_ALLOWED_REPO_PATTERNS="github.com,*.github.com"
 
 # ✅ Or use organization scoping instead
-export KIT_ALLOWED_REPO_DOMAINS="github.com/myorg/*"
+export KIT_ALLOWED_REPO_PATTERNS="github.com/myorg/*"
 ```
 
 **Use Cases:**

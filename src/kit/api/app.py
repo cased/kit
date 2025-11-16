@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="kit API", version="0.1.0")
 
 # Optional security: allowlist of repository URL patterns
-# Set KIT_ALLOWED_REPO_DOMAINS environment variable with comma-separated patterns
+# Set KIT_ALLOWED_REPO_PATTERNS environment variable with comma-separated patterns
 #
 # Supported patterns:
 #   - Exact domain: "github.com" matches only github.com
@@ -37,7 +37,7 @@ app = FastAPI(title="kit API", version="0.1.0")
 #
 # If not set or empty, all domains are allowed (backward compatible)
 ALLOWED_REPO_PATTERNS = [
-    pattern.strip() for pattern in os.getenv("KIT_ALLOWED_REPO_DOMAINS", "").split(",") if pattern.strip()
+    pattern.strip() for pattern in os.getenv("KIT_ALLOWED_REPO_PATTERNS", "").split(",") if pattern.strip()
 ]
 
 
