@@ -88,8 +88,9 @@ print(contents["src/utils/helper.py"])
 
 ### Command Line Interface
 
-`kit` also provides a comprehensive CLI for repository analysis and code exploration:
+`kit` provides a comprehensive CLI for repository analysis and code exploration.
 
+**Repository Analysis:**
 ```bash
 # Get repository file structure
 kit file-tree /path/to/repo
@@ -105,8 +106,11 @@ kit usages /path/to/repo "MyClass"
 
 # Export data for external tools
 kit export /path/to/repo symbols symbols.json
+```
 
-# Initialize configuration for reviews
+**PR Reviews:**
+```bash
+# Initialize configuration
 kit review --init-config
 
 # Review GitHub PRs
@@ -117,23 +121,31 @@ kit review https://github.com/owner/repo/pull/123
 kit review main..feature  # Compare branches
 kit review HEAD~3..HEAD   # Review last 3 commits
 kit review --staged       # Review staged changes
+```
 
+**PR Summaries:**
+```bash
 # Generate PR summaries for quick triage
 kit summarize https://github.com/owner/repo/pull/123
 kit summarize --update-pr-body https://github.com/owner/repo/pull/123
+```
 
+**Commit Messages:**
+```bash
 # Generate intelligent commit messages from staged changes
 git add .  # Stage your changes first
 kit commit  # Analyze and commit with AI-generated message
+```
 
-# Search package source code (requires Chroma API key)
+**Package Search** (requires Chroma API key):
+```bash
 kit package-search-grep numpy "def.*fft" --max-results 10  # Plain grep-style output
 kit package-search-grep numpy "def.*fft" --json           # Structured JSON output
 kit package-search-hybrid django "authentication middleware"
 kit package-search-read requests "requests/models.py"
 ```
 
-The CLI supports all major repository operations with Unix-friendly output for scripting and automation. See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehensive usage examples.
+See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehensive usage examples.
 
 ## Key Toolkit Capabilities
 
@@ -142,7 +154,7 @@ The CLI supports all major repository operations with Unix-friendly output for s
 *   **Explore Code Structure:**
     *   High-level view with `repo.get_file_tree()` to list all files and directories. You can also pass a subdirectory for a more limited scan.
     *   Dive down with `repo.extract_symbols()` to identify functions, classes, and other code constructs, either across the entire repository or within a single file.
-    *   Use the new (as of 1.1.0) and faster `repo.extract_symbols_incremental()` to get fast, cache-aware symbol extraction—best when dealing with small changes to repositories.
+    *   Use `repo.extract_symbols_incremental()` to get fast, cache-aware symbol extraction—best when dealing with small changes to repositories.
 
 *   **Pinpoint Information:**
     *   Run regular expression searches across your codebase using `repo.search_text()`.
@@ -155,7 +167,6 @@ The CLI supports all major repository operations with Unix-friendly output for s
 
 *   **Generate Code Summaries:**
     *   Use LLMs to create natural language summaries for files, functions, or classes using the `Summarizer` (e.g., `summarizer.summarize_file()`, `summarizer.summarize_function()`).
-    *   Works with **any LLM**: free local models (Ollama), or cloud models (OpenAI, Anthropic, Google).
     *   Build a searchable index of these AI-generated docstrings with `DocstringIndexer` and query it with `SummarySearcher` for intelligent code discovery.
 
 *   **Analyze Code Dependencies:**
@@ -165,19 +176,18 @@ The CLI supports all major repository operations with Unix-friendly output for s
 *   **Search Package Source Code (via Chroma):**
     *   Search through popular package source code using `ChromaPackageSearch` for regex patterns and semantic queries.
     *   Access source code from packages like numpy, django, fastapi, pandas, and more.
-    *   Integrated into Kit Dev MCP for seamless package exploration in AI assistants.
-    *   Tune vector indexing batches with `KIT_CHROMA_BATCH_SIZE` when working with large repositories to stay under your Chroma deployment's limits (defaults to 2000 or the backend's own cap).
+    *   Integrated into kit-dev MCP for seamless package exploration in AI assistants.
 
 *   **Repository Versioning & Historical Analysis:**
     *   Analyze repositories at specific commits, tags, or branches using the `ref` parameter.
     *   Compare code evolution over time, work with diffs, ensure reproducible analysis results
     *   Access git metadata including current SHA, branch, and remote URL with `repo.current_sha`, `repo.current_branch`, etc.
 
-## MCP Server (Kit Dev MCP)
+## MCP Server (kit-dev MCP)
 
-The `kit` tool includes an enhanced MCP (Model Context Protocol) server called **Kit Dev MCP** that allows AI agents and development tools to interact with codebases programmatically. This MCP server provides advanced context capabilities beyond basic file operations.
+The `kit` tool includes an enhanced MCP (Model Context Protocol) server called **kit-dev MCP** that allows AI agents and development tools to interact with codebases programmatically. This MCP server provides advanced context capabilities beyond basic file operations.
 
-**[→ Full Kit Dev MCP Documentation](https://kit-mcp.cased.com)**
+**[→ Full kit-dev MCP Documentation](https://kit-mcp.cased.com)**
 
 ## kit-powered Features & Utilities
 
@@ -195,7 +205,7 @@ kit review --init-config
 kit review https://github.com/owner/repo/pull/123
 ```
 
-**📖 [Complete PR Reviewer Documentation](src/kit/pr_review/README.md)**
+**[→ Complete PR Reviewer Documentation](src/kit/pr_review/README.md)**
 
 ### PR Summaries
 
@@ -222,10 +232,10 @@ kit commit      # Analyze and commit with AI-generated message
 
 ## Documentation
 
-Explore the **[Full Documentation](https://kit.cased.com)** for detailed usage, advanced features, and practical examples.
+**[Full Documentation](https://kit.cased.com)** - Detailed usage, advanced features, and practical examples.
 Full REST documentation is also available.
 
-**[Kit Dev MCP Documentation](https://kit-mcp.cased.com)** - Complete guide for the enhanced MCP server
+**[kit-dev MCP Documentation](https://kit-mcp.cased.com)** - Complete guide for the enhanced MCP server
 
 **[Changelog](https://kit.cased.com/changelog)** - Track all changes and improvements across kit releases
 
