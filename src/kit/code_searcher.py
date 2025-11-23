@@ -40,7 +40,7 @@ class CodeSearcher:
         """Load all .gitignore files in repository tree and merge them.
 
         Returns a PathSpec that respects all .gitignore files, with proper
-        precedence (deeper paths override shallower ones).
+        precedence (patterns from deeper directories can override root patterns).
         """
         gitignore_files = []
 
@@ -57,8 +57,9 @@ class CodeSearcher:
         if not gitignore_files:
             return None
 
-        # Sort by depth (deepest first) for correct precedence
-        gitignore_files.sort(key=lambda p: len(p.parts), reverse=True)
+        # Sort by depth (shallowest first) for correct precedence
+        # Git processes .gitignore files from root to leaf, so later patterns can override earlier ones
+        gitignore_files.sort(key=lambda p: len(p.parts))
 
         # Collect all patterns with proper path prefixes
         all_patterns = []
@@ -84,6 +85,11 @@ class CodeSearcher:
                     if not pattern or pattern.startswith("#"):
                         continue
 
+                    # Handle negation patterns (must preserve ! at the beginning)
+                    is_negation = pattern.startswith("!")
+                    if is_negation:
+                        pattern = pattern[1:]  # Remove the ! temporarily
+
                     # Adjust pattern to be relative to repo root
                     if str(rel_base) != ".":
                         # Pattern is in subdirectory - prefix with path
@@ -91,11 +97,16 @@ class CodeSearcher:
                             # Absolute pattern (from gitignore dir) - make relative to repo
                             adjusted = f"{rel_base}/{pattern[1:]}"
                         else:
-                            # Relative pattern - prefix with directory path
-                            adjusted = f"{rel_base}/{pattern}"
+                            # Relative pattern - applies to directory and all subdirectories
+                            # Use /** to match files at any depth under the directory
+                            adjusted = f"{rel_base}/**/{pattern}" if "*" in pattern else f"{rel_base}/{pattern}"
                     else:
                         # Pattern is in root .gitignore - use as-is
                         adjusted = pattern
+
+                    # Re-add negation prefix if needed
+                    if is_negation:
+                        adjusted = f"!{adjusted}"
 
                     all_patterns.append(adjusted)
 

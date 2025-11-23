@@ -136,3 +136,122 @@ def test_no_gitignore_files():
         paths = [item["path"] for item in tree]
         assert "test.py" in paths
         assert "src/main.py" in paths
+
+
+def test_code_searcher_respects_subdirectory_gitignore():
+    """Test CodeSearcher also respects subdirectory .gitignore files."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = Path(tmpdir)
+        from kit.code_searcher import CodeSearcher
+
+        # Create subdirectory with its own .gitignore
+        subdir = repo / "src"
+        subdir.mkdir()
+        (subdir / ".gitignore").write_text("*.log\n")
+
+        # Create test files with searchable content
+        (repo / "root.py").write_text("search_pattern")
+        (subdir / "code.py").write_text("search_pattern")
+        (subdir / "debug.log").write_text("search_pattern")
+
+        searcher = CodeSearcher(str(repo))
+        results = searcher.search_text("search_pattern")
+
+        # Should find matches in .py but not .log
+        files = [r["file"] for r in results]
+        assert "root.py" in files
+        assert "src/code.py" in files
+        assert "src/debug.log" not in files
+
+
+def test_absolute_patterns_in_subdirectory():
+    """Test absolute patterns (starting with /) in subdirectory .gitignore."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = Path(tmpdir)
+
+        # Subdirectory with absolute pattern
+        subdir = repo / "frontend"
+        subdir.mkdir()
+        (subdir / ".gitignore").write_text("/build/\n")
+
+        # Create test files
+        (subdir / "src").mkdir()
+        (subdir / "src" / "app.js").touch()
+        (subdir / "build").mkdir()
+        (subdir / "build" / "bundle.js").touch()
+        (subdir / "src" / "build").mkdir()
+        (subdir / "src" / "build" / "config.js").touch()
+
+        mapper = RepoMapper(str(repo))
+        tree = mapper.get_file_tree()
+
+        paths = [item["path"] for item in tree]
+        # /build/ should only ignore frontend/build/, not frontend/src/build/
+        assert "frontend/src/app.js" in paths
+        assert "frontend/build/bundle.js" not in paths
+        assert "frontend/src/build/config.js" in paths
+
+
+def test_complex_negation_patterns():
+    """Test complex negation scenarios."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = Path(tmpdir)
+
+        # Root ignores all .env files
+        (repo / ".gitignore").write_text("*.env\n")
+
+        # Config directory allows .env.example
+        config = repo / "config"
+        config.mkdir()
+        (config / ".gitignore").write_text("!*.env.example\n")
+
+        # Create test files
+        (repo / "root.env").touch()
+        (repo / "README.md").touch()
+        (config / "app.env").touch()
+        (config / "template.env.example").touch()
+
+        mapper = RepoMapper(str(repo))
+        tree = mapper.get_file_tree()
+
+        paths = [item["path"] for item in tree]
+        assert "README.md" in paths
+        assert "root.env" not in paths
+        assert "config/app.env" not in paths
+        assert "config/template.env.example" in paths  # Negation allows it
+
+
+def test_deeply_nested_gitignores():
+    """Test .gitignore files at multiple depth levels."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = Path(tmpdir)
+
+        # Root .gitignore
+        (repo / ".gitignore").write_text("*.tmp\n")
+
+        # Level 1
+        l1 = repo / "level1"
+        l1.mkdir()
+        (l1 / ".gitignore").write_text("*.cache\n")
+        (l1 / "file.txt").touch()
+        (l1 / "file.tmp").touch()
+        (l1 / "file.cache").touch()
+
+        # Level 2
+        l2 = l1 / "level2"
+        l2.mkdir()
+        (l2 / ".gitignore").write_text("!*.tmp\n")  # Re-allow .tmp here
+        (l2 / "deep.txt").touch()
+        (l2 / "deep.tmp").touch()
+        (l2 / "deep.cache").touch()
+
+        mapper = RepoMapper(str(repo))
+        tree = mapper.get_file_tree()
+
+        paths = [item["path"] for item in tree]
+        assert "level1/file.txt" in paths
+        assert "level1/file.tmp" not in paths  # Ignored by root
+        assert "level1/file.cache" not in paths  # Ignored by level1
+        assert "level1/level2/deep.txt" in paths
+        assert "level1/level2/deep.tmp" in paths  # Negation allows it
+        assert "level1/level2/deep.cache" not in paths  # Still ignored by level1
