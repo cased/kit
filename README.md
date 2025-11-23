@@ -43,9 +43,9 @@ uv tool uninstall cased-kit
 ```
 
 
-## Basic Toolkit Usage
+## Toolkit Usage
 
-### Python API
+### Basic Python API
 
 ```python
 from kit import Repository
@@ -62,8 +62,10 @@ repo = Repository("/path/to/your/local/codebase")
 
 # Load a repository at a specific commit, tag, or branch
 # repo = Repository("https://github.com/owner/repo", ref="v1.2.3")
+```
 
-# Explore the repo
+```
+# Explore a repo
 print(repo.get_file_tree())
 # Output: [{"path": "src/main.py", "is_dir": False, ...}, ...]
 
