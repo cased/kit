@@ -39,6 +39,10 @@ repo.search_text("TODO", file_pattern="**/*.py")
 repo.search_text(r"def \w+_handler", file_pattern="*.py")
 ```
 
+<Aside type="tip" title="Performance">
+With ripgrep installed, searches run in ~50-100ms vs 400-500ms on typical repositories. Install with `brew install ripgrep` (macOS) or `apt install ripgrep` (Ubuntu).
+</Aside>
+
 → [Full Text Search Guide](/core-concepts/text-search)
 
 ### Symbol Search (Tree-sitter)

@@ -31,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improvements
 
+- **Ripgrep Integration for Code Search** (#150)
+  - `CodeSearcher.search_text()` now automatically uses ripgrep when available for 10x faster searches
+  - Automatic fallback to Python implementation ensures compatibility
+  - 88% time reduction on typical searches (50-100ms vs 400-500ms)
+  - Full support for all SearchOptions (case sensitivity, context lines, gitignore)
+  - Security protections: 100-line context cap, 30-second timeout, no shell injection
+  - Added comprehensive benchmark suite comparing ripgrep vs Python performance
+
 - **Default Model Updated**: Changed default Anthropic model from `claude-sonnet-4-20250514` to `claude-sonnet-4-5`
 - **Documentation Updates**: Updated all model examples and configuration templates across PR review docs, CLI docs, and CI/CD guides
 - **Code Summarization**: Updated documentation to include OpenRouter and Grok examples, refreshed model names

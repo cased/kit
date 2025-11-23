@@ -8,12 +8,19 @@ from typing import List, Optional, Union
 import httpx
 import typer
 
-from . import __version__
+
+def _get_version() -> str:
+    """Get kit version without importing the entire package."""
+    try:
+        from importlib.metadata import version
+        return version("cased-kit")
+    except Exception:
+        return "unknown"
 
 
 def version_callback(value: bool):
     if value:
-        typer.echo(f"kit version {__version__}")
+        typer.echo(f"kit version {_get_version()}")
         raise typer.Exit()
 
 
