@@ -70,10 +70,6 @@ print(repo.get_file_tree())
 print(repo.extract_symbols('src/main.py'))
 # Output: [{"name": "main", "type": "function", "file": "src/main.py", ...}, ...]
 
-# Access git metadata
-print(f"Current SHA: {repo.current_sha}")
-print(f"Branch: {repo.current_branch}")
-
 # Read one file
 main_py = repo.get_file_content("src/main.py")
 
@@ -98,14 +94,20 @@ kit file-tree /path/to/repo
 # Extract symbols (functions, classes, etc.)
 kit symbols /path/to/repo --format table
 
-# Search for code patterns
+# Export data for external tools
+kit export /path/to/repo symbols symbols.json
+```
+
+**Search:**
+```bash
+# Text/regex search
 kit search /path/to/repo "def main" --pattern "*.py"
 
 # Find symbol usages
 kit usages /path/to/repo "MyClass"
 
-# Export data for external tools
-kit export /path/to/repo symbols symbols.json
+# Semantic search (requires embeddings)
+kit search-semantic /path/to/repo "authentication logic"
 ```
 
 **PR Reviews:**
@@ -116,11 +118,6 @@ kit review --init-config
 # Review GitHub PRs
 kit review --dry-run https://github.com/owner/repo/pull/123
 kit review https://github.com/owner/repo/pull/123
-
-# Review local git diffs (no PR required!)
-kit review main..feature  # Compare branches
-kit review HEAD~3..HEAD   # Review last 3 commits
-kit review --staged       # Review staged changes
 ```
 
 **PR Summaries:**
@@ -130,7 +127,6 @@ kit summarize https://github.com/owner/repo/pull/123
 kit summarize --update-pr-body https://github.com/owner/repo/pull/123
 ```
 
-**Commit Messages:**
 ```bash
 # Generate intelligent commit messages from staged changes
 git add .  # Stage your changes first
@@ -203,6 +199,11 @@ with models like Sonnet 4 and gpt4.1, paying just for the price of tokens.
 ```bash
 kit review --init-config
 kit review https://github.com/owner/repo/pull/123
+
+# Review local git diffs (no PR required!)
+kit review main..feature  # Compare branches
+kit review HEAD~3..HEAD   # Review last 3 commits
+kit review --staged       # Review staged changes
 ```
 
 **[→ Complete PR Reviewer Documentation](src/kit/pr_review/README.md)**
@@ -246,6 +247,5 @@ MIT License
 ## Contributing
 
 - **Local Development**: Check out our [Running Tests](https://kit.cased.com/development/running-tests) guide to get started with local development.
-- **Project Direction**: See our [Roadmap](https://kit.cased.com/development/roadmap) for future plans and focus areas.
 
 To contribute, fork the repository, make your changes, and submit a pull request.

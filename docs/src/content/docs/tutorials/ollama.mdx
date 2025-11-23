@@ -1,6 +1,6 @@
 ---
-title: "Using Ollama with kit review"
-description: "Complete guide to using kit with Ollama for free local AI code revews."
+title: "Using Ollama with kit"
+description: "Complete guide to using kit with Ollama for free local AI code analysis."
 ---
 
 # Using Ollama with Kit
@@ -92,19 +92,6 @@ print(f"Function Summary: {func_summary}")
 # Summarize a class
 class_summary = summarizer.summarize_class("models.py", "UserManager")
 print(f"Class Summary: {class_summary}")
-```
-
-### PR Reviews (No Cost)
-
-```bash
-# Setup Ollama for PR reviews
-kit review --init-config
-# Choose "ollama" as provider
-# Choose "qwen2.5-coder:latest" as model
-
-# Review any PR at no cost
-kit review https://github.com/owner/repo/pull/123
-# Cost: $0.00
 ```
 
 ### Batch Documentation Generation
