@@ -1,0 +1,283 @@
+---
+title: LLM Configuration
+description: Configure and use different LLM providers with kit for code summarization, PR reviews, and more
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Kit supports multiple LLM providers for code summarization, PR reviews, commit message generation, and other AI-powered features. You can use OpenAI, Anthropic, Google, Ollama (local), or any OpenAI-compatible API (like Grok and OpenRouter).
+
+## Supported Providers
+
+### Native Providers
+
+Kit has built-in support for these providers:
+
+- **OpenAI** - GPT-4, GPT-5, and o-series models
+- **Anthropic** - Claude Opus, Sonnet, and Haiku models
+- **Google** - Gemini Pro and Flash models
+- **Ollama** - Free local models (no API key required)
+
+### OpenAI-Compatible Providers
+
+Using the `OpenAIConfig` with a custom `base_url`, you can access:
+
+- **OpenRouter** - Access to 100+ models through one API
+- **Grok (X.AI)** - Advanced reasoning and coding models
+- **Groq** - Fast inference for Llama and other models
+- **Together AI** - Wide variety of open-source models
+- **Local servers** - text-generation-webui, vLLM, etc.
+
+## When LLMs Are Used
+
+Kit uses LLMs for these features:
+
+- **Code Summarization** - Generate natural language summaries of files, functions, and classes
+- **PR Reviews** - Analyze pull requests with context-aware feedback
+- **PR Summaries** - Quick triage summaries for PRs
+- **Commit Messages** - Generate intelligent commit messages from staged changes
+- **Docstring Indexing** - Create searchable AI-generated documentation
+
+<Aside type="note">
+The core repository analysis features (symbol extraction, file trees, search, dependency analysis) **do not require** an LLM and work without any API keys.
+</Aside>
+
+## Configuration Examples
+
+### OpenAI
+
+```python
+from kit.summaries import OpenAIConfig
+
+config = OpenAIConfig(
+    api_key="sk-...",  # Or set OPENAI_API_KEY env var
+    model="gpt-4.1"    # or "gpt-5.1", "gpt-4o", etc.
+)
+```
+
+**Environment Variables:**
+- `OPENAI_API_KEY` or `KIT_OPENAI_TOKEN`
+
+**Popular Models:**
+- `gpt-5.1` - Latest model with adaptive reasoning
+- `gpt-4.1` - Good balance
+- `gpt-4.1-mini` - Budget-friendly
+- `gpt-4.1-nano` - Ultra-budget
+
+### Anthropic
+
+```python
+from kit.summaries import AnthropicConfig
+
+config = AnthropicConfig(
+    api_key="sk-ant-...",  # Or set ANTHROPIC_API_KEY env var
+    model="claude-sonnet-4-5"
+)
+```
+
+**Environment Variables:**
+- `ANTHROPIC_API_KEY` or `KIT_ANTHROPIC_TOKEN`
+
+**Popular Models:**
+- `claude-sonnet-4-5` - Best balance (recommended)
+- `claude-haiku-4-5` - Ultra-fast and economical
+- `claude-opus-4-20250514` - Highest quality
+
+### Google Gemini
+
+```python
+from kit.summaries import GoogleConfig
+
+config = GoogleConfig(
+    api_key="AIzaSy...",  # Or set GOOGLE_API_KEY env var
+    model="gemini-2.5-flash"
+)
+```
+
+**Environment Variables:**
+- `GOOGLE_API_KEY` or `KIT_GOOGLE_API_KEY`
+
+**Popular Models:**
+- `gemini-3-pro` - Best multimodal understanding
+- `gemini-2.5-pro` - Advanced reasoning
+- `gemini-2.5-flash` - Best price-performance
+- `gemini-2.5-flash-lite` - Fastest, most cost-efficient
+- `gemini-1.5-flash-8b` - Ultra-budget option
+
+### Ollama (Local Models)
+
+```python
+from kit.summaries import OpenAIConfig
+
+config = OpenAIConfig(
+    api_key="ollama",  # Placeholder (not used)
+    model="qwen2.5-coder:latest",
+    base_url="http://localhost:11434/v1"
+)
+```
+
+**Setup:**
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull a model
+ollama pull qwen2.5-coder:latest
+
+# Ollama runs automatically on port 11434
+```
+
+**Popular Models:**
+- `qwen2.5-coder:latest` - Excellent for code
+- `deepseek-r1:latest` - Strong reasoning
+- `gemma3:latest` - Good general purpose
+- `devstral:latest` - Mistral's coding model
+
+**Benefits:**
+- No API keys required
+- No costs
+- Data never leaves your machine
+- No rate limits
+
+### OpenRouter
+
+Access 100+ models through a single API:
+
+```python
+from kit.summaries import OpenAIConfig
+
+config = OpenAIConfig(
+    api_key="YOUR_OPENROUTER_API_KEY",
+    model="meta-llama/llama-3.3-70b-instruct",
+    base_url="https://openrouter.ai/api/v1"
+)
+```
+
+### Grok (X.AI)
+
+```python
+from kit.summaries import OpenAIConfig
+
+config = OpenAIConfig(
+    api_key="YOUR_XAI_API_KEY",
+    model="grok-4-1-fast-reasoning",
+    base_url="https://api.x.ai/v1"
+)
+```
+
+**Available Models:**
+- `grok-4-1-fast-reasoning` - Optimized for tool calling and agentic workflows
+- `grok-4-1-fast-non-reasoning` - Optimized for speed
+- `grok-code-fast-1` - Speedy reasoning for coding
+- `grok-4` - Advanced reasoning
+- `grok-3` - General purpose
+- `grok-3-mini` - Budget-friendly
+
+**Setup:**
+Get your API key at https://console.x.ai and ensure you have credits.
+
+### Groq
+
+```python
+from kit.summaries import OpenAIConfig
+
+config = OpenAIConfig(
+    api_key="YOUR_GROQ_API_KEY",
+    model="llama-3.3-70b-versatile",
+    base_url="https://api.groq.com/openai/v1"
+)
+```
+
+### Together AI
+
+```python
+from kit.summaries import OpenAIConfig
+
+config = OpenAIConfig(
+    api_key="YOUR_TOGETHER_API_KEY",
+    model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    base_url="https://api.together.xyz/v1"
+)
+```
+
+### Local OpenAI-Compatible Server
+
+```python
+from kit.summaries import OpenAIConfig
+
+config = OpenAIConfig(
+    api_key="not-used",  # Local servers often don't need keys
+    model="local-model-name",
+    base_url="http://localhost:8000/v1"
+)
+```
+
+## Usage with Code Summarization
+
+```python
+import kit
+from kit.summaries import OpenAIConfig, AnthropicConfig
+
+repo = kit.Repository("/path/to/project")
+
+# Option 1: Use default (OpenAI from OPENAI_API_KEY)
+summarizer = repo.get_summarizer()
+
+# Option 2: Specify a config
+config = AnthropicConfig(model="claude-sonnet-4-5")
+summarizer = repo.get_summarizer(config=config)
+
+# Summarize a file
+summary = summarizer.summarize_file("src/main.py")
+print(summary)
+```
+
+## Usage with PR Reviews
+
+Set your preferred provider in `~/.kit/review-config.yaml`:
+
+```yaml
+github:
+  token: ghp_your_token
+
+llm:
+  provider: anthropic  # or "openai", "google", "ollama"
+  model: claude-sonnet-4-5
+  api_key: sk-ant-your_key
+  max_tokens: 4000
+```
+
+Or override per-review:
+
+```bash
+# Use a specific model
+kit review --model gpt-4.1 https://github.com/owner/repo/pull/123
+
+# Use Ollama
+kit review --model qwen2.5-coder:latest https://github.com/owner/repo/pull/123
+```
+
+## Cost Considerations
+
+Different providers have very different pricing:
+
+| Provider | Example Model | Typical PR Review Cost |
+|----------|---------------|------------------------|
+| Gemini 1.5 Flash 8B | `gemini-1.5-flash-8b` | $0.003 |
+| GPT-4.1 Nano | `gpt-4.1-nano` | $0.005 |
+| Claude Haiku 4.5 | `claude-haiku-4-5` | $0.03 |
+| Gemini 2.5 Flash | `gemini-2.5-flash` | $0.007 |
+| Claude Sonnet 4.5 | `claude-sonnet-4-5` | $0.08-0.18 |
+| Ollama (Local) | Any model | $0 (free) |
+
+<Aside type="tip">
+For high-volume usage, consider using budget models like `gpt-4.1-nano` or `gemini-1.5-flash-8b` for simple PRs, and reserving premium models like `claude-opus-4` for complex architectural changes.
+</Aside>
+
+## See Also
+
+- [Code Summarization](/core-concepts/code-summarization) - Detailed examples of using LLMs for code analysis
+- [PR Reviewer Configuration](/pr-reviewer/configuration) - Complete PR review setup guide
+- [Tool Calling with Kit](/core-concepts/tool-calling-with-kit) - Using kit with LLM tool calling

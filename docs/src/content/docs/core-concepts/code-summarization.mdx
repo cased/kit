@@ -4,34 +4,8 @@ title: Code Summarization
 
 import { Aside } from '@astrojs/starlight/components';
 
-In addition to the non-LLM based functions of the `Repository` class, 
+In addition to the non-LLM based functions of the `Repository` class,
 `kit` also integrates directly with LLMs via the `Summarizer` class to provide intelligent code summarization capabilities. This helps you quickly understand the purpose and functionality of entire code files, specific functions, or classes.
-
-## Getting Started
-
-To use code summarization, you'll need an LLM provider configured. Currently, OpenAI, Anthropic, and Google Cloud's Generative AI models are supported.
-
-1.  **Install Dependencies:**
-    ```bash
-    # Ensure you are in your project's virtual environment
-    uv pip install cased-kit
-    ```
-    The installation includes all dependencies for OpenAI, Anthropic, and Google Cloud's Generative AI models.
-
-2.  **Set API Key(s):** Configure the API key(s) for your chosen provider(s) as environment variables:
-    ```bash
-    # For OpenAI
-    export OPENAI_API_KEY="sk-..."
-    
-    # For Anthropic
-    export ANTHROPIC_API_KEY="sk-ant-..."
-    
-    # For Google
-    export GOOGLE_API_KEY="AIzaSy..."
-    ```
-    You only need to set the key for the provider(s) you intend to use. If no specific configuration is provided to the `Summarizer` (see 'Configuration (Advanced)' below), `kit` defaults to using OpenAI via `OpenAIConfig()`, which expects `OPENAI_API_KEY`.
-
-    For `OpenAIConfig`, you can also customize parameters such as the `model`, `temperature`, or `base_url` (e.g., for connecting to services like OpenRouter). See the 'Configuration (Advanced)' section for detailed examples.
 
 ## Basic Usage: Summarizing Files
 
@@ -91,7 +65,7 @@ repo = kit.Repository("/path/to/your/project")
 # Define custom OpenAI configuration
 openai_custom_config = OpenAIConfig(
     api_key="sk-...", # Can be omitted if OPENAI_API_KEY is set
-    model="gpt-4o-mini"
+    model="gpt-4.1-mini"
 )
 # Get summarizer with specific OpenAI config
 openai_summarizer = repo.get_summarizer(config=openai_custom_config)
@@ -100,40 +74,46 @@ openai_summary = openai_summarizer.summarize_file("src/utils_openai.py")
 print(f"OpenAI Summary:\n{openai_summary}")
 ```
 
-#### Using OpenAI-Compatible Endpoints (e.g., OpenRouter)
+#### Using OpenAI-Compatible Endpoints
 
-The `OpenAIConfig` also supports a `base_url` parameter, allowing you to use any OpenAI-compatible API endpoint, such as [OpenRouter](https://openrouter.ai/). This is useful for accessing a wide variety of models through a single API key and endpoint.
+The `OpenAIConfig` also supports a `base_url` parameter, allowing you to use any OpenAI-compatible API (like Grok and OpenRouter). This is useful for accessing alternative providers and models.
 
-To use OpenRouter:
-1. Your `api_key` in `OpenAIConfig` should be your OpenRouter API key.
-2. Set the `base_url` to OpenRouter's API endpoint (e.g., `https://openrouter.ai/api/v1`).
-3. The `model` parameter should be the specific model string as recognized by OpenRouter (e.g., `meta-llama/llama-3.3-70b-instruct`).
+**OpenRouter** - Access to hundreds of models through a single API:
 
-```
-# Example for OpenRouter
+```python
 openrouter_config = OpenAIConfig(
-    api_key="YOUR_OPENROUTER_API_KEY", # Replace with your OpenRouter key
-    model="meta-llama/llama-3.3-70b-instruct", # Example model on OpenRouter
+    api_key="YOUR_OPENROUTER_API_KEY",
+    model="meta-llama/llama-3.3-70b-instruct",
     base_url="https://openrouter.ai/api/v1"
 )
-
 openrouter_summarizer = repo.get_summarizer(config=openrouter_config)
+```
+
+**Grok (X.AI)** - Access to Grok models:
+
+```python
+grok_config = OpenAIConfig(
+    api_key="YOUR_XAI_API_KEY",
+    model="grok-4-1-fast-reasoning",  # or "grok-code-fast-1", "grok-4", etc.
+    base_url="https://api.x.ai/v1"
+)
+grok_summarizer = repo.get_summarizer(config=grok_config)
 ```
 
 #### Additional Configs
 
+```python
 # Define custom Anthropic configuration
 anthropic_config = AnthropicConfig(
     api_key="sk-ant-...", # Can be omitted if ANTHROPIC_API_KEY is set
-    model="claude-3-haiku-20240307"
+    model="claude-sonnet-4-5"
 )
 
 # Define custom Google configuration
 google_config = GoogleConfig(
     api_key="AIzaSy...", # Can be omitted if GOOGLE_API_KEY is set
-    model="gemini-2.5-flash"  # Or "gemini-2.5-pro" for complex reasoning, "gemini-2.0-flash-lite" for speed
+    model="gemini-2.5-flash"  # Or "gemini-2.5-pro" for advanced reasoning
 )
-
 ```
 
 ## Advanced Usage
@@ -216,7 +196,7 @@ for sym in class_symbols:
   # Similar approach for OpenAIConfig or GoogleConfig
   my_anthropic_config = AnthropicConfig(
       api_key="sk-ant-your-key", 
-      model="claude-3-sonnet-20240229"
+      model="claude-sonnet-4-5"
   )
   direct_summarizer = Summarizer(repo=my_repo, config=my_anthropic_config)
   

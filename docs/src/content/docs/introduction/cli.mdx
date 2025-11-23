@@ -13,7 +13,7 @@ kit provides a comprehensive command-line interface for repository analysis, sym
 
 ```bash
 # Install kit
-pip install cased-kit
+uv pip install cased-kit
 
 # Verify installation
 kit --version
@@ -391,7 +391,7 @@ kit summarize --dry-run https://github.com/owner/repo/pull/123
 kit summarize --update-pr-body https://github.com/owner/repo/pull/123
 
 # Use specific model
-kit summarize --model claude-3-5-haiku-20241022 https://github.com/owner/repo/pull/123
+kit summarize --model claude-haiku-4-5 https://github.com/owner/repo/pull/123
 
 # Clean output for piping
 kit summarize --plain https://github.com/owner/repo/pull/123
@@ -422,7 +422,7 @@ git add src/auth.py
 kit commit --dry-run
 
 # Use specific model
-kit commit --model gpt-4o-mini-2024-07-18
+kit commit --model gpt-4.1-mini
 
 # Specify repository path
 kit commit /path/to/repo --dry-run
@@ -705,7 +705,7 @@ kit review -p https://github.com/owner/repo/pull/123
 
 # Override model for specific review
 kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
-kit review -m claude-3-5-haiku-20241022 https://github.com/owner/repo/pull/123
+kit review -m claude-haiku-4-5 https://github.com/owner/repo/pull/123
 
 # Pipe to Claude Code for implementation
 kit review -p https://github.com/owner/repo/pull/123 | \
@@ -723,7 +723,7 @@ kit review --init-config
 **1. Install and configure:**
 ```bash
 # Install kit
-pip install cased-kit
+uv pip install cased-kit
 
 # Set up configuration
 kit review --init-config
@@ -753,7 +753,7 @@ github:
 
 llm:
   provider: anthropic  # or "openai"
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-5
   api_key: sk-ant-your_key_here
   max_tokens: 4000
   temperature: 0.1
@@ -768,17 +768,20 @@ review:
 ```
 #### Model Selection
 
-**Frontier Tier ($15-75/MTok)**
-- `claude-opus-4-20250514`: Latest flagship, world's best coding model, superior complex reasoning
-- `claude-sonnet-4-20250514`: High-performance with exceptional reasoning and efficiency
+**Frontier Tier ($3-15/MTok)**
+- `claude-opus-4-20250514`: Latest flagship, superior complex reasoning
+- `claude-sonnet-4-5`: High-performance with exceptional reasoning (recommended)
+- `gpt-5.1`: Latest OpenAI model with adaptive reasoning
 
-**Premium Tier ($3-15/MTok)**
-- `claude-3-7-sonnet-20250219`: Extended thinking capabilities
-- `claude-3-5-sonnet-20241022`: Proven excellent balance
+**Balanced Tier ($0.10-1/MTok)**
+- `gpt-4.1`: Good balance of performance and cost
+- `gpt-4.1-mini`: Budget-friendly with solid capability
+- `claude-haiku-4-5`: Ultra-fast and economical
 
-**Balanced Tier ($0.80-4/MTok)**
-- `gpt-4o-mini-2024-07-18`: Excellent value model
-- `claude-3-5-haiku-20241022`: Fastest responses
+**Budget Tier ($0.0015-0.01/MTok)**
+- `gpt-4.1-nano`: Ultra-budget, high-volume use
+- `gemini-2.5-flash`: Excellent value, fast
+- `gemini-1.5-flash-8b`: Ultra-budget option
 
 #### Cache Management
 
@@ -817,7 +820,7 @@ jobs:
     steps:
       - name: AI Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           kit review --dry-run ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1126,7 +1129,7 @@ jobs:
       - uses: actions/checkout@v3
       
       - name: Install kit
-        run: pip install cased-kit
+        run: uv pip install cased-kit
         
       - name: Analyze codebase
         run: |

@@ -85,7 +85,7 @@ if hasattr(llm_client, 'chat') and hasattr(llm_client.chat, 'completions'): # Op
 elif hasattr(llm_client, 'messages') and hasattr(llm_client.messages, 'create'): # Anthropic-like client
     try:
         response = llm_client.messages.create(
-            model=summarizer_instance.config.model if summarizer_instance.config else "claude-3-opus-20240229",
+            model=summarizer_instance.config.model if summarizer_instance.config else "claude-opus-4-20250514",
             system="You are an expert software engineer. Please summarize the following code changes and context.",
             messages=[
                 {"role": "user", "content": context_blob}

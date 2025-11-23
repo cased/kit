@@ -230,7 +230,7 @@ jobs:
     steps:
       - name: AI Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           # Use ultra-budget model for all PRs
           kit review --model gpt-4.1-nano \
             --priority=high,medium \
@@ -257,7 +257,7 @@ jobs:
     steps:
       - name: AI Review with Smart Selection
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           
           # Different models based on target branch
           if [ "${{ github.event.pull_request.base.ref }}" == "main" ]; then
@@ -295,7 +295,7 @@ jobs:
     steps:
       - name: Community PR Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           # Focus on contribution guidelines
           kit review --profile community-standards \
             --model gpt-4.1-mini \
@@ -327,7 +327,7 @@ jobs:
     steps:
       - name: Security Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           # Premium model for security-critical code
           kit review --model claude-opus-4 \
             --profile security-hardening \

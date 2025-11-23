@@ -130,7 +130,7 @@ kit review --profile frontend-react https://github.com/owner/repo/pull/123  # UI
 ```yaml
 - name: AI Review with Company Standards
   run: |
-    pip install cased-kit
+    uv pip install cased-kit
     kit review --profile company-standards ${{ github.event.pull_request.html_url }}
   env:
     KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -178,7 +178,7 @@ kit review-profile create --name mobile-app-standards \
 # In your CI/CD, use different profiles based on changed files
 - name: Smart Profile Selection
   run: |
-    pip install cased-kit
+    uv pip install cased-kit
     
     # Check what type of files changed
     CHANGED_FILES=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq -r '.files[].filename')

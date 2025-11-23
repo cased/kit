@@ -33,20 +33,36 @@ export default defineConfig({
           ],
         },
         {
-          label: " Core Concepts",
+          label: " Repository Basics",
           items: [
-            // Manually specify order, starting with repository-api
             "core-concepts/repository-api",
-            "core-concepts/search-approaches",
-            "core-concepts/code-summarization",
-            "core-concepts/docstring-indexing",
-            "core-concepts/incremental-analysis",
-            "core-concepts/tool-calling-with-kit",
             "core-concepts/repository-versioning",
-            "core-concepts/semantic-search",
             "core-concepts/dependency-analysis",
+          ],
+        },
+        {
+          label: " Search & Discovery",
+          items: [
+            "core-concepts/search-approaches",
+            "core-concepts/text-search",
+            "core-concepts/symbol-search",
+            "core-concepts/semantic-search",
+            "core-concepts/docstring-indexing",
+          ],
+        },
+        {
+          label: " AI & LLM Features",
+          items: [
+            "core-concepts/llm-configuration",
+            "core-concepts/code-summarization",
             "core-concepts/llm-context-best-practices",
-            "core-concepts/context-assembly",
+            "core-concepts/tool-calling-with-kit",
+          ],
+        },
+        {
+          label: " Advanced Features",
+          items: [
+            "core-concepts/incremental-analysis",
             "core-concepts/plugin-system",
           ],
         },

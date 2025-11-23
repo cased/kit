@@ -162,6 +162,7 @@ h1 {
 h2 {
   font-size: var(--sl-text-h2);
   margin-top: var(--space-xl);
+  margin-bottom: var(--space-l);
   padding-bottom: var(--space-m);
   border-bottom: 1px solid var(--sl-color-hairline);
 }
@@ -207,6 +208,7 @@ h5 {
 /* Next and previous links */
 .pagination-links a {
   color: var(--sl-color-gray-4);
+  padding-bottom: var(--space-xs);
 }
 
 .link-title {
@@ -276,6 +278,14 @@ figure {
 .sl-markdown-content td {
   padding: var(--space-xs) var(--space-s);
   border: 1px solid var(--sl-color-hairline);
+}
+
+/* Horizontal rules */
+.sl-markdown-content hr {
+  margin-top: var(--space-xl);
+  margin-bottom: var(--space-2xl);
+  border: none;
+  border-top: 1px solid var(--sl-color-hairline);
 }
 
 /* Responsive adjustments for small screens */
