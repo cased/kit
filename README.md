@@ -54,13 +54,15 @@ from kit import Repository
 repo = Repository("/path/to/your/local/codebase")
 
 # Load a remote public GitHub repo
-# repo = Repository("https://github.com/owner/repo")
+repo = Repository("https://github.com/owner/repo")
 
 # Load a private GitHub repo (automatically uses KIT_GITHUB_TOKEN if set)
-# repo = Repository("https://github.com/owner/private-repo")
-# Or explicitly: repo = Repository("https://github.com/owner/private-repo", github_token="ghp_...")
+repo = Repository("https://github.com/owner/private-repo")
 
-# Load a repository at a specific commit, tag, or branch
+# Or explicitly
+repo = Repository("https://github.com/owner/private-repo", github_token="ghp_...")
+
+# At a specific commit, tag, or branch
 # repo = Repository("https://github.com/owner/repo", ref="v1.2.3")
 ```
 
