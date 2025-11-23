@@ -24,11 +24,78 @@ class RepoMapper:
         self._gitignore_spec = self._load_gitignore()
 
     def _load_gitignore(self):
-        gitignore_path = self.repo_path / ".gitignore"
-        if gitignore_path.exists():
-            with open(gitignore_path) as f:
-                return pathspec.PathSpec.from_lines("gitwildmatch", f)
-        return None
+        """Load all .gitignore files in repository tree and merge them.
+
+        Returns a PathSpec that respects all .gitignore files, with proper
+        precedence (deeper paths override shallower ones).
+        """
+        gitignore_files = []
+
+        # Collect all .gitignore files
+        for dirpath, dirnames, filenames in os.walk(self.repo_path):
+            # Skip .git directory
+            if ".git" in Path(dirpath).parts:
+                continue
+
+            if ".gitignore" in filenames:
+                gitignore_path = Path(dirpath) / ".gitignore"
+                gitignore_files.append(gitignore_path)
+
+        if not gitignore_files:
+            return None
+
+        # Sort by depth (deepest first) for correct precedence
+        gitignore_files.sort(key=lambda p: len(p.parts), reverse=True)
+
+        # Collect all patterns with proper path prefixes
+        all_patterns = []
+        for gitignore_path in gitignore_files:
+            gitignore_dir = gitignore_path.parent
+
+            try:
+                with open(gitignore_path, "r", encoding="utf-8") as f:
+                    patterns = f.readlines()
+
+                # Calculate relative base path from repo root
+                try:
+                    rel_base = gitignore_dir.relative_to(self.repo_path)
+                except ValueError:
+                    # gitignore outside repo (shouldn't happen, but be safe)
+                    continue
+
+                # Process each pattern
+                for pattern in patterns:
+                    pattern = pattern.strip()
+
+                    # Skip empty lines and comments
+                    if not pattern or pattern.startswith("#"):
+                        continue
+
+                    # Adjust pattern to be relative to repo root
+                    if str(rel_base) != ".":
+                        # Pattern is in subdirectory - prefix with path
+                        if pattern.startswith("/"):
+                            # Absolute pattern (from gitignore dir) - make relative to repo
+                            adjusted = f"{rel_base}/{pattern[1:]}"
+                        else:
+                            # Relative pattern - prefix with directory path
+                            adjusted = f"{rel_base}/{pattern}"
+                    else:
+                        # Pattern is in root .gitignore - use as-is
+                        adjusted = pattern
+
+                    all_patterns.append(adjusted)
+
+            except Exception as e:
+                # Log warning but continue processing other .gitignore files
+                logging.warning(f"Could not load {gitignore_path}: {e}")
+                continue
+
+        if not all_patterns:
+            return None
+
+        # Create single merged pathspec
+        return pathspec.PathSpec.from_lines("gitwildmatch", all_patterns)
 
     def _should_ignore(self, file: Path) -> bool:
         # Handle potential symlink resolution mismatches
