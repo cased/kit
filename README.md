@@ -66,7 +66,7 @@ repo = Repository("https://github.com/owner/private-repo", github_token="ghp_...
 # repo = Repository("https://github.com/owner/repo", ref="v1.2.3")
 ```
 
-```
+```python
 # Explore a repo
 print(repo.get_file_tree())
 # Output: [{"path": "src/main.py", "is_dir": False, ...}, ...]
