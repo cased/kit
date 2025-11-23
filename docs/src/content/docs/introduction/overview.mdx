@@ -11,25 +11,36 @@ A modular, production-grade toolkit for codebase mapping, symbol extraction, cod
 `kit` is **free and open source** with a permissive MIT license. Check it out on [GitHub](https://github.com/cased/kit).
 
 ## Installation
+
 ### Install from PyPI
+
 ```bash
-# Basic installation (includes PR reviewer, no ML dependencies)
-pip install cased-kit
+uv pip install cased-kit
 
-# With semantic search features (includes PyTorch, sentence-transformers)
-pip install cased-kit[ml]
-
-# Everything (all features)
-pip install cased-kit[all]
+# With ML features for advanced analysis and vector search
+uv pip install 'cased-kit[all]'
 ```
 
-### Install from Source
+### Install Globally with uv (easiest for CLI usage)
+
+If you want to use the `kit` CLI globally without affecting your system Python, use `uv tool install`. This creates an isolated environment for `kit` while making the CLI available from anywhere:
+
 ```bash
-git clone https://github.com/cased/kit.git
-cd kit
-uv venv .venv
-source .venv/bin/activate
-uv pip install -e .
+# Install the base kit CLI globally
+uv tool install cased-kit
+
+# Everything (including MCP server and all features)
+uv tool install cased-kit[all]
+```
+
+After installation, the `kit` and `kit-dev-mcp` commands will be available globally. To manage your uv tool installations:
+
+```bash
+# List installed tools
+uv tool list
+
+# Uninstall if needed
+uv tool uninstall cased-kit
 ```
 
 ## Why Use kit?

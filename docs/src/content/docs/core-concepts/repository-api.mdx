@@ -6,17 +6,6 @@ import { Aside } from "@astrojs/starlight/components";
 
 The `kit.Repository` object is the backbone of the library. It serves as your primary interface for accessing, analyzing, and understanding codebases, regardless of their language or location (local path or remote Git URL).
 
-## Why the `Repository` Object?
-
-Interacting directly with code across different languages, file structures, and potential locations (local vs. remote) can be cumbersome. The `Repository` object provides a **unified and consistent abstraction layer** to handle this complexity.
-
-Key benefits include:
-
-- **Unified Access:** Provides a single entry point to read files, extract code structures (symbols), perform searches, and more.
-- **Location Agnostic:** Works seamlessly with both local file paths and remote Git repository URLs (handling cloning and caching automatically when needed).
-- **Language Abstraction:** Leverages `tree-sitter` parsers under the hood to understand the syntax of various programming languages, allowing you to work with symbols (functions, classes, etc.) in a standardized way.
-- **Foundation for Tools:** Acts as the foundation upon which you can build higher-level developer tools and workflows, such as documentation generators, AI code reviewers, or semantic search engines.
-
 ## What Can You Do with a `Repository`?
 
 Once you instantiate a `Repository` object pointing to your target codebase:
@@ -36,17 +25,36 @@ my_repo = Repository("/path/to/local/project")
 
 You can perform various code intelligence tasks:
 
-- **Explore Structure:** Get the file tree (`.get_file_tree()`).
-- **Read Content:** Access the raw content of specific files (`.get_file_content()`).
-- **Understand Code:** Extract detailed information about functions, classes, and other symbols (`.extract_symbols()`).
-- **Access Git Metadata:** Get current commit SHA, branch, and remote URL (`.current_sha`, `.current_branch`, `.remote_url`).
-- **Search & Navigate:** Find text patterns (`.search_text()`) or semantically similar code (`.search_semantic()`).
-- **Analyze Dependencies:** Find where symbols are defined and used (`.find_symbol_usages()`).
-- **Prepare for LLMs:** Chunk code intelligently by lines or symbols (`.chunk_file_by_lines()`, `.chunk_file_by_symbols()`) and get code context around specific lines (`.extract_context_around_line()`).
-- **Integrate with AI:** Obtain configured summarizers (`.get_summarizer()`) or vector searchers (`.get_vector_searcher()`) for advanced AI workflows.
-- **Export Data:** Save the file tree, symbol information, or full repository index to structured formats like JSON (`.write_index()`, `.write_symbols()`, etc.).
+**Explore Structure**
+- Get the file tree with `.get_file_tree()`
 
-The following table lists some of the key classes and tools you can access through the `Repository` object:
+**Read Content**
+- Access file content with `.get_file_content()`
+
+**Understand Code**
+- Extract functions, classes, and symbols with `.extract_symbols()`
+
+**Access Git Metadata**
+- Get commit SHA, branch, and remote URL with `.current_sha`, `.current_branch`, `.remote_url`
+
+**Search & Navigate**
+- Find text patterns with `.search_text()`
+- Find semantically similar code with `.search_semantic()`
+
+**Analyze Dependencies**
+- Find where symbols are used with `.find_symbol_usages()`
+
+**Prepare for LLMs**
+- Chunk code by lines with `.chunk_file_by_lines()`
+- Chunk code by symbols with `.chunk_file_by_symbols()`
+- Get context around lines with `.extract_context_around_line()`
+
+**Integrate with AI**
+- Get configured summarizers with `.get_summarizer()`
+- Get vector searchers with `.get_vector_searcher()`
+
+**Export Data**
+- Save to JSON with `.write_index()`, `.write_symbols()`, etc.
 
 | Class/Tool         | Description                                    |
 | ------------------ | ---------------------------------------------- |

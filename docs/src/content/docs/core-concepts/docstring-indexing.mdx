@@ -34,7 +34,7 @@ repo = Repository("/path/to/your/codebase")
 # It's good practice to specify the model you want for summarization.
 # Summarizer defaults to OpenAIConfig() if no config is passed, which then
 # might use environment variables (OPENAI_MODEL) or a default model from OpenAIConfig.
-llm_summarizer_config = OpenAIConfig(model="gpt-4o") # Or "gpt-4-turbo", etc.
+llm_summarizer_config = OpenAIConfig(model="gpt-4o") # Or "gpt-4.1", etc.
 summarizer = Summarizer(repo, config=llm_summarizer_config)
 
 # 3. Initialize DocstringIndexer

@@ -3,7 +3,7 @@ title: "Using Ollama with kit review"
 description: "Complete guide to using kit with Ollama for free local AI code revews."
 ---
 
-# 🦙 Using Ollama with Kit
+# Using Ollama with Kit
 
 **Kit** has first-class support for **free local AI models** via [Ollama](https://ollama.com/). No API keys, no costs, no data leaving your machine.
 
@@ -64,7 +64,7 @@ summary = summarizer.summarize_file("main.py")
 print(summary)  # Cost: $0.00
 ```
 
-## 💡 Complete Examples
+## Complete Examples
 
 ### Code Summarization
 
@@ -132,9 +132,9 @@ def generate_docs(project_path, output_file):
             try:
                 summary = summarizer.summarize_file(file_path)
                 f.write(f"## {file_path}\n\n{summary}\n\n")
-                print(f"✅ Documented {file_path} (Cost: $0.00)")
+                print(f"Documented {file_path} (Cost: $0.00)")
             except Exception as e:
-                print(f"⚠️ Skipped {file_path}: {e}")
+                print(f"Skipped {file_path}: {e}")
 
 # Usage
 generate_docs("/path/to/project", "project_docs.md")
@@ -166,12 +166,12 @@ def analyze_legacy_code(repo_path):
         func_name = func['name']
         
         analysis = summarizer.summarize_function(file_path, func_name)
-        print(f"\n📝 {func_name} in {file_path}:")
+        print(f"\n{func_name} in {file_path}:")
         print(f"   {analysis}")
         print(f"   Cost: $0.00")
 ```
 
-## ⚙️ Advanced Configuration
+## Advanced Configuration
 
 ### Custom Configuration
 
@@ -209,7 +209,7 @@ code_summarizer = repo.get_summarizer(config=code_config)
 reasoning_summarizer = repo.get_summarizer(config=reasoning_config)
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -264,16 +264,3 @@ ollama list
    - RAM: 8GB minimum, 16GB+ recommended for larger models
    - GPU: Optional but significantly speeds up inference
    - Storage: Models range from 500MB to 400GB
-
-## 💰 Cost Comparison
-
-| Provider | Cost per Review | Setup Time | Privacy | Offline |
-|----------|----------------|------------|---------|---------|
-| **Ollama** | **$0.00** | 2 minutes | ✅ 100% private | ✅ Works offline |
-| OpenAI GPT-4o | ~$0.10 | API key setup | ❌ Sent to OpenAI | ❌ Requires internet |
-| Anthropic Claude | ~$0.08 | API key setup | ❌ Sent to Anthropic | ❌ Requires internet |
-
-
-## 🤝 Community
-
-- **GitHub**: [Report issues or contribute](https://github.com/cased/kit)

@@ -39,7 +39,7 @@ jobs:
       
       - name: AI Code Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           kit review --repo-path . ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -70,7 +70,7 @@ jobs:
       
       - name: AI Code Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           kit review --profile company-standards --repo-path . ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -105,7 +105,7 @@ jobs:
       
       - name: AI Code Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           # Use completely free local AI
           kit review --model qwen2.5-coder:latest --repo-path . ${{ github.event.pull_request.html_url }}
         env:
@@ -139,7 +139,7 @@ jobs:
       
       - name: Budget AI Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           # Configure for ultra-low cost
           kit review --model gpt-4.1-nano --repo-path . ${{ github.event.pull_request.html_url }}
         env:
@@ -167,13 +167,13 @@ jobs:
     steps:
       - name: Smart Model Selection
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           
           # Use budget model for small PRs, premium for large ones
           FILES_CHANGED=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files | length')
           
           if [ "$FILES_CHANGED" -gt 20 ]; then
-            MODEL="claude-sonnet-4-20250514"
+            MODEL="claude-sonnet-4-5"
             echo "🏗️ Large PR detected ($FILES_CHANGED files) - using premium model"
           elif [ "$FILES_CHANGED" -gt 5 ]; then
             MODEL="gpt-4.1"
@@ -212,7 +212,7 @@ jobs:
     steps:
       - name: AI Code Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           kit review ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -238,7 +238,7 @@ jobs:
     steps:
       - name: Security-Focused Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           kit review --profile security-standards --priority=high ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -254,7 +254,7 @@ jobs:
     steps:
       - name: Premium Review for Breaking Changes
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           kit review --model claude-opus-4-20250514 ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -281,7 +281,7 @@ jobs:
     steps:
       - name: Smart Priority-Based Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           
           # Use high priority for main branch, all priorities for feature branches
           if [ "${{ github.event.pull_request.base.ref }}" == "main" ]; then
@@ -316,10 +316,10 @@ jobs:
     steps:
       - name: Two-Stage Review Process
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           
           # Stage 1: Quick high-priority scan with budget model
-          HIGH_ISSUES=$(kit review -p --model gpt-4o-mini --priority=high ${{ github.event.pull_request.html_url }})
+          HIGH_ISSUES=$(kit review -p --model gpt-4.1-mini --priority=high ${{ github.event.pull_request.html_url }})
           
           # Stage 2: If critical issues found, do full review with premium model
           if echo "$HIGH_ISSUES" | grep -q "High Priority"; then
@@ -355,10 +355,10 @@ jobs:
     steps:
       - name: AI Review with Multi-Stage Processing
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           
           # Stage 1: Generate review with kit's repository intelligence
-          REVIEW=$(kit review -p --model claude-3-5-haiku-20241022 ${{ github.event.pull_request.html_url }})
+          REVIEW=$(kit review -p --model claude-haiku-4-5 ${{ github.event.pull_request.html_url }})
           
           # Stage 2: Extract action items and post as separate comment
           echo "$REVIEW" | python scripts/extract-action-items.py | \
@@ -398,7 +398,7 @@ jobs:
         
       - name: Review and Process
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           
           # Get clean review output for processing
           kit review -p ${{ github.event.pull_request.html_url }} > raw-review.txt
@@ -439,7 +439,7 @@ jobs:
     steps:
       - name: Smart Profile Selection
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           
           # Check what type of files changed
           CHANGED_FILES=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq -r '.files[].filename')
@@ -501,7 +501,7 @@ jobs:
           
       - name: AI Review with Local Repository
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           
           # Use the checked-out repository directly
           # This avoids authentication issues and is faster
@@ -529,7 +529,7 @@ If you don't use `--repo-path`, kit will attempt to clone the repository automat
 steps:
   - name: AI Review (with auto-clone)
     run: |
-      pip install cased-kit
+      uv pip install cased-kit
       
       # Kit will clone the repo - requires token with repo scope
       kit review ${{ github.event.pull_request.html_url }}
@@ -563,7 +563,7 @@ jobs:
     steps:
       - name: AI Review with Cost Tracking
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           
           # Run review and capture cost information
           kit review --dry-run ${{ github.event.pull_request.html_url }} > review-output.txt
@@ -599,7 +599,7 @@ ai-review:
   only:
     - merge_requests
   script:
-    - pip install cased-kit
+    - uv pip install cased-kit
     - kit review --profile company-standards "$CI_MERGE_REQUEST_PROJECT_URL/-/merge_requests/$CI_MERGE_REQUEST_IID"
   variables:
     KIT_GITHUB_TOKEN: $GITLAB_TOKEN
@@ -626,7 +626,7 @@ steps:
     versionSpec: '3.9'
     
 - script: |
-    pip install cased-kit
+    uv pip install cased-kit
     kit review --profile company-standards "$(System.PullRequest.SourceRepositoryURI)/pull/$(System.PullRequest.PullRequestNumber)"
   env:
     KIT_GITHUB_TOKEN: $(GitHubToken)
@@ -641,7 +641,7 @@ steps:
 ```yaml
 - name: Robust AI Review
   run: |
-    pip install cased-kit
+    uv pip install cased-kit
     
     # Set error handling
     set +e  # Don't exit on error
@@ -669,7 +669,7 @@ steps:
 ```yaml
 - name: Resource-Efficient Review
   run: |
-    pip install cased-kit
+    uv pip install cased-kit
     
     # Check PR size before review
     FILES_CHANGED=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files | length')
@@ -693,7 +693,7 @@ steps:
 ```yaml
 - name: Review with Notifications
   run: |
-    pip install cased-kit
+    uv pip install cased-kit
     
     # Run review and capture result
     if kit review --profile company-standards ${{ github.event.pull_request.html_url }}; then

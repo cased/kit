@@ -172,7 +172,7 @@ This metadata is especially useful for:
 - **Audit trails**: Maintain records of what code was analyzed when
 - **Validation**: Ensure you're analyzing the expected version
 
-## Practical Examples
+## Practical Example
 
 ### Documentation Generation Workflow
 
@@ -180,13 +180,13 @@ This metadata is especially useful for:
 def generate_api_docs(repo_url: str, version: str):
     """Generate API documentation for a specific version."""
     repo = Repository(repo_url, ref=version)
-    
+
     # Extract all public API symbols
     api_symbols = []
     for symbol in repo.extract_symbols():
         if symbol["type"] in ["function", "class"] and not symbol["name"].startswith("_"):
             api_symbols.append(symbol)
-    
+
     # Generate documentation
     docs = {
         "version": version,
@@ -194,7 +194,7 @@ def generate_api_docs(repo_url: str, version: str):
         "generated_at": datetime.now().isoformat(),
         "api_reference": api_symbols
     }
-    
+
     return docs
 
 # Generate docs for multiple versions
@@ -202,89 +202,6 @@ for version in ["v1.0.0", "v1.1.0", "v1.2.0"]:
     docs = generate_api_docs("https://github.com/owner/project", version)
     with open(f"docs/api-{version}.json", "w") as f:
         json.dump(docs, f, indent=2)
-```
-
-### Security Audit Across Versions
-
-```python
-def audit_security_patterns(repo_url: str, versions: list):
-    """Audit security patterns across multiple versions."""
-    security_patterns = [
-        r"password\s*=",
-        r"api_key\s*=",
-        r"secret\s*=",
-        r"eval\s*\(",
-        r"exec\s*\("
-    ]
-    
-    results = {}
-    
-    for version in versions:
-        repo = Repository(repo_url, ref=version)
-        version_results = []
-        
-        for pattern in security_patterns:
-            matches = repo.search_text(pattern, file_pattern="*.py")
-            if matches:
-                version_results.extend(matches)
-        
-        results[version] = {
-            "commit": repo.current_sha,
-            "issues_found": len(version_results),
-            "details": version_results
-        }
-    
-    return results
-
-# Audit recent releases
-audit_results = audit_security_patterns(
-    "https://github.com/owner/project",
-    ["v1.0.0", "v1.1.0", "v1.2.0"]
-)
-```
-
-### Migration Impact Analysis
-
-```python
-def analyze_migration_impact(repo_url: str, before_ref: str, after_ref: str):
-    """Analyze the impact of a major change or migration."""
-    
-    before_repo = Repository(repo_url, ref=before_ref)
-    after_repo = Repository(repo_url, ref=after_ref)
-    
-    # Compare file structures
-    before_files = {f["path"] for f in before_repo.get_file_tree() if not f["is_dir"]}
-    after_files = {f["path"] for f in after_repo.get_file_tree() if not f["is_dir"]}
-    
-    # Compare symbols
-    before_symbols = {s["name"] for s in before_repo.extract_symbols()}
-    after_symbols = {s["name"] for s in after_repo.extract_symbols()}
-    
-    return {
-        "files": {
-            "added": after_files - before_files,
-            "removed": before_files - after_files,
-            "total_before": len(before_files),
-            "total_after": len(after_files)
-        },
-        "symbols": {
-            "added": after_symbols - before_symbols,
-            "removed": before_symbols - after_symbols,
-            "total_before": len(before_symbols),
-            "total_after": len(after_symbols)
-        },
-        "metadata": {
-            "before_commit": before_repo.current_sha,
-            "after_commit": after_repo.current_sha
-        }
-    }
-
-# Analyze impact of a major refactoring
-impact = analyze_migration_impact(
-    "https://github.com/owner/project",
-    "v1.x-legacy",
-    "v2.0-rewrite"
-)
 ```
 
 ## Best Practices
@@ -383,21 +300,5 @@ curl -X POST localhost:8000/repository \
 # Access git metadata
 curl localhost:8000/repository/abc123/git-info
 ```
-
-### MCP Server Capabilities
-
-The MCP server exposes versioning capabilities to AI agents:
-
-```json
-{
-  "tool": "open_repository",
-  "arguments": {
-    "path_or_url": "https://github.com/owner/repo",
-    "ref": "v1.2.3"
-  }
-}
-```
-
-This enables AI agents to perform sophisticated historical analysis and version comparison tasks automatically.
 
 Repository versioning in kit provides the foundation for building sophisticated code analysis tools that can work across time, enabling everything from bug archaeology to compliance auditing to automated documentation generation. 

@@ -1,61 +1,224 @@
 ---
-title: Searching
+title: Search & Discovery Overview
+description: Choose the right search method for your use case
 ---
 
-Not sure **which `kit` feature to reach for**?  Use this page as a mental map of
-search-and-discovery tools – from plain-text grep all the way to LLM-powered
-semantic retrieval.
+import { Aside } from '@astrojs/starlight/components';
 
-> **Tip:** You can mix-and-match different search approaches. For instance, run a docstring search first,
-> then feed the matching files into `ContextAssembler` for an LLM chat.
+Kit provides multiple ways to search and discover code, each optimized for different use cases. This guide helps you choose the right approach.
 
-## Approaches in detail
+## Quick Decision Guide
 
-### 1. Plain-text / regex search
+I know the exact string I'm looking for → [Text Search](/core-concepts/text-search)
 
-Fast, zero-setup, works everywhere. Use when you *know* what string you're
-looking for.
+I want to find functions/classes by name → [Symbol Search](/core-concepts/symbol-search)
 
+I'm searching by meaning, not keywords → [Semantic Search](/core-concepts/semantic-search)
+
+I want to understand what code does → [Docstring Search](/core-concepts/docstring-indexing)
+
+## Search Methods Compared
+
+### Text Search (Regex)
+
+What it is: Fast regex-based text matching across files
+
+Best for:
+- Finding exact strings or patterns
+- Security audits (finding "password", "API_KEY")
+- TODO/FIXME tracking
+- Finding imports or specific syntax
+
+Speed: ⚡⚡⚡ Very fast
+
+Setup: None required
+
+Example:
 ```python
-repo.search_text("parse_jwt", file_pattern="*.py")
+repo.search_text("TODO", file_pattern="**/*.py")
+repo.search_text(r"def \w+_handler", file_pattern="*.py")
 ```
 
-### 2. AST-based pattern search
+→ [Full Text Search Guide](/core-concepts/text-search)
 
-Find code by its structure using Abstract Syntax Tree patterns. Perfect for
-finding specific code constructs like async functions, error handlers, or
-class inheritance patterns.
+### Symbol Search (Tree-sitter)
 
+What it is: Language-aware extraction of functions, classes, methods
+
+Best for:
+- Finding code by name (functions, classes)
+- Building navigation tools
+- Analyzing code structure
+- Finding large/complex functions
+
+Speed: ⚡⚡⚡ Very fast (cached)
+
+Setup: None required
+
+Example:
 ```python
-from kit.ast_search import ASTSearcher
-searcher = ASTSearcher(repo)
-# Find all async functions
-results = searcher.search_pattern("async def", mode="simple")
+symbols = repo.extract_symbols()
+functions = [s for s in symbols if s["type"] == "function"]
+auth_funcs = [s for s in symbols if "auth" in s["name"]]
 ```
 
-### 3. Symbol indexing
+→ [Full Symbol Search Guide](/core-concepts/symbol-search)
 
-`extract_symbols()` uses **tree-sitter** queries (Python, JS, Go, etc.) to list
-functions, classes, variables – handy for nav trees or refactoring tools.
+### Semantic Search (Embeddings)
 
-### 4. LLM summarization
+What it is: Vector search using code embeddings
 
-Generate natural-language summaries for files, classes, or functions with
-`Summarizer`.  Great for onboarding or API docs.
+Best for:
+- Finding code by meaning, not exact keywords
+- "How is authentication handled?"
+- "Where do we validate user input?"
+- Queries where you don't know the exact variable names
 
-### 5. Vector search (raw code)
+Speed: ⚡⚡ Medium (requires indexing)
 
-`VectorSearcher` chunks code (symbols or lines) → embeds chunks → stores them in
-a local vector database.  Good when wording of the query is *similar* to the
-code.
+Setup: Requires embedding model and index building
 
-### 6. Docstring vector search
+Example:
+```python
+vs = repo.get_vector_searcher(embed_fn=my_embed_fn)
+vs.build_index()
+results = repo.search_semantic("authentication logic", embed_fn=my_embed_fn)
+```
 
-`DocstringIndexer` first *summarizes* code, then embeds the summary.  The
-resulting vectors capture **intent**, not syntax; queries like “retry back-off
-logic” match even if the code uses exponential delays without those words.
+→ [Full Semantic Search Guide](/core-concepts/semantic-search)
 
----
+### Docstring Search (LLM + Embeddings)
 
-Still unsure?  Start with text-search (cheap), move to vector search (smart),
-and layer summaries when you need *meaning* over *matching*.
+What it is: Search LLM-generated summaries of code
+
+Best for:
+- Understanding what code does at a high level
+- Finding code by intent ("retry with exponential backoff")
+- Queries about purpose rather than implementation
+- When code lacks comments
+
+Speed: ⚡ Slower (LLM summarization required)
+
+Setup: Requires LLM API key, embedding model, and index building
+
+Example:
+```python
+summarizer = repo.get_summarizer()
+indexer = DocstringIndexer(repo, summarizer)
+indexer.build()
+searcher = indexer.get_searcher()
+results = searcher.search("retry logic with backoff")
+```
+
+→ [Full Docstring Search Guide](/core-concepts/docstring-indexing)
+
+## Combining Approaches
+
+The real power comes from combining methods:
+
+### Text + Symbol Search
+
+```python
+# Find all functions with "validate" in the name
+symbols = repo.extract_symbols()
+validate_funcs = [s for s in symbols if "validate" in s["name"].lower()]
+
+# Then search for their usage
+for func in validate_funcs:
+    usages = repo.search_text(f"{func['name']}\\(", file_pattern="**/*.py")
+    print(f"{func['name']}: {len(usages)} usages")
+```
+
+### Semantic + Symbol Search
+
+```python
+# Use semantic search to find relevant code
+semantic_results = repo.search_semantic("user authentication", embed_fn=embed_fn, top_k=10)
+
+# Extract symbols from those files
+auth_symbols = []
+for result in semantic_results:
+    file_symbols = repo.extract_symbols(result["file"])
+    auth_symbols.extend(file_symbols)
+
+# Now you have structured symbol data from semantically relevant files
+```
+
+### Text Search → Context Assembly
+
+```python
+# Find candidate files with text search
+matches = repo.search_text("database connection", file_pattern="**/*.py")
+
+# Get full file content for matches
+from kit import ContextAssembler
+assembler = ContextAssembler(max_chars=10000)
+
+files = list(set(m["file"] for m in matches))
+context = assembler.from_files(files)
+
+# Feed to LLM
+# llm_response = my_llm.chat(f"Explain the database connection: {context}")
+```
+
+<Aside type="tip">
+Start simple: text search for known strings, symbol search for structure, then add semantic search when you need meaning-based discovery.
+</Aside>
+
+## Performance Characteristics
+
+| Method | Speed | Setup | Index Required | Best Query Type |
+|--------|-------|-------|----------------|-----------------|
+| Text Search | Very Fast | None | No | Exact strings, patterns |
+| Symbol Search | Very Fast | None | No (cached) | Names, structure |
+| Semantic Search | Medium | Embed model | Yes | Natural language |
+| Docstring Search | Slow | LLM + embed | Yes | Intent, purpose |
+
+## Common Workflows
+
+### Code Review Preparation
+
+```python
+# 1. Find changed files (external tool)
+changed_files = ["src/api/auth.py", "src/models/user.py"]
+
+# 2. Extract symbols to see what changed
+for file in changed_files:
+    symbols = repo.extract_symbols(file)
+    print(f"\n{file}:")
+    for s in symbols:
+        print(f"  {s['type']}: {s['name']}")
+
+# 3. Search for usage of changed symbols
+for file in changed_files:
+    symbols = repo.extract_symbols(file)
+    for s in symbols:
+        usages = repo.search_text(s["name"], file_pattern="**/*.py")
+        if len(usages) > 1:  # More than just the definition
+            print(f"{s['name']} used in {len(usages)} places")
+```
+
+### Codebase Exploration
+
+```python
+# 1. Get overview with symbols
+symbols = repo.extract_symbols()
+print(f"Total: {len(symbols)} symbols")
+
+# 2. Find interesting patterns with text search
+tests = repo.search_text(r"def test_", file_pattern="tests/**/*.py")
+print(f"Tests: {len(tests)}")
+
+# 3. Use semantic search to understand specific areas
+results = repo.search_semantic("how is caching implemented", embed_fn=embed_fn)
+print("Caching-related code:")
+for r in results[:5]:
+    print(f"  {r['file']}")
+```
+
+## See Also
+
+- [Text Search](/core-concepts/text-search) - Regex patterns and examples
+- [Symbol Search](/core-concepts/symbol-search) - Structural code discovery
+- [Semantic Search](/core-concepts/semantic-search) - Meaning-based search setup
+- [Docstring Indexing](/core-concepts/docstring-indexing) - LLM-powered summaries

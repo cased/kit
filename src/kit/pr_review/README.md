@@ -65,7 +65,8 @@ at 8 cents a review).
 | **gpt-4o** | OpenAI | **$0.1089** | 40,873 | 672 | $2.50 | $10.00 | 🚀 Good Value |
 | **gemini-1.5-flash** | Google | **$0.0069** | 42,000 | 1,000 | $0.15 | $0.60 | 🚀 Good Value |
 | **gemini-1.5-pro** | Google | **$0.1150** | 42,000 | 1,000 | $2.50 | $10.00 | 🚀 Good Value |
-| **claude-sonnet-4-20250514** | Anthropic | **$0.1759** | 52,667 | 1,195 | $3.00 | $15.00 | 🚀 **Recommended** |
+| **claude-sonnet-4-5** | Anthropic | **$0.1759** | 52,667 | 1,195 | $3.00 | $15.00 | 🚀 **Recommended** |
+| **claude-haiku-4-5** | Anthropic | **$0.0333** | 52,627 | 660 | $1.00 | $5.00 | ⚡ Ultra Fast |
 | **claude-3-5-sonnet-20241022** | Anthropic | **$0.1774** | 52,593 | 1,307 | $3.00 | $15.00 | 🚀 Fast |
 | **gemini-2.5-pro** | Google | **$0.1150** | 42,000 | 1,000 | $2.50 | $15.00 | 🚀 Advanced |
 | **gpt-4-turbo** | OpenAI | **$0.4258** | 40,598 | 659 | $10.00 | $30.00 | 💰 Premium |
@@ -76,7 +77,8 @@ at 8 cents a review).
 - **Gemini 1.5 Flash 8B** offers exceptional value at $0.003 per large PR - new ultra-budget champion
 - **Google Gemini models** provide excellent price-performance across all tiers
 - **GPT-4.1-nano** remains ultra-budget option at $0.005 per large PR
-- **Claude Sonnet 4** (default) balances cost and quality - comprehensive repository analysis
+- **Claude Sonnet 4.5** (default) balances cost and quality - comprehensive repository analysis
+- **Claude Haiku 4.5** offers blazing fast reviews at ultra-low cost - great for quick feedback
 - **OpenAI models** use fewer input tokens (~40k vs ~52k) but deliver comparable analysis depth
 - **GPT-4.1 series** provides excellent mid-range options between ultra-budget and premium
 
@@ -84,7 +86,7 @@ at 8 cents a review).
 
 **Projected Monthly Costs (Based on Real Data):**
 
-| Team Size | Gemini 1.5 Flash 8B (Ultra Budget) | GPT-4.1-nano (Ultra Budget) | Claude Sonnet 4 (Recommended) | Claude Opus 4 (Premium) |
+| Team Size | Gemini 1.5 Flash 8B (Ultra Budget) | GPT-4.1-nano (Ultra Budget) | Claude Sonnet 4.5 (Recommended) | Claude Opus 4 (Premium) |
 |-----------|--------------------------------------|------------------------------|--------------------------------|--------------------------|
 | **Small** (20 PRs/month) | $0.06 | $0.09 | $3.52 | $18.17 |
 | **Medium** (100 PRs/month) | $0.32 | $0.46 | $17.59 | $90.86 |

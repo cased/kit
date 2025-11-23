@@ -20,7 +20,7 @@ kit review --model gpt-4.1-nano https://github.com/owner/repo/pull/123
 kit review --model gpt-4.1 https://github.com/owner/repo/pull/123
 
 # Short flag also works
-kit review -m claude-sonnet-4-20250514 https://github.com/owner/repo/pull/123
+kit review -m claude-sonnet-4-5 https://github.com/owner/repo/pull/123
 ```
 
 <Aside type="tip">
@@ -61,15 +61,16 @@ kit review --model qwen2.5-coder:latest <pr-url>
 # Budget options
 gpt-4.1-nano             # Ultra-budget: ~$0.0015-0.004
 gpt-4.1-mini             # Budget-friendly: ~$0.005-0.015
-gpt-4o-mini              # Newer mini model
+gpt-4.1-mini              # Newer mini model
 
 # Standard options
 gpt-4.1                  # Good balance: ~$0.02-0.10
 gpt-4o                   # Latest GPT-4 model
-gpt-4-turbo              # Fast GPT-4 variant
+gpt-4.1              # Fast GPT-4 variant
 
-# Latest models (GPT-5 and O3 series)
-gpt-5                    # Latest GPT-5 model
+# Latest models (GPT-5.1 and O3 series)
+gpt-5.1                  # Latest model with adaptive reasoning
+gpt-5                    # GPT-5 multimodal model
 gpt-5-mini               # Budget GPT-5 variant
 gpt-5-nano               # Ultra-budget GPT-5
 o3                       # O3 reasoning model
@@ -80,12 +81,13 @@ o3-medium                # Balanced O3 model
 ### Anthropic Claude
 
 ```bash
-# Budget option
-claude-3-5-haiku-20241022    # Fast and economical
+# Budget options
+claude-haiku-4-5             # Ultra-fast and economical
+claude-haiku-4-5    # Fast and economical
 
 # Recommended
-claude-3-5-sonnet-20241022   # Excellent balance
-claude-sonnet-4-20250514     # Latest Sonnet (recommended)
+claude-sonnet-4-5            # Latest Sonnet (recommended)
+claude-sonnet-4-5   # Excellent balance
 
 # Premium
 claude-opus-4-20250514       # Highest quality
@@ -94,15 +96,37 @@ claude-opus-4-20250514       # Highest quality
 ### Google Gemini
 
 ```bash
-# Ultra-budget
-gemini-1.5-flash-8b         # ~$0.003 per review
+# Latest generation
+gemini-3-pro                # Best multimodal understanding
+gemini-2.5-pro              # Advanced reasoning capabilities
 
-# Standard options
-gemini-2.5-flash            # Excellent value: ~$0.007  
+# Fast models
+gemini-2.5-flash            # Best price-performance
+gemini-2.5-flash-lite       # Fastest, optimized for cost-efficiency
+
+# Budget options
 gemini-1.5-flash            # Fast and efficient
+gemini-1.5-flash-8b         # Ultra-budget option
 gemini-1.5-pro              # More capable
-gemini-2.5-pro              # Latest pro model
 ```
+
+### Grok (X.AI)
+
+```bash
+# Latest models (November 2025)
+grok-4-1-fast-reasoning     # Optimized for tool calling and agentic workflows
+grok-4-1-fast-non-reasoning # Optimized for speed and simple queries
+grok-code-fast-1            # Speedy reasoning model for agentic coding
+
+# Standard models
+grok-4                      # Advanced reasoning and coding
+grok-3                      # Strong general purpose model
+grok-3-mini                 # Faster, budget-friendly option
+```
+
+<Aside type="note">
+**Using Grok**: Set `llm.provider: openai` and `llm.api_base_url: https://api.x.ai/v1` in your config file, then use any Grok model name. Requires credits at https://console.x.ai
+</Aside>
 
 <Aside type="tip">
 **Pro tip**: Use different models based on PR complexity. Save `claude-opus-4` for architectural changes and use `gpt-4.1-nano` for documentation/minor fixes.
@@ -379,21 +403,24 @@ github:
 # Default provider
 llm:
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-5
   api_key: sk-ant-your_key_here
   max_tokens: 4000
-  temperature: 0.1
 
 # Alternative providers (for CLI override)
 providers:
   openai:
     api_key: sk-your_openai_key
     api_base_url: https://api.openai.com/v1
-  
+
   google:
     api_key: AIzaSy-your_google_key
     api_base_url: https://generativelanguage.googleapis.com/v1beta
-  
+
+  xai:  # Grok
+    api_key: your_xai_api_key
+    api_base_url: https://api.x.ai/v1
+
   ollama:
     api_base_url: http://localhost:11434
     api_key: ollama

@@ -1,0 +1,268 @@
+---
+title: Text & Regex Search
+description: Fast text-based code search using regex patterns
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Text search provides fast, precise searching across your codebase using regex patterns. It's the foundation for finding specific strings, identifiers, or patterns in your code.
+
+## Quick Start
+
+```python
+from kit import Repository
+
+repo = Repository("/path/to/codebase")
+
+# Simple text search
+results = repo.search_text("TODO")
+
+# Search with file pattern
+results = repo.search_text("authenticate", file_pattern="**/*.py")
+
+# Regex search
+results = repo.search_text(r"def \w+_handler", file_pattern="*.py")
+
+for match in results:
+    print(f"{match['file']}:{match['line_number']}: {match['line']}")
+```
+
+## Basic Usage
+
+The `search_text()` method searches for text patterns across files:
+
+```python
+repo.search_text(
+    query="pattern",        # String or regex pattern
+    file_pattern="*.py"     # Glob pattern for files
+)
+```
+
+**Returns**: List of matches, each containing:
+- `file`: Relative path to the file
+- `line_number`: Line number (1-indexed)
+- `line`: Content of the matching line
+- `context_before`: Lines before the match
+- `context_after`: Lines after the match
+
+## File Patterns
+
+Use glob patterns to filter which files to search:
+
+```python
+# Single extension
+repo.search_text("TODO", file_pattern="*.py")
+
+# Multiple extensions
+repo.search_text("TODO", file_pattern="*.{py,js,ts}")
+
+# Specific directory
+repo.search_text("authenticate", file_pattern="src/auth/**/*.py")
+
+# All files
+repo.search_text("config", file_pattern="**/*")
+```
+
+## Regex Patterns
+
+Use Python regex for powerful pattern matching:
+
+```python
+# Find all function definitions
+repo.search_text(r"def \w+\(", file_pattern="*.py")
+
+# Find API endpoints
+repo.search_text(r"@app\.(get|post|put|delete)", file_pattern="*.py")
+
+# Find TODO/FIXME comments
+repo.search_text(r"(TODO|FIXME|HACK):", file_pattern="*.py")
+
+# Find imports
+repo.search_text(r"^import |^from .* import", file_pattern="*.py")
+
+# Find SQL queries
+repo.search_text(r"SELECT .* FROM", file_pattern="*.py")
+```
+
+## Advanced Options
+
+Control search behavior with `SearchOptions`:
+
+```python
+from kit.code_searcher import SearchOptions
+
+# Case-insensitive search
+options = SearchOptions(case_sensitive=False)
+results = repo.search_text("todo", options=options)
+
+# Include context lines
+options = SearchOptions(
+    context_lines_before=2,
+    context_lines_after=2
+)
+results = repo.search_text("error", options=options)
+
+for match in results:
+    print(f"\n{match['file']}:{match['line_number']}")
+    for line in match['context_before']:
+        print(f"  {line}")
+    print(f"> {match['line']}")
+    for line in match['context_after']:
+        print(f"  {line}")
+
+# Ignore .gitignore rules (search all files)
+options = SearchOptions(use_gitignore=False)
+results = repo.search_text("secret", options=options)
+```
+
+## Common Use Cases
+
+### Finding Security Issues
+
+```python
+# Search for hardcoded credentials
+security_patterns = [
+    r"password\s*=\s*['\"]",
+    r"api_key\s*=\s*['\"]",
+    r"secret\s*=\s*['\"]",
+    r"token\s*=\s*['\"]"
+]
+
+for pattern in security_patterns:
+    results = repo.search_text(pattern, file_pattern="*.py")
+    if results:
+        print(f"Found {len(results)} potential security issues:")
+        for match in results:
+            print(f"  {match['file']}:{match['line_number']}")
+```
+
+### Finding Code Patterns
+
+```python
+# Find all async functions
+async_functions = repo.search_text(r"async def \w+", file_pattern="*.py")
+
+# Find error handling
+error_handlers = repo.search_text(r"except \w+Error", file_pattern="*.py")
+
+# Find deprecated code
+deprecated = repo.search_text(r"@deprecated", file_pattern="**/*.py")
+```
+
+### Code Cleanup Tasks
+
+```python
+# Find all TODOs grouped by file
+todos = repo.search_text(r"TODO:|FIXME:|HACK:", file_pattern="**/*.py")
+
+todo_by_file = {}
+for match in todos:
+    file = match['file']
+    if file not in todo_by_file:
+        todo_by_file[file] = []
+    todo_by_file[file].append(match)
+
+for file, matches in todo_by_file.items():
+    print(f"\n{file} ({len(matches)} items):")
+    for match in matches:
+        print(f"  Line {match['line_number']}: {match['line'].strip()}")
+```
+
+## CLI Usage
+
+Text search is available via the `kit search-text` command:
+
+```bash
+# Basic search
+kit search-text /path/to/repo "TODO"
+
+# With file pattern
+kit search-text /path/to/repo "authenticate" --pattern "**/*.py"
+
+# Case-insensitive
+kit search-text /path/to/repo "todo" --case-insensitive
+
+# With context
+kit search-text /path/to/repo "error" --context 2
+
+# Output as JSON
+kit search-text /path/to/repo "TODO" --format json > todos.json
+```
+
+## Performance Considerations
+
+**Fast for**:
+- Exact string matches
+- Simple regex patterns
+- Small to medium codebases
+
+**Slower for**:
+- Complex regex patterns
+- Very large repositories
+- Searching all files (`**/*`)
+
+**Tips**:
+- Use specific file patterns to reduce search scope
+- Respect `.gitignore` (enabled by default)
+- Use simpler patterns when possible
+- Consider symbol search for structural queries
+
+## When to Use Text Search
+
+**Good for**:
+- Finding specific strings or identifiers
+- Pattern-based code analysis
+- Quick lookups of known terms
+- Security audits for specific patterns
+
+**Consider alternatives**:
+- **Symbol search**: Finding functions/classes by name
+- **Semantic search**: Finding code by meaning
+- **AST search**: Finding code by structure
+
+<Aside type="tip">
+Combine text search with other methods: use text search to find candidates, then use symbol extraction or semantic search to understand context.
+</Aside>
+
+## Examples
+
+### Find All API Routes
+
+```python
+# Find Flask routes
+flask_routes = repo.search_text(r"@app\.route\(", file_pattern="*.py")
+
+# Find FastAPI endpoints
+fastapi_routes = repo.search_text(r"@(app|router)\.(get|post|put|delete)", file_pattern="*.py")
+
+for route in fastapi_routes:
+    print(f"{route['file']}:{route['line_number']}")
+    print(f"  {route['line'].strip()}")
+```
+
+### Find Database Queries
+
+```python
+# Find all SQL queries
+queries = repo.search_text(r"(SELECT|INSERT|UPDATE|DELETE) .* FROM", file_pattern="**/*.py")
+
+print(f"Found {len(queries)} SQL queries:")
+for query in queries:
+    print(f"\n{query['file']}:{query['line_number']}")
+    print(f"  {query['line'].strip()}")
+```
+
+### Find Configuration Usage
+
+```python
+# Find all config references
+configs = repo.search_text(r"config\[.+\]|config\..+", file_pattern="**/*.py")
+
+# Group by file
+by_file = {}
+for match in configs:
+    by_file.setdefault(match['file'], []).append(match)
+
+for file, matches in sorted(by_file.items()):
+    print(f"\n{file}: {len(matches)} config usages")
+```

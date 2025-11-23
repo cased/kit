@@ -9,8 +9,6 @@ With `kit` you can  expose its code-intelligence primitives (search, symbol extr
 
 In practice that means you can drop `kit` into an existing chat agent with by just registering the schema and making the calls as needed. The rest of this guide shows the small amount of glue code needed and the conversational patterns that emerge.
 
-You may also be interested in kit's [MCP integration](../mcp/using-kit-with-mcp), which can achieve similar goals.
-
 `kit` exposes its code-intelligence primitives as **callable tools**.  Inside Python you can grab the JSON-Schema list with a single helper (`kit.get_tool_schemas()`) and hand that straight to your LLM runtime.  Once the schema is registered the model can decide _when_ to call:
 
 * `open_repository`
@@ -52,7 +50,7 @@ anthropic = Anthropic()
 functions = get_tool_schemas()
 
 response = anthropic.messages.create(
-    model="claude-3-7-sonnet-20250219",
+    model="claude-sonnet-4-5",
     system="You are an AI software engineer…",
     tools=functions,
     messages=[{"role": "user", "content": "I got a test failure around FooBar.  Help me."}],
@@ -133,11 +131,6 @@ Nothing prevents the LLM from chaining calls:
 
 Frameworks like **LangChain**, **LlamaIndex** or **CrewAI** can route these calls automatically when you surface kit's tool schema as their "tool" object.
 
-```python
-from langchain_community.tools import Tool
-kit_tools = [Tool.from_mcp_schema(t, call_kit_server) for t in functions]
-```
-
 ## 5  Security considerations
 
 `get_file_content` streams raw code.  If you expose kit to an external service:
@@ -193,7 +186,5 @@ client.chat.completions.create(
 ```
 
 Because everything stays in the same process you avoid IPC/JSON overhead and can share caches (e.g. the `RepoMapper` symbol index) across calls.
-
-**Tip:** if you later need multi-language tooling or a separate sandbox you can still swap in the MCP server without touching your prompt logic—the function schema stays the same.
 
 ---

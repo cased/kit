@@ -55,7 +55,7 @@ def _detect_provider_from_model(model_name: str) -> Optional[LLMProvider]:
         return LLMProvider.OPENAI
 
     # Then check prefix/substring patterns
-    openai_patterns = ["gpt-", "o1-", "o3-", "text-davinci", "text-curie", "text-babbage", "text-ada"]
+    openai_patterns = ["gpt-", "o1-", "o3-", "text-davinci", "text-curie", "text-babbage", "text-ada", "grok-"]
     if any(pattern in stripped_model for pattern in openai_patterns):
         return LLMProvider.OPENAI
 
@@ -239,7 +239,7 @@ class ReviewConfig:
 
         # Default models and API key environment variables
         if provider == LLMProvider.ANTHROPIC:
-            default_model = "claude-sonnet-4-20250514"
+            default_model = "claude-sonnet-4-5"
             api_key_env = "KIT_ANTHROPIC_TOKEN or ANTHROPIC_API_KEY"
             config_api_key = llm_data.get("api_key")
             if _is_placeholder_token(config_api_key):
@@ -363,7 +363,7 @@ class ReviewConfig:
             "github": {"token": "ghp_your_token_here", "base_url": "https://api.github.com"},
             "llm": {
                 "provider": "anthropic",  # or "openai", "google"
-                "model": "claude-sonnet-4-20250514",  # or "gpt-4o", "gemini-2.5-flash"
+                "model": "claude-sonnet-4-5",  # or "gpt-4.1", "gemini-2.5-flash"
                 "api_key": "sk-your_api_key_here",
                 "max_tokens": 4000,
                 # For custom OpenAI compatible providers (e.g., Together AI, OpenRouter, etc.)
@@ -390,7 +390,7 @@ class ReviewConfig:
                 "agentic_finalize_threshold": 15,  # Start encouraging finalization at this turn
                 # "custom_pricing": {
                 #     "anthropic": {
-                #         "claude-3-7-sonnet-latest": {
+                #         "claude-sonnet-4-5": {
                 #             "input_per_million": 3.00,
                 #             "output_per_million": 15.00
                 #         }
@@ -457,6 +457,14 @@ class ReviewConfig:
 #   model: "llama-3.3-70b-versatile"
 #   api_key: "your_groq_api_key"
 #   api_base_url: "https://api.groq.com/openai/v1"
+#   max_tokens: 4000
+#
+# Grok/X.AI (https://x.ai/api):
+# llm:
+#   provider: openai
+#   model: "grok-4-1-fast-reasoning"  # or "grok-code-fast-1", "grok-4", etc.
+#   api_key: "your_xai_api_key"
+#   api_base_url: "https://api.x.ai/v1"
 #   max_tokens: 4000
 """
 

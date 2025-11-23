@@ -10,7 +10,7 @@ import { Aside } from '@astrojs/starlight/components';
 # Kit AI Code Reviewer & Summarizer
 
 Kit includes a **production-ready AI code reviewer and summarizer** that provides professional-grade analysis with full repository context. Review GitHub PRs or local git diffs without creating a PR.
-Use almost any LLM and pay just for tokens. High-quality reviews with SOTA models like Claude Sonnet 4 generally cost about 10 cents, while summaries cost just pennies.
+Use almost any LLM and pay just for tokens. High-quality reviews with SOTA models like Claude Sonnet 4.5 generally cost about 10 cents, while summaries cost just pennies.
 
 Use per-organization profiles and prioritization for further customization. Use kit's local output to pipe to other unix tools.
 
@@ -22,7 +22,7 @@ Use per-organization profiles and prioritization for further customization. Use 
 
 ```bash
 # 1. Install kit (lightweight - no ML dependencies needed for code review!)
-pip install cased-kit
+uv pip install cased-kit
 
 # 2. Set up configuration
 kit review --init-config
@@ -66,7 +66,7 @@ kit summarize --update-pr-body https://github.com/owner/repo/pull/123
 </Aside>
 
 <Aside type="tip">
-**Just want the PR reviewer?** The base `pip install cased-kit` gives you everything needed for PR reviews without heavy ML dependencies like PyTorch. If you need semantic search features later, install with `pip install cased-kit[ml]`.
+**Just want the PR reviewer?** The base `uv pip install cased-kit` gives you everything needed for PR reviews without heavy ML dependencies like PyTorch. If you need semantic search features later, install with `uv pip install cased-kit[ml]`.
 </Aside>
 
 ## 💰 Transparent Pricing
@@ -79,9 +79,12 @@ Some examples based on real-world testing on production open source PRs:
 |-------|------|---------|----------|
 | **gemini-1.5-flash-8b** | **$0.003** | ⭐⭐⭐ | Ultra-budget, high volume |
 | **gpt-4.1-nano** | **$0.0015-0.004** | ⭐⭐⭐ | High-volume, ultra-budget |
-| **gpt-4.1-mini** | **$0.005-0.015** | ⭐⭐⭐⭐ | Budget-friendly, often very good for the price |
+| **gpt-4.1-mini** | **$0.005-0.015** | ⭐⭐⭐⭐ | Budget-friendly, great value |
 | **gemini-2.5-flash** | **$0.007** | ⭐⭐⭐⭐ | Excellent value, fast |
-| **claude-sonnet-4** | **0.08-$0.14** | ⭐⭐⭐⭐⭐ | **Recommended for most** |
+| **claude-haiku-4-5** | **$0.03** | ⭐⭐⭐⭐ | Ultra-fast and economical |
+| **gpt-5.1** | **$0.05-0.10** | ⭐⭐⭐⭐⭐ | Latest OpenAI, very capable |
+| **claude-sonnet-4-5** | **$0.08-0.18** | ⭐⭐⭐⭐⭐ | **Recommended for most** |
+| **grok-4-1-fast-reasoning** | **$0.10-0.20** | ⭐⭐⭐⭐⭐ | Tool calling, agentic workflows |
 
 **PR Summaries** (for triage): ~$0.005-0.02 per summary (5-10x cheaper than reviews)
 
@@ -318,7 +321,7 @@ jobs:
     steps:
       - name: AI Code Review
         run: |
-          pip install cased-kit
+          uv pip install cased-kit
           kit review ${{ github.event.pull_request.html_url }}
         env:
           KIT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -351,36 +354,3 @@ See real-world reviews with actual costs and analysis:
 
 → **[More Examples](/pr-reviewer/examples)** - Real review examples and use cases
 
-## 📈 What's Next: Roadmap
-
-#### Recently Shipped ✅
-- **Custom Context Profiles**: Store and apply organization-specific coding standards and guidelines
-- **Priority Filtering**: Focus reviews on what matters most
-
-#### In Development  
-- **Feedback Learning**: Simple database to learn from review feedback and improve over time
-- **Inline Comments**: Post comments directly on specific lines instead of summary comments
-- **Follow-up Review Awareness**: Take previous reviews into account for better, more targeted feedback
-
-#### Future Features
-- **Multi-Model Consensus**: Compare reviews from multiple models for high-stakes changes
-- **Smart Review Routing**: Automatically select the best model based on change type and team preferences
-
-## 💡 Best Practices
-
-### Cost Optimization
-- **Use free local AI** for unlimited reviews with Ollama (requires self-hosted setup)
-- Use budget models for routine changes, premium for breaking changes
-- Use the `--model` flag to override models per PR
-- Leverage caching - repeat reviews of same repo are 5-10x faster
-- Set up profiles to avoid redundant context
-
-### Team Adoption
-- **Start with free local AI** to build confidence without costs
-- Use budget models initially to control costs
-- Create organization-specific guidelines for consistent reviews
-- Add to CI/CD for all PRs or just high-impact branches
-
----
-
-The kit AI PR reviewer provides **professional-grade code analysis** at costs accessible to any team size, from **$0.00/month with free local AI** to enterprise-scale deployment. With full repository context and transparent pricing, it's designed to enhance your development workflow without breaking the budget.

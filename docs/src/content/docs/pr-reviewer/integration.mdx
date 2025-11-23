@@ -111,7 +111,7 @@ kit review -p --priority=high https://github.com/owner/repo/pull/123 | \
 
 ```bash
 # Stage 1: Kit analyzes codebase context  
-REVIEW=$(kit review -p --model claude-3-5-haiku-20241022 <pr-url>)
+REVIEW=$(kit review -p --model claude-haiku-4-5 <pr-url>)
 
 # Stage 2: Claude Code implements fixes
 echo "$REVIEW" | claude -p "Implement these code review suggestions"
@@ -180,7 +180,7 @@ fi
 ```yaml
 - name: AI Review with Plain Output
   run: |
-    pip install cased-kit
+    uv pip install cased-kit
     kit review -p ${{ github.event.pull_request.html_url }} > review.txt
     
     # Post to PR as comment
@@ -195,10 +195,10 @@ fi
 ```yaml
 - name: AI Review with Multi-Stage Processing
   run: |
-    pip install cased-kit
+    uv pip install cased-kit
     
     # Stage 1: Generate review with kit's repository intelligence
-    REVIEW=$(kit review -p --model claude-3-5-haiku-20241022 ${{ github.event.pull_request.html_url }})
+    REVIEW=$(kit review -p --model claude-haiku-4-5 ${{ github.event.pull_request.html_url }})
     
     # Stage 2: Extract action items and post as separate comment
     echo "$REVIEW" | your-issue-tracker --extract-priorities | \
@@ -219,7 +219,7 @@ fi
 ```yaml
 - name: Review and Process
   run: |
-    pip install cased-kit
+    uv pip install cased-kit
     
     # Get clean review output for processing
     kit review -p ${{ github.event.pull_request.html_url }} > raw-review.txt
@@ -239,7 +239,7 @@ fi
 
 ```bash
 # Stage 1: Quick high-priority scan with budget model
-HIGH_ISSUES=$(kit review -p --model gpt-4o-mini --priority=high <pr-url>)
+HIGH_ISSUES=$(kit review -p --model gpt-4.1-mini --priority=high <pr-url>)
 
 # Stage 2: If critical issues found, do full review with premium model
 if echo "$HIGH_ISSUES" | grep -q "High Priority"; then

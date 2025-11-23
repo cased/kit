@@ -1,0 +1,428 @@
+---
+title: Symbol-Based Discovery
+description: Find and analyze code using symbol extraction
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Symbol search uses tree-sitter to extract and analyze functions, classes, methods, and variables from your code. This provides structured, language-aware code discovery.
+
+## Quick Start
+
+```python
+from kit import Repository
+
+repo = Repository("/path/to/codebase")
+
+# Extract all symbols
+symbols = repo.extract_symbols()
+
+# Find all functions
+functions = [s for s in symbols if s["type"] == "function"]
+print(f"Found {len(functions)} functions")
+
+# Find specific function
+auth_funcs = [s for s in symbols if "auth" in s["name"].lower()]
+
+# Extract from specific file
+file_symbols = repo.extract_symbols("src/api/routes.py")
+```
+
+## Understanding Symbols
+
+Symbols represent code elements extracted via tree-sitter:
+
+**Symbol types**:
+- `function` - Top-level functions
+- `class` - Class definitions
+- `method` - Class methods
+- `variable` - Module-level variables
+- `constant` - Constants
+
+**Symbol properties**:
+```python
+{
+    "name": "authenticate_user",
+    "type": "function",
+    "file": "src/auth.py",
+    "start_line": 42,
+    "end_line": 58,
+    "code": "def authenticate_user(...):\n    ...",
+    "language": "python"
+}
+```
+
+## Basic Symbol Extraction
+
+### All Symbols in Repository
+
+```python
+# Get all symbols
+symbols = repo.extract_symbols()
+
+# Count by type
+from collections import Counter
+types = Counter(s["type"] for s in symbols)
+print(f"Functions: {types['function']}")
+print(f"Classes: {types['class']}")
+print(f"Methods: {types['method']}")
+```
+
+### Symbols from Specific File
+
+```python
+# Extract from one file
+symbols = repo.extract_symbols("src/api/routes.py")
+
+# Extract from multiple files
+files = ["src/auth.py", "src/models.py", "src/utils.py"]
+all_symbols = []
+for file in files:
+    all_symbols.extend(repo.extract_symbols(file))
+```
+
+### Symbols from Directory
+
+```python
+# Get file tree
+files = repo.get_file_tree()
+
+# Extract from all files in src/api/
+api_files = [f["path"] for f in files if f["path"].startswith("src/api/")]
+api_symbols = []
+for file in api_files:
+    api_symbols.extend(repo.extract_symbols(file))
+
+print(f"Found {len(api_symbols)} symbols in src/api/")
+```
+
+## Filtering and Searching Symbols
+
+### Find by Name
+
+```python
+# Find exact match
+symbols = repo.extract_symbols()
+user_class = next((s for s in symbols if s["name"] == "User"), None)
+
+# Find partial match
+auth_symbols = [s for s in symbols if "auth" in s["name"].lower()]
+
+# Find with regex
+import re
+pattern = re.compile(r"^get_\w+")
+getters = [s for s in symbols if s["type"] == "function" and pattern.match(s["name"])]
+```
+
+### Find by Type
+
+```python
+symbols = repo.extract_symbols()
+
+# All functions
+functions = [s for s in symbols if s["type"] == "function"]
+
+# All classes
+classes = [s for s in symbols if s["type"] == "class"]
+
+# All methods (functions inside classes)
+methods = [s for s in symbols if s["type"] == "method"]
+
+# All async functions (check code content)
+async_functions = [s for s in symbols
+                   if s["type"] == "function" and "async def" in s.get("code", "")]
+```
+
+### Find by File Pattern
+
+```python
+symbols = repo.extract_symbols()
+
+# Symbols from test files
+test_symbols = [s for s in symbols if "test" in s["file"]]
+
+# Symbols from specific module
+api_symbols = [s for s in symbols if s["file"].startswith("src/api/")]
+
+# Exclude tests
+non_test = [s for s in symbols if not s["file"].startswith("tests/")]
+```
+
+## Common Use Cases
+
+### Find All API Endpoints
+
+```python
+# Find route handler functions
+symbols = repo.extract_symbols()
+
+# Look for functions with route decorators
+api_endpoints = []
+for symbol in symbols:
+    if symbol["type"] == "function":
+        code = symbol.get("code", "")
+        if "@app.route" in code or "@router" in code:
+            api_endpoints.append(symbol)
+
+print(f"Found {len(api_endpoints)} API endpoints:")
+for endpoint in api_endpoints:
+    print(f"  {endpoint['file']}::{endpoint['name']}")
+```
+
+### Find Unused Functions
+
+```python
+# Get all function names
+symbols = repo.extract_symbols()
+function_names = {s["name"] for s in symbols if s["type"] == "function"}
+
+# Search for usage of each function
+unused = []
+for name in function_names:
+    # Skip test functions and private functions
+    if name.startswith("test_") or name.startswith("_"):
+        continue
+
+    # Search for function calls
+    results = repo.search_text(f"{name}\\(", file_pattern="**/*.py")
+
+    # If only one result (the definition), it might be unused
+    if len(results) <= 1:
+        unused.append(name)
+
+print(f"Potentially unused functions: {len(unused)}")
+for name in unused[:10]:  # Show first 10
+    print(f"  {name}")
+```
+
+### Analyze Code Complexity
+
+```python
+# Find large functions
+symbols = repo.extract_symbols()
+functions = [s for s in symbols if s["type"] == "function"]
+
+# Calculate lines of code
+for func in functions:
+    func["lines"] = func["end_line"] - func["start_line"] + 1
+
+# Sort by size
+large_functions = sorted(functions, key=lambda f: f["lines"], reverse=True)
+
+print("Largest functions:")
+for func in large_functions[:10]:
+    print(f"  {func['name']} ({func['lines']} lines) in {func['file']}")
+```
+
+### Generate Class Hierarchy
+
+```python
+# Extract all classes
+symbols = repo.extract_symbols()
+classes = [s for s in symbols if s["type"] == "class"]
+
+# Group by file
+from collections import defaultdict
+by_file = defaultdict(list)
+for cls in classes:
+    by_file[cls["file"]].append(cls["name"])
+
+for file, class_names in sorted(by_file.items()):
+    print(f"\n{file}:")
+    for name in class_names:
+        print(f"  - {name}")
+```
+
+### Find Symbol Usages
+
+```python
+# Find where a symbol is used
+def find_usages(repo, symbol_name):
+    """Find all usages of a symbol across the repository."""
+    results = repo.search_text(symbol_name, file_pattern="**/*.py")
+
+    # Filter out the definition
+    symbols = repo.extract_symbols()
+    definition = next((s for s in symbols if s["name"] == symbol_name), None)
+
+    usages = []
+    for result in results:
+        # Skip if it's the definition line
+        if definition and result["file"] == definition["file"] and \
+           result["line_number"] == definition["start_line"]:
+            continue
+        usages.append(result)
+
+    return usages
+
+# Example usage
+usages = find_usages(repo, "authenticate_user")
+print(f"Found {len(usages)} usages of authenticate_user")
+```
+
+## Symbol Properties
+
+### Name and Type
+
+```python
+symbol = {
+    "name": "UserManager",      # Symbol identifier
+    "type": "class",             # Symbol type
+}
+```
+
+### Location
+
+```python
+symbol = {
+    "file": "src/models.py",     # File path
+    "start_line": 15,            # Starting line (1-indexed)
+    "end_line": 142,             # Ending line (inclusive)
+}
+```
+
+### Code Content
+
+```python
+symbol = {
+    "code": "class UserManager:\n    def __init__(...):\n        ...",
+    "language": "python"
+}
+```
+
+## CLI Usage
+
+Symbol extraction is available via the `kit symbols` command:
+
+```bash
+# Extract all symbols
+kit symbols /path/to/repo
+
+# Format as table
+kit symbols /path/to/repo --format table
+
+# Format as JSON
+kit symbols /path/to/repo --format json > symbols.json
+
+# From specific file
+kit symbols /path/to/repo --file src/api/routes.py
+
+# Filter by type
+kit symbols /path/to/repo --format json | jq '.[] | select(.type=="function")'
+```
+
+## Language Support
+
+Symbol extraction works with any language that kit supports via tree-sitter:
+
+**Fully supported**:
+- Python
+- JavaScript/TypeScript
+- Go
+- Rust
+- Java
+- C/C++
+- Ruby
+- PHP
+- And more...
+
+Check the current list with:
+```python
+from kit import Repository
+repo = Repository(".")
+print(repo.supported_languages())
+```
+
+## Performance Tips
+
+**Fast**:
+- Symbol extraction is cached per file
+- Incremental updates for changed files
+- Tree-sitter parsing is very efficient
+
+**Optimize**:
+- Extract from specific files when possible
+- Filter symbols in memory rather than re-extracting
+- Use file patterns to limit scope
+
+## When to Use Symbol Search
+
+**Good for**:
+- Finding functions, classes, methods by name
+- Analyzing code structure
+- Building code navigation tools
+- Understanding codebase architecture
+- Finding definitions
+
+**Consider alternatives**:
+- **Text search**: Finding specific strings or patterns
+- **Semantic search**: Finding code by meaning
+- **Dependency analysis**: Understanding relationships
+
+<Aside type="tip">
+Symbol search is structural and precise. Combine it with text search for powerful queries: use symbol extraction to find all functions, then text search to find which ones match a pattern.
+</Aside>
+
+## Advanced Examples
+
+### Find All Test Functions
+
+```python
+symbols = repo.extract_symbols()
+
+# Find test functions
+test_functions = [
+    s for s in symbols
+    if s["type"] == "function" and
+    (s["name"].startswith("test_") or "test" in s["file"])
+]
+
+# Group by file
+by_file = {}
+for test in test_functions:
+    by_file.setdefault(test["file"], []).append(test["name"])
+
+for file, tests in sorted(by_file.items()):
+    print(f"\n{file}: {len(tests)} tests")
+```
+
+### Generate Module Documentation
+
+```python
+# Get all public symbols (not starting with _)
+symbols = repo.extract_symbols()
+public_symbols = [s for s in symbols if not s["name"].startswith("_")]
+
+# Group by file
+by_file = {}
+for symbol in public_symbols:
+    by_file.setdefault(symbol["file"], []).append(symbol)
+
+# Generate simple docs
+for file, syms in sorted(by_file.items()):
+    print(f"\n## {file}\n")
+    for s in syms:
+        print(f"- `{s['name']}` ({s['type']})")
+```
+
+### Find Decorator Patterns
+
+```python
+# Find all decorated functions
+symbols = repo.extract_symbols()
+
+decorators = {}
+for symbol in symbols:
+    if symbol["type"] in ["function", "method"]:
+        code = symbol.get("code", "")
+        # Look for @decorator patterns
+        lines = code.split("\n")
+        for line in lines:
+            if line.strip().startswith("@"):
+                decorator = line.strip()[1:].split("(")[0]
+                decorators.setdefault(decorator, []).append(symbol["name"])
+
+print("Decorator usage:")
+for decorator, functions in sorted(decorators.items()):
+    print(f"  @{decorator}: {len(functions)} functions")
+```
