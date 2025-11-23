@@ -161,7 +161,7 @@ See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehe
     *   Use `repo.extract_symbols_incremental()` to get fast, cache-aware symbol extraction—best when dealing with small changes to repositories.
 
 *   **Pinpoint Information:**
-    *   Run regular expression searches across your codebase using `repo.search_text()`.
+    *   Run fast regular expression searches across your codebase using `repo.search_text()` (automatically uses [ripgrep](https://github.com/BurntSushi/ripgrep) when available for 10x speedup).
     *   Track specific symbols (like a function or class) with `repo.find_symbol_usages()`.
     *   Find code by structure with AST-based pattern matching (async functions, try blocks, class inheritance, etc.).
 

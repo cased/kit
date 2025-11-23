@@ -22,6 +22,10 @@ searcher = repo.get_code_searcher()
   If you are using the `kit.Repository` object, you can obtain a `CodeSearcher` instance via `repo.get_code_searcher()` which comes pre-configured with the repository path.
 </Aside>
 
+<Aside type="tip" title="Performance">
+  `CodeSearcher` automatically uses [ripgrep](https://github.com/BurntSushi/ripgrep) when available for 10x faster searches (up to 22x on rare terms), with automatic fallback to Python. Install ripgrep with `brew install ripgrep` (macOS), `apt install ripgrep` (Ubuntu), or see the [ripgrep installation guide](https://github.com/BurntSushi/ripgrep#installation).
+</Aside>
+
 ## `SearchOptions` Dataclass
 
 The `search_text` method uses a `SearchOptions` dataclass to control search behavior. You can import it from `kit.code_searcher`.
