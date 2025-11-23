@@ -185,7 +185,7 @@ See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehe
 
 ## MCP Server (kit-dev MCP)
 
-The `kit` tool includes an enhanced MCP (Model Context Protocol) server called **kit-dev MCP** that allows AI agents and development tools to interact with codebases programmatically. This MCP server provides advanced context capabilities beyond basic file operations.
+`kit` includes an enhanced MCP (Model Context Protocol), **kit-dev**, designed especially for individual local dev work. It includes kit's production-grade code intelligence and context building, and adds in multi-source documentation research and package searching.
 
 **[→ Full kit-dev MCP Documentation](https://kit-mcp.cased.com)**
 
