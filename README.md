@@ -42,15 +42,6 @@ uv tool list
 uv tool uninstall cased-kit
 ```
 
-### Install from Source
-
-```bash
-git clone https://github.com/cased/kit.git
-cd kit
-uv venv .venv
-source .venv/bin/activate
-uv pip install -e .
-```
 
 ## Basic Toolkit Usage
 
@@ -138,7 +129,6 @@ kit commit  # Analyze and commit with AI-generated message
 # Search package source code (requires Chroma API key)
 kit package-search-grep numpy "def.*fft" --max-results 10  # Plain grep-style output
 kit package-search-grep numpy "def.*fft" --json           # Structured JSON output
-kit package-search-grep numpy "def.*fft" --formatted      # Pretty formatted output
 kit package-search-hybrid django "authentication middleware"
 kit package-search-read requests "requests/models.py"
 ```
@@ -183,95 +173,11 @@ The CLI supports all major repository operations with Unix-friendly output for s
     *   Compare code evolution over time, work with diffs, ensure reproducible analysis results
     *   Access git metadata including current SHA, branch, and remote URL with `repo.current_sha`, `repo.current_branch`, etc.
 
-*   **Multiple Access Methods:**
-    *   **Python API**: Direct integration for building applications and scripts.
-    *   **Command Line Interface**: 11+ commands for shell scripting, CI/CD, and automation workflows.
-    *   **TypeScript / Node Client**: `npm install @runcased/kit` for type-safe wrapper that shells out to the same CLI.
-    *   **REST API**: HTTP endpoints for web applications and microservices.
-    *   **MCP Server**: Model Context Protocol integration for AI agents and development tools.
-
-## High-Performance Incremental Analysis
-
-kit's incremental analysis system provides intelligent caching that dramatically improves performance for repeated symbol extraction operations. This system is particularly powerful for development workflows where you're iterating on code and need fast analysis of changes.
-
-**Key Performance Benefits:**
-- **25x faster symbol extraction** on warm cache scenarios
-- **Per-file incremental analysis**: Only analyzes files that have actually changed
-- **Multi-strategy cache invalidation**: Uses file modification time, size, and content hash for accurate change detection
-- **Automatic git state detection**: Invalidates caches when you switch branches, commit, merge, or rebase
-- **LRU cache management**: Automatically manages memory usage with configurable cache size limits
-
-**Manual Cache Management:**
-```python
-# Get performance statistics
-stats = repo.get_incremental_stats()
-print(f"Cache hit rate: {stats['cache_hit_rate']}")
-
-# Clean up stale entries
-repo.cleanup_incremental_cache()
-
-# Clear all cached data
-repo.clear_incremental_cache()
-```
-
 ## MCP Server (Kit Dev MCP)
 
 The `kit` tool includes an enhanced MCP (Model Context Protocol) server called **Kit Dev MCP** that allows AI agents and development tools to interact with codebases programmatically. This MCP server provides advanced context capabilities beyond basic file operations.
 
-**Key Features:**
-- Smart context building for any development task
-- Real-time file watching and change detection
-- AST-based pattern matching (find async functions, error handlers, etc.)
-- Documentation research for any package
-- Package source code search via Chroma (search popular packages like numpy, django, fastapi)
-- Symbol extraction and dependency analysis
-- Integration with Cursor, Windsurf, Claude Code, and VS Code
-
 **[→ Full Kit Dev MCP Documentation](https://kit-mcp.cased.com)**
-
-### Quick Setup
-
-Add a stanza like this to your MCP configuration:
-
-```jsonc
-{
-  "mcpServers": {
-    "kit-dev-mcp": {
-      "command": "uvx",
-      "args": ["--from", "cased-kit", "kit-dev-mcp"],
-      "env": {
-        "KIT_GITHUB_TOKEN": "ghp_your_token_here",  // Optional: for private repos
-        "OPENAI_API_KEY": "sk-...",  // Optional: for LLM synthesis
-        "ANTHROPIC_API_KEY": "sk-ant-...",  // Optional: for LLM synthesis
-        "UPSTASH_API_KEY": "...",  // Optional: for enhanced documentation access
-        "CHROMA_PACKAGE_SEARCH_API_KEY": "..."  // Optional: for package source search
-      }
-    }
-  }
-}
-```
-
-This requires you have `uvx` installed (`pip install uvx` or `pipx install uvx`).
-
-If you have installed `cased-kit` with `pip` or some other method, you can invoke with python:
-
-```jsonc
-{
-  "mcpServers": {
-    "kit-dev-mcp": {
-      "command": "python",
-      "args": ["-m", "kit.mcp.dev"],
-      "env": {
-        // Same optional environment variables as above
-      }
-    }
-  }
-}
-```
-
-The `python` executable invoked must be the one where `cased-kit` is installed.
-If you see `ModuleNotFoundError: No module named 'kit'`, ensure the Python
-interpreter your MCP client is using is the correct one.
 
 ## kit-powered Features & Utilities
 
@@ -289,17 +195,6 @@ kit review --init-config
 kit review https://github.com/owner/repo/pull/123
 ```
 
-**Key Features:**
-- **Whole repo context**: Uses `kit` so has all the features of this library
-- **Production-ready**: Rivals paid services, but MIT-licensed; just pay for tokens
-- **Custom context profiles**: Organization-specific coding standards and review guidelines automatically applied
-- **Cost transparency**: Real-time token usage and pricing
-- **Fast**: No queuing, shared services: just your code and the LLM
-- **Works from wherever**: Trigger reviews with the CLI, or run it via CI
-
-`kit` also has first-class support for free local models via [Ollama](https://ollama.ai/). 
-No API keys, no costs, no data leaving your machine.
-
 **📖 [Complete PR Reviewer Documentation](src/kit/pr_review/README.md)**
 
 ### PR Summaries
@@ -315,9 +210,6 @@ kit summarize --update-pr-body https://github.com/owner/repo/pull/123
 **Key Features:**
 - **5-10x cheaper** than full reviews (~$0.005-0.02 vs $0.01-0.05+)
 - **Fast triage**: Quick overview of changes, impact, and key modifications
-- **PR body updates**: Automatically add AI summaries to PR descriptions for team visibility
-- **Same LLM support**: Works with OpenAI, Anthropic, Google, and free Ollama models
-- **Repository intelligence**: Leverages symbol extraction and dependency analysis for context
 
 ### Commit Messages
 
@@ -335,7 +227,7 @@ Full REST documentation is also available.
 
 **[Kit Dev MCP Documentation](https://kit-mcp.cased.com)** - Complete guide for the enhanced MCP server
 
-📝 **[Changelog](https://kit.cased.com/changelog)** - Track all changes and improvements across kit releases
+**[Changelog](https://kit.cased.com/changelog)** - Track all changes and improvements across kit releases
 
 ## License
 
@@ -345,6 +237,5 @@ MIT License
 
 - **Local Development**: Check out our [Running Tests](https://kit.cased.com/development/running-tests) guide to get started with local development.
 - **Project Direction**: See our [Roadmap](https://kit.cased.com/development/roadmap) for future plans and focus areas.
-- **Discord**: [Join the Discord](https://discord.gg/DzxxC9SdvZ) to talk kit and Cased
 
 To contribute, fork the repository, make your changes, and submit a pull request.

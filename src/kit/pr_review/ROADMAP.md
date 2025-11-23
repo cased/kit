@@ -84,7 +84,7 @@ Real-time suggestions in VS Code and other editors while coding.
 ## 📞 Get Involved
 
 - **Feature Requests**: [Open an issue](https://github.com/cased/kit/issues) with your ideas
-- **User Feedback**: Join our [Discord community](https://discord.gg/fbAVtCeU) soon for discussions
+- **User Feedback**: Share feedback via [GitHub Issues](https://github.com/cased/kit/issues)
 - **Contributions**: Submit PRs for features you'd like to see
 
 ---

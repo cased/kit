@@ -40,6 +40,7 @@ export default defineConfig({
             "core-concepts/search-approaches",
             "core-concepts/code-summarization",
             "core-concepts/docstring-indexing",
+            "core-concepts/incremental-analysis",
             "core-concepts/tool-calling-with-kit",
             "core-concepts/repository-versioning",
             "core-concepts/semantic-search",
