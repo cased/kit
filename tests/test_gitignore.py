@@ -221,6 +221,52 @@ def test_complex_negation_patterns():
         assert "config/template.env.example" in paths  # Negation allows it
 
 
+def test_patterns_without_wildcards_match_at_any_depth():
+    """Test that patterns without wildcards (like 'node_modules') match at any depth."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = Path(tmpdir)
+
+        # Frontend with .gitignore containing plain 'node_modules' (no wildcards)
+        frontend = repo / "frontend"
+        frontend.mkdir()
+        (frontend / ".gitignore").write_text("node_modules\n")
+
+        # Create node_modules at multiple depths
+        (frontend / "package.json").touch()
+
+        # Direct child
+        nm1 = frontend / "node_modules"
+        nm1.mkdir()
+        (nm1 / "pkg1.json").touch()
+
+        # Nested in src
+        src = frontend / "src"
+        src.mkdir()
+        nm2 = src / "node_modules"
+        nm2.mkdir()
+        (nm2 / "pkg2.json").touch()
+
+        # Deeply nested
+        deep = src / "components" / "ui"
+        deep.mkdir(parents=True)
+        nm3 = deep / "node_modules"
+        nm3.mkdir()
+        (nm3 / "pkg3.json").touch()
+
+        mapper = RepoMapper(str(repo))
+        tree = mapper.get_file_tree()
+
+        paths = [item["path"] for item in tree]
+
+        # package.json should be included
+        assert "frontend/package.json" in paths
+
+        # All node_modules at any depth should be ignored
+        assert "frontend/node_modules/pkg1.json" not in paths
+        assert "frontend/src/node_modules/pkg2.json" not in paths
+        assert "frontend/src/components/ui/node_modules/pkg3.json" not in paths
+
+
 def test_deeply_nested_gitignores():
     """Test .gitignore files at multiple depth levels."""
     with tempfile.TemporaryDirectory() as tmpdir:

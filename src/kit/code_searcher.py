@@ -36,6 +36,29 @@ class CodeSearcher:
         self.repo_path: Path = Path(repo_path)
         self._gitignore_spec = self._load_gitignore()  # Load gitignore spec
 
+    def _adjust_gitignore_pattern(self, pattern: str, rel_base: Path) -> str:
+        """Adjust a gitignore pattern to be relative to the repository root.
+
+        Args:
+            pattern: The pattern from a .gitignore file (already stripped, negation removed)
+            rel_base: Relative path from repo root to the .gitignore directory
+
+        Returns:
+            The adjusted pattern prefixed with the correct path
+        """
+        if str(rel_base) == ".":
+            # Pattern is in root .gitignore - use as-is
+            return pattern
+
+        # Pattern is in subdirectory
+        if pattern.startswith("/"):
+            # Absolute pattern (relative to gitignore dir) - make relative to repo root
+            return f"{rel_base}/{pattern[1:]}"
+        else:
+            # Relative pattern - applies to directory and all subdirectories
+            # Use /** to match files at any depth under the directory
+            return f"{rel_base}/**/{pattern}"
+
     def _load_gitignore(self):
         """Load all .gitignore files in repository tree and merge them.
 
@@ -46,13 +69,10 @@ class CodeSearcher:
 
         # Collect all .gitignore files
         for dirpath, dirnames, filenames in os.walk(self.repo_path):
-            # Skip .git directory
             if ".git" in Path(dirpath).parts:
                 continue
-
             if ".gitignore" in filenames:
-                gitignore_path = Path(dirpath) / ".gitignore"
-                gitignore_files.append(gitignore_path)
+                gitignore_files.append(Path(dirpath) / ".gitignore")
 
         if not gitignore_files:
             return None
@@ -64,45 +84,29 @@ class CodeSearcher:
         # Collect all patterns with proper path prefixes
         all_patterns = []
         for gitignore_path in gitignore_files:
-            gitignore_dir = gitignore_path.parent
-
             try:
                 with open(gitignore_path, "r", encoding="utf-8") as f:
                     patterns = f.readlines()
 
                 # Calculate relative base path from repo root
                 try:
-                    rel_base = gitignore_dir.relative_to(self.repo_path)
+                    rel_base = gitignore_path.parent.relative_to(self.repo_path)
                 except ValueError:
-                    # gitignore outside repo (shouldn't happen, but be safe)
-                    continue
+                    continue  # gitignore outside repo (shouldn't happen)
 
                 # Process each pattern
                 for pattern in patterns:
                     pattern = pattern.strip()
-
-                    # Skip empty lines and comments
                     if not pattern or pattern.startswith("#"):
                         continue
 
-                    # Handle negation patterns (must preserve ! at the beginning)
+                    # Handle negation patterns
                     is_negation = pattern.startswith("!")
                     if is_negation:
-                        pattern = pattern[1:]  # Remove the ! temporarily
+                        pattern = pattern[1:]
 
                     # Adjust pattern to be relative to repo root
-                    if str(rel_base) != ".":
-                        # Pattern is in subdirectory - prefix with path
-                        if pattern.startswith("/"):
-                            # Absolute pattern (from gitignore dir) - make relative to repo
-                            adjusted = f"{rel_base}/{pattern[1:]}"
-                        else:
-                            # Relative pattern - applies to directory and all subdirectories
-                            # Use /** to match files at any depth under the directory
-                            adjusted = f"{rel_base}/**/{pattern}" if "*" in pattern else f"{rel_base}/{pattern}"
-                    else:
-                        # Pattern is in root .gitignore - use as-is
-                        adjusted = pattern
+                    adjusted = self._adjust_gitignore_pattern(pattern, rel_base)
 
                     # Re-add negation prefix if needed
                     if is_negation:
@@ -111,7 +115,6 @@ class CodeSearcher:
                     all_patterns.append(adjusted)
 
             except Exception as e:
-                # Log warning but continue processing other .gitignore files
                 logging.warning(f"Could not load {gitignore_path}: {e}")
                 continue
 
