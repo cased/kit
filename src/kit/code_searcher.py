@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,17 +36,93 @@ class CodeSearcher:
         self.repo_path: Path = Path(repo_path)
         self._gitignore_spec = self._load_gitignore()  # Load gitignore spec
 
+    def _adjust_gitignore_pattern(self, pattern: str, rel_base: Path) -> str:
+        """Adjust a gitignore pattern to be relative to the repository root.
+
+        Args:
+            pattern: The pattern from a .gitignore file (already stripped, negation removed)
+            rel_base: Relative path from repo root to the .gitignore directory
+
+        Returns:
+            The adjusted pattern prefixed with the correct path
+        """
+        if str(rel_base) == ".":
+            # Pattern is in root .gitignore - use as-is
+            return pattern
+
+        # Pattern is in subdirectory
+        if pattern.startswith("/"):
+            # Absolute pattern (relative to gitignore dir) - make relative to repo root
+            return f"{rel_base}/{pattern[1:]}"
+        else:
+            # Relative pattern - applies to directory and all subdirectories
+            # Use /** to match files at any depth under the directory
+            return f"{rel_base}/**/{pattern}"
+
     def _load_gitignore(self):
-        """Loads .gitignore rules from the repository root."""
-        gitignore_path = self.repo_path / ".gitignore"
-        if gitignore_path.exists():
+        """Load all .gitignore files in repository tree and merge them.
+
+        Returns a PathSpec that respects all .gitignore files, with proper
+        precedence (patterns from deeper directories can override root patterns).
+        """
+        gitignore_files = []
+
+        # Collect all .gitignore files
+        for dirpath, dirnames, filenames in os.walk(self.repo_path):
+            if ".git" in Path(dirpath).parts:
+                continue
+            if ".gitignore" in filenames:
+                gitignore_files.append(Path(dirpath) / ".gitignore")
+
+        if not gitignore_files:
+            return None
+
+        # Sort by depth (shallowest first) for correct precedence
+        # Git processes .gitignore files from root to leaf, so later patterns can override earlier ones
+        gitignore_files.sort(key=lambda p: len(p.parts))
+
+        # Collect all patterns with proper path prefixes
+        all_patterns = []
+        for gitignore_path in gitignore_files:
             try:
                 with open(gitignore_path, "r", encoding="utf-8") as f:
-                    return pathspec.PathSpec.from_lines("gitwildmatch", f)
+                    patterns = f.readlines()
+
+                # Calculate relative base path from repo root
+                try:
+                    rel_base = gitignore_path.parent.relative_to(self.repo_path)
+                except ValueError:
+                    continue  # gitignore outside repo (shouldn't happen)
+
+                # Process each pattern
+                for pattern in patterns:
+                    pattern = pattern.strip()
+                    if not pattern or pattern.startswith("#"):
+                        continue
+
+                    # Handle negation patterns
+                    is_negation = pattern.startswith("!")
+                    if is_negation:
+                        pattern = pattern[1:]
+
+                    # Adjust pattern to be relative to repo root
+                    adjusted = self._adjust_gitignore_pattern(pattern, rel_base)
+
+                    # Re-add negation prefix if needed
+                    if is_negation:
+                        adjusted = f"!{adjusted}"
+
+                    all_patterns.append(adjusted)
+
             except Exception as e:
-                # Log this error if logging is set up, or print
-                print(f"Warning: Could not load .gitignore: {e}")
-        return None
+                logging.warning(f"Could not load {gitignore_path}: {e}")
+                continue
+
+        if not all_patterns:
+            return None
+
+        # Create single merged pathspec
+        return pathspec.PathSpec.from_lines("gitwildmatch", all_patterns)
 
     def _should_ignore(self, file: Path) -> bool:
         """Checks if a file should be ignored based on .gitignore rules."""
