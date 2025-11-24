@@ -1,7 +1,6 @@
 """Tests for REST API security features including URL sanitization and error handling."""
 
 import logging
-import os
 import subprocess
 import time
 from unittest.mock import MagicMock, patch
@@ -453,7 +452,6 @@ class TestURLAllowlist:
 
     def test_allowlist_disabled_by_default(self):
         """Test that when no allowlist is configured, all URLs are allowed."""
-        from fastapi import HTTPException
 
         # When ALLOWED_REPO_PATTERNS is empty, validation should pass
         with patch("kit.api.app.ALLOWED_REPO_PATTERNS", []):
@@ -593,8 +591,9 @@ class TestURLAllowlist:
 
     def test_allowlist_integration_with_open_repo(self):
         """Test that allowlist is enforced in the open_repo endpoint."""
-        from kit.api.app import RepoIn, open_repo
         from fastapi import HTTPException
+
+        from kit.api.app import RepoIn, open_repo
 
         with patch("kit.api.app.ALLOWED_REPO_PATTERNS", ["github.com"]):
             # Allowed domain should work (assuming repo operations succeed)

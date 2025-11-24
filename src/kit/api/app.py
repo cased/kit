@@ -119,21 +119,14 @@ def validate_repo_url(url: str) -> None:
         hostname = parsed.hostname
 
         if not hostname:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid repository URL: hostname not found"
-            )
+            raise HTTPException(status_code=400, detail="Invalid repository URL: hostname not found")
 
         # Check if URL matches any allowed pattern
         for pattern in ALLOWED_REPO_PATTERNS:
             if matches_pattern(url, pattern):
                 logger.info(
                     f"Repository URL validated: {sanitize_url(url)}",
-                    extra={
-                        "event_type": "url_validated",
-                        "hostname": hostname,
-                        "matched_pattern": pattern
-                    }
+                    extra={"event_type": "url_validated", "hostname": hostname, "matched_pattern": pattern},
                 )
                 return  # URL is allowed
 
@@ -143,29 +136,20 @@ def validate_repo_url(url: str) -> None:
             extra={
                 "event_type": "url_rejected_by_allowlist",
                 "hostname": hostname,
-                "allowed_patterns": ALLOWED_REPO_PATTERNS
-            }
+                "allowed_patterns": ALLOWED_REPO_PATTERNS,
+            },
         )
         raise HTTPException(
             status_code=403,
             detail=f"Repository URL does not match any allowed pattern. "
-                   f"Allowed patterns: {', '.join(ALLOWED_REPO_PATTERNS)}"
+            f"Allowed patterns: {', '.join(ALLOWED_REPO_PATTERNS)}",
         )
     except HTTPException:
         # Re-raise HTTPExceptions as-is
         raise
     except Exception as e:
-        logger.error(
-            f"Error parsing repository URL: {str(e)}",
-            extra={
-                "event_type": "url_parse_error",
-                "error": str(e)
-            }
-        )
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid repository URL format: {str(e)}"
-        )
+        logger.error(f"Error parsing repository URL: {e!s}", extra={"event_type": "url_parse_error", "error": str(e)})
+        raise HTTPException(status_code=400, detail=f"Invalid repository URL format: {e!s}")
 
 
 class RepoIn(BaseModel):

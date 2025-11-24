@@ -292,6 +292,7 @@ class LocalDiffReviewer:
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=30,  # Prevent hanging on large operations
                 shell=False,  # Never use shell=True
             )

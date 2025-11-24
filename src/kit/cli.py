@@ -13,6 +13,7 @@ def _get_version() -> str:
     """Get kit version without importing the entire package."""
     try:
         from importlib.metadata import version
+
         return version("cased-kit")
     except Exception:
         return "unknown"
