@@ -2,6 +2,7 @@
 """Benchmark ripgrep and Python implementations for code search."""
 
 import time
+
 from kit.code_searcher import CodeSearcher, SearchOptions
 
 
@@ -103,7 +104,7 @@ def main():
                 rg_times.append(elapsed)
             rg_avg = sum(rg_times) / len(rg_times)
             rg_min = min(rg_times)
-            print(f"  Ripgrep:  avg={rg_avg*1000:.1f}ms  min={rg_min*1000:.1f}ms  ({count} matches)")
+            print(f"  Ripgrep:  avg={rg_avg * 1000:.1f}ms  min={rg_min * 1000:.1f}ms  ({count} matches)")
             bench_result["rg_avg"] = rg_avg
             bench_result["matches"] = count
 
@@ -116,7 +117,7 @@ def main():
             py_times.append(elapsed)
         py_avg = sum(py_times) / len(py_times)
         py_min = min(py_times)
-        print(f"  Python:   avg={py_avg*1000:.1f}ms  min={py_min*1000:.1f}ms  ({count} matches)")
+        print(f"  Python:   avg={py_avg * 1000:.1f}ms  min={py_min * 1000:.1f}ms  ({count} matches)")
         bench_result["py_avg"] = py_avg
         if "matches" not in bench_result:
             bench_result["matches"] = count
@@ -145,13 +146,13 @@ def main():
 
         print(f"\nTotal time for all {len(results)} searches:")
         total_py = sum(r["py_avg"] for r in results)
-        print(f"  Python:  {total_py*1000:.1f}ms")
+        print(f"  Python:  {total_py * 1000:.1f}ms")
 
         if has_rg:
             total_rg = sum(r.get("rg_avg", 0) for r in results)
             saved_ms = (total_py - total_rg) * 1000
             saved_pct = (1 - total_rg / total_py) * 100
-            print(f"  Ripgrep: {total_rg*1000:.1f}ms (saved {saved_ms:.1f}ms, {saved_pct:.0f}%)")
+            print(f"  Ripgrep: {total_rg * 1000:.1f}ms (saved {saved_ms:.1f}ms, {saved_pct:.0f}%)")
 
 
 if __name__ == "__main__":

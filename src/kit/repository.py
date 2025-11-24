@@ -101,7 +101,12 @@ class Repository:
 
             # Checkout the ref
             _ = subprocess.run(
-                ["git", "checkout", ref], cwd=str(self.local_path), capture_output=True, text=True, check=True
+                ["git", "checkout", ref],
+                cwd=str(self.local_path),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=True,
             )
         except subprocess.CalledProcessError as e:
             raise ValueError(f"Failed to checkout ref '{ref}': {e.stderr}")
@@ -152,7 +157,9 @@ class Repository:
             return None
 
         try:
-            result = subprocess.run(cmd, cwd=self.repo_path, capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                cmd, cwd=self.repo_path, capture_output=True, text=True, encoding="utf-8", check=True
+            )
             return result.stdout.strip() if result.stdout else None
         except subprocess.CalledProcessError:
             return None
@@ -173,7 +180,7 @@ class Repository:
                 branch_cmd = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
                 # Use self.repo_path (string) for cwd as subprocess expects string path
                 branch_result = subprocess.run(
-                    branch_cmd, cwd=self.repo_path, capture_output=True, text=True, check=False
+                    branch_cmd, cwd=self.repo_path, capture_output=True, text=True, encoding="utf-8", check=False
                 )
                 if branch_result.returncode == 0 and branch_result.stdout.strip() != "HEAD":
                     ref_info = f", branch: {branch_result.stdout.strip()}"
@@ -181,7 +188,7 @@ class Repository:
                     # If not on a branch (detached HEAD), get commit SHA
                     sha_cmd = ["git", "rev-parse", "--short", "HEAD"]
                     sha_result = subprocess.run(
-                        sha_cmd, cwd=self.repo_path, capture_output=True, text=True, check=False
+                        sha_cmd, cwd=self.repo_path, capture_output=True, text=True, encoding="utf-8", check=False
                     )
                     if sha_result.returncode == 0:
                         ref_info = f", commit: {sha_result.stdout.strip()}"
@@ -216,12 +223,22 @@ class Repository:
             if ref:
                 try:
                     current_sha = subprocess.run(
-                        ["git", "rev-parse", "HEAD"], cwd=str(repo_path), capture_output=True, text=True, check=True
+                        ["git", "rev-parse", "HEAD"],
+                        cwd=str(repo_path),
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        check=True,
                     ).stdout.strip()
 
                     # Check if we're already on the requested ref
                     target_sha = subprocess.run(
-                        ["git", "rev-parse", ref], cwd=str(repo_path), capture_output=True, text=True, check=False
+                        ["git", "rev-parse", ref],
+                        cwd=str(repo_path),
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        check=False,
                     )
 
                     if target_sha.returncode != 0 or current_sha != target_sha.stdout.strip():
@@ -467,6 +484,7 @@ class Repository:
                 cwd=str(self.local_path),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=30,  # 30 second timeout
             )
         except subprocess.TimeoutExpired:

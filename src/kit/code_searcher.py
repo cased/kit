@@ -67,12 +67,7 @@ class CodeSearcher:
     def _has_ripgrep(self) -> bool:
         """Check if ripgrep (rg) is available on the system."""
         try:
-            subprocess.run(
-                ["rg", "--version"],
-                capture_output=True,
-                check=True,
-                timeout=1
-            )
+            subprocess.run(["rg", "--version"], capture_output=True, check=True, timeout=1)
             return True
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
             return False
@@ -96,8 +91,12 @@ class CodeSearcher:
         return messages
 
     def _extract_context_for_match(
-        self, messages: List[Dict[str, Any]], match_index: int,
-        file_path: str, match_line_number: int, options: SearchOptions
+        self,
+        messages: List[Dict[str, Any]],
+        match_index: int,
+        file_path: str,
+        match_line_number: int,
+        options: SearchOptions,
     ) -> tuple[List[str], List[str]]:
         """Extract context lines before and after a match from ripgrep messages."""
         context_before: List[str] = []
@@ -167,7 +166,7 @@ class CodeSearcher:
         cmd.extend([query, str(self.repo_path)])
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=30)
             messages = self._parse_ripgrep_json_messages(result.stdout)
 
             matches = []
@@ -188,13 +187,15 @@ class CodeSearcher:
                         messages, i, file_path, match_line_number, options
                     )
 
-                    matches.append({
-                        "file": rel_path,
-                        "line_number": match_line_number,
-                        "line": line_text,
-                        "context_before": context_before,
-                        "context_after": context_after
-                    })
+                    matches.append(
+                        {
+                            "file": rel_path,
+                            "line_number": match_line_number,
+                            "line": line_text,
+                            "context_before": context_before,
+                            "context_after": context_after,
+                        }
+                    )
 
             return matches
         except (subprocess.TimeoutExpired, Exception):
