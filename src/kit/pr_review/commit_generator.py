@@ -21,7 +21,7 @@ class CommitMessageGenerator:
     def get_staged_diff(self) -> str:
         """Get the diff of staged changes."""
         try:
-            result = subprocess.run(["git", "diff", "--cached"], capture_output=True, text=True, check=True)
+            result = subprocess.run(["git", "diff", "--cached"], capture_output=True, text=True, encoding='utf-8', check=True)
             return result.stdout
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to get staged diff: {e}")
@@ -30,7 +30,7 @@ class CommitMessageGenerator:
         """Get list of staged files."""
         try:
             result = subprocess.run(
-                ["git", "diff", "--cached", "--name-only"], capture_output=True, text=True, check=True
+                ["git", "diff", "--cached", "--name-only"], capture_output=True, text=True, encoding='utf-8', check=True
             )
             return [f.strip() for f in result.stdout.splitlines() if f.strip()]
         except subprocess.CalledProcessError as e:
@@ -282,7 +282,7 @@ Generate only the commit message, nothing else."""
     def commit_with_message(self, message: str) -> None:
         """Execute git commit with the generated message."""
         try:
-            subprocess.run(["git", "commit", "-m", message], check=True, capture_output=True, text=True)
+            subprocess.run(["git", "commit", "-m", message], check=True, capture_output=True, text=True, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to commit: {e.stderr}")
 

@@ -693,3 +693,82 @@ def test_search_command_injection_stress():
             # Try in file pattern
             results = searcher.search_text("safe", file_pattern=f"*.py{pattern}")
             assert not os.path.exists(marker), f"Injection via file_pattern: {pattern}"
+
+
+def test_search_utf8_chinese_content():
+    """Test searching files containing Chinese characters (UTF-8 encoding)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a file with Chinese content
+        pyfile = os.path.join(tmpdir, "test_chinese.py")
+        chinese_content = """
+def 测试函数():
+    \"\"\"这是一个测试函数\"\"\"
+    return "你好世界"
+
+def hello():
+    # 注释：这是中文注释
+    pass
+"""
+        with open(pyfile, "w", encoding="utf-8") as f:
+            f.write(chinese_content)
+
+        searcher = CodeSearcher(tmpdir)
+
+        # Search for Chinese function name
+        matches = searcher.search_text("测试函数", file_pattern="*.py")
+        assert len(matches) >= 1
+        assert any("测试函数" in m["line"] for m in matches)
+
+        # Search for Chinese string
+        matches = searcher.search_text("你好世界", file_pattern="*.py")
+        assert len(matches) >= 1
+        assert any("你好世界" in m["line"] for m in matches)
+
+        # Search for Chinese comment
+        matches = searcher.search_text("中文注释", file_pattern="*.py")
+        assert len(matches) >= 1
+        assert any("中文注释" in m["line"] for m in matches)
+
+
+def test_search_utf8_mixed_languages():
+    """Test searching files with mixed English and non-ASCII characters."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create files with various Unicode characters
+        test_cases = [
+            ("japanese.py", "世界", "def hello_世界():"),
+            ("korean.py", "테스트", "class 테스트:"),
+            ("emoji.py", "🚀", "# TODO: 🚀 Launch feature"),
+            ("french.py", "café", "def café():"),
+        ]
+
+        for filename, search_term, content in test_cases:
+            filepath = os.path.join(tmpdir, filename)
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(content + "\n    pass\n")
+
+        searcher = CodeSearcher(tmpdir)
+
+        # Test each language
+        for filename, search_term, content in test_cases:
+            matches = searcher.search_text(search_term, file_pattern="*.py")
+            assert len(matches) >= 1, f"Failed to find {search_term} in {filename}"
+            assert any(search_term in m["line"] for m in matches), f"Search term {search_term} not in results"
+
+
+def test_search_utf8_filename_with_chinese():
+    """Test searching in files with Chinese characters in filename."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a file with Chinese characters in the filename
+        chinese_filename = "测试文件.py"
+        filepath = os.path.join(tmpdir, chinese_filename)
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write("def test():\n    return 'hello'\n")
+
+        searcher = CodeSearcher(tmpdir)
+
+        # Search should find the file and return correct filename
+        matches = searcher.search_text("test", file_pattern="*.py")
+        assert len(matches) >= 1
+        # The filename in results should preserve Chinese characters
+        assert any(chinese_filename in m["file"] or "测试文件" in m["file"] for m in matches)

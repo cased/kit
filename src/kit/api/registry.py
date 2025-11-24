@@ -44,7 +44,7 @@ def _canonical(value: str, ref: str | None = None) -> str:
     try:
         import subprocess
 
-        result = subprocess.run(["git", "-C", base, "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
+        result = subprocess.run(["git", "-C", base, "rev-parse", "HEAD"], capture_output=True, text=True, encoding='utf-8', check=False)
         if result.returncode == 0:
             ref = result.stdout.strip()
     except Exception:

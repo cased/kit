@@ -167,7 +167,7 @@ class CodeSearcher:
         cmd.extend([query, str(self.repo_path)])
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', timeout=30)
             messages = self._parse_ripgrep_json_messages(result.stdout)
 
             matches = []

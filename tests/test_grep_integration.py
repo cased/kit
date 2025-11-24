@@ -206,3 +206,105 @@ class TestGrepIntegration:
         python_files = {result["file"] for result in python_results}
         mcp_files = {result["file"] for result in mcp_results}
         assert python_files == mcp_files
+
+    def test_grep_utf8_chinese_content(self):
+        """Test grep with Chinese characters (UTF-8 encoding) - addresses issue #151."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_path = Path(temp_dir)
+
+            # Create files with Chinese content
+            (repo_path / "chinese_file.py").write_text(
+                "# 这是中文注释\ndef 测试函数():\n    return '你好世界'\n",
+                encoding="utf-8"
+            )
+            (repo_path / "mixed_content.py").write_text(
+                "def hello():\n    # TODO: 添加中文支持\n    pass\n",
+                encoding="utf-8"
+            )
+
+            repo = Repository(str(repo_path))
+
+            # Test searching for Chinese characters
+            results = repo.grep("测试函数")
+            assert len(results) >= 1
+            assert any("测试函数" in result["line_content"] for result in results)
+
+            # Test searching for Chinese strings
+            results = repo.grep("你好世界")
+            assert len(results) >= 1
+            assert any("你好世界" in result["line_content"] for result in results)
+
+            # Test searching for Chinese comments
+            results = repo.grep("中文注释")
+            assert len(results) >= 1
+            assert any("中文注释" in result["line_content"] for result in results)
+
+    def test_grep_utf8_filename_with_chinese(self):
+        """Test grep with Chinese characters in filename - addresses Windows cp950 issue."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_path = Path(temp_dir)
+
+            # Create a file with Chinese filename
+            chinese_filename = "测试文件.py"
+            (repo_path / chinese_filename).write_text(
+                "def test():\n    return 'hello'\n",
+                encoding="utf-8"
+            )
+
+            repo = Repository(str(repo_path))
+
+            # Search should work and return the filename correctly
+            results = repo.grep("test")
+            assert len(results) >= 1
+
+            # Filename should be preserved correctly (not garbled)
+            found_files = [result["file"] for result in results]
+            assert any(chinese_filename in f or "测试文件" in f for f in found_files)
+
+    def test_grep_utf8_mixed_languages(self):
+        """Test grep with various Unicode characters from different languages."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_path = Path(temp_dir)
+
+            # Create files with various Unicode content
+            test_cases = [
+                ("japanese.py", "世界", "# こんにちは世界\ndef hello(): pass\n"),
+                ("korean.py", "안녕하세요", "# 안녕하세요\nclass Test: pass\n"),
+                ("emoji.py", "🚀", "# TODO: 🚀 Launch\ndef launch(): pass\n"),
+                ("french.py", "café", "def café(): # été\n    pass\n"),
+            ]
+
+            for filename, search_term, content in test_cases:
+                (repo_path / filename).write_text(content, encoding="utf-8")
+
+            repo = Repository(str(repo_path))
+
+            # Test each language
+            for filename, search_term, content in test_cases:
+                results = repo.grep(search_term)
+                assert len(results) >= 1, f"Failed to find {search_term} in {filename}"
+                assert any(search_term in result["line_content"] for result in results)
+
+    def test_mcp_grep_utf8_encoding(self):
+        """Test MCP server grep with UTF-8 content - ensures encoding parameter is used."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_path = Path(temp_dir)
+
+            # Create file with Chinese content
+            (repo_path / "test.py").write_text(
+                "# 中文测试\ndef 函数():\n    return '结果'\n",
+                encoding="utf-8"
+            )
+
+            logic = KitServerLogic()
+            repo_id = logic.open_repository(str(repo_path))
+
+            # MCP grep should handle UTF-8 correctly
+            results = logic.grep_code(repo_id, "中文测试")
+            assert len(results) >= 1
+            assert any("中文测试" in result["line_content"] for result in results)
+
+            # Test with function name
+            results = logic.grep_code(repo_id, "函数")
+            assert len(results) >= 1
+            assert any("函数" in result["line_content"] for result in results)
