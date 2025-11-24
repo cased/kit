@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improvements
 
+- **Windows UTF-8 Encoding Fix** (#151, #153)
+  - Fixed Windows cp950 decoding errors when using repositories with non-ASCII file paths
+  - All subprocess calls now explicitly use UTF-8 encoding instead of system default
+  - Resolves issues for users on Traditional Chinese, Japanese, Korean, and other non-ASCII Windows systems
+  - Added comprehensive UTF-8 test coverage for Chinese, Japanese, Korean, emoji, and other Unicode characters
+
 - **Ripgrep Integration for Code Search** (#150)
   - `CodeSearcher.search_text()` now automatically uses ripgrep when available for 10x faster searches
   - Automatic fallback to Python implementation ensures compatibility
