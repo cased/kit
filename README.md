@@ -42,6 +42,12 @@ uv tool list
 uv tool uninstall cased-kit
 ```
 
+Want to try kit directly in Claude Code? Check out [the plugin](https://github.com/cased/claude-code-plugins):
+
+```
+/plugin marketplace add cased/claude-code-plugins
+/plugin install kit-cli
+```
 
 ## Toolkit Usage
 
