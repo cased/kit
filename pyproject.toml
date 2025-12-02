@@ -91,10 +91,12 @@ test-api = [
 ml = [
     "sentence-transformers>=2.2.0",  # For VectorSearcher and DocstringIndexer
     "chromadb>=1.0.0",  # Vector database for semantic search (1.0+ required for Cloud)
+    "qdrant-client>=1.15.1" # Vector search engine for semantic search
 ]
 all = [
     "sentence-transformers>=2.2.0",
     "chromadb>=1.0.0",
+    "qdrant-client>=1.15.1" # Vector search engine for semantic search
 ]
 
 [tool.ruff]
