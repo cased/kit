@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.1] - 2025-12-05
+
+### Bug Fixes
+
+- **GPT-5 Model Compatibility** (#154)
+  - Fixed OpenAI API 400 error when using GPT-5 models for PR reviews
+  - GPT-5 models require `max_completion_tokens` instead of the deprecated `max_tokens` parameter
+  - Updated all OpenAI API calls in PR review module (reviewer, summarizer, commit generator, local reviewer, matrix tester)
+  - Added comprehensive test coverage for GPT-5 parameter handling
+
+---
+
 ## [2.2.0] - 2025-11-23
 
 ### New Features

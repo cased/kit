@@ -640,11 +640,18 @@ Focus on practical, actionable feedback. Be concise but specific.
                 self._llm_client = openai.OpenAI(api_key=self.config.llm_api_key)
 
         try:
-            response = self._llm_client.chat.completions.create(
-                model=self.config.llm_model,
-                max_tokens=self.config.llm_max_tokens,
-                messages=[{"role": "user", "content": enhanced_prompt}],
-            )
+            # GPT-5 models use max_completion_tokens instead of max_tokens
+            model = self.config.llm_model or self.config.llm.model
+            completion_params: Dict[str, Any] = {
+                "model": self.config.llm_model,
+                "messages": [{"role": "user", "content": enhanced_prompt}],
+            }
+            if "gpt-5" in model.lower():
+                completion_params["max_completion_tokens"] = self.config.llm_max_tokens
+            else:
+                completion_params["max_tokens"] = self.config.llm_max_tokens
+
+            response = self._llm_client.chat.completions.create(**completion_params)
 
             # Track cost
             input_tokens, output_tokens = self.cost_tracker.extract_openai_usage(response)

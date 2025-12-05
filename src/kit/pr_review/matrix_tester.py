@@ -435,11 +435,17 @@ Format as JSON:
                             continue
 
                         openai_client = openai.OpenAI(api_key=openai_api_key)
-                        response = openai_client.chat.completions.create(
-                            model=judge_model,
-                            max_tokens=2000,
-                            messages=[{"role": "user", "content": judging_prompt}],
-                        )
+                        # GPT-5 models use max_completion_tokens instead of max_tokens
+                        completion_params: Dict[str, Any] = {
+                            "model": judge_model,
+                            "messages": [{"role": "user", "content": judging_prompt}],
+                        }
+                        if "gpt-5" in judge_model.lower():
+                            completion_params["max_completion_tokens"] = 2000
+                        else:
+                            completion_params["max_tokens"] = 2000
+
+                        response = openai_client.chat.completions.create(**completion_params)
                         content = response.choices[0].message.content
 
                     print(f"    ✅ {judge_name} completed evaluation")

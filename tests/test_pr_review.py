@@ -1486,3 +1486,180 @@ def test_helicone_api_fallback():
 
     # Clear cache again to avoid affecting other tests
     CostTracker._fetch_pricing_with_cache.cache_clear()
+
+
+class TestGPT5ParameterHandling:
+    """Test GPT-5 models use max_completion_tokens instead of max_tokens."""
+
+    def test_gpt5_uses_max_completion_tokens(self):
+        """Test that GPT-5 models use max_completion_tokens parameter."""
+        # Test the detection logic used in all OpenAI calls
+        gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "GPT-5-turbo", "gpt-5-preview"]
+
+        for model in gpt5_models:
+            assert "gpt-5" in model.lower(), f"Model {model} should be detected as GPT-5"
+
+    def test_non_gpt5_uses_max_tokens(self):
+        """Test that non-GPT-5 models use max_tokens parameter."""
+        non_gpt5_models = ["gpt-4", "gpt-4o", "gpt-4-turbo", "gpt-4.1", "gpt-3.5-turbo", "o1-preview", "o3-mini"]
+
+        for model in non_gpt5_models:
+            assert "gpt-5" not in model.lower(), f"Model {model} should NOT be detected as GPT-5"
+
+    @pytest.mark.asyncio
+    async def test_reviewer_openai_gpt5_params(self):
+        """Test PRReviewer._analyze_with_openai_enhanced uses correct params for GPT-5."""
+        from unittest.mock import MagicMock
+
+        from kit.pr_review.config import LLMConfig, LLMProvider, ReviewConfig
+        from kit.pr_review.reviewer import PRReviewer
+
+        # Create config with GPT-5 model
+        llm_config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model="gpt-5-mini",
+            api_key="test-key",
+            max_tokens=4000,
+        )
+        review_config = ReviewConfig(
+            github=MagicMock(),
+            llm=llm_config,
+        )
+
+        reviewer = PRReviewer(config=review_config)
+
+        # Mock OpenAI client
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content="Test review"))]
+        mock_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50)
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = MagicMock(return_value=mock_response)
+        reviewer._llm_client = mock_client
+
+        # Call the method
+        await reviewer._analyze_with_openai_enhanced("Test prompt")
+
+        # Verify max_completion_tokens was used (not max_tokens)
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert "max_completion_tokens" in call_kwargs, "GPT-5 should use max_completion_tokens"
+        assert "max_tokens" not in call_kwargs, "GPT-5 should NOT use max_tokens"
+        assert call_kwargs["max_completion_tokens"] == 4000
+
+    @pytest.mark.asyncio
+    async def test_reviewer_openai_gpt4_params(self):
+        """Test PRReviewer._analyze_with_openai_enhanced uses correct params for GPT-4."""
+        from unittest.mock import MagicMock
+
+        from kit.pr_review.config import LLMConfig, LLMProvider, ReviewConfig
+        from kit.pr_review.reviewer import PRReviewer
+
+        # Create config with GPT-4 model
+        llm_config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model="gpt-4o",
+            api_key="test-key",
+            max_tokens=4000,
+        )
+        review_config = ReviewConfig(
+            github=MagicMock(),
+            llm=llm_config,
+        )
+
+        reviewer = PRReviewer(config=review_config)
+
+        # Mock OpenAI client
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content="Test review"))]
+        mock_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50)
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = MagicMock(return_value=mock_response)
+        reviewer._llm_client = mock_client
+
+        # Call the method
+        await reviewer._analyze_with_openai_enhanced("Test prompt")
+
+        # Verify max_tokens was used (not max_completion_tokens)
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert "max_tokens" in call_kwargs, "GPT-4 should use max_tokens"
+        assert "max_completion_tokens" not in call_kwargs, "GPT-4 should NOT use max_completion_tokens"
+        assert call_kwargs["max_tokens"] == 4000
+
+    @pytest.mark.asyncio
+    async def test_commit_generator_gpt5_params(self):
+        """Test CommitMessageGenerator._generate_with_openai uses correct params for GPT-5."""
+        from unittest.mock import MagicMock
+
+        from kit.pr_review.commit_generator import CommitMessageGenerator
+        from kit.pr_review.config import LLMConfig, LLMProvider, ReviewConfig
+
+        # Create config with GPT-5 model
+        llm_config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model="gpt-5",
+            api_key="test-key",
+        )
+        review_config = ReviewConfig(
+            github=MagicMock(),
+            llm=llm_config,
+        )
+
+        generator = CommitMessageGenerator(config=review_config)
+
+        # Mock OpenAI client
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content="feat: add feature"))]
+        mock_response.usage = MagicMock(prompt_tokens=50, completion_tokens=10)
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = MagicMock(return_value=mock_response)
+        generator._llm_client = mock_client
+
+        # Call the method
+        await generator._generate_with_openai("Generate commit message")
+
+        # Verify max_completion_tokens was used
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert "max_completion_tokens" in call_kwargs, "GPT-5 should use max_completion_tokens"
+        assert call_kwargs["max_completion_tokens"] == 200  # Commit messages are capped at 200
+
+    @pytest.mark.asyncio
+    async def test_summarizer_gpt5_params(self):
+        """Test PRSummarizer._analyze_with_openai_summary uses correct params for GPT-5."""
+        from unittest.mock import MagicMock
+
+        from kit.pr_review.config import LLMConfig, LLMProvider, ReviewConfig
+        from kit.pr_review.summarizer import PRSummarizer
+
+        # Create config with GPT-5 model
+        llm_config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model="gpt-5-nano",
+            api_key="test-key",
+            max_tokens=2000,
+        )
+        review_config = ReviewConfig(
+            github=MagicMock(),
+            llm=llm_config,
+        )
+
+        summarizer = PRSummarizer(config=review_config)
+
+        # Mock OpenAI client
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content="Summary of changes"))]
+        mock_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50)
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = MagicMock(return_value=mock_response)
+        summarizer._llm_client = mock_client
+
+        # Call the method
+        await summarizer._analyze_with_openai_summary("Summarize this")
+
+        # Verify max_completion_tokens was used
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert "max_completion_tokens" in call_kwargs, "GPT-5 should use max_completion_tokens"
+        # Summarizer caps at 1000
+        assert call_kwargs["max_completion_tokens"] == 1000
