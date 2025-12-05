@@ -233,12 +233,19 @@ class PRSummarizer(PRReviewer):
                 self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key)
 
         try:
-            response = self._llm_client.chat.completions.create(
-                model=self.config.llm.model,
-                max_tokens=min(self.config.llm.max_tokens, 1000),  # Cap for summaries
+            # GPT-5 models use max_completion_tokens instead of max_tokens
+            max_tokens_value = min(self.config.llm.max_tokens, 1000)  # Cap for summaries
+            completion_params = {
+                "model": self.config.llm.model,
                 # Lower temperature removed for better model compatibility
-                messages=[{"role": "user", "content": summary_prompt}],
-            )
+                "messages": [{"role": "user", "content": summary_prompt}],
+            }
+            if "gpt-5" in self.config.llm.model.lower():
+                completion_params["max_completion_tokens"] = max_tokens_value
+            else:
+                completion_params["max_tokens"] = max_tokens_value
+
+            response = self._llm_client.chat.completions.create(**completion_params)
 
             # Track cost
             input_tokens, output_tokens = self.cost_tracker.extract_openai_usage(response)
