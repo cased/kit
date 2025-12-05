@@ -641,7 +641,7 @@ Focus on practical, actionable feedback. Be concise but specific.
 
         try:
             # GPT-5 models use max_completion_tokens instead of max_tokens
-            model = self.config.llm_model or ""
+            model = self.config.llm_model or self.config.llm.model
             completion_params: Dict[str, Any] = {
                 "model": self.config.llm_model,
                 "messages": [{"role": "user", "content": enhanced_prompt}],
