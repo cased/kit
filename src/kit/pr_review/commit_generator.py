@@ -218,7 +218,7 @@ Generate only the commit message, nothing else."""
 
         try:
             # GPT-5 models use max_completion_tokens instead of max_tokens
-            completion_params = {
+            completion_params: Dict[str, Any] = {
                 "model": self.config.llm.model,
                 "messages": [{"role": "user", "content": prompt}],
             }

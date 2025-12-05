@@ -436,7 +436,7 @@ Format as JSON:
 
                         openai_client = openai.OpenAI(api_key=openai_api_key)
                         # GPT-5 models use max_completion_tokens instead of max_tokens
-                        completion_params = {
+                        completion_params: Dict[str, Any] = {
                             "model": judge_model,
                             "messages": [{"role": "user", "content": judging_prompt}],
                         }

@@ -641,11 +641,12 @@ Focus on practical, actionable feedback. Be concise but specific.
 
         try:
             # GPT-5 models use max_completion_tokens instead of max_tokens
-            completion_params = {
+            model = self.config.llm_model or ""
+            completion_params: Dict[str, Any] = {
                 "model": self.config.llm_model,
                 "messages": [{"role": "user", "content": enhanced_prompt}],
             }
-            if "gpt-5" in self.config.llm_model.lower():
+            if "gpt-5" in model.lower():
                 completion_params["max_completion_tokens"] = self.config.llm_max_tokens
             else:
                 completion_params["max_tokens"] = self.config.llm_max_tokens

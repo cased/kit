@@ -235,7 +235,7 @@ class PRSummarizer(PRReviewer):
         try:
             # GPT-5 models use max_completion_tokens instead of max_tokens
             max_tokens_value = min(self.config.llm.max_tokens, 1000)  # Cap for summaries
-            completion_params = {
+            completion_params: Dict[str, Any] = {
                 "model": self.config.llm.model,
                 # Lower temperature removed for better model compatibility
                 "messages": [{"role": "user", "content": summary_prompt}],
