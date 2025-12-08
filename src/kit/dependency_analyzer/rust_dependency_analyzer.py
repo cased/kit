@@ -87,24 +87,27 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
                     current_section = current_section[part]
             elif "=" in line:
                 # Key-value pair
-                key, value = line.split("=", 1)
+                key, raw_value = line.split("=", 1)
                 key = key.strip()
-                value = value.strip()
+                raw_value = raw_value.strip()
                 # Remove quotes from string values
-                if value.startswith('"') and value.endswith('"'):
-                    value = value[1:-1]
-                elif value.startswith("'") and value.endswith("'"):
-                    value = value[1:-1]
+                parsed_value: Any
+                if raw_value.startswith('"') and raw_value.endswith('"'):
+                    parsed_value = raw_value[1:-1]
+                elif raw_value.startswith("'") and raw_value.endswith("'"):
+                    parsed_value = raw_value[1:-1]
                 # Handle inline tables like { version = "1.0", features = [] }
-                elif value.startswith("{"):
-                    value = self._parse_inline_table(value)
-                current_section[key] = value
+                elif raw_value.startswith("{"):
+                    parsed_value = self._parse_inline_table(raw_value)
+                else:
+                    parsed_value = raw_value
+                current_section[key] = parsed_value
 
         return result
 
     def _parse_inline_table(self, value: str) -> Dict[str, Any]:
         """Parse a TOML inline table."""
-        result = {}
+        result: Dict[str, Any] = {}
         # Remove braces
         inner = value.strip()[1:-1].strip()
         if not inner:
