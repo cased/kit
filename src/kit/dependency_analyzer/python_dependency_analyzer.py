@@ -320,6 +320,19 @@ class PythonDependencyAnalyzer(DependencyAnalyzer):
 
         return cycles
 
+    def get_dependencies(self, item: str, include_indirect: bool = False) -> List[str]:
+        """
+        Get dependencies for a specific component.
+
+        Args:
+            item: Name of the module to check
+            include_indirect: Whether to include indirect dependencies
+
+        Returns:
+            List of module names this module depends on
+        """
+        return self.get_module_dependencies(item, include_indirect)
+
     def get_module_dependencies(self, module_name: str, include_indirect: bool = False) -> List[str]:
         """
         Get dependencies for a specific module.

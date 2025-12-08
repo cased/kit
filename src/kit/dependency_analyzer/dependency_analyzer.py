@@ -69,6 +69,34 @@ class DependencyAnalyzer(ABC):
         pass
 
     @abstractmethod
+    def get_dependencies(self, item: str, include_indirect: bool = False) -> List[str]:
+        """
+        Get dependencies for a specific component.
+
+        Args:
+            item: Identifier for the component (file path, module name, resource ID, etc.)
+            include_indirect: Whether to include indirect/transitive dependencies
+
+        Returns:
+            List of component identifiers this item depends on
+        """
+        pass
+
+    @abstractmethod
+    def get_dependents(self, item: str, include_indirect: bool = False) -> List[str]:
+        """
+        Get components that depend on the specified item.
+
+        Args:
+            item: Identifier for the component (file path, module name, resource ID, etc.)
+            include_indirect: Whether to include indirect/transitive dependents
+
+        Returns:
+            List of component identifiers that depend on this item
+        """
+        pass
+
+    @abstractmethod
     def visualize_dependencies(self, output_path: str, format: str = "png") -> str:
         """
         Generate a visualization of the dependency graph.
@@ -208,7 +236,7 @@ class DependencyAnalyzer(ABC):
 
         Args:
             repository: A kit.Repository instance
-            language: Language identifier (e.g., 'python', 'terraform', 'go')
+            language: Language identifier (e.g., 'python', 'terraform', 'go', 'javascript', 'typescript')
 
         Returns:
             An appropriate DependencyAnalyzer instance for the language
@@ -217,6 +245,7 @@ class DependencyAnalyzer(ABC):
             ValueError: If the specified language is not supported
         """
         from .go_dependency_analyzer import GoDependencyAnalyzer
+        from .javascript_dependency_analyzer import JavaScriptDependencyAnalyzer
         from .python_dependency_analyzer import PythonDependencyAnalyzer
         from .terraform_dependency_analyzer import TerraformDependencyAnalyzer
 
@@ -228,10 +257,12 @@ class DependencyAnalyzer(ABC):
             return TerraformDependencyAnalyzer(repository)
         elif language == "go" or language == "golang":
             return GoDependencyAnalyzer(repository)
+        elif language in ("javascript", "typescript", "js", "ts"):
+            return JavaScriptDependencyAnalyzer(repository)
         else:
             raise ValueError(
                 f"Unsupported language for dependency analysis: {language}. "
-                f"Currently supported languages: python, terraform, go"
+                f"Currently supported languages: python, terraform, go, javascript, typescript"
             )
 
     # ------------------------------------------------------------------

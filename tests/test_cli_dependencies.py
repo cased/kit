@@ -51,6 +51,7 @@ def mock_repository():
     analyzer.build_dependency_graph.return_value = mock_graph
     analyzer.find_cycles.return_value = []
     analyzer.export_dependency_graph.return_value = '{"mock": "data"}'
+    analyzer.get_dependencies.return_value = ["kit.utils", "pathlib"]
     analyzer.get_module_dependencies.return_value = ["kit.utils", "pathlib"]
     analyzer.get_dependents.return_value = []
     analyzer.get_resource_dependencies.return_value = ["aws_vpc.main"]
@@ -177,7 +178,7 @@ class TestDependenciesCommand:
         assert "kit.utils (internal)" in result.output
         assert "pathlib (external)" in result.output
 
-        analyzer.get_module_dependencies.assert_called_with("kit.repository", include_indirect=False)
+        analyzer.get_dependencies.assert_called_with("kit.repository", include_indirect=False)
         analyzer.get_dependents.assert_called_with("kit.repository", include_indirect=False)
 
     @patch("kit.Repository")
@@ -193,7 +194,7 @@ class TestDependenciesCommand:
         assert result.exit_code == 0
         assert "All dependencies (2):" in result.output
 
-        analyzer.get_module_dependencies.assert_called_with("kit.repository", include_indirect=True)
+        analyzer.get_dependencies.assert_called_with("kit.repository", include_indirect=True)
         analyzer.get_dependents.assert_called_with("kit.repository", include_indirect=True)
 
     @patch("kit.Repository")
@@ -207,7 +208,7 @@ class TestDependenciesCommand:
         assert result.exit_code == 0
         assert "Analyzing dependencies for: aws_instance.web" in result.output
 
-        analyzer.get_resource_dependencies.assert_called_with("aws_instance.web", include_indirect=False)
+        analyzer.get_dependencies.assert_called_with("aws_instance.web", include_indirect=False)
 
     @patch("kit.Repository")
     def test_module_not_found(self, mock_repo_class, runner, mock_repository):
@@ -419,7 +420,7 @@ class TestDependenciesCommand:
         assert "Generating visualization" in result.output
         assert "Analyzing dependencies for: kit.repository" in result.output
 
-        analyzer.get_module_dependencies.assert_called_with("kit.repository", include_indirect=True)
+        analyzer.get_dependencies.assert_called_with("kit.repository", include_indirect=True)
 
 
 class TestDependenciesIntegration:

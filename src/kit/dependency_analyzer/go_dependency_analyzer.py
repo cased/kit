@@ -502,6 +502,19 @@ class GoDependencyAnalyzer(DependencyAnalyzer):
 
         return cycles
 
+    def get_dependencies(self, item: str, include_indirect: bool = False) -> List[str]:
+        """
+        Get dependencies for a specific component.
+
+        Args:
+            item: Import path of the package
+            include_indirect: Whether to include indirect dependencies
+
+        Returns:
+            List of package import paths this package depends on
+        """
+        return self.get_package_dependencies(item, include_indirect)
+
     def get_package_dependencies(self, package_path: str, include_indirect: bool = False) -> List[str]:
         """
         Get dependencies for a specific package.
