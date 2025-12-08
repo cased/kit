@@ -569,6 +569,19 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
 
         return cycles
 
+    def get_dependencies(self, item: str, include_indirect: bool = False) -> List[str]:
+        """
+        Get dependencies for a specific component.
+
+        Args:
+            item: ID of the resource to check
+            include_indirect: Whether to include indirect dependencies
+
+        Returns:
+            List of resource IDs this resource depends on
+        """
+        return self.get_resource_dependencies(item, include_indirect)
+
     def get_resource_dependencies(self, resource_id: str, include_indirect: bool = False) -> List[str]:
         """
         Get dependencies for a specific resource.

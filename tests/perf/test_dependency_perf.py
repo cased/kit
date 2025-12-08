@@ -290,6 +290,67 @@ def run_terraform_benchmark(num_resources: int, iterations: int = 5) -> PerfResu
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+def generate_javascript_repo(num_modules: int, imports_per_module: int = 5) -> str:
+    """Generate a synthetic JavaScript repo for benchmarking."""
+    tmpdir = tempfile.mkdtemp(prefix="kit_perf_js_")
+
+    # Create package.json
+    with open(f"{tmpdir}/package.json", "w") as f:
+        f.write('{"name": "benchmark-app", "version": "1.0.0"}\n')
+
+    os.makedirs(f"{tmpdir}/src")
+
+    # Create modules
+    for i in range(num_modules):
+        imports = []
+        # Add some external imports
+        imports.append("import path from 'path';")
+        imports.append("import fs from 'fs';")
+
+        # Add internal imports (to earlier modules)
+        for j in range(min(imports_per_module, i)):
+            imports.append(f"import {{ func{j} }} from './module_{j}.js';")
+
+        content = "\n".join(imports) + f"\n\nexport function func{i}() {{\n  return {i};\n}}\n"
+
+        with open(f"{tmpdir}/src/module_{i}.js", "w") as f:
+            f.write(content)
+
+    return tmpdir
+
+
+def run_javascript_benchmark(num_modules: int, iterations: int = 5) -> PerfResult:
+    """Benchmark JavaScript dependency analysis."""
+    tmpdir = generate_javascript_repo(num_modules)
+
+    try:
+        repo = Repository(tmpdir)
+
+        def analyze():
+            analyzer = repo.get_dependency_analyzer("javascript")
+            analyzer.build_dependency_graph()
+
+        times = benchmark(analyze, iterations=iterations)
+
+        # Get some metadata
+        analyzer = repo.get_dependency_analyzer("javascript")
+        graph = analyzer.build_dependency_graph()
+
+        return PerfResult(
+            f"javascript_{num_modules}_modules",
+            times,
+            {
+                "num_modules": num_modules,
+                "graph_nodes": len(graph),
+                "language": "javascript",
+            },
+        )
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
 def run_real_repo_benchmark(repo_path: str, language: str, iterations: int = 3) -> PerfResult:
     """Benchmark against a real repository."""
     repo = Repository(repo_path)
@@ -502,6 +563,60 @@ def test_terraform_100_resources(benchmark):
 
         def analyze():
             analyzer = repo.get_dependency_analyzer("terraform")
+            return analyzer.build_dependency_graph()
+
+        result = benchmark(analyze)
+        assert len(result) > 0
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_javascript_10_modules(benchmark):
+    """Benchmark JavaScript analyzer with 10 modules."""
+    tmpdir = generate_javascript_repo(10)
+    try:
+        repo = Repository(tmpdir)
+
+        def analyze():
+            analyzer = repo.get_dependency_analyzer("javascript")
+            return analyzer.build_dependency_graph()
+
+        result = benchmark(analyze)
+        assert len(result) > 0
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_javascript_50_modules(benchmark):
+    """Benchmark JavaScript analyzer with 50 modules."""
+    tmpdir = generate_javascript_repo(50)
+    try:
+        repo = Repository(tmpdir)
+
+        def analyze():
+            analyzer = repo.get_dependency_analyzer("javascript")
+            return analyzer.build_dependency_graph()
+
+        result = benchmark(analyze)
+        assert len(result) > 0
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_javascript_100_modules(benchmark):
+    """Benchmark JavaScript analyzer with 100 modules."""
+    tmpdir = generate_javascript_repo(100)
+    try:
+        repo = Repository(tmpdir)
+
+        def analyze():
+            analyzer = repo.get_dependency_analyzer("javascript")
             return analyzer.build_dependency_graph()
 
         result = benchmark(analyze)
@@ -828,7 +943,7 @@ if __name__ == "__main__":
         help="Type of benchmark to run",
     )
     parser.add_argument(
-        "--language", choices=["python", "go", "terraform", "all"], default="all", help="Language to benchmark (deps)"
+        "--language", choices=["python", "go", "terraform", "javascript", "all"], default="all", help="Language to benchmark (deps)"
     )
     parser.add_argument("--repo", type=str, help="Path to real repo to benchmark")
     parser.add_argument("--repo-language", type=str, help="Language for real repo benchmark")
@@ -854,6 +969,10 @@ if __name__ == "__main__":
                 if args.language in ("terraform", "all"):
                     print(f"Benchmarking Terraform dependency analyzer with {size} resources...")
                     results.append(run_terraform_benchmark(size, args.iterations))
+
+                if args.language in ("javascript", "all"):
+                    print(f"Benchmarking JavaScript dependency analyzer with {size} modules...")
+                    results.append(run_javascript_benchmark(size, args.iterations))
 
             # File tree benchmarks (Rust-accelerated)
             if args.benchmark in ("filetree", "all"):

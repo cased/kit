@@ -354,6 +354,125 @@ docs = terraform_analyzer.generate_resource_documentation(
 
 * String containing the markdown documentation of resources
 
+### GoDependencyAnalyzer
+
+**Class: `GoDependencyAnalyzer`**
+*(defined in `kit/dependency_analyzer/go_dependency_analyzer.py`)*
+
+The `GoDependencyAnalyzer` extends the base `DependencyAnalyzer` to analyze Go codebases, focusing on package import relationships.
+
+#### Additional Methods
+
+##### `get_package_dependencies`
+
+**Method: `GoDependencyAnalyzer.get_package_dependencies`**
+*(defined in `kit/dependency_analyzer/go_dependency_analyzer.py`)*
+
+Gets dependencies for a specific Go package.
+
+```python
+# Get direct dependencies
+deps = go_analyzer.get_package_dependencies("github.com/myorg/myapp/pkg/server")
+
+# Get all dependencies (including indirect)
+all_deps = go_analyzer.get_package_dependencies(
+    "github.com/myorg/myapp/pkg/server",
+    include_indirect=True
+)
+```
+
+**Parameters:**
+
+* **`package_path`** (`str`, required):
+  Full import path of the package to check.
+* **`include_indirect`** (`bool`, optional):
+  Whether to include indirect dependencies. Defaults to `False`.
+
+**Returns:**
+
+* List of package import paths this package depends on
+
+### JavaScriptDependencyAnalyzer
+
+**Class: `JavaScriptDependencyAnalyzer`**
+*(defined in `kit/dependency_analyzer/javascript_dependency_analyzer.py`)*
+
+The `JavaScriptDependencyAnalyzer` extends the base `DependencyAnalyzer` to analyze JavaScript and TypeScript codebases, supporting both ESM (`import`) and CommonJS (`require`) module systems.
+
+#### Additional Methods
+
+##### `get_module_dependencies`
+
+**Method: `JavaScriptDependencyAnalyzer.get_module_dependencies`**
+*(defined in `kit/dependency_analyzer/javascript_dependency_analyzer.py`)*
+
+Gets dependencies for a specific JavaScript/TypeScript module.
+
+```python
+# Get direct dependencies
+deps = js_analyzer.get_module_dependencies("src/index.js")
+
+# Get all dependencies (including indirect)
+all_deps = js_analyzer.get_module_dependencies(
+    "src/index.js",
+    include_indirect=True
+)
+```
+
+**Parameters:**
+
+* **`module_path`** (`str`, required):
+  Path to the module file.
+* **`include_indirect`** (`bool`, optional):
+  Whether to include indirect dependencies. Defaults to `False`.
+
+**Returns:**
+
+* List of module paths/package names this module depends on
+
+##### `generate_dependency_report`
+
+**Method: `JavaScriptDependencyAnalyzer.generate_dependency_report`**
+*(defined in `kit/dependency_analyzer/javascript_dependency_analyzer.py`)*
+
+Generates a comprehensive dependency report for the repository.
+
+```python
+report = js_analyzer.generate_dependency_report(
+    output_path="dependency_report.json"
+)
+```
+
+**Parameters:**
+
+* **`output_path`** (`str`, optional):
+  Path to save the report JSON. If `None`, returns the report data without saving.
+
+**Returns:**
+
+* Dictionary with the complete dependency report including:
+  * Package name (from package.json)
+  * Internal module count
+  * External package count
+  * Node.js built-in usage
+  * Detected cycles
+  * High-dependency modules
+
+#### Supported Import Styles
+
+The JavaScript analyzer detects:
+- ESM imports: `import x from 'pkg'`, `import { x } from 'pkg'`
+- ESM re-exports: `export { x } from 'pkg'`, `export * from 'pkg'`
+- CommonJS: `require('pkg')`
+- Dynamic imports: `import('pkg')`
+
+#### Dependency Classification
+
+Dependencies are classified as:
+- **internal**: Relative imports (`./`, `../`)
+- **external**: npm packages (including scoped `@org/pkg`)
+- **node_builtin**: Node.js built-in modules (`fs`, `path`, `http`, etc.)
+
 ## Key Features and Notes
 
 - All dependency analyzers store absolute file paths for resources, making it easy to locate components in complex codebases with files that might have the same name in different directories.
@@ -363,3 +482,5 @@ docs = terraform_analyzer.generate_resource_documentation(
 - Visualizations require the Graphviz software to be installed on your system.
 
 - The dependency graph is built on first use and cached. If the codebase changes, you may need to call `build_dependency_graph()` again to refresh the analysis.
+
+- **Supported languages**: Python, Terraform, Go, JavaScript/TypeScript

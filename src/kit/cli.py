@@ -338,7 +338,7 @@ def analyze_dependencies(
 ):
     """Analyze and visualize code dependencies within a repository.
 
-    Supports Python, Terraform, and Go dependency analysis with features including:
+    Supports Python, Terraform, Go, and JavaScript/TypeScript dependency analysis with features including:
     • Dependency graph generation and export
     • Circular dependency detection
     • Module-specific analysis
@@ -348,7 +348,7 @@ def analyze_dependencies(
     Examples:
         kit dependencies . --language python --format dot --output deps.dot
         kit dependencies . --language terraform --cycles --visualize
-        kit dependencies . --language python --module kit.repository --include-indirect
+        kit dependencies . --language javascript --module src/index.js --include-indirect
         kit dependencies . --language python --llm-context --output context.md
     """
     from kit import Repository
@@ -357,10 +357,10 @@ def analyze_dependencies(
         repo = Repository(path, ref=ref)
 
         # Validate language
-        supported_languages = ["python", "terraform", "go", "golang"]
+        supported_languages = ["python", "terraform", "go", "golang", "javascript", "typescript", "js", "ts"]
         if language.lower() not in supported_languages:
             typer.secho(
-                f"❌ Unsupported language: {language}. Supported: {', '.join(supported_languages)}",
+                f"❌ Unsupported language: {language}. Supported: python, terraform, go, javascript, typescript",
                 fg=typer.colors.RED,
             )
             raise typer.Exit(code=1)
@@ -407,23 +407,9 @@ def analyze_dependencies(
                 typer.secho(f"❌ Module/resource '{module}' not found in dependency graph", fg=typer.colors.RED)
                 raise typer.Exit(code=1)
 
-            # Get dependencies and dependents using the correct methods for each analyzer type
-            if language.lower() == "python":
-                # Use the Python-specific methods
-                if hasattr(analyzer, "get_module_dependencies") and hasattr(analyzer, "get_dependents"):
-                    dependencies = analyzer.get_module_dependencies(module, include_indirect=include_indirect)  # type: ignore
-                    dependents = analyzer.get_dependents(module, include_indirect=include_indirect)  # type: ignore
-                else:
-                    typer.secho("❌ Python dependency analyzer methods not available", fg=typer.colors.RED)
-                    raise typer.Exit(code=1)
-            else:  # terraform
-                # Use the Terraform-specific methods
-                if hasattr(analyzer, "get_resource_dependencies") and hasattr(analyzer, "get_dependents"):
-                    dependencies = analyzer.get_resource_dependencies(module, include_indirect=include_indirect)  # type: ignore
-                    dependents = analyzer.get_dependents(module, include_indirect=include_indirect)  # type: ignore
-                else:
-                    typer.secho("❌ Terraform dependency analyzer methods not available", fg=typer.colors.RED)
-                    raise typer.Exit(code=1)
+            # Get dependencies and dependents using the generic interface
+            dependencies = analyzer.get_dependencies(module, include_indirect=include_indirect)  # type: ignore
+            dependents = analyzer.get_dependents(module, include_indirect=include_indirect)  # type: ignore
 
             dep_type = "All" if include_indirect else "Direct"
             typer.echo(f"📥 {dep_type} dependencies ({len(dependencies)}):")
