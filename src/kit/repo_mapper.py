@@ -9,13 +9,8 @@ import pathspec
 
 from .tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
 
-# Optional Rust-based file walker (23x faster)
-try:
-    from ignore import WalkBuilder
-
-    HAS_IGNORE_RUST = True
-except ImportError:
-    HAS_IGNORE_RUST = False
+# Rust-based file walker via ignore-python (47x faster than pure Python)
+from ignore import WalkBuilder
 
 
 class RepoMapper:
@@ -209,11 +204,8 @@ class RepoMapper:
             else:
                 start_dir = self.repo_path
 
-            # Use Rust walker if available (23x faster)
-            if HAS_IGNORE_RUST:
-                tree = self._get_file_tree_rust(start_dir, subpath)
-            else:
-                tree = self._get_file_tree_python(start_dir, subpath)
+            # Use Rust walker (47x faster than pure Python)
+            tree = self._get_file_tree_rust(start_dir, subpath)
 
             # Only cache if using default behavior (no subpath)
             if subpath is None:

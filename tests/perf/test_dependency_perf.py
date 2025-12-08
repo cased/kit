@@ -303,26 +303,34 @@ def run_real_repo_benchmark(repo_path: str, language: str, iterations: int = 3) 
 
 def print_results(results: List[PerfResult]):
     """Print benchmark results in a formatted table."""
-    print("\n" + "=" * 80)
-    print("DEPENDENCY ANALYZER PERFORMANCE RESULTS")
-    print("=" * 80)
+    print("\n" + "=" * 90)
+    print("PERFORMANCE BENCHMARK RESULTS")
+    print("=" * 90)
 
     # Header
-    print(f"{'Benchmark':<40} {'Mean':>10} {'Median':>10} {'Min':>10} {'Max':>10} {'Nodes':>8}")
-    print("-" * 80)
+    print(f"{'Benchmark':<45} {'Mean':>10} {'Median':>10} {'Min':>10} {'Max':>10} {'Items':>8}")
+    print("-" * 90)
 
     for r in results:
-        nodes = r.metadata.get("graph_nodes", "N/A")
+        # Try different metadata keys for item count
+        items = (
+            r.metadata.get("graph_nodes")
+            or r.metadata.get("total_files")
+            or r.metadata.get("total_entries")
+            or r.metadata.get("total_symbols")
+            or r.metadata.get("tree_entries")
+            or "N/A"
+        )
         print(
-            f"{r.name:<40} "
+            f"{r.name:<45} "
             f"{r.mean*1000:>9.1f}ms "
             f"{r.median*1000:>9.1f}ms "
             f"{r.min*1000:>9.1f}ms "
             f"{r.max*1000:>9.1f}ms "
-            f"{nodes:>8}"
+            f"{items:>8}"
         )
 
-    print("=" * 80)
+    print("=" * 90)
 
 
 # === Pytest-benchmark compatible tests ===
@@ -490,6 +498,305 @@ def test_terraform_100_resources(benchmark):
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+# === File Tree Performance Tests (Rust-accelerated) ===
+
+
+def generate_large_file_tree(num_dirs: int, files_per_dir: int = 10) -> str:
+    """Generate a synthetic repo with many files for file tree benchmarks."""
+    tmpdir = tempfile.mkdtemp(prefix="kit_perf_tree_")
+
+    # Create a .gitignore to test gitignore handling
+    with open(f"{tmpdir}/.gitignore", "w") as f:
+        f.write("*.pyc\n__pycache__/\n.git/\n*.log\n")
+
+    for i in range(num_dirs):
+        dir_path = f"{tmpdir}/pkg_{i}"
+        os.makedirs(dir_path, exist_ok=True)
+
+        for j in range(files_per_dir):
+            # Mix of file types
+            extensions = [".py", ".go", ".ts", ".json", ".md"]
+            ext = extensions[j % len(extensions)]
+            with open(f"{dir_path}/file_{j}{ext}", "w") as f:
+                f.write(f"# File {i}-{j}\n" * 10)
+
+        # Also create some files that should be ignored
+        with open(f"{dir_path}/cache.pyc", "w") as f:
+            f.write("should be ignored")
+        with open(f"{dir_path}/debug.log", "w") as f:
+            f.write("should be ignored")
+
+    return tmpdir
+
+
+def run_file_tree_benchmark(num_dirs: int, files_per_dir: int = 10, iterations: int = 5) -> PerfResult:
+    """Benchmark file tree walking (Rust-accelerated)."""
+    tmpdir = generate_large_file_tree(num_dirs, files_per_dir)
+
+    try:
+        repo = Repository(tmpdir)
+
+        def get_tree():
+            # Force fresh tree each time
+            repo.mapper._file_tree = None
+            return repo.get_file_tree()
+
+        times = benchmark(get_tree, iterations=iterations)
+
+        # Get metadata
+        tree = repo.get_file_tree()
+
+        return PerfResult(
+            f"file_tree_{num_dirs}dirs_{files_per_dir}files",
+            times,
+            {
+                "num_dirs": num_dirs,
+                "files_per_dir": files_per_dir,
+                "total_files": len([f for f in tree if not f["is_dir"]]),
+                "total_entries": len(tree),
+            },
+        )
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def run_symbol_extraction_benchmark(num_files: int, lines_per_file: int = 50, iterations: int = 5) -> PerfResult:
+    """Benchmark symbol extraction from Python files."""
+    tmpdir = tempfile.mkdtemp(prefix="kit_perf_symbols_")
+
+    try:
+        os.makedirs(f"{tmpdir}/pkg")
+        with open(f"{tmpdir}/pkg/__init__.py", "w") as f:
+            f.write("")
+
+        for i in range(num_files):
+            content = f'''"""Module {i} docstring."""
+
+class Class{i}:
+    """Class {i} docstring."""
+
+    def method_{i}_a(self, arg1: str, arg2: int) -> bool:
+        """Method a docstring."""
+        return True
+
+    def method_{i}_b(self) -> None:
+        pass
+
+    @property
+    def prop_{i}(self) -> str:
+        return "value"
+
+
+def function_{i}_main(x: int, y: int) -> int:
+    """Main function for module {i}."""
+    return x + y
+
+
+def function_{i}_helper() -> None:
+    pass
+
+
+CONSTANT_{i} = "value"
+'''
+            with open(f"{tmpdir}/pkg/module_{i}.py", "w") as f:
+                f.write(content)
+
+        repo = Repository(tmpdir)
+
+        def extract_symbols():
+            symbols = []
+            for i in range(num_files):
+                s = repo.extract_symbols(f"pkg/module_{i}.py")
+                symbols.extend(s)
+            return symbols
+
+        times = benchmark(extract_symbols, iterations=iterations)
+
+        # Get metadata
+        all_symbols = extract_symbols()
+
+        return PerfResult(
+            f"symbol_extraction_{num_files}files",
+            times,
+            {
+                "num_files": num_files,
+                "total_symbols": len(all_symbols),
+            },
+        )
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def run_repo_map_benchmark(num_files: int, iterations: int = 3) -> PerfResult:
+    """Benchmark full repository mapping (file tree + symbols)."""
+    tmpdir = tempfile.mkdtemp(prefix="kit_perf_repomap_")
+
+    try:
+        os.makedirs(f"{tmpdir}/src")
+
+        for i in range(num_files):
+            content = f'''class Handler{i}:
+    def handle(self, request):
+        return self.process(request)
+
+    def process(self, data):
+        return data
+
+def main_{i}():
+    h = Handler{i}()
+    return h.handle({{}})
+'''
+            with open(f"{tmpdir}/src/handler_{i}.py", "w") as f:
+                f.write(content)
+
+        repo = Repository(tmpdir)
+
+        def get_repo_map():
+            return repo.mapper.get_repo_map()
+
+        times = benchmark(get_repo_map, iterations=iterations, warmup=1)
+
+        # Get metadata
+        repo_map = repo.mapper.get_repo_map()
+
+        return PerfResult(
+            f"repo_map_{num_files}files",
+            times,
+            {
+                "num_files": num_files,
+                "tree_entries": len(repo_map["file_tree"]),
+                "files_with_symbols": len(repo_map["symbols"]),
+            },
+        )
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+# === Pytest-benchmark tests for file tree ===
+
+
+def test_file_tree_100_files(benchmark):
+    """Benchmark file tree with 100 files (10 dirs x 10 files)."""
+    tmpdir = generate_large_file_tree(10, 10)
+    try:
+        repo = Repository(tmpdir)
+
+        def get_tree():
+            repo.mapper._file_tree = None
+            return repo.get_file_tree()
+
+        result = benchmark(get_tree)
+        assert len(result) > 0
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_file_tree_500_files(benchmark):
+    """Benchmark file tree with 500 files (50 dirs x 10 files)."""
+    tmpdir = generate_large_file_tree(50, 10)
+    try:
+        repo = Repository(tmpdir)
+
+        def get_tree():
+            repo.mapper._file_tree = None
+            return repo.get_file_tree()
+
+        result = benchmark(get_tree)
+        assert len(result) > 0
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_file_tree_1000_files(benchmark):
+    """Benchmark file tree with 1000 files (100 dirs x 10 files)."""
+    tmpdir = generate_large_file_tree(100, 10)
+    try:
+        repo = Repository(tmpdir)
+
+        def get_tree():
+            repo.mapper._file_tree = None
+            return repo.get_file_tree()
+
+        result = benchmark(get_tree)
+        assert len(result) > 0
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_symbol_extraction_20_files(benchmark):
+    """Benchmark symbol extraction from 20 Python files."""
+    tmpdir = tempfile.mkdtemp(prefix="kit_perf_sym_")
+    try:
+        os.makedirs(f"{tmpdir}/pkg")
+        with open(f"{tmpdir}/pkg/__init__.py", "w") as f:
+            f.write("")
+
+        for i in range(20):
+            content = f'''class Class{i}:
+    def method_a(self): pass
+    def method_b(self): pass
+
+def func_{i}(): pass
+'''
+            with open(f"{tmpdir}/pkg/mod_{i}.py", "w") as f:
+                f.write(content)
+
+        repo = Repository(tmpdir)
+
+        def extract():
+            return [repo.extract_symbols(f"pkg/mod_{i}.py") for i in range(20)]
+
+        result = benchmark(extract)
+        assert len(result) == 20
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_symbol_extraction_50_files(benchmark):
+    """Benchmark symbol extraction from 50 Python files."""
+    tmpdir = tempfile.mkdtemp(prefix="kit_perf_sym_")
+    try:
+        os.makedirs(f"{tmpdir}/pkg")
+        with open(f"{tmpdir}/pkg/__init__.py", "w") as f:
+            f.write("")
+
+        for i in range(50):
+            content = f'''class Class{i}:
+    def method_a(self): pass
+    def method_b(self): pass
+
+def func_{i}(): pass
+'''
+            with open(f"{tmpdir}/pkg/mod_{i}.py", "w") as f:
+                f.write(content)
+
+        repo = Repository(tmpdir)
+
+        def extract():
+            return [repo.extract_symbols(f"pkg/mod_{i}.py") for i in range(50)]
+
+        result = benchmark(extract)
+        assert len(result) == 50
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
 # === Standalone runner ===
 
 if __name__ == "__main__":
@@ -501,7 +808,13 @@ if __name__ == "__main__":
     )
     parser.add_argument("--iterations", type=int, default=5, help="Number of iterations per benchmark")
     parser.add_argument(
-        "--language", choices=["python", "go", "terraform", "all"], default="all", help="Language to benchmark"
+        "--benchmark",
+        choices=["deps", "filetree", "symbols", "repomap", "all"],
+        default="all",
+        help="Type of benchmark to run",
+    )
+    parser.add_argument(
+        "--language", choices=["python", "go", "terraform", "all"], default="all", help="Language to benchmark (deps)"
     )
     parser.add_argument("--repo", type=str, help="Path to real repo to benchmark")
     parser.add_argument("--repo-language", type=str, help="Language for real repo benchmark")
@@ -514,16 +827,33 @@ if __name__ == "__main__":
         results.append(run_real_repo_benchmark(args.repo, args.repo_language, args.iterations))
     else:
         for size in args.sizes:
-            if args.language in ("python", "all"):
-                print(f"Benchmarking Python with {size} modules...")
-                results.append(run_python_benchmark(size, args.iterations))
+            # Dependency analyzer benchmarks
+            if args.benchmark in ("deps", "all"):
+                if args.language in ("python", "all"):
+                    print(f"Benchmarking Python dependency analyzer with {size} modules...")
+                    results.append(run_python_benchmark(size, args.iterations))
 
-            if args.language in ("go", "all"):
-                print(f"Benchmarking Go with {size} packages...")
-                results.append(run_go_benchmark(size, args.iterations))
+                if args.language in ("go", "all"):
+                    print(f"Benchmarking Go dependency analyzer with {size} packages...")
+                    results.append(run_go_benchmark(size, args.iterations))
 
-            if args.language in ("terraform", "all"):
-                print(f"Benchmarking Terraform with {size} resources...")
-                results.append(run_terraform_benchmark(size, args.iterations))
+                if args.language in ("terraform", "all"):
+                    print(f"Benchmarking Terraform dependency analyzer with {size} resources...")
+                    results.append(run_terraform_benchmark(size, args.iterations))
+
+            # File tree benchmarks (Rust-accelerated)
+            if args.benchmark in ("filetree", "all"):
+                print(f"Benchmarking file tree with {size} dirs x 10 files...")
+                results.append(run_file_tree_benchmark(size, 10, args.iterations))
+
+            # Symbol extraction benchmarks
+            if args.benchmark in ("symbols", "all"):
+                print(f"Benchmarking symbol extraction with {size} files...")
+                results.append(run_symbol_extraction_benchmark(size, iterations=args.iterations))
+
+            # Repo map benchmarks
+            if args.benchmark in ("repomap", "all"):
+                print(f"Benchmarking repo map with {size} files...")
+                results.append(run_repo_map_benchmark(size, iterations=min(3, args.iterations)))
 
     print_results(results)

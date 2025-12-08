@@ -12,6 +12,7 @@ dependencies = [
     "tree-sitter>=0.25.1",
     "tree-sitter-language-pack>=0.7.2",
     "pathspec>=0.11.1",
+    "ignore-python>=0.3.0",
     "numpy>=1.25",
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.20",
