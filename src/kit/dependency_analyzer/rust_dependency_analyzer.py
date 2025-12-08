@@ -202,8 +202,8 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
         try:
             content = self.repo.get_file_content(file_path)
 
-            # use statements: use foo::bar;
-            use_pattern = r"^\s*use\s+([a-zA-Z_][a-zA-Z0-9_]*)"
+            # use statements: use foo::bar; or pub use foo::bar;
+            use_pattern = r"^\s*(?:pub\s+)?use\s+([a-zA-Z_][a-zA-Z0-9_]*)"
             for match in re.finditer(use_pattern, content, re.MULTILINE):
                 imports.append({"path": match.group(1), "type": "use"})
 
