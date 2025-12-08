@@ -14,6 +14,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.0.0] - 2025-12-07
+
+### Major Features
+
+- **Go Dependency Analyzer** (#157)
+  - Full support for analyzing Go module dependencies via tree-sitter
+  - Parses `import` declarations from `.go` files (excludes `_test.go`)
+  - Detects Go modules via `go.mod` and standard library packages
+  - Distinguishes between internal, external, and stdlib dependencies
+  - Dependency graph generation with cycle detection
+  - Integration with existing `kit dependencies` CLI command
+
+### Performance
+
+- **38x Faster Repository Operations**
+  - Cold start reduced from ~17s to ~0.45s on large codebases
+  - **Rust-based file walking**: New `ignore-python` dependency (PyO3 bindings to BurntSushi's `ignore` crate) replaces Python's `os.walk`
+  - **Git SHA TTL cache**: Eliminates redundant `git rev-parse` calls with 5-second TTL
+  - **String operations**: Replaced `pathlib` operations with string manipulation in hot paths
+
+### Breaking Changes
+
+- **New required dependency**: `ignore-python>=0.3.0` is now required for file walking
+- **Gitignore behavior**: The Rust walker requires a `.git` directory to respect `.gitignore` rules. Repositories without `.git` will not filter ignored files.
+- **CLI error handling**: Invalid repository paths now return exit code 1 with an error message instead of silently failing
+
+### Tests
+
+- Comprehensive Go dependency analyzer test suite (19 tests)
+  - Multiple files per package, nested packages, vendor directories
+  - Standard library detection including subpackages (`net/http`, `encoding/json`)
+  - Cycle detection and graph structure validation
+
+---
+
 ## [2.2.1] - 2025-12-05
 
 ### Bug Fixes

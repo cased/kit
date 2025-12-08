@@ -82,6 +82,9 @@ def baz(): pass
 )
 def test_repo_file_tree_various(structure, expected_treepaths):
     with tempfile.TemporaryDirectory() as tmpdir:
+        # Create .git directory so gitignore is respected by Rust walker
+        os.makedirs(os.path.join(tmpdir, ".git"))
+
         for relpath, contents in structure.items():
             path = os.path.join(tmpdir, relpath)
             os.makedirs(os.path.dirname(path), exist_ok=True)

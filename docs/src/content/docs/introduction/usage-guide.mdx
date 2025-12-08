@@ -71,6 +71,29 @@ specific_symbols = repo.extract_symbols("src/my_module.py")
 # Returns a list of dicts: [{'name': '...', 'type': 'function', ...}, ...]
 ```
 
+### Performance Tips
+
+Operations scoped to specific files or directories are fast:
+
+```python
+# Fast: single file (~30ms)
+symbols = repo.extract_symbols("src/my_module.py")
+
+# Fast: scoped to directory
+tree = repo.get_file_tree("src/")
+```
+
+Bulk operations that scan the entire repository are slower on large codebases:
+
+```python
+# Slower: parses ALL files (can take seconds on large repos)
+all_symbols = repo.extract_symbols()  # no file argument
+index = repo.build_index()
+usages = repo.find_symbol_usages("MyClass")
+```
+
+For most use cases, scope to specific files or directories rather than scanning everything.
+
 ### Searching Text
 
 Perform simple text or regex searches:
