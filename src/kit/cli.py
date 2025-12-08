@@ -321,7 +321,7 @@ def extract_context(
 @app.command("dependencies")
 def analyze_dependencies(
     path: str = typer.Argument(..., help="Path to the local repository."),
-    language: str = typer.Option(..., "--language", "-l", help="Language to analyze: python, terraform"),
+    language: str = typer.Option(..., "--language", "-l", help="Language to analyze: python, terraform, go"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to file instead of stdout."),
     format: str = typer.Option("json", "--format", "-f", help="Output format: json, dot, graphml, adjacency"),
     visualize: bool = typer.Option(False, "--visualize", "-v", help="Generate visualization (requires Graphviz)"),
@@ -338,7 +338,7 @@ def analyze_dependencies(
 ):
     """Analyze and visualize code dependencies within a repository.
 
-    Supports Python and Terraform dependency analysis with features including:
+    Supports Python, Terraform, and Go dependency analysis with features including:
     • Dependency graph generation and export
     • Circular dependency detection
     • Module-specific analysis
@@ -357,7 +357,7 @@ def analyze_dependencies(
         repo = Repository(path, ref=ref)
 
         # Validate language
-        supported_languages = ["python", "terraform"]
+        supported_languages = ["python", "terraform", "go", "golang"]
         if language.lower() not in supported_languages:
             typer.secho(
                 f"❌ Unsupported language: {language}. Supported: {', '.join(supported_languages)}",

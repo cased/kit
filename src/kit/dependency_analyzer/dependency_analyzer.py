@@ -208,7 +208,7 @@ class DependencyAnalyzer(ABC):
 
         Args:
             repository: A kit.Repository instance
-            language: Language identifier (e.g., 'python', 'terraform')
+            language: Language identifier (e.g., 'python', 'terraform', 'go')
 
         Returns:
             An appropriate DependencyAnalyzer instance for the language
@@ -216,6 +216,7 @@ class DependencyAnalyzer(ABC):
         Raises:
             ValueError: If the specified language is not supported
         """
+        from .go_dependency_analyzer import GoDependencyAnalyzer
         from .python_dependency_analyzer import PythonDependencyAnalyzer
         from .terraform_dependency_analyzer import TerraformDependencyAnalyzer
 
@@ -225,10 +226,12 @@ class DependencyAnalyzer(ABC):
             return PythonDependencyAnalyzer(repository)
         elif language == "terraform":
             return TerraformDependencyAnalyzer(repository)
+        elif language == "go" or language == "golang":
+            return GoDependencyAnalyzer(repository)
         else:
             raise ValueError(
                 f"Unsupported language for dependency analysis: {language}. "
-                f"Currently supported languages: python, terraform"
+                f"Currently supported languages: python, terraform, go"
             )
 
     # ------------------------------------------------------------------
