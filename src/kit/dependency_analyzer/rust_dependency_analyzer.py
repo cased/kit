@@ -168,10 +168,16 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
                 # Find the use path
                 for child in n.children:
                     if child.type in ("scoped_identifier", "identifier", "use_wildcard", "scoped_use_list"):
-                        path = get_text(child)
-                        # Clean up the path
-                        path = path.split("::")[0] if "::" in path else path
-                        imports.append({"path": path, "type": "use"})
+                        full_path = get_text(child)
+                        # Split path and extract the relevant module
+                        parts = full_path.split("::")
+                        # Handle crate::/self::/super:: - get the next segment
+                        if parts[0] in ("crate", "self", "super") and len(parts) > 1:
+                            path = parts[1]
+                            imports.append({"path": path, "type": "use_internal"})
+                        else:
+                            path = parts[0]
+                            imports.append({"path": path, "type": "use"})
                         break
 
             # mod declarations: mod foo;
@@ -203,9 +209,16 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
             content = self.repo.get_file_content(file_path)
 
             # use statements: use foo::bar; or pub use foo::bar;
-            use_pattern = r"^\s*(?:pub\s+)?use\s+([a-zA-Z_][a-zA-Z0-9_]*)"
+            # Also captures crate::foo::bar, self::foo, super::foo
+            use_pattern = r"^\s*(?:pub\s+)?use\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:::([a-zA-Z_][a-zA-Z0-9_]*))?"
             for match in re.finditer(use_pattern, content, re.MULTILINE):
-                imports.append({"path": match.group(1), "type": "use"})
+                first_segment = match.group(1)
+                second_segment = match.group(2)
+                # Handle crate::/self::/super:: - get the next segment
+                if first_segment in ("crate", "self", "super") and second_segment:
+                    imports.append({"path": second_segment, "type": "use_internal"})
+                else:
+                    imports.append({"path": first_segment, "type": "use"})
 
             # mod declarations: mod foo;
             mod_pattern = r"^\s*(?:pub\s+)?mod\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*;"
@@ -228,13 +241,17 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
 
         Args:
             import_path: The crate/module name
-            import_type: 'use', 'mod', or 'extern'
+            import_type: 'use', 'use_internal', 'mod', or 'extern'
 
         Returns:
             Tuple of (resolved_id, type) where type is 'internal', 'std', or 'external'
         """
-        # Handle self/super/crate references
-        if import_path in ("self", "super", "crate"):
+        # use_internal comes from crate::/self::/super:: paths - always internal
+        if import_type == "use_internal":
+            return import_path, "internal"
+
+        # mod declarations are internal
+        if import_type == "mod":
             return import_path, "internal"
 
         # Check for std library
@@ -244,10 +261,6 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
         # Check for external crates
         if import_path in self._external_crates:
             return import_path, "external"
-
-        # mod declarations are internal
-        if import_type == "mod":
-            return import_path, "internal"
 
         # If it matches the crate name, it's internal
         if self._crate_name and import_path == self._crate_name:
@@ -330,10 +343,6 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
                 path = imp["path"]
                 imp_type = imp["type"]
                 resolved, dep_type = self._resolve_import(path, imp_type)
-
-                # Skip self/super/crate keywords
-                if resolved in ("self", "super", "crate"):
-                    continue
 
                 # Add to dependencies
                 self.dependency_graph[file_path]["dependencies"].add(resolved)

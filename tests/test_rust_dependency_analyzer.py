@@ -101,6 +101,67 @@ fn main() -> Result<()> {
         main_deps = graph["src/main.rs"]["dependencies"]
         assert "std" in main_deps
         assert "anyhow" in main_deps
+        # Check that crate:: paths are resolved to internal modules
+        assert "utils" in main_deps
+
+
+def test_rust_dependency_analyzer_crate_paths():
+    """Test that crate::, self::, super:: paths are resolved to internal modules."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(f"{tmpdir}/Cargo.toml", "w") as f:
+            f.write("""[package]
+name = "path_test"
+version = "0.1.0"
+""")
+
+        os.makedirs(f"{tmpdir}/src/handlers")
+        with open(f"{tmpdir}/src/lib.rs", "w") as f:
+            f.write("""mod config;
+mod handlers;
+
+use crate::config::Settings;
+use crate::handlers::api;
+""")
+
+        with open(f"{tmpdir}/src/config.rs", "w") as f:
+            f.write("""pub struct Settings {}
+""")
+
+        with open(f"{tmpdir}/src/handlers/mod.rs", "w") as f:
+            f.write("""pub mod api;
+pub mod web;
+
+use super::config::Settings;
+use self::api::handle;
+""")
+
+        with open(f"{tmpdir}/src/handlers/api.rs", "w") as f:
+            f.write("""pub fn handle() {}
+""")
+
+        with open(f"{tmpdir}/src/handlers/web.rs", "w") as f:
+            f.write("""use crate::config::Settings;
+pub fn serve() {}
+""")
+
+        repo = Repository(tmpdir)
+        analyzer = repo.get_dependency_analyzer("rust")
+
+        graph = analyzer.build_dependency_graph()
+
+        # lib.rs should depend on config and handlers via crate::
+        lib_deps = graph["src/lib.rs"]["dependencies"]
+        assert "config" in lib_deps
+        assert "handlers" in lib_deps
+
+        # handlers/mod.rs should depend on config via super:: and api via self::
+        handlers_deps = graph["src/handlers/mod.rs"]["dependencies"]
+        assert "config" in handlers_deps
+        assert "api" in handlers_deps
+
+        # handlers/web.rs should depend on config via crate::
+        web_deps = graph["src/handlers/web.rs"]["dependencies"]
+        assert "config" in web_deps
 
 
 def test_rust_dependency_analyzer_mod_declarations():
