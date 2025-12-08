@@ -357,10 +357,10 @@ def analyze_dependencies(
         repo = Repository(path, ref=ref)
 
         # Validate language
-        supported_languages = ["python", "terraform", "go", "golang", "javascript", "typescript", "js", "ts"]
+        supported_languages = ["python", "terraform", "go", "golang", "javascript", "typescript", "js", "ts", "rust"]
         if language.lower() not in supported_languages:
             typer.secho(
-                f"❌ Unsupported language: {language}. Supported: python, terraform, go, javascript, typescript",
+                f"❌ Unsupported language: {language}. Supported: python, terraform, go, javascript, typescript, rust",
                 fg=typer.colors.RED,
             )
             raise typer.Exit(code=1)

@@ -290,6 +290,90 @@ def run_terraform_benchmark(num_resources: int, iterations: int = 5) -> PerfResu
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+def generate_rust_repo(num_modules: int, imports_per_module: int = 3) -> str:
+    """Generate a synthetic Rust repo for benchmarking."""
+    tmpdir = tempfile.mkdtemp(prefix="kit_perf_rs_")
+
+    # Create Cargo.toml
+    with open(f"{tmpdir}/Cargo.toml", "w") as f:
+        f.write("""[package]
+name = "benchmark_crate"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = "1.0"
+tokio = "1.0"
+""")
+
+    os.makedirs(f"{tmpdir}/src")
+
+    # Create lib.rs with mod declarations
+    mod_decls = "\n".join([f"mod module_{i};" for i in range(num_modules)])
+    with open(f"{tmpdir}/src/lib.rs", "w") as f:
+        f.write(f"""use std::collections::HashMap;
+use serde::Serialize;
+
+{mod_decls}
+
+pub fn main_func() -> HashMap<String, String> {{
+    HashMap::new()
+}}
+""")
+
+    # Create modules
+    for i in range(num_modules):
+        imports = ["use std::io;"]
+
+        # Add internal imports (to earlier modules)
+        for j in range(min(imports_per_module, i)):
+            imports.append(f"use crate::module_{j}::func_{j};")
+
+        import_block = "\n".join(imports)
+        content = f"""{import_block}
+
+pub fn func_{i}() -> i32 {{
+    {i}
+}}
+"""
+        with open(f"{tmpdir}/src/module_{i}.rs", "w") as f:
+            f.write(content)
+
+    return tmpdir
+
+
+def run_rust_benchmark(num_modules: int, iterations: int = 5) -> PerfResult:
+    """Benchmark Rust dependency analysis."""
+    tmpdir = generate_rust_repo(num_modules)
+
+    try:
+        repo = Repository(tmpdir)
+
+        def analyze():
+            analyzer = repo.get_dependency_analyzer("rust")
+            analyzer.build_dependency_graph()
+
+        times = benchmark(analyze, iterations=iterations)
+
+        # Get some metadata
+        analyzer = repo.get_dependency_analyzer("rust")
+        graph = analyzer.build_dependency_graph()
+
+        return PerfResult(
+            f"rust_{num_modules}_modules",
+            times,
+            {
+                "num_modules": num_modules,
+                "graph_nodes": len(graph),
+                "language": "rust",
+            },
+        )
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
 def generate_javascript_repo(num_modules: int, imports_per_module: int = 5) -> str:
     """Generate a synthetic JavaScript repo for benchmarking."""
     tmpdir = tempfile.mkdtemp(prefix="kit_perf_js_")
@@ -627,6 +711,60 @@ def test_javascript_100_modules(benchmark):
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+def test_rust_10_modules(benchmark):
+    """Benchmark Rust analyzer with 10 modules."""
+    tmpdir = generate_rust_repo(10)
+    try:
+        repo = Repository(tmpdir)
+
+        def analyze():
+            analyzer = repo.get_dependency_analyzer("rust")
+            return analyzer.build_dependency_graph()
+
+        result = benchmark(analyze)
+        assert len(result) > 0
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_rust_50_modules(benchmark):
+    """Benchmark Rust analyzer with 50 modules."""
+    tmpdir = generate_rust_repo(50)
+    try:
+        repo = Repository(tmpdir)
+
+        def analyze():
+            analyzer = repo.get_dependency_analyzer("rust")
+            return analyzer.build_dependency_graph()
+
+        result = benchmark(analyze)
+        assert len(result) > 0
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_rust_100_modules(benchmark):
+    """Benchmark Rust analyzer with 100 modules."""
+    tmpdir = generate_rust_repo(100)
+    try:
+        repo = Repository(tmpdir)
+
+        def analyze():
+            analyzer = repo.get_dependency_analyzer("rust")
+            return analyzer.build_dependency_graph()
+
+        result = benchmark(analyze)
+        assert len(result) > 0
+    finally:
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
 # === File Tree Performance Tests (Rust-accelerated) ===
 
 
@@ -943,7 +1081,7 @@ if __name__ == "__main__":
         help="Type of benchmark to run",
     )
     parser.add_argument(
-        "--language", choices=["python", "go", "terraform", "javascript", "all"], default="all", help="Language to benchmark (deps)"
+        "--language", choices=["python", "go", "terraform", "javascript", "rust", "all"], default="all", help="Language to benchmark (deps)"
     )
     parser.add_argument("--repo", type=str, help="Path to real repo to benchmark")
     parser.add_argument("--repo-language", type=str, help="Language for real repo benchmark")
@@ -973,6 +1111,10 @@ if __name__ == "__main__":
                 if args.language in ("javascript", "all"):
                     print(f"Benchmarking JavaScript dependency analyzer with {size} modules...")
                     results.append(run_javascript_benchmark(size, args.iterations))
+
+                if args.language in ("rust", "all"):
+                    print(f"Benchmarking Rust dependency analyzer with {size} modules...")
+                    results.append(run_rust_benchmark(size, args.iterations))
 
             # File tree benchmarks (Rust-accelerated)
             if args.benchmark in ("filetree", "all"):
