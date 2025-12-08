@@ -22,6 +22,9 @@ class RepoMapper:
         self._symbol_map: Dict[str, Dict[str, Any]] = {}  # file -> {mtime, symbols}
         self._file_tree: Optional[List[Dict[str, Any]]] = None
         self._gitignore_spec = self._load_gitignore()
+        # Cache string versions for faster path operations
+        self._repo_path_str: str = str(self.repo_path)
+        self._repo_path_resolved_str: Optional[str] = None
 
     def _load_gitignore(self):
         gitignore_path = self.repo_path / ".gitignore"
@@ -31,20 +34,27 @@ class RepoMapper:
         return None
 
     def _should_ignore(self, file: Path) -> bool:
-        # Handle potential symlink resolution mismatches
-        try:
-            rel_path = str(file.relative_to(self.repo_path))
-        except ValueError:
-            # If direct relative_to fails (due to symlink resolution), try with resolved paths
-            try:
-                rel_path = str(file.resolve().relative_to(self.repo_path.resolve()))
-            except ValueError:
-                # If still failing, file is outside repo bounds - ignore it
-                return True
-        # Always ignore .git and its contents
-        if ".git" in file.parts:
+        # Fast check for .git in path using string operations
+        file_str = str(file)
+        if "/.git/" in file_str or file_str.endswith("/.git"):
             return True
-        # Ignore files matching .gitignore
+
+        # Fast relative path calculation using string operations
+        if file_str.startswith(self._repo_path_str):
+            # Direct prefix match - strip repo path and leading slash
+            rel_path = file_str[len(self._repo_path_str) :].lstrip(os.sep)
+        else:
+            # Fallback: try with resolved paths (handles symlinks)
+            if self._repo_path_resolved_str is None:
+                self._repo_path_resolved_str = str(self.repo_path.resolve())
+            resolved_str = str(file.resolve())
+            if resolved_str.startswith(self._repo_path_resolved_str):
+                rel_path = resolved_str[len(self._repo_path_resolved_str) :].lstrip(os.sep)
+            else:
+                # File is outside repo bounds - ignore it
+                return True
+
+        # Check gitignore patterns
         if self._gitignore_spec and self._gitignore_spec.match_file(rel_path):
             return True
         return False

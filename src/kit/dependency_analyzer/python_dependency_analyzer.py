@@ -52,21 +52,21 @@ class PythonDependencyAnalyzer(DependencyAnalyzer):
         self.dependency_graph = {}
         self._module_map = {}
 
-        self._build_module_map()
+        # Get file tree once and cache it
+        file_tree = self.repo.get_file_tree()
+        python_files = [f for f in file_tree if f["path"].endswith(".py")]
 
-        for file_info in self.repo.get_file_tree():
-            if file_info["path"].endswith(".py"):
-                self._process_file(file_info["path"])
+        self._build_module_map(python_files)
+
+        for file_info in python_files:
+            self._process_file(file_info["path"])
 
         self._initialized = True
         return self.dependency_graph
 
-    def _build_module_map(self):
+    def _build_module_map(self, python_files: List[Dict[str, Any]]):
         """Maps module names to file paths for internal imports."""
-        for file_info in self.repo.get_file_tree():
-            if not file_info["path"].endswith(".py"):
-                continue
-
+        for file_info in python_files:
             module_path = os.path.splitext(file_info["path"])[0]
             module_name = module_path.replace("/", ".").replace("\\", ".")
 

@@ -63,13 +63,28 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
         self._output_map = {}
         self._module_map = {}
 
-        for file_info in self.repo.get_file_tree():
-            if file_info["path"].endswith(".tf"):
-                self._build_resource_maps(file_info["path"])
+        # Get file tree once and filter for .tf files
+        file_tree = self.repo.get_file_tree()
+        tf_files = [f for f in file_tree if f["path"].endswith(".tf")]
 
-        for file_info in self.repo.get_file_tree():
-            if file_info["path"].endswith(".tf"):
-                self._process_file(file_info["path"])
+        # Parse each file once and cache the result
+        parsed_files: Dict[str, Dict] = {}
+        for file_info in tf_files:
+            file_path = file_info["path"]
+            try:
+                file_content = self.repo.get_file_content(file_path)
+                parsed_files[file_path] = hcl2.loads(file_content)
+            except Exception as e:
+                logger.warning(f"Error parsing {file_path}: {e}")
+                continue
+
+        # First pass: build resource maps
+        for file_path, terraform_dict in parsed_files.items():
+            self._build_resource_maps_from_parsed(file_path, terraform_dict)
+
+        # Second pass: process dependencies
+        for file_path, terraform_dict in parsed_files.items():
+            self._process_blocks(terraform_dict, file_path)
 
         for resource_id, data in self.dependency_graph.items():
             if "dependencies" in data and isinstance(data["dependencies"], set):
@@ -123,6 +138,47 @@ class TerraformDependencyAnalyzer(DependencyAnalyzer):
 
         except Exception as e:
             logger.warning(f"Error processing {file_path} for resource mapping: {e}")
+
+    def _build_resource_maps_from_parsed(self, file_path: str, terraform_dict: Dict):
+        """
+        Maps resource types and names to file paths from pre-parsed Terraform.
+
+        Args:
+            file_path: Path to the Terraform file
+            terraform_dict: Pre-parsed Terraform dictionary
+        """
+        correct_abs_path = self.repo.get_abs_path(file_path)
+
+        if "resource" in terraform_dict:
+            for resource_block in terraform_dict["resource"]:
+                for resource_type, resources in resource_block.items():
+                    for resource_name, _ in resources.items():
+                        resource_id = f"{resource_type}.{resource_name}"
+                        self._resource_map[resource_id] = correct_abs_path
+
+        if "variable" in terraform_dict:
+            for var_block in terraform_dict["variable"]:
+                for var_name, _ in var_block.items():
+                    var_id = f"var.{var_name}"
+                    self._variable_map[var_id] = correct_abs_path
+
+        if "locals" in terraform_dict:
+            for locals_block in terraform_dict["locals"]:
+                for local_name, _ in locals_block.items():
+                    local_id = f"local.{local_name}"
+                    self._local_map[local_id] = correct_abs_path
+
+        if "output" in terraform_dict:
+            for output_block in terraform_dict["output"]:
+                for output_name, _ in output_block.items():
+                    output_id = f"output.{output_name}"
+                    self._output_map[output_id] = correct_abs_path
+
+        if "module" in terraform_dict:
+            for module_block in terraform_dict["module"]:
+                for module_name, _ in module_block.items():
+                    module_id = f"module.{module_name}"
+                    self._module_map[module_id] = correct_abs_path
 
     def _process_file(self, file_path: str):
         """

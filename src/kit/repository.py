@@ -73,6 +73,8 @@ class Repository:
         # Track git state for cache invalidation
         self._cached_git_sha: Optional[str] = None
         self._git_state_valid = False
+        self._git_sha_check_time: float = 0.0
+        self._git_sha_cache_ttl: float = 1.0  # Cache SHA for 1 second during batch operations
 
         # Initialize incremental analyzer for enhanced caching
         from .incremental_analyzer import IncrementalAnalyzer
@@ -873,7 +875,14 @@ class Repository:
 
     def _check_git_state_changed(self) -> bool:
         """Check if the git state has changed since last check."""
+        now = time.time()
+
+        # Use cached SHA if within TTL to avoid subprocess calls during batch operations
+        if self._cached_git_sha is not None and (now - self._git_sha_check_time) < self._git_sha_cache_ttl:
+            return False
+
         current_sha = self.current_sha
+        self._git_sha_check_time = now
 
         # If we can't get SHA, assume state is valid (non-git repo or error)
         if current_sha is None:
