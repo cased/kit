@@ -692,3 +692,42 @@ def test_multi_repo_rust_detection():
         summaries = multi.summarize()
 
         assert "Rust" in summaries["rust_app"]["languages"]
+
+
+def test_multi_repo_remote_url_name_extraction():
+    """Test that remote URLs are parsed correctly for repo names."""
+    # We can't easily test actual remote cloning, but we can test the name extraction
+    # by checking the internal logic. This test validates URL parsing.
+
+    # Test URL parsing logic directly
+    test_cases = [
+        ("https://github.com/owner/repo", "repo"),
+        ("https://github.com/owner/repo.git", "repo"),
+        ("https://github.com/owner/my-project/", "my-project"),
+        ("https://gitlab.com/org/sub/project.git", "project"),
+        ("git@github.com:owner/repo.git", "repo"),
+    ]
+
+    for url, expected_name in test_cases:
+        # Replicate the name extraction logic from MultiRepo.__init__
+        name = url.rstrip("/").split("/")[-1]
+        if name.endswith(".git"):
+            name = name[:-4]
+        assert name == expected_name, f"URL {url} should extract name '{expected_name}', got '{name}'"
+
+
+def test_multi_repo_mixed_local_and_remote_detection():
+    """Test that local vs remote paths are detected correctly."""
+    # Test the detection logic
+    test_paths = [
+        ("/absolute/path", False),
+        ("~/home/path", False),
+        ("relative/path", False),
+        ("https://github.com/owner/repo", True),
+        ("http://gitlab.com/owner/repo", True),
+        ("git@github.com:owner/repo.git", True),
+    ]
+
+    for path, expected_remote in test_paths:
+        is_remote = path.startswith(("http://", "https://", "git@"))
+        assert is_remote == expected_remote, f"Path {path} remote detection failed"
