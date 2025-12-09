@@ -55,6 +55,7 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
         self._cargo_toml: Optional[Dict[str, Any]] = None
         self._file_map: Dict[str, str] = {}  # module path -> file path
         self._external_crates: set[str] = set()
+        self._workspace_members: Dict[str, str] = {}  # crate name -> path
 
     def _parse_cargo_toml(self) -> Optional[Dict[str, Any]]:
         """Parse Cargo.toml to get crate info and dependencies."""
@@ -129,6 +130,93 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
                 if section in self._cargo_toml:
                     crates.update(self._cargo_toml[section].keys())
         return crates
+
+    def _parse_array(self, value: str) -> List[str]:
+        """Parse a TOML array like ["foo", "bar"] or ["crates/*"]."""
+        result: List[str] = []
+        inner = value.strip()[1:-1].strip()  # Remove brackets
+        if not inner:
+            return result
+        # Split by comma, handling quoted strings
+        for item in inner.split(","):
+            item = item.strip().strip('"').strip("'")
+            if item:
+                result.append(item)
+        return result
+
+    def _expand_glob_pattern(self, pattern: str) -> List[str]:
+        """Expand a glob pattern like 'crates/*' to actual paths."""
+        import fnmatch
+
+        if "*" not in pattern and "?" not in pattern:
+            return [pattern]
+
+        # Get all directories that match the pattern
+        matches = []
+        file_tree = self.repo.get_file_tree()
+
+        # Get unique directories from file tree
+        dirs = set()
+        for f in file_tree:
+            path = f["path"]
+            # Get parent directories
+            parts = path.split("/")
+            for i in range(1, len(parts)):
+                dirs.add("/".join(parts[:i]))
+
+        for dir_path in dirs:
+            if fnmatch.fnmatch(dir_path, pattern):
+                matches.append(dir_path)
+
+        return sorted(matches)
+
+    def _parse_workspace(self) -> Dict[str, str]:
+        """
+        Parse workspace members from root Cargo.toml.
+
+        Returns:
+            Dict mapping crate name to its path
+        """
+        members: Dict[str, str] = {}
+        if not self._cargo_toml:
+            return members
+
+        workspace = self._cargo_toml.get("workspace", {})
+        if not isinstance(workspace, dict):
+            return members
+
+        # Get members list - could be a string representation of array
+        members_raw = workspace.get("members", [])
+        if isinstance(members_raw, str) and members_raw.startswith("["):
+            member_paths = self._parse_array(members_raw)
+        elif isinstance(members_raw, list):
+            member_paths = members_raw
+        else:
+            return members
+
+        # Expand globs and parse each member's Cargo.toml
+        expanded_paths: List[str] = []
+        for pattern in member_paths:
+            expanded_paths.extend(self._expand_glob_pattern(pattern))
+
+        for member_path in expanded_paths:
+            member_toml_path = f"{member_path}/Cargo.toml"
+            try:
+                content = self.repo.get_file_content(member_toml_path)
+                parsed = self._parse_toml(content)
+                package = parsed.get("package", {})
+                if isinstance(package, dict):
+                    name = package.get("name")
+                    if name:
+                        members[name] = member_path
+                        # Also collect this member's external dependencies
+                        for section in ["dependencies", "dev-dependencies", "build-dependencies"]:
+                            if section in parsed:
+                                self._external_crates.update(parsed[section].keys())
+            except Exception as e:
+                logger.debug(f"Could not parse workspace member {member_path}: {e}")
+
+        return members
 
     def _extract_imports_from_file(self, file_path: str) -> List[Dict[str, Any]]:
         """
@@ -258,6 +346,10 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
         if import_path in RUST_STD_CRATES:
             return import_path, "std"
 
+        # Check for workspace members (internal cross-crate deps)
+        if import_path in self._workspace_members:
+            return import_path, "internal"
+
         # Check for external crates
         if import_path in self._external_crates:
             return import_path, "external"
@@ -314,6 +406,19 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
             package = self._cargo_toml.get("package", {})
             self._crate_name = package.get("name") if isinstance(package, dict) else None
             self._external_crates = self._get_external_crates()
+            # Parse workspace members (also adds their deps to _external_crates)
+            self._workspace_members = self._parse_workspace()
+            # Remove workspace members from external crates (they're internal)
+            # Also pre-populate the graph with workspace members
+            for member_name, member_path in self._workspace_members.items():
+                self._external_crates.discard(member_name)
+                # Add workspace member to graph as internal
+                if member_name not in self.dependency_graph:
+                    self.dependency_graph[member_name] = {
+                        "type": "internal",
+                        "path": member_path,
+                        "dependencies": set(),
+                    }
 
         # Get all Rust files
         file_tree = self.repo.get_file_tree()

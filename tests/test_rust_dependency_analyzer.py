@@ -645,8 +645,8 @@ use std::io;
         assert "std" in report["std_crates_used"]
 
 
-def test_rust_dependency_analyzer_workspace():
-    """Test handling of Cargo workspace (basic support)."""
+def test_rust_dependency_analyzer_workspace_basic():
+    """Test basic workspace with cross-crate dependencies."""
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create a workspace Cargo.toml
         with open(f"{tmpdir}/Cargo.toml", "w") as f:
@@ -654,19 +654,31 @@ def test_rust_dependency_analyzer_workspace():
 members = ["crate_a", "crate_b"]
 """)
 
-        # Create crate_a
+        # Create crate_a - a library crate
         os.makedirs(f"{tmpdir}/crate_a/src")
         with open(f"{tmpdir}/crate_a/Cargo.toml", "w") as f:
             f.write("""[package]
 name = "crate_a"
 version = "0.1.0"
+
+[dependencies]
+serde = "1.0"
 """)
 
         with open(f"{tmpdir}/crate_a/src/lib.rs", "w") as f:
-            f.write("""pub fn a_func() {}
+            f.write("""use serde::Serialize;
+
+#[derive(Serialize)]
+pub struct Data {
+    pub value: i32,
+}
+
+pub fn a_func() -> Data {
+    Data { value: 42 }
+}
 """)
 
-        # Create crate_b
+        # Create crate_b - depends on crate_a
         os.makedirs(f"{tmpdir}/crate_b/src")
         with open(f"{tmpdir}/crate_b/Cargo.toml", "w") as f:
             f.write("""[package]
@@ -675,21 +687,267 @@ version = "0.1.0"
 
 [dependencies]
 crate_a = { path = "../crate_a" }
+tokio = "1.0"
 """)
 
         with open(f"{tmpdir}/crate_b/src/lib.rs", "w") as f:
             f.write("""use crate_a::a_func;
+use tokio::runtime::Runtime;
 
 pub fn b_func() {
-    a_func();
+    let data = a_func();
+    println!("{}", data.value);
 }
 """)
 
         repo = Repository(tmpdir)
         analyzer = repo.get_dependency_analyzer("rust")
 
-        # Should not crash on workspace
         graph = analyzer.build_dependency_graph()
 
-        # Should find the rust files
-        assert any("lib.rs" in key for key in graph.keys())
+        # Both crates' files should be found
+        assert "crate_a/src/lib.rs" in graph
+        assert "crate_b/src/lib.rs" in graph
+
+        # crate_a should be classified as internal (workspace member)
+        assert graph["crate_a"]["type"] == "internal"
+
+        # crate_b should depend on crate_a (internal) and tokio (external)
+        crate_b_deps = graph["crate_b/src/lib.rs"]["dependencies"]
+        assert "crate_a" in crate_b_deps
+        assert "tokio" in crate_b_deps
+
+        # serde should be external (from crate_a's deps)
+        assert graph["serde"]["type"] == "external"
+        # tokio should be external (from crate_b's deps)
+        assert graph["tokio"]["type"] == "external"
+
+
+def test_rust_dependency_analyzer_workspace_glob_members():
+    """Test workspace with glob patterns in members."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a workspace with glob pattern
+        with open(f"{tmpdir}/Cargo.toml", "w") as f:
+            f.write("""[workspace]
+members = ["crates/*"]
+""")
+
+        # Create crates/core
+        os.makedirs(f"{tmpdir}/crates/core/src")
+        with open(f"{tmpdir}/crates/core/Cargo.toml", "w") as f:
+            f.write("""[package]
+name = "my_core"
+version = "0.1.0"
+""")
+
+        with open(f"{tmpdir}/crates/core/src/lib.rs", "w") as f:
+            f.write("""pub fn core_func() {}
+""")
+
+        # Create crates/utils
+        os.makedirs(f"{tmpdir}/crates/utils/src")
+        with open(f"{tmpdir}/crates/utils/Cargo.toml", "w") as f:
+            f.write("""[package]
+name = "my_utils"
+version = "0.1.0"
+
+[dependencies]
+my_core = { path = "../core" }
+""")
+
+        with open(f"{tmpdir}/crates/utils/src/lib.rs", "w") as f:
+            f.write("""use my_core::core_func;
+
+pub fn util_func() {
+    core_func();
+}
+""")
+
+        # Create crates/app
+        os.makedirs(f"{tmpdir}/crates/app/src")
+        with open(f"{tmpdir}/crates/app/Cargo.toml", "w") as f:
+            f.write("""[package]
+name = "my_app"
+version = "0.1.0"
+
+[dependencies]
+my_core = { path = "../core" }
+my_utils = { path = "../utils" }
+""")
+
+        with open(f"{tmpdir}/crates/app/src/lib.rs", "w") as f:
+            f.write("""use my_core::core_func;
+use my_utils::util_func;
+
+pub fn app_func() {
+    core_func();
+    util_func();
+}
+""")
+
+        repo = Repository(tmpdir)
+        analyzer = repo.get_dependency_analyzer("rust")
+
+        graph = analyzer.build_dependency_graph()
+
+        # All workspace members should be found and classified as internal
+        assert graph["my_core"]["type"] == "internal"
+        assert graph["my_utils"]["type"] == "internal"
+        assert graph["my_app"]["type"] == "internal"
+
+        # Check cross-crate dependencies
+        utils_deps = graph["crates/utils/src/lib.rs"]["dependencies"]
+        assert "my_core" in utils_deps
+
+        app_deps = graph["crates/app/src/lib.rs"]["dependencies"]
+        assert "my_core" in app_deps
+        assert "my_utils" in app_deps
+
+
+def test_rust_dependency_analyzer_workspace_with_external_deps():
+    """Test that workspace correctly distinguishes internal vs external deps."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(f"{tmpdir}/Cargo.toml", "w") as f:
+            f.write("""[workspace]
+members = ["lib_a", "lib_b"]
+""")
+
+        # lib_a uses external crates
+        os.makedirs(f"{tmpdir}/lib_a/src")
+        with open(f"{tmpdir}/lib_a/Cargo.toml", "w") as f:
+            f.write("""[package]
+name = "lib_a"
+version = "0.1.0"
+
+[dependencies]
+serde = "1.0"
+anyhow = "1.0"
+""")
+
+        with open(f"{tmpdir}/lib_a/src/lib.rs", "w") as f:
+            f.write("""use serde::Serialize;
+use anyhow::Result;
+use std::collections::HashMap;
+
+pub fn process() -> Result<HashMap<String, String>> {
+    Ok(HashMap::new())
+}
+""")
+
+        # lib_b depends on lib_a and its own external crates
+        os.makedirs(f"{tmpdir}/lib_b/src")
+        with open(f"{tmpdir}/lib_b/Cargo.toml", "w") as f:
+            f.write("""[package]
+name = "lib_b"
+version = "0.1.0"
+
+[dependencies]
+lib_a = { path = "../lib_a" }
+tokio = "1.0"
+""")
+
+        with open(f"{tmpdir}/lib_b/src/lib.rs", "w") as f:
+            f.write("""use lib_a::process;
+use tokio::runtime::Runtime;
+
+pub async fn run() {
+    let _ = process();
+}
+""")
+
+        repo = Repository(tmpdir)
+        analyzer = repo.get_dependency_analyzer("rust")
+
+        graph = analyzer.build_dependency_graph()
+
+        # Workspace members are internal
+        assert graph["lib_a"]["type"] == "internal"
+        assert graph["lib_b"]["type"] == "internal"
+
+        # External crates from both members should be tracked
+        assert graph["serde"]["type"] == "external"
+        assert graph["anyhow"]["type"] == "external"
+        assert graph["tokio"]["type"] == "external"
+
+        # std is still std
+        assert graph["std"]["type"] == "std"
+
+
+def test_rust_dependency_analyzer_workspace_dependents():
+    """Test get_dependents works correctly with workspace members."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(f"{tmpdir}/Cargo.toml", "w") as f:
+            f.write("""[workspace]
+members = ["core", "api", "cli"]
+""")
+
+        # core - base library
+        os.makedirs(f"{tmpdir}/core/src")
+        with open(f"{tmpdir}/core/Cargo.toml", "w") as f:
+            f.write("""[package]
+name = "myapp_core"
+version = "0.1.0"
+""")
+
+        with open(f"{tmpdir}/core/src/lib.rs", "w") as f:
+            f.write("""pub struct Config {}
+pub fn init() {}
+""")
+
+        # api - depends on core
+        os.makedirs(f"{tmpdir}/api/src")
+        with open(f"{tmpdir}/api/Cargo.toml", "w") as f:
+            f.write("""[package]
+name = "myapp_api"
+version = "0.1.0"
+
+[dependencies]
+myapp_core = { path = "../core" }
+""")
+
+        with open(f"{tmpdir}/api/src/lib.rs", "w") as f:
+            f.write("""use myapp_core::Config;
+
+pub fn serve(config: Config) {}
+""")
+
+        # cli - depends on core and api
+        os.makedirs(f"{tmpdir}/cli/src")
+        with open(f"{tmpdir}/cli/Cargo.toml", "w") as f:
+            f.write("""[package]
+name = "myapp_cli"
+version = "0.1.0"
+
+[dependencies]
+myapp_core = { path = "../core" }
+myapp_api = { path = "../api" }
+""")
+
+        with open(f"{tmpdir}/cli/src/lib.rs", "w") as f:
+            f.write("""use myapp_core::init;
+use myapp_api::serve;
+
+pub fn main() {
+    init();
+}
+""")
+
+        repo = Repository(tmpdir)
+        analyzer = repo.get_dependency_analyzer("rust")
+
+        graph = analyzer.build_dependency_graph()
+
+        # All should be internal
+        assert graph["myapp_core"]["type"] == "internal"
+        assert graph["myapp_api"]["type"] == "internal"
+        assert graph["myapp_cli"]["type"] == "internal"
+
+        # Check dependents of core - both api and cli depend on it
+        core_dependents = analyzer.get_dependents("myapp_core")
+        assert "api/src/lib.rs" in core_dependents
+        assert "cli/src/lib.rs" in core_dependents
+
+        # Check dependents of api - only cli depends on it
+        api_dependents = analyzer.get_dependents("myapp_api")
+        assert "cli/src/lib.rs" in api_dependents
+        assert "api/src/lib.rs" not in api_dependents
