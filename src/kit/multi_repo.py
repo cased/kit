@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
@@ -126,13 +127,12 @@ class MultiRepo:
         for name, repo in self._repos.items():
             try:
                 results = repo.grep(query, include_pattern=file_pattern)
+                count = 0
                 for r in results:
                     r["repo"] = name
                     all_results.append(r)
-                    if (
-                        max_results_per_repo
-                        and len([x for x in all_results if x["repo"] == name]) >= max_results_per_repo
-                    ):
+                    count += 1
+                    if max_results_per_repo and count >= max_results_per_repo:
                         break
             except Exception as e:
                 logger.warning(f"Error searching {name}: {e}")
@@ -306,8 +306,6 @@ class MultiRepo:
 
                 # JavaScript - package.json
                 try:
-                    import json
-
                     content = repo.get_file_content("package.json")
                     pkg = json.loads(content)
                     if isinstance(pkg, dict):
