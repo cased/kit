@@ -6,7 +6,14 @@ import json
 import logging
 import os
 import re
+import sys
 from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Union
+
+# Use tomllib (3.11+) or tomli (3.10)
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from .dependency_analyzer import DependencyAnalyzer
 
@@ -61,66 +68,19 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
         """Parse Cargo.toml to get crate info and dependencies."""
         try:
             content = self.repo.get_file_content("Cargo.toml")
-            return self._parse_toml(content)
+            return tomllib.loads(content)
         except Exception as e:
-            logger.debug(f"Could not read Cargo.toml: {e}")
+            logger.debug(f"Could not parse Cargo.toml: {e}")
         return None
 
-    def _parse_toml(self, content: str) -> Dict[str, Any]:
-        """Simple TOML parser for Cargo.toml."""
-        result: Dict[str, Any] = {}
-        current_section = result
-
-        for line in content.split("\n"):
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-
-            # Section header
-            if line.startswith("["):
-                section_name = line.strip("[]").strip()
-                # Handle nested sections like [dependencies] or [dev-dependencies]
-                parts = section_name.split(".")
-                current_section = result
-                for part in parts:
-                    if part not in current_section:
-                        current_section[part] = {}
-                    current_section = current_section[part]
-            elif "=" in line:
-                # Key-value pair
-                key, raw_value = line.split("=", 1)
-                key = key.strip()
-                raw_value = raw_value.strip()
-                # Remove quotes from string values
-                parsed_value: Any
-                if raw_value.startswith('"') and raw_value.endswith('"'):
-                    parsed_value = raw_value[1:-1]
-                elif raw_value.startswith("'") and raw_value.endswith("'"):
-                    parsed_value = raw_value[1:-1]
-                # Handle inline tables like { version = "1.0", features = [] }
-                elif raw_value.startswith("{"):
-                    parsed_value = self._parse_inline_table(raw_value)
-                else:
-                    parsed_value = raw_value
-                current_section[key] = parsed_value
-
-        return result
-
-    def _parse_inline_table(self, value: str) -> Dict[str, Any]:
-        """Parse a TOML inline table."""
-        result: Dict[str, Any] = {}
-        # Remove braces
-        inner = value.strip()[1:-1].strip()
-        if not inner:
-            return result
-        # Simple parsing - split by comma, then by =
-        for pair in inner.split(","):
-            if "=" in pair:
-                k, v = pair.split("=", 1)
-                k = k.strip()
-                v = v.strip().strip('"').strip("'")
-                result[k] = v
-        return result
+    def _parse_toml_file(self, path: str) -> Optional[Dict[str, Any]]:
+        """Parse a TOML file at the given path."""
+        try:
+            content = self.repo.get_file_content(path)
+            return tomllib.loads(content)
+        except Exception as e:
+            logger.debug(f"Could not parse {path}: {e}")
+        return None
 
     def _get_external_crates(self) -> set[str]:
         """Get all external crate names from Cargo.toml."""
@@ -130,19 +90,6 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
                 if section in self._cargo_toml:
                     crates.update(self._cargo_toml[section].keys())
         return crates
-
-    def _parse_array(self, value: str) -> List[str]:
-        """Parse a TOML array like ["foo", "bar"] or ["crates/*"]."""
-        result: List[str] = []
-        inner = value.strip()[1:-1].strip()  # Remove brackets
-        if not inner:
-            return result
-        # Split by comma, handling quoted strings
-        for item in inner.split(","):
-            item = item.strip().strip('"').strip("'")
-            if item:
-                result.append(item)
-        return result
 
     def _expand_glob_pattern(self, pattern: str) -> List[str]:
         """Expand a glob pattern like 'crates/*' to actual paths."""
@@ -185,13 +132,9 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
         if not isinstance(workspace, dict):
             return members
 
-        # Get members list - could be a string representation of array
-        members_raw = workspace.get("members", [])
-        if isinstance(members_raw, str) and members_raw.startswith("["):
-            member_paths = self._parse_array(members_raw)
-        elif isinstance(members_raw, list):
-            member_paths = members_raw
-        else:
+        # Get members list (proper TOML parser returns a list)
+        member_paths = workspace.get("members", [])
+        if not isinstance(member_paths, list):
             return members
 
         # Expand globs and parse each member's Cargo.toml
@@ -201,9 +144,8 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
 
         for member_path in expanded_paths:
             member_toml_path = f"{member_path}/Cargo.toml"
-            try:
-                content = self.repo.get_file_content(member_toml_path)
-                parsed = self._parse_toml(content)
+            parsed = self._parse_toml_file(member_toml_path)
+            if parsed:
                 package = parsed.get("package", {})
                 if isinstance(package, dict):
                     name = package.get("name")
@@ -213,8 +155,6 @@ class RustDependencyAnalyzer(DependencyAnalyzer):
                         for section in ["dependencies", "dev-dependencies", "build-dependencies"]:
                             if section in parsed:
                                 self._external_crates.update(parsed[section].keys())
-            except Exception as e:
-                logger.debug(f"Could not parse workspace member {member_path}: {e}")
 
         return members
 

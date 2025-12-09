@@ -105,6 +105,89 @@ fn main() -> Result<()> {
         assert "utils" in main_deps
 
 
+def test_rust_dependency_analyzer_complex_cargo_toml():
+    """Test parsing of complex Cargo.toml with various TOML features."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a complex Cargo.toml that would break simple parsers
+        with open(f"{tmpdir}/Cargo.toml", "w") as f:
+            f.write('''[package]
+name = "complex_crate"
+version = "0.1.0"
+edition = "2021"
+description = """
+A multi-line description
+that spans multiple lines.
+"""
+
+[dependencies]
+serde = { version = "1.0", features = ["derive", "alloc"] }
+tokio = { version = "1.0", features = [
+    "rt-multi-thread",
+    "macros",
+    "fs",
+] }
+# Comment in the middle
+anyhow = "1.0"  # Inline comment
+thiserror = "1.0"
+
+[dependencies.reqwest]
+version = "0.11"
+features = ["json", "rustls-tls"]
+default-features = false
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+tempfile = "3.0"
+
+[build-dependencies]
+cc = "1.0"
+
+[features]
+default = ["std"]
+std = []
+''')
+
+        os.makedirs(f"{tmpdir}/src")
+        with open(f"{tmpdir}/src/lib.rs", "w") as f:
+            f.write("""use serde::{Serialize, Deserialize};
+use tokio::runtime::Runtime;
+use anyhow::Result;
+use thiserror::Error;
+use reqwest::Client;
+
+pub fn process() -> Result<()> {
+    Ok(())
+}
+""")
+
+        repo = Repository(tmpdir)
+        analyzer = repo.get_dependency_analyzer("rust")
+
+        graph = analyzer.build_dependency_graph()
+
+        # All used dependencies should be found despite complex TOML syntax
+        # (multi-line arrays, inline tables, dotted keys, comments)
+        assert "serde" in graph
+        assert graph["serde"]["type"] == "external"
+
+        assert "tokio" in graph
+        assert graph["tokio"]["type"] == "external"
+
+        assert "anyhow" in graph
+        assert "thiserror" in graph
+
+        # reqwest defined with dotted key [dependencies.reqwest]
+        assert "reqwest" in graph
+
+        # Check that lib.rs has correct dependencies
+        lib_deps = graph["src/lib.rs"]["dependencies"]
+        assert "serde" in lib_deps
+        assert "tokio" in lib_deps
+        assert "anyhow" in lib_deps
+        assert "thiserror" in lib_deps
+        assert "reqwest" in lib_deps
+
+
 def test_rust_dependency_analyzer_crate_paths():
     """Test that crate::, self::, super:: paths are resolved to internal modules."""
     with tempfile.TemporaryDirectory() as tmpdir:
