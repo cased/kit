@@ -46,13 +46,30 @@ class MultiRepo:
                    If not provided, directory names are used.
         """
         self._repos: Dict[str, Repository] = {}
-        self._paths: Dict[str, Path] = {}
+        self._paths: Dict[str, str] = {}
 
         for path in paths:
-            path = Path(path).expanduser().resolve()
-            name = names.get(str(path)) if names else None
-            if name is None:
-                name = path.name
+            path_str = str(path)
+
+            # Check if it's a remote URL
+            is_remote = path_str.startswith(("http://", "https://", "git@"))
+
+            if is_remote:
+                # For remote URLs, extract repo name from URL
+                resolved_path = path_str
+                name = names.get(path_str) if names else None
+                if name is None:
+                    # Extract name from URL (e.g., "repo" from "https://github.com/owner/repo")
+                    name = path_str.rstrip("/").split("/")[-1]
+                    if name.endswith(".git"):
+                        name = name[:-4]
+            else:
+                # For local paths, resolve and expand
+                local_path = Path(path_str).expanduser().resolve()
+                resolved_path = str(local_path)
+                name = names.get(resolved_path) if names else None
+                if name is None:
+                    name = local_path.name
 
             # Handle name collisions
             original_name = name
@@ -61,8 +78,8 @@ class MultiRepo:
                 name = f"{original_name}_{counter}"
                 counter += 1
 
-            self._repos[name] = Repository(str(path))
-            self._paths[name] = path
+            self._repos[name] = Repository(resolved_path)
+            self._paths[name] = resolved_path
 
     @property
     def repos(self) -> Dict[str, Repository]:
@@ -391,7 +408,7 @@ class MultiRepo:
                         languages[lang] = languages.get(lang, 0) + count
 
                 result[name] = {
-                    "path": str(self._paths[name]),
+                    "path": self._paths[name],
                     "file_count": len(file_tree),
                     "extensions": dict(sorted(extensions.items(), key=lambda x: -x[1])[:10]),
                     "languages": dict(sorted(languages.items(), key=lambda x: -x[1])),
