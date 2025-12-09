@@ -224,3 +224,40 @@ repo.write_file_tree("file_tree.json")
 repo.write_symbol_usages("MyClass", "my_class_usages.json", symbol_type="class")
 
 ```
+
+## Working with Multiple Repositories
+
+For microservices, monorepos, or multi-project codebases, use `MultiRepo` to analyze multiple repositories together:
+
+```python
+from kit import MultiRepo
+
+# Initialize with multiple repo paths
+repos = MultiRepo([
+    "~/code/frontend",
+    "~/code/backend",
+    "~/code/shared-lib",
+])
+
+# Search across all repos
+results = repos.search("handleAuth")
+
+# Find symbols across repos
+user_models = repos.find_symbol("UserModel", symbol_type="class")
+
+# Audit dependencies (Python, JS, Rust, Go)
+deps = repos.audit_dependencies()
+
+# Get summaries of all repos
+summaries = repos.summarize()
+```
+
+CLI commands are also available:
+
+```bash
+kit multi search ~/frontend ~/backend -q "TODO"
+kit multi deps ~/service-a ~/service-b ~/service-c
+kit multi summary ~/project-*
+```
+
+See the [MultiRepo API reference](/api/multi-repo) for complete documentation and use cases.

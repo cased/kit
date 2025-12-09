@@ -1,0 +1,399 @@
+---
+title: "MultiRepo API"
+description: "Unified analysis across multiple repositories - ideal for microservices, monorepos, and multi-project codebases"
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# MultiRepo API
+
+The `MultiRepo` class provides a unified interface for analyzing multiple repositories together. Search, extract symbols, and audit dependencies across your entire codebase ecosystem as if it were a single repository.
+
+## Use Cases
+
+### Microservices Architecture
+
+When your application is split across multiple services, `MultiRepo` lets you search and analyze them together:
+
+```python
+from kit import MultiRepo
+
+services = MultiRepo([
+    "~/code/user-service",
+    "~/code/order-service",
+    "~/code/payment-service",
+    "~/code/notification-service",
+])
+
+# Find all authentication-related code across services
+auth_code = services.search("authenticate")
+
+# Find where UserModel is defined across services
+user_models = services.find_symbol("UserModel", symbol_type="class")
+```
+
+### Frontend + Backend Projects
+
+Analyze your full-stack application across language boundaries:
+
+```python
+repos = MultiRepo([
+    "~/code/web-app",      # React/TypeScript
+    "~/code/api-server",   # Python/FastAPI
+    "~/code/shared-types", # Shared schemas
+])
+
+# Search for API endpoint patterns across stack
+endpoints = repos.search("handleAuth")
+
+# Audit all dependencies
+deps = repos.audit_dependencies()
+# Returns: {"web-app": {"javascript": {"react": "^18.0"}},
+#           "api-server": {"python": {"fastapi": "0.100.0"}}, ...}
+```
+
+### Team Repositories
+
+Find patterns and inconsistencies across team projects:
+
+```python
+team_repos = MultiRepo([
+    "~/code/project-alpha",
+    "~/code/project-beta",
+    "~/code/project-gamma",
+])
+
+# Find all TODO comments across projects
+todos = team_repos.search("TODO")
+
+# Get summary of all repositories
+summaries = team_repos.summarize()
+for name, info in summaries.items():
+    print(f"{name}: {info['file_count']} files, {list(info['languages'].keys())}")
+```
+
+### Dependency Auditing
+
+Identify version inconsistencies and outdated packages:
+
+```python
+repos = MultiRepo(["~/code/service-a", "~/code/service-b", "~/code/service-c"])
+audit = repos.audit_dependencies()
+
+# Find services using different versions of the same package
+for repo, deps in audit.items():
+    if "python" in deps and "requests" in deps["python"]:
+        print(f"{repo}: requests=={deps['python']['requests']}")
+```
+
+## Quick Start
+
+```python
+from kit import MultiRepo
+
+# Initialize with repository paths
+repos = MultiRepo([
+    "/path/to/repo-a",
+    "/path/to/repo-b",
+    "~/code/repo-c",  # Tilde expansion supported
+])
+
+# Access individual repos
+print(repos.names)  # ['repo-a', 'repo-b', 'repo-c']
+single_repo = repos["repo-a"]  # Returns Repository instance
+
+# Iterate over all repos
+for name, repo in repos:
+    print(f"{name}: {len(repo.get_file_tree())} files")
+```
+
+## Initialization
+
+```python
+MultiRepo(
+    paths: List[str | Path],
+    names: Optional[Dict[str, str]] = None,
+)
+```
+
+**Parameters:**
+
+- `paths`: List of paths to repositories (local paths, tilde-expanded paths)
+- `names`: Optional dict mapping resolved path strings to friendly names. If not provided, directory names are used automatically
+
+**Name Collision Handling:**
+
+When multiple repositories have the same directory name, MultiRepo automatically appends a counter:
+
+```python
+repos = MultiRepo([
+    "~/org-a/utils",  # Named "utils"
+    "~/org-b/utils",  # Named "utils_1"
+    "~/org-c/utils",  # Named "utils_2"
+])
+```
+
+## Methods
+
+### `search(query, file_pattern="*", max_results_per_repo=None)`
+
+Search for text/regex across all repositories.
+
+```python
+# Basic search
+results = repos.search("handleAuth")
+
+# Search only Python files
+results = repos.search("TODO", file_pattern="*.py")
+
+# Limit results per repo
+results = repos.search("import", max_results_per_repo=10)
+```
+
+**Returns:** List of matches with repo attribution:
+```python
+[
+    {"repo": "frontend", "file": "src/auth.js", "line_number": 42, "line_content": "..."},
+    {"repo": "backend", "file": "auth/views.py", "line_number": 15, "line_content": "..."},
+]
+```
+
+### `search_semantic(query, top_k=10, top_k_per_repo=None, embed_fn=None)`
+
+Semantic search across all repositories, returning results ranked by relevance.
+
+```python
+# Search by meaning, not just keywords
+results = repos.search_semantic("error handling patterns", top_k=20)
+
+# Custom embedding function
+results = repos.search_semantic("authentication flow", embed_fn=my_embed_fn)
+```
+
+<Aside type="note">
+Semantic search requires vector indexes to be built for each repository. Use `repos.index_all(embed_fn=your_embed_fn)` to build indexes for all repos at once.
+</Aside>
+
+**Returns:** Results sorted by relevance score with repo attribution.
+
+### `find_symbol(symbol_name, symbol_type=None)`
+
+Find a specific symbol across all repositories.
+
+```python
+# Find function by name
+funcs = repos.find_symbol("process_data", symbol_type="function")
+
+# Find class by name
+classes = repos.find_symbol("UserModel", symbol_type="class")
+
+# Find any symbol with that name
+all_matches = repos.find_symbol("Config")
+```
+
+**Returns:**
+```python
+[
+    {"repo": "service-a", "name": "process_data", "type": "function", "file": "main.py", "line": 10},
+    {"repo": "service-b", "name": "process_data", "type": "function", "file": "utils.py", "line": 25},
+]
+```
+
+### `extract_all_symbols(symbol_type=None)`
+
+Extract all symbols from all repositories.
+
+```python
+# Get all symbols, organized by repo
+all_symbols = repos.extract_all_symbols()
+
+# Get only functions
+functions = repos.extract_all_symbols(symbol_type="function")
+
+# Get only classes
+classes = repos.extract_all_symbols(symbol_type="class")
+```
+
+**Returns:** Dict mapping repo names to symbol lists:
+```python
+{
+    "frontend": [{"name": "App", "type": "class", ...}, ...],
+    "backend": [{"name": "main", "type": "function", ...}, ...],
+}
+```
+
+### `audit_dependencies()`
+
+Audit dependencies across all repositories. Parses:
+- Python: `requirements.txt`, `pyproject.toml`
+- JavaScript: `package.json`
+- Rust: `Cargo.toml`
+- Go: `go.mod`
+
+```python
+audit = repos.audit_dependencies()
+```
+
+**Returns:**
+```python
+{
+    "frontend": {
+        "javascript": {"react": "^18.0.0", "axios": "^1.0.0"}
+    },
+    "backend": {
+        "python": {"fastapi": "0.100.0", "sqlalchemy": "2.0.0"}
+    },
+    "rust-service": {
+        "rust": {"tokio": "1.0", "serde": "1.0"}
+    }
+}
+```
+
+### `summarize()`
+
+Generate summaries of all repositories.
+
+```python
+summaries = repos.summarize()
+```
+
+**Returns:**
+```python
+{
+    "frontend": {
+        "path": "/home/user/code/frontend",
+        "file_count": 150,
+        "extensions": {".ts": 80, ".tsx": 50, ".css": 20},
+        "languages": {"TypeScript": 130, "CSS": 20}
+    },
+    "backend": {
+        "path": "/home/user/code/backend",
+        "file_count": 75,
+        "extensions": {".py": 70, ".sql": 5},
+        "languages": {"Python": 70}
+    }
+}
+```
+
+### `get_file_content(repo_name, file_path)`
+
+Read a file from a specific repository.
+
+```python
+content = repos.get_file_content("frontend", "src/App.tsx")
+config = repos.get_file_content("backend", "config.py")
+```
+
+### `index_all(embed_fn=None)`
+
+Build or refresh vector indexes for all repositories (for semantic search).
+
+```python
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer("all-MiniLM-L6-v2")
+repos.index_all(embed_fn=model.encode)
+```
+
+## Properties
+
+### `repos`
+Dict mapping repo names to `Repository` instances.
+
+### `names`
+List of repository names.
+
+## CLI Commands
+
+MultiRepo is also available via CLI:
+
+<Tabs>
+<TabItem label="Search">
+```bash
+# Search across repos
+kit multi search ~/frontend ~/backend -q "handleAuth"
+
+# With file pattern
+kit multi search ~/api ~/web -q "TODO" -p "*.py"
+
+# Limit results
+kit multi search . ../other -q "import" --max-per-repo 5
+```
+</TabItem>
+
+<TabItem label="Symbols">
+```bash
+# Find specific symbol
+kit multi symbols ~/frontend ~/backend -n "UserModel" -t class
+
+# List all functions
+kit multi symbols ~/service-a ~/service-b -t function
+```
+</TabItem>
+
+<TabItem label="Dependencies">
+```bash
+# Audit all dependencies
+kit multi deps ~/frontend ~/backend ~/shared
+
+# Output to JSON
+kit multi deps ~/service-* -o deps.json
+```
+</TabItem>
+
+<TabItem label="Summary">
+```bash
+# Get summaries
+kit multi summary ~/frontend ~/backend ~/mobile
+
+# Output to JSON
+kit multi summary ~/project-* -o summary.json
+```
+</TabItem>
+</Tabs>
+
+## Best Practices
+
+### Repository Organization
+
+For best results, ensure your repositories follow consistent patterns:
+
+```python
+# Good: Clear, descriptive paths
+repos = MultiRepo([
+    "~/code/myapp-frontend",
+    "~/code/myapp-backend",
+    "~/code/myapp-shared",
+])
+
+# Custom names for clarity
+repos = MultiRepo(
+    ["~/code/client", "~/code/server"],
+    names={
+        str(Path("~/code/client").expanduser().resolve()): "web-frontend",
+        str(Path("~/code/server").expanduser().resolve()): "api-backend",
+    }
+)
+```
+
+### Performance Tips
+
+1. **Limit results**: Use `max_results_per_repo` for large codebases
+2. **File patterns**: Filter with `file_pattern` to search specific file types
+3. **Build indexes once**: Call `index_all()` once, then reuse for semantic searches
+
+### Integration Patterns
+
+```python
+# Use with single-repo operations
+repos = MultiRepo([...])
+
+# Get a single repo for detailed analysis
+frontend = repos["frontend"]
+frontend_symbols = frontend.extract_symbols()
+
+# Or iterate for batch operations
+for name, repo in repos:
+    print(f"Analyzing {name}...")
+    # Use full Repository API on each repo
+```
