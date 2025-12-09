@@ -113,16 +113,36 @@ This is especially useful when:
 
 ### Dependency Auditing
 
-Identify version inconsistencies and outdated packages:
+Spot version drift across your services - a common source of subtle bugs in microservices:
 
 ```python
 repos = MultiRepo(["~/code/service-a", "~/code/service-b", "~/code/service-c"])
 audit = repos.audit_dependencies()
 
-# Find services using different versions of the same package
+# Detect version drift: find packages with different versions across repos
+from collections import defaultdict
+
+packages = defaultdict(dict)  # {package: {repo: version}}
 for repo, deps in audit.items():
-    if "python" in deps and "requests" in deps["python"]:
-        print(f"{repo}: requests=={deps['python']['requests']}")
+    for lang, pkgs in deps.items():
+        for pkg, version in pkgs.items():
+            packages[f"{lang}:{pkg}"][repo] = version
+
+# Show packages with version mismatches
+for pkg, versions in packages.items():
+    unique_versions = set(versions.values())
+    if len(unique_versions) > 1:  # Different versions detected!
+        print(f"⚠️  {pkg} has version drift:")
+        for repo, ver in versions.items():
+            print(f"    {repo}: {ver}")
+
+# Output:
+# ⚠️  python:requests has version drift:
+#     service-a: 2.28.0
+#     service-b: 2.31.0
+# ⚠️  javascript:axios has version drift:
+#     frontend: ^1.4.0
+#     admin-ui: ^0.27.0
 ```
 
 ## Quick Start
