@@ -12,6 +12,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Major Features
+
+- **MultiRepo: Multi-Repository Analysis** (#164)
+  - New `MultiRepo` class for unified analysis across multiple repositories
+  - Ideal for microservices, frontend/backend splits, and team projects
+  - Unified text search with regex support across all repos
+  - Semantic search with merged, relevance-ranked results
+  - Cross-repo symbol extraction and lookup
+  - Dependency auditing (Python, JS, Rust, Go) across repositories
+  - Repository summaries with language detection
+  - CLI support: `kit multi search`, `kit multi symbols`, `kit multi deps`, `kit multi summary`
+
+- **Rust Dependency Analyzer** (#163)
+  - Full support for analyzing Rust crate dependencies via tree-sitter
+  - Parses `Cargo.toml` for crate metadata and external dependencies
+  - Extracts `use`, `mod`, and `extern crate` statements
+  - Resolves `crate::`, `self::`, `super::` paths to actual modules
+  - Classifies dependencies as internal, external, or std (`std`, `core`, `alloc`, `proc_macro`, `test`)
+  - Dependency graph generation with cycle detection
+  - CLI: `kit dependencies . --language rust`
+
+- **JavaScript/TypeScript Dependency Analyzer** (#159)
+  - Full support for analyzing JS/TS codebases via tree-sitter
+  - ESM imports: `import x from 'pkg'`, `import { x } from 'pkg'`
+  - CommonJS: `require('pkg')`
+  - Dynamic imports: `import('pkg')`
+  - Re-exports: `export { x } from 'pkg'`, `export * from 'pkg'`
+  - Scoped package support (`@org/pkg`)
+  - Node.js built-in module detection (including `node:` protocol)
+  - Index file resolution for directory imports
+  - CLI: `kit dependencies . --language javascript`
+
+### Documentation
+
+- New MultiRepo API reference page with use cases and examples
+- Updated dependency analyzer docs with Rust and JavaScript sections
+- Usage guide updated with MultiRepo quick start
+
 ---
 
 ## [3.0.0] - 2025-12-07
