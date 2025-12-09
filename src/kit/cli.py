@@ -1917,5 +1917,171 @@ def handle_cli_error(error: Exception, error_type: str = "Error", help_text: Opt
     raise typer.Exit(code=1)
 
 
+# -----------------------------------------------------------------------------
+# Multi-Repository Commands
+# -----------------------------------------------------------------------------
+
+multi_app = typer.Typer(help="Commands for analyzing multiple repositories together.")
+app.add_typer(multi_app, name="multi")
+
+
+@multi_app.command("search")
+def multi_search(
+    repos: List[str] = typer.Argument(..., help="Paths to repositories (space-separated)."),
+    query: str = typer.Option(..., "--query", "-q", help="Text or regex pattern to search for."),
+    pattern: str = typer.Option("*", "--pattern", "-p", help="Glob pattern for files to search."),
+    max_per_repo: Optional[int] = typer.Option(None, "--max-per-repo", "-m", help="Max results per repo."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file."),
+):
+    """Search for text/regex across multiple repositories.
+
+    Examples:
+        kit multi search ~/frontend ~/backend -q "handleAuth"
+        kit multi search ~/api ~/web ~/common -q "TODO" -p "*.py"
+        kit multi search . ../other-repo -q "database" --max-per-repo 5
+    """
+    from kit import MultiRepo
+
+    try:
+        multi = MultiRepo(repos)
+        results = multi.search(query, file_pattern=pattern, max_results_per_repo=max_per_repo)
+
+        if output:
+            Path(output).write_text(json.dumps(results, indent=2))
+            typer.echo(f"Results written to {output}")
+        else:
+            if results:
+                for r in results:
+                    typer.echo(
+                        f"[{r['repo']}] {r['file']}:{r.get('line_number', '?')}: {r.get('line_content', '').strip()}"
+                    )
+            else:
+                typer.echo("No results found.")
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@multi_app.command("symbols")
+def multi_symbols(
+    repos: List[str] = typer.Argument(..., help="Paths to repositories (space-separated)."),
+    name: Optional[str] = typer.Option(None, "--name", "-n", help="Find specific symbol by name."),
+    symbol_type: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by type (function, class, etc.)."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file."),
+):
+    """Find or list symbols across multiple repositories.
+
+    Examples:
+        kit multi symbols ~/frontend ~/backend -n "handleAuth"
+        kit multi symbols ~/api ~/web -t function
+        kit multi symbols ~/service-a ~/service-b -n "UserModel" -t class
+    """
+    from kit import MultiRepo
+
+    try:
+        multi = MultiRepo(repos)
+
+        if name:
+            results = multi.find_symbol(name, symbol_type=symbol_type)
+            if output:
+                Path(output).write_text(json.dumps(results, indent=2))
+                typer.echo(f"Results written to {output}")
+            else:
+                if results:
+                    typer.echo(f"Found {len(results)} definition(s) of '{name}':")
+                    for s in results:
+                        typer.echo(f"  [{s['repo']}] {s.get('file', '?')}:{s.get('line', '?')} ({s.get('type', '?')})")
+                else:
+                    typer.echo(f"No definitions found for '{name}'.")
+        else:
+            results = multi.extract_all_symbols(symbol_type=symbol_type)
+            if output:
+                Path(output).write_text(json.dumps(results, indent=2))
+                typer.echo(f"Results written to {output}")
+            else:
+                for repo_name, symbols in results.items():
+                    typer.echo(f"\n[{repo_name}] {len(symbols)} symbols")
+                    for s in symbols[:10]:  # Show first 10 per repo
+                        typer.echo(f"  {s.get('type', '?'):10} {s.get('name', '?')}")
+                    if len(symbols) > 10:
+                        typer.echo(f"  ... and {len(symbols) - 10} more")
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@multi_app.command("deps")
+def multi_deps(
+    repos: List[str] = typer.Argument(..., help="Paths to repositories (space-separated)."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file."),
+):
+    """Audit dependencies across multiple repositories.
+
+    Parses package.json, requirements.txt, Cargo.toml, go.mod, etc.
+
+    Examples:
+        kit multi deps ~/frontend ~/backend ~/shared-lib
+        kit multi deps ~/service-* -o deps.json
+    """
+    from kit import MultiRepo
+
+    try:
+        multi = MultiRepo(repos)
+        audit = multi.audit_dependencies()
+
+        if output:
+            Path(output).write_text(json.dumps(audit, indent=2))
+            typer.echo(f"Dependency audit written to {output}")
+        else:
+            for repo_name, deps in audit.items():
+                typer.echo(f"\n[{repo_name}]")
+                for lang, packages in deps.items():
+                    if packages:
+                        typer.echo(f"  {lang}:")
+                        for pkg, ver in list(packages.items())[:10]:
+                            typer.echo(f"    {pkg}: {ver}")
+                        if len(packages) > 10:
+                            typer.echo(f"    ... and {len(packages) - 10} more")
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@multi_app.command("summary")
+def multi_summary(
+    repos: List[str] = typer.Argument(..., help="Paths to repositories (space-separated)."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output to JSON file."),
+):
+    """Generate summaries of multiple repositories.
+
+    Shows file counts, detected languages, and extensions for each repo.
+
+    Examples:
+        kit multi summary ~/frontend ~/backend ~/mobile
+        kit multi summary ~/project-* -o summary.json
+    """
+    from kit import MultiRepo
+
+    try:
+        multi = MultiRepo(repos)
+        summaries = multi.summarize()
+
+        if output:
+            Path(output).write_text(json.dumps(summaries, indent=2))
+            typer.echo(f"Summaries written to {output}")
+        else:
+            for repo_name, info in summaries.items():
+                typer.echo(f"\n[{repo_name}]")
+                typer.echo(f"  Path: {info.get('path', '?')}")
+                typer.echo(f"  Files: {info.get('file_count', '?')}")
+                languages = info.get("languages", {})
+                if languages:
+                    langs_str = ", ".join(f"{k} ({v})" for k, v in list(languages.items())[:5])
+                    typer.echo(f"  Languages: {langs_str}")
+    except Exception as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

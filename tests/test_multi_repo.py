@@ -352,3 +352,343 @@ def test_multi_repo_max_results_per_repo():
 
         repo_a_results = [r for r in results if r["repo"] == "repo_a"]
         assert len(repo_a_results) <= 2
+
+
+def test_multi_repo_custom_names():
+    """Test providing custom names for repos."""
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_a = create_test_repo(tmpdir, "repo_a", {"main.py": ""})
+        repo_b = create_test_repo(tmpdir, "repo_b", {"main.py": ""})
+
+        # Names dict uses resolved path strings as keys
+        multi = MultiRepo(
+            [repo_a, repo_b],
+            names={
+                str(Path(repo_a).resolve()): "frontend",
+                str(Path(repo_b).resolve()): "backend",
+            },
+        )
+
+        assert "frontend" in multi.names
+        assert "backend" in multi.names
+        assert "repo_a" not in multi.names
+
+
+def test_multi_repo_search_with_file_pattern():
+    """Test search with file pattern filter."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "mixed",
+            {
+                "src/app.py": "def search_function(): pass",
+                "src/app.js": "function search_function() {}",
+                "docs/readme.md": "search_function documentation",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        # Search only Python files
+        results = multi.search("search_function", file_pattern="*.py")
+        assert len(results) == 1
+        assert results[0]["file"].endswith(".py")
+
+
+def test_multi_repo_find_symbol_class():
+    """Test finding class symbols across repos."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_a = create_test_repo(
+            tmpdir,
+            "repo_a",
+            {
+                "models.py": """
+class UserModel:
+    pass
+
+class ProductModel:
+    pass
+""",
+            },
+        )
+        repo_b = create_test_repo(
+            tmpdir,
+            "repo_b",
+            {
+                "models.py": """
+class UserModel:
+    name: str
+""",
+            },
+        )
+
+        multi = MultiRepo([repo_a, repo_b])
+
+        # Find class defined in both repos
+        symbols = multi.find_symbol("UserModel", symbol_type="class")
+        assert len(symbols) == 2
+
+        # Find class only in repo_a
+        symbols = multi.find_symbol("ProductModel", symbol_type="class")
+        assert len(symbols) == 1
+        assert symbols[0]["repo"] == "repo_a"
+
+
+def test_multi_repo_find_symbol_no_type_filter():
+    """Test finding symbols without type filter."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "repo",
+            {
+                "code.py": """
+def helper():
+    pass
+
+class Helper:
+    pass
+""",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        # Find all symbols named "helper" (case sensitive)
+        symbols = multi.find_symbol("helper")
+        assert len(symbols) == 1  # Only the function matches exact name
+
+
+def test_multi_repo_extract_all_symbols_no_filter():
+    """Test extracting all symbols without type filter."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "repo",
+            {
+                "code.py": """
+def my_func():
+    pass
+
+class MyClass:
+    def method(self):
+        pass
+""",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        all_symbols = multi.extract_all_symbols()
+
+        assert "repo" in all_symbols
+        # Should have function, class, and method
+        assert len(all_symbols["repo"]) >= 2
+
+
+def test_multi_repo_audit_dependencies_go():
+    """Test auditing Go dependencies."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "go_service",
+            {
+                "go.mod": """module github.com/example/service
+
+go 1.21
+
+require (
+    github.com/gin-gonic/gin v1.9.0
+    github.com/stretchr/testify v1.8.0
+)
+""",
+                "main.go": "package main",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        audit = multi.audit_dependencies()
+
+        assert "go_service" in audit
+        assert "go" in audit["go_service"]
+        assert audit["go_service"]["go"]["github.com/gin-gonic/gin"] == "v1.9.0"
+
+
+def test_multi_repo_audit_dependencies_mixed():
+    """Test auditing mixed language dependencies."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "fullstack",
+            {
+                "requirements.txt": "flask==2.0.0\n",
+                "package.json": json.dumps(
+                    {
+                        "dependencies": {"vue": "^3.0.0"},
+                    }
+                ),
+                "main.py": "",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        audit = multi.audit_dependencies()
+
+        assert "fullstack" in audit
+        assert audit["fullstack"]["python"]["flask"] == "2.0.0"
+        assert audit["fullstack"]["javascript"]["vue"] == "^3.0.0"
+
+
+def test_multi_repo_summarize_file_counts():
+    """Test summarize returns accurate file counts."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "repo",
+            {
+                "a.py": "",
+                "b.py": "",
+                "c.js": "",
+                "d.js": "",
+                "e.js": "",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        summaries = multi.summarize()
+
+        assert summaries["repo"]["file_count"] == 5
+        assert summaries["repo"]["extensions"][".py"] == 2
+        assert summaries["repo"]["extensions"][".js"] == 3
+
+
+def test_multi_repo_repos_property():
+    """Test repos property returns dict of repositories."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_a = create_test_repo(tmpdir, "repo_a", {"main.py": ""})
+        repo_b = create_test_repo(tmpdir, "repo_b", {"main.py": ""})
+
+        multi = MultiRepo([repo_a, repo_b])
+
+        repos = multi.repos
+        assert isinstance(repos, dict)
+        assert len(repos) == 2
+        assert isinstance(repos["repo_a"], Repository)
+
+
+def test_multi_repo_single_repo():
+    """Test MultiRepo works with single repo."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "only_repo",
+            {
+                "main.py": "def hello(): pass",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        assert len(multi) == 1
+        assert "only_repo" in multi.names
+
+        results = multi.search("hello")
+        assert len(results) == 1
+
+        symbols = multi.find_symbol("hello")
+        assert len(symbols) == 1
+
+
+def test_multi_repo_empty_search_results():
+    """Test search returns empty list when no matches."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "repo",
+            {
+                "main.py": "def hello(): pass",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        results = multi.search("nonexistent_pattern_xyz")
+        assert results == []
+
+
+def test_multi_repo_find_symbol_not_found():
+    """Test find_symbol returns empty list when symbol not found."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "repo",
+            {
+                "main.py": "def hello(): pass",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        symbols = multi.find_symbol("nonexistent_symbol")
+        assert symbols == []
+
+
+def test_multi_repo_multiple_name_collisions():
+    """Test handling of multiple repos with same name."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "org_a"))
+        os.makedirs(os.path.join(tmpdir, "org_b"))
+        os.makedirs(os.path.join(tmpdir, "org_c"))
+
+        repo_a = create_test_repo(os.path.join(tmpdir, "org_a"), "utils", {"a.py": ""})
+        repo_b = create_test_repo(os.path.join(tmpdir, "org_b"), "utils", {"b.py": ""})
+        repo_c = create_test_repo(os.path.join(tmpdir, "org_c"), "utils", {"c.py": ""})
+
+        multi = MultiRepo([repo_a, repo_b, repo_c])
+
+        assert len(multi) == 3
+        assert "utils" in multi.names
+        assert "utils_1" in multi.names
+        assert "utils_2" in multi.names
+
+
+def test_multi_repo_typescript_detection():
+    """Test language detection for TypeScript."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "ts_app",
+            {
+                "src/index.ts": "const x: number = 1;",
+                "src/App.tsx": "export const App = () => <div />;",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        summaries = multi.summarize()
+
+        assert "TypeScript" in summaries["ts_app"]["languages"]
+
+
+def test_multi_repo_rust_detection():
+    """Test language detection for Rust."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo = create_test_repo(
+            tmpdir,
+            "rust_app",
+            {
+                "src/main.rs": "fn main() {}",
+                "src/lib.rs": "pub fn hello() {}",
+            },
+        )
+
+        multi = MultiRepo([repo])
+
+        summaries = multi.summarize()
+
+        assert "Rust" in summaries["rust_app"]["languages"]
