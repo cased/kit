@@ -9,6 +9,7 @@ from .code_searcher import CodeSearcher
 from .context_extractor import ContextExtractor
 from .docstring_indexer import DocstringIndexer, SummarySearcher
 from .llm_context import ContextAssembler
+from .multi_repo import MultiRepo
 from .repo_mapper import RepoMapper
 from .repository import Repository
 from .tree_sitter_symbol_extractor import TreeSitterSymbolExtractor
@@ -94,6 +95,7 @@ except Exception:  # pragma: no cover – best-effort patch, never fail hard
 
 __all__ = [
     "Repository",
+    "MultiRepo",
     "RepoMapper",
     "CodeSearcher",
     "ContextExtractor",
