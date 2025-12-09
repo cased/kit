@@ -293,9 +293,10 @@ class MultiRepo:
 
                     content = repo.get_file_content("package.json")
                     pkg = json.loads(content)
-                    for dep_type in ["dependencies", "devDependencies"]:
-                        if dep_type in pkg:
-                            repo_deps["javascript"].update(pkg[dep_type])
+                    if isinstance(pkg, dict):
+                        for dep_type in ["dependencies", "devDependencies"]:
+                            if dep_type in pkg and isinstance(pkg[dep_type], dict):
+                                repo_deps["javascript"].update(pkg[dep_type])
                 except Exception:
                     pass
 
@@ -383,7 +384,7 @@ class MultiRepo:
                     ".c": "C",
                 }
 
-                languages = {}
+                languages: Dict[str, int] = {}
                 for ext, count in extensions.items():
                     if ext in lang_map:
                         lang = lang_map[ext]
