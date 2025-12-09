@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from .repository import Repository
 
@@ -34,7 +34,7 @@ class MultiRepo:
 
     def __init__(
         self,
-        paths: List[Union[str, Path]],
+        paths: Sequence[Union[str, Path]],
         names: Optional[Dict[str, str]] = None,
     ):
         """

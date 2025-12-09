@@ -1982,24 +1982,24 @@ def multi_symbols(
         multi = MultiRepo(repos)
 
         if name:
-            results = multi.find_symbol(name, symbol_type=symbol_type)
+            found_symbols = multi.find_symbol(name, symbol_type=symbol_type)
             if output:
-                Path(output).write_text(json.dumps(results, indent=2))
+                Path(output).write_text(json.dumps(found_symbols, indent=2))
                 typer.echo(f"Results written to {output}")
             else:
-                if results:
-                    typer.echo(f"Found {len(results)} definition(s) of '{name}':")
-                    for s in results:
+                if found_symbols:
+                    typer.echo(f"Found {len(found_symbols)} definition(s) of '{name}':")
+                    for s in found_symbols:
                         typer.echo(f"  [{s['repo']}] {s.get('file', '?')}:{s.get('line', '?')} ({s.get('type', '?')})")
                 else:
                     typer.echo(f"No definitions found for '{name}'.")
         else:
-            results = multi.extract_all_symbols(symbol_type=symbol_type)
+            all_symbols = multi.extract_all_symbols(symbol_type=symbol_type)
             if output:
-                Path(output).write_text(json.dumps(results, indent=2))
+                Path(output).write_text(json.dumps(all_symbols, indent=2))
                 typer.echo(f"Results written to {output}")
             else:
-                for repo_name, symbols in results.items():
+                for repo_name, symbols in all_symbols.items():
                     typer.echo(f"\n[{repo_name}] {len(symbols)} symbols")
                     for s in symbols[:10]:  # Show first 10 per repo
                         typer.echo(f"  {s.get('type', '?'):10} {s.get('name', '?')}")
