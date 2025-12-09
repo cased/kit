@@ -150,15 +150,16 @@ for pkg, versions in packages.items():
 ```python
 from kit import MultiRepo
 
-# Initialize with repository paths
+# Initialize with repository paths (local or remote)
 repos = MultiRepo([
     "/path/to/repo-a",
-    "/path/to/repo-b",
-    "~/code/repo-c",  # Tilde expansion supported
+    "~/code/repo-b",                              # Tilde expansion
+    "https://github.com/owner/repo-c",            # Remote URL
+    "https://github.com/owner/repo-d.git",        # With .git suffix
 ])
 
 # Access individual repos
-print(repos.names)  # ['repo-a', 'repo-b', 'repo-c']
+print(repos.names)  # ['repo-a', 'repo-b', 'repo-c', 'repo-d']
 single_repo = repos["repo-a"]  # Returns Repository instance
 
 # Iterate over all repos
@@ -170,15 +171,18 @@ for name, repo in repos:
 
 ```python
 MultiRepo(
-    paths: List[str | Path],
+    paths: Sequence[str | Path],
     names: Optional[Dict[str, str]] = None,
 )
 ```
 
 **Parameters:**
 
-- `paths`: List of paths to repositories (local paths, tilde-expanded paths)
-- `names`: Optional dict mapping resolved path strings to friendly names. If not provided, directory names are used automatically
+- `paths`: List of paths to repositories - supports:
+  - Local paths: `/path/to/repo`
+  - Tilde expansion: `~/code/repo`
+  - Remote URLs: `https://github.com/owner/repo`
+- `names`: Optional dict mapping path strings to friendly names. If not provided, directory/repo names are extracted automatically
 
 **Name Collision Handling:**
 
