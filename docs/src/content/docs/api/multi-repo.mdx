@@ -72,6 +72,45 @@ for name, info in summaries.items():
     print(f"{name}: {info['file_count']} files, {list(info['languages'].keys())}")
 ```
 
+### Semantic Search Across Repos
+
+<Aside type="tip" title="Most Valuable Feature">
+Semantic search is particularly powerful for multi-repo scenarios. Instead of knowing exact function names or patterns, you can search by *concept* across your entire codebase ecosystem.
+</Aside>
+
+Find code by meaning, not just keywords—across all your repositories:
+
+```python
+from sentence_transformers import SentenceTransformer
+
+repos = MultiRepo([
+    "~/code/auth-service",
+    "~/code/user-service",
+    "~/code/api-gateway",
+])
+
+# Build indexes once
+model = SentenceTransformer("all-MiniLM-L6-v2")
+repos.index_all(embed_fn=model.encode)
+
+# Search by concept - finds relevant code even with different naming conventions
+results = repos.search_semantic("user authentication and session management", top_k=10)
+
+# Results ranked by relevance across ALL repos
+for r in results:
+    print(f"[{r['repo']}] {r['file']} (score: {r['score']:.2f})")
+
+# More examples:
+repos.search_semantic("error handling and retry logic")
+repos.search_semantic("database connection pooling")
+repos.search_semantic("rate limiting implementation")
+```
+
+This is especially useful when:
+- Different teams use different naming conventions
+- You're exploring an unfamiliar codebase ecosystem
+- You need to find similar patterns implemented differently across services
+
 ### Dependency Auditing
 
 Identify version inconsistencies and outdated packages:
