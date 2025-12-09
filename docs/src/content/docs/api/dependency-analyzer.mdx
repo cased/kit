@@ -473,6 +473,86 @@ Dependencies are classified as:
 - **external**: npm packages (including scoped `@org/pkg`)
 - **node_builtin**: Node.js built-in modules (`fs`, `path`, `http`, etc.)
 
+### RustDependencyAnalyzer
+
+**Class: `RustDependencyAnalyzer`**
+*(defined in `kit/dependency_analyzer/rust_dependency_analyzer.py`)*
+
+The `RustDependencyAnalyzer` extends the base `DependencyAnalyzer` to analyze Rust codebases, focusing on crate and module dependencies.
+
+#### Additional Methods
+
+##### `get_module_dependencies`
+
+**Method: `RustDependencyAnalyzer.get_module_dependencies`**
+*(defined in `kit/dependency_analyzer/rust_dependency_analyzer.py`)*
+
+Gets dependencies for a specific Rust module.
+
+```python
+# Get direct dependencies
+deps = rust_analyzer.get_module_dependencies("src/lib.rs")
+
+# Get all dependencies (including indirect)
+all_deps = rust_analyzer.get_module_dependencies(
+    "src/lib.rs",
+    include_indirect=True
+)
+```
+
+**Parameters:**
+
+* **`module_path`** (`str`, required):
+  Path to the module file.
+* **`include_indirect`** (`bool`, optional):
+  Whether to include indirect dependencies. Defaults to `False`.
+
+**Returns:**
+
+* List of module paths/crate names this module depends on
+
+##### `generate_dependency_report`
+
+**Method: `RustDependencyAnalyzer.generate_dependency_report`**
+*(defined in `kit/dependency_analyzer/rust_dependency_analyzer.py`)*
+
+Generates a comprehensive dependency report for the repository.
+
+```python
+report = rust_analyzer.generate_dependency_report(
+    output_path="dependency_report.json"
+)
+```
+
+**Parameters:**
+
+* **`output_path`** (`str`, optional):
+  Path to save the report JSON. If `None`, returns the report data without saving.
+
+**Returns:**
+
+* Dictionary with the complete dependency report including:
+  * Crate name (from Cargo.toml)
+  * Internal module count
+  * External crate count
+  * Std library usage
+  * Detected cycles
+  * High-dependency modules
+
+#### Supported Import Styles
+
+The Rust analyzer detects:
+- `use` statements: `use std::collections::HashMap`
+- `mod` declarations: `mod utils;`, `pub mod config;`
+- `extern crate` (legacy): `extern crate serde;`
+
+#### Dependency Classification
+
+Dependencies are classified as:
+- **internal**: Module declarations and crate-internal references
+- **external**: Crates from Cargo.toml dependencies
+- **std**: Rust standard library crates (`std`, `core`, `alloc`, `proc_macro`, `test`)
+
 ## Key Features and Notes
 
 - All dependency analyzers store absolute file paths for resources, making it easy to locate components in complex codebases with files that might have the same name in different directories.
@@ -483,4 +563,4 @@ Dependencies are classified as:
 
 - The dependency graph is built on first use and cached. If the codebase changes, you may need to call `build_dependency_graph()` again to refresh the analysis.
 
-- **Supported languages**: Python, Terraform, Go, JavaScript/TypeScript
+- **Supported languages**: Python, Terraform, Go, JavaScript/TypeScript, Rust

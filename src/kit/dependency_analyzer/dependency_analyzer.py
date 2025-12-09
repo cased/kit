@@ -247,6 +247,7 @@ class DependencyAnalyzer(ABC):
         from .go_dependency_analyzer import GoDependencyAnalyzer
         from .javascript_dependency_analyzer import JavaScriptDependencyAnalyzer
         from .python_dependency_analyzer import PythonDependencyAnalyzer
+        from .rust_dependency_analyzer import RustDependencyAnalyzer
         from .terraform_dependency_analyzer import TerraformDependencyAnalyzer
 
         language = language.lower()
@@ -259,10 +260,12 @@ class DependencyAnalyzer(ABC):
             return GoDependencyAnalyzer(repository)
         elif language in ("javascript", "typescript", "js", "ts"):
             return JavaScriptDependencyAnalyzer(repository)
+        elif language == "rust":
+            return RustDependencyAnalyzer(repository)
         else:
             raise ValueError(
                 f"Unsupported language for dependency analysis: {language}. "
-                f"Currently supported languages: python, terraform, go, javascript, typescript"
+                f"Currently supported languages: python, terraform, go, javascript, typescript, rust"
             )
 
     # ------------------------------------------------------------------
