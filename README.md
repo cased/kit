@@ -194,6 +194,11 @@ See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehe
     *   Compare code evolution over time, work with diffs, ensure reproducible analysis results
     *   Access git metadata including current SHA, branch, and remote URL with `repo.current_sha`, `repo.current_branch`, etc.
 
+*   **Multi-Repository Analysis:**
+    *   Analyze multiple repositories together with `MultiRepo` for microservices, monorepos, or team projects.
+    *   Unified search, symbol lookup, and dependency auditing across all repos.
+    *   CLI support: `kit multi search`, `kit multi deps`, `kit multi summary`.
+
 ## MCP Server (kit-dev MCP)
 
 `kit` includes an enhanced MCP (Model Context Protocol), **kit-dev**, designed especially for individual local dev work. It includes kit's production-grade code intelligence and context building, and adds in multi-source documentation research and package searching.
