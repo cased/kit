@@ -345,6 +345,10 @@ class MultiRepo:
                             and not line.startswith("//")
                             and not line.startswith("module")
                             and not line.startswith("go ")
+                            and not line.startswith("require")
+                            and not line.startswith("replace")
+                            and not line.startswith("exclude")
+                            and line != ")"
                         ):
                             parts = line.split()
                             if len(parts) >= 2:
