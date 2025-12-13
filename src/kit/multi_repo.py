@@ -348,6 +348,7 @@ class MultiRepo:
                             and not line.startswith("require")
                             and not line.startswith("replace")
                             and not line.startswith("exclude")
+                            and not line.startswith("retract")
                             and line != ")"
                         ):
                             parts = line.split()
