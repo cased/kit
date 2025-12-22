@@ -179,3 +179,36 @@ def test_go_symbol_extraction():
 
         # Assert the exact set matches
         assert names_types == expected, f"Mismatch: Got {names_types}, Expected {expected}"
+
+
+# --- C# Test ---
+def test_csharp_symbol_extraction():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        golden_content = open(os.path.join(os.path.dirname(__file__), "golden_csharp.cs")).read()
+        symbols = run_extraction(tmpdir, "golden_csharp.cs", golden_content)
+        names_types = {(s["name"], s["type"]) for s in symbols}
+
+        # Expected symbols based on C# query
+        expected = {
+            ("GoldenTest.Models", "namespace"),  # namespace GoldenTest.Models
+            ("IEntity", "interface"),  # interface IEntity
+            ("Id", "property"),  # property in interface and class
+            ("User", "class"),  # class User
+            ("Name", "property"),  # property Name
+            ("User", "constructor"),  # constructor User()
+            ("UpdateName", "method"),  # method UpdateName
+            ("Point", "struct"),  # struct Point
+            ("X", "property"),  # property X
+            ("Y", "property"),  # property Y
+            ("Point", "constructor"),  # struct constructor
+            ("Person", "record"),  # record Person
+            ("Status", "enum"),  # enum Status
+            ("StatusChanged", "delegate"),  # delegate StatusChanged
+        }
+
+        # Assert individual expected symbols exist
+        for item in expected:
+            assert item in names_types, f"Expected symbol {item} not found in {names_types}"
+
+        # Assert the exact set matches
+        assert names_types == expected, f"Mismatch: Got {names_types}, Expected {expected}"
