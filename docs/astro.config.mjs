@@ -29,6 +29,7 @@ export default defineConfig({
             "introduction/quickstart",
             "introduction/usage-guide",
             "introduction/cli",
+            "introduction/claude-code",
             "changelog"
           ],
         },

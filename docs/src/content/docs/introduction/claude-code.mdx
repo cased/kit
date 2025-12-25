@@ -1,0 +1,168 @@
+---
+title: Claude Code Integration
+description: Use kit directly in Claude Code with the official plugin
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kit integrates with [Claude Code](https://claude.ai/code) through an official plugin that gives Claude autonomous access to kit's codebase analysis tools.
+
+## Installation
+
+Install the kit plugin in Claude Code:
+
+```bash
+/plugin marketplace add cased/claude-code-plugins
+/plugin install kit-cli
+```
+
+After installation, Claude will automatically use kit when analyzing codebases.
+
+## What the Plugin Does
+
+The kit-cli plugin is a **Claude Skill** - a capability that Claude autonomously decides when to use based on your requests. You don't need to explicitly invoke it; Claude will use kit tools when they're relevant.
+
+### Example Interactions
+
+Ask Claude questions like:
+
+| Request | What kit does |
+|---------|---------------|
+| "How does authentication work in this codebase?" | Uses `kit symbols`, `kit search`, and `kit usages` to trace auth patterns |
+| "Find all usages of the UserModel class" | Runs `kit usages UserModel` to find definitions and references |
+| "What are the dependencies of this project?" | Runs `kit dependencies` to analyze and visualize imports |
+| "Show me the file structure of src/" | Runs `kit file-tree --subpath src` |
+| "Search for TODO comments" | Runs `kit search "TODO"` with appropriate patterns |
+
+## Available Commands
+
+The skill teaches Claude to use these kit CLI commands:
+
+### Repository Analysis
+
+```bash
+# File structure
+kit file-tree /path/to/repo
+kit file-tree /path/to/repo --subpath src
+
+# Symbol extraction (functions, classes, etc.)
+kit symbols /path/to/repo
+kit symbols /path/to/repo --file src/main.py
+kit symbols /path/to/repo --symbol-type function
+
+# Git metadata
+kit git-info /path/to/repo
+```
+
+### Code Search
+
+```bash
+# Text/regex search
+kit search /path/to/repo "pattern"
+kit search /path/to/repo "def main" --pattern "*.py"
+
+# Find symbol usages
+kit usages /path/to/repo "ClassName"
+kit usages /path/to/repo "function_name" --file src/utils.py
+
+# Semantic search (requires ML dependencies)
+kit search-semantic /path/to/repo "authentication handling"
+```
+
+### Dependency Analysis
+
+```bash
+# Generate dependency report
+kit dependencies /path/to/repo
+
+# Mermaid diagram output
+kit dependencies /path/to/repo --format mermaid
+
+# Focus on specific package
+kit dependencies /path/to/repo --focus mypackage
+```
+
+### Multi-Repository Analysis
+
+```bash
+# Search across repos
+kit multi search ~/frontend ~/backend -q "handleAuth"
+
+# Find symbols across repos
+kit multi symbols ~/frontend ~/backend -n "UserModel"
+
+# Audit dependencies across repos
+kit multi deps ~/service-a ~/service-b ~/shared-lib
+```
+
+### Context & Chunking
+
+```bash
+# Get context around a line
+kit context /path/to/repo src/file.py --line 42
+
+# Chunk files for LLM processing
+kit chunk-lines /path/to/repo src/file.py --max-lines 50
+kit chunk-symbols /path/to/repo src/file.py
+```
+
+### Export Data
+
+```bash
+# Export to JSON
+kit export /path/to/repo symbols symbols.json
+kit export /path/to/repo dependencies deps.json
+```
+
+## Tips for Best Results
+
+1. **Be specific about what you're looking for** - "Find the authentication middleware" works better than "show me auth code"
+
+2. **Reference file paths when you know them** - "What does `src/auth/middleware.py` do?" helps Claude focus
+
+3. **Combine with other Claude capabilities** - After kit finds relevant code, Claude can explain, refactor, or generate tests
+
+4. **Use for unfamiliar codebases** - Kit excels at mapping repos you haven't seen before
+
+## Plugin vs MCP Server
+
+Kit offers two ways to integrate with Claude Code:
+
+| Feature | Plugin (kit-cli) | MCP Server (kit-dev-mcp) |
+|---------|------------------|--------------------------|
+| Installation | `/plugin install kit-cli` | Configure in MCP settings |
+| Invocation | Automatic (Claude decides) | Tool calls from Claude |
+| Features | CLI commands | Full API + doc research |
+| Best for | Quick codebase exploration | Deep development workflows |
+
+For the MCP server, see the [kit-dev MCP documentation](https://kit-mcp.cased.com).
+
+## Troubleshooting
+
+### Plugin not activating?
+
+Make sure the plugin is installed:
+```bash
+/plugin list
+```
+
+If kit-cli isn't listed, reinstall:
+```bash
+/plugin marketplace add cased/claude-code-plugins
+/plugin install kit-cli
+```
+
+### Commands failing?
+
+Ensure kit is installed on your system:
+```bash
+uv tool install cased-kit
+kit --version
+```
+
+### Need newer features?
+
+Update kit to the latest version:
+```bash
+uv tool install --force cased-kit
+```

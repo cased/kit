@@ -42,13 +42,22 @@ uv tool list
 uv tool uninstall cased-kit
 ```
 
-### Plugin
-Want to try kit directly in Claude Code? Check out [the plugin](https://github.com/cased/claude-code-plugins):
+### Claude Code Plugin
 
-```
+Use kit directly in [Claude Code](https://claude.ai/code) with the official plugin:
+
+```bash
 /plugin marketplace add cased/claude-code-plugins
 /plugin install kit-cli
 ```
+
+The plugin gives Claude autonomous access to kit's codebase analysis tools. Claude will automatically use kit when you ask questions like:
+- "How does authentication work in this codebase?"
+- "Find all usages of the UserModel class"
+- "What are the dependencies of this project?"
+- "Show me the file structure of src/"
+
+See the [Claude Code Integration Guide](https://kit.cased.com/introduction/claude-code) for details.
 
 ## Toolkit Usage
 
