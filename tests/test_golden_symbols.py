@@ -98,7 +98,6 @@ def test_typescript_complex_symbol_extraction():
         names_types = {(s["name"], s["type"]) for s in symbols}
 
         # Expected symbols based on current TypeScript query
-        # NOTE: Current query might not capture all nuances (e.g. arrow funcs, namespaces well)
         expected = {
             ("UserProfile", "interface"),
             ("Status", "enum"),
@@ -111,7 +110,7 @@ def test_typescript_complex_symbol_extraction():
             ("add", "method"),  # Method in generic class
             ("getAll", "method"),  # Method in generic class
             ("constructor", "method"),  # Constructor is captured by method query
-            # ("addNumbers", "function"),    # NOT CAPTURED - Arrow function assigned to const
+            ("addNumbers", "function"),  # Arrow function assigned to const (issue #168)
             ("DecoratedClass", "class"),
             ("greet", "method"),
             ("calculateArea", "function"),  # Exported function
