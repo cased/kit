@@ -10,6 +10,26 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2025-12-26
+
+### Bug Fixes
+
+- **Arrow Function Detection in JavaScript/TypeScript** (#168, #169)
+  - Fixed `extract_symbols` MCP tool and API to properly detect arrow functions
+  - JavaScript: Now detects arrow functions with `const`, `let`, and `var` declarations
+  - TypeScript: Now detects non-exported arrow functions (previously only exported ones were found)
+  - TSX: Inherits TypeScript fixes for React component detection
+  - Also added detection for function expressions (`const fn = function() {}`)
+  - Added generator function detection
+
+### Tests
+
+- Added comprehensive test suite for arrow function symbol extraction
+  - 16 new tests covering JavaScript, TypeScript, and TSX arrow functions
+  - Tests for async arrow functions, typed parameters, exports, and React components
+
+---
+
 ## [3.1.0] - 2025-12-15
 
 ### Major Features
