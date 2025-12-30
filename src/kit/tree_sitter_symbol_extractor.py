@@ -33,6 +33,7 @@ LANGUAGES: dict[str, str] = {
     ".hpp": "cpp",
     ".hxx": "cpp",
     ".zig": "zig",
+    ".cs": "csharp",
 }
 
 
@@ -348,6 +349,7 @@ class TreeSitterSymbolExtractor:
             ".hpp": "cpp",
             ".hxx": "cpp",
             ".zig": "zig",
+            ".cs": "csharp",
         }
         LANGUAGES.clear()
         LANGUAGES.update(original_languages)
