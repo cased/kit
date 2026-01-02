@@ -786,6 +786,16 @@ class AgenticPRReviewer:
                 )
 
             try:
+                # GPT-5 models use max_completion_tokens instead of max_tokens
+                completion_params: Dict[str, Any] = {
+                    "model": self.config.llm.model,
+                    "tools": tools,
+                    "messages": messages,
+                }
+                if "gpt-5" in self.config.llm.model.lower():
+                    completion_params["max_completion_tokens"] = self.config.llm.max_tokens
+                else:
+                    completion_params["max_tokens"] = self.config.llm.max_tokens
 
                 async def make_api_call():
                     # OpenAI client is also synchronous
@@ -794,12 +804,7 @@ class AgenticPRReviewer:
                     loop = asyncio.get_event_loop()
                     return await loop.run_in_executor(
                         None,
-                        lambda: self._llm_client.chat.completions.create(
-                            model=self.config.llm.model,
-                            max_tokens=self.config.llm.max_tokens,
-                            tools=tools,
-                            messages=messages,
-                        ),
+                        lambda: self._llm_client.chat.completions.create(**completion_params),
                     )
 
                 response = await retry_with_backoff(make_api_call)
