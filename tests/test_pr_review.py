@@ -1663,3 +1663,91 @@ class TestGPT5ParameterHandling:
         assert "max_completion_tokens" in call_kwargs, "GPT-5 should use max_completion_tokens"
         # Summarizer caps at 1000
         assert call_kwargs["max_completion_tokens"] == 1000
+
+    @pytest.mark.asyncio
+    async def test_agentic_reviewer_gpt5_params(self):
+        """Test AgenticPRReviewer._run_agentic_analysis_openai uses correct params for GPT-5."""
+        from unittest.mock import MagicMock
+
+        from kit.pr_review.agentic_reviewer import AgenticPRReviewer
+        from kit.pr_review.config import LLMConfig, LLMProvider, ReviewConfig
+
+        # Create config with GPT-5 model
+        llm_config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model="gpt-5.2",
+            api_key="test-key",
+            max_tokens=4000,
+        )
+        review_config = ReviewConfig(
+            github=MagicMock(),
+            llm=llm_config,
+        )
+
+        reviewer = AgenticPRReviewer(config=review_config)
+
+        # Mock OpenAI client - return a response with text content (no tool calls) to exit loop
+        mock_message = MagicMock()
+        mock_message.tool_calls = None
+        mock_message.content = "Final analysis complete"
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=mock_message)]
+        mock_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50)
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = MagicMock(return_value=mock_response)
+        reviewer._llm_client = mock_client
+
+        # Call the method
+        await reviewer._run_agentic_analysis_openai("Test prompt")
+
+        # Verify max_completion_tokens was used (not max_tokens)
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert "max_completion_tokens" in call_kwargs, "GPT-5 should use max_completion_tokens"
+        assert "max_tokens" not in call_kwargs, "GPT-5 should NOT use max_tokens"
+        assert call_kwargs["max_completion_tokens"] == 4000
+
+    @pytest.mark.asyncio
+    async def test_agentic_reviewer_gpt4_params(self):
+        """Test AgenticPRReviewer._run_agentic_analysis_openai uses correct params for GPT-4."""
+        from unittest.mock import MagicMock
+
+        from kit.pr_review.agentic_reviewer import AgenticPRReviewer
+        from kit.pr_review.config import LLMConfig, LLMProvider, ReviewConfig
+
+        # Create config with GPT-4 model
+        llm_config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model="gpt-4o",
+            api_key="test-key",
+            max_tokens=4000,
+        )
+        review_config = ReviewConfig(
+            github=MagicMock(),
+            llm=llm_config,
+        )
+
+        reviewer = AgenticPRReviewer(config=review_config)
+
+        # Mock OpenAI client - return a response with text content (no tool calls) to exit loop
+        mock_message = MagicMock()
+        mock_message.tool_calls = None
+        mock_message.content = "Final analysis complete"
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=mock_message)]
+        mock_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50)
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = MagicMock(return_value=mock_response)
+        reviewer._llm_client = mock_client
+
+        # Call the method
+        await reviewer._run_agentic_analysis_openai("Test prompt")
+
+        # Verify max_tokens was used (not max_completion_tokens)
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert "max_tokens" in call_kwargs, "GPT-4 should use max_tokens"
+        assert "max_completion_tokens" not in call_kwargs, "GPT-4 should NOT use max_completion_tokens"
+        assert call_kwargs["max_tokens"] == 4000
