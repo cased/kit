@@ -1,6 +1,6 @@
 {
   "name": "@runcased/kit",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "TypeScript wrapper for Cased Kit CLI",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
