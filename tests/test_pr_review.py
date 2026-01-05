@@ -1751,3 +1751,153 @@ class TestGPT5ParameterHandling:
         assert "max_tokens" in call_kwargs, "GPT-4 should use max_tokens"
         assert "max_completion_tokens" not in call_kwargs, "GPT-4 should NOT use max_completion_tokens"
         assert call_kwargs["max_tokens"] == 4000
+
+
+class TestAgenticReviewerProviderRouting:
+    """Tests for agentic reviewer provider routing - Issue #173 fix."""
+
+    @pytest.mark.asyncio
+    async def test_agentic_reviewer_google_routing(self):
+        """Test AgenticPRReviewer routes Google provider to _run_agentic_analysis_google."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from kit.pr_review.agentic_reviewer import AgenticPRReviewer
+        from kit.pr_review.config import LLMConfig, LLMProvider, ReviewConfig
+
+        # Create config with Google provider
+        llm_config = LLMConfig(
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-pro",
+            api_key="test-google-key",
+            max_tokens=4000,
+        )
+        review_config = ReviewConfig(
+            github=GitHubConfig(token="test-token"),
+            llm=llm_config,
+        )
+
+        reviewer = AgenticPRReviewer(config=review_config)
+
+        # Mock the Google analysis method to verify it's called
+        reviewer._run_agentic_analysis_google = AsyncMock(return_value="Google analysis result")
+        reviewer._run_agentic_analysis_openai = AsyncMock(return_value="OpenAI analysis result")
+        reviewer._run_agentic_analysis_anthropic = AsyncMock(return_value="Anthropic analysis result")
+
+        # Mock Repository and other dependencies
+        with patch("kit.Repository") as mock_repo_class:
+            mock_repo = MagicMock()
+            mock_repo_class.return_value = mock_repo
+
+            # Setup minimal PR details
+            pr_details = {
+                "number": 1,
+                "title": "Test PR",
+                "user": {"login": "testuser"},
+                "head": {"sha": "abc123", "repo": {"owner": {"login": "owner"}, "name": "repo"}},
+                "base": {"repo": {"owner": {"login": "owner"}, "name": "repo"}},
+            }
+            files = [{"filename": "test.py", "additions": 10, "deletions": 5}]
+
+            # Mock get_pr_diff and get_parsed_diff
+            reviewer.get_pr_diff = MagicMock(return_value="diff content")
+            reviewer.get_parsed_diff = MagicMock(return_value={})
+
+            result = await reviewer.analyze_pr_agentic("/fake/repo", pr_details, files)
+
+            # Verify Google method was called, not OpenAI
+            reviewer._run_agentic_analysis_google.assert_called_once()
+            reviewer._run_agentic_analysis_openai.assert_not_called()
+            reviewer._run_agentic_analysis_anthropic.assert_not_called()
+            assert result == "Google analysis result"
+
+    @pytest.mark.asyncio
+    async def test_agentic_reviewer_ollama_raises_error(self):
+        """Test AgenticPRReviewer raises clear error for Ollama provider."""
+        from unittest.mock import MagicMock
+
+        from kit.pr_review.agentic_reviewer import AgenticPRReviewer
+        from kit.pr_review.config import LLMConfig, LLMProvider, ReviewConfig
+
+        # Create config with Ollama provider
+        llm_config = LLMConfig(
+            provider=LLMProvider.OLLAMA,
+            model="llama3",
+            api_key="ollama",
+            max_tokens=4000,
+        )
+        review_config = ReviewConfig(
+            github=GitHubConfig(token="test-token"),
+            llm=llm_config,
+        )
+
+        reviewer = AgenticPRReviewer(config=review_config)
+
+        # Mock Repository
+        with patch("kit.Repository") as mock_repo_class:
+            mock_repo = MagicMock()
+            mock_repo_class.return_value = mock_repo
+
+            pr_details = {
+                "number": 1,
+                "title": "Test PR",
+                "user": {"login": "testuser"},
+                "head": {"sha": "abc123", "repo": {"owner": {"login": "owner"}, "name": "repo"}},
+                "base": {"repo": {"owner": {"login": "owner"}, "name": "repo"}},
+            }
+            files = [{"filename": "test.py", "additions": 10, "deletions": 5}]
+
+            reviewer.get_pr_diff = MagicMock(return_value="diff content")
+            reviewer.get_parsed_diff = MagicMock(return_value={})
+
+            with pytest.raises(RuntimeError, match="Agentic mode is not yet supported for Ollama"):
+                await reviewer.analyze_pr_agentic("/fake/repo", pr_details, files)
+
+    @pytest.mark.asyncio
+    async def test_agentic_reviewer_openai_fallback_for_explicit_provider(self):
+        """Test that OpenAI provider correctly routes to OpenAI method."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from kit.pr_review.agentic_reviewer import AgenticPRReviewer
+        from kit.pr_review.config import LLMConfig, LLMProvider, ReviewConfig
+
+        # Create config with OpenAI provider (explicit)
+        llm_config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model="gpt-4o",
+            api_key="test-openai-key",
+            max_tokens=4000,
+        )
+        review_config = ReviewConfig(
+            github=GitHubConfig(token="test-token"),
+            llm=llm_config,
+        )
+
+        reviewer = AgenticPRReviewer(config=review_config)
+
+        # Mock analysis methods
+        reviewer._run_agentic_analysis_google = AsyncMock(return_value="Google result")
+        reviewer._run_agentic_analysis_openai = AsyncMock(return_value="OpenAI result")
+        reviewer._run_agentic_analysis_anthropic = AsyncMock(return_value="Anthropic result")
+
+        with patch("kit.Repository") as mock_repo_class:
+            mock_repo = MagicMock()
+            mock_repo_class.return_value = mock_repo
+
+            pr_details = {
+                "number": 1,
+                "title": "Test PR",
+                "user": {"login": "testuser"},
+                "head": {"sha": "abc123", "repo": {"owner": {"login": "owner"}, "name": "repo"}},
+                "base": {"repo": {"owner": {"login": "owner"}, "name": "repo"}},
+            }
+            files = [{"filename": "test.py", "additions": 10, "deletions": 5}]
+
+            reviewer.get_pr_diff = MagicMock(return_value="diff content")
+            reviewer.get_parsed_diff = MagicMock(return_value={})
+
+            result = await reviewer.analyze_pr_agentic("/fake/repo", pr_details, files)
+
+            # Verify OpenAI method was called
+            reviewer._run_agentic_analysis_openai.assert_called_once()
+            reviewer._run_agentic_analysis_google.assert_not_called()
+            assert result == "OpenAI result"
