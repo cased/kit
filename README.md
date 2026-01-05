@@ -212,6 +212,8 @@ See the [CLI Documentation](https://kit.cased.com/introduction/cli) for comprehe
 
 `kit` includes an enhanced MCP (Model Context Protocol), **kit-dev**, designed especially for individual local dev work. It includes kit's production-grade code intelligence and context building, and adds in multi-source documentation research and package searching.
 
+**Environment Variables:** `OPENAI_API_KEY`, `OPENAI_BASE_URL` (for proxies/custom endpoints), `ANTHROPIC_API_KEY`
+
 **[→ Full kit-dev MCP Documentation](https://kit-mcp.cased.com)**
 
 ## kit-powered Features & Utilities
