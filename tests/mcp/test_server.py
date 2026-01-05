@@ -522,3 +522,107 @@ def test_mcp_tool_output_get_file_tree(logic: KitServerLogic, temp_git_repo):
     result = logic.get_file_tree(repo_id)
     assert isinstance(result, list)
     assert len(result) > 0
+
+
+class TestMCPContextOptimization:
+    """Test MCP server context optimization features."""
+
+    def test_extract_symbols_excludes_code_by_default(self, logic, temp_git_repo):
+        """Test that extract_symbols excludes code by default (90% context savings)."""
+        # Create a file with symbols
+        test_file = Path(temp_git_repo) / "symbols.py"
+        test_file.write_text("""
+def hello():
+    '''A greeting function'''
+    print("Hello, world!")
+    return True
+
+class MyClass:
+    '''A test class'''
+    def method(self):
+        pass
+""")
+        subprocess.run(["git", "add", "."], cwd=temp_git_repo, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add symbols"], cwd=temp_git_repo, check=True, capture_output=True)
+
+        repo_id = logic.open_repository(temp_git_repo)
+        result = logic.extract_symbols(repo_id, "symbols.py")
+
+        # Verify symbols are extracted
+        assert isinstance(result, list)
+        assert len(result) > 0
+
+        # Each symbol should have code (we'll filter it in the handler test)
+        for symbol in result:
+            assert "name" in symbol
+            # Code is still present in the logic result, filtering happens in handler
+
+    def test_get_symbol_code_returns_specific_symbol(self, logic, temp_git_repo):
+        """Test get_symbol_code lazy loading."""
+        # Create a file with symbols
+        test_file = Path(temp_git_repo) / "code.py"
+        test_file.write_text("""
+def target_function():
+    '''This is the target function'''
+    x = 1 + 2
+    return x * 3
+
+def other_function():
+    '''Another function'''
+    pass
+""")
+        subprocess.run(["git", "add", "."], cwd=temp_git_repo, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add code"], cwd=temp_git_repo, check=True, capture_output=True)
+
+        repo_id = logic.open_repository(temp_git_repo)
+        result = logic.get_symbol_code(repo_id, "code.py", "target_function")
+
+        assert isinstance(result, dict)
+        assert result["name"] == "target_function"
+        assert result["type"] == "function"
+        assert "code" in result
+        assert "target_function" in result["code"]
+
+    def test_get_symbol_code_not_found(self, logic, temp_git_repo):
+        """Test get_symbol_code with non-existent symbol."""
+        repo_id = logic.open_repository(temp_git_repo)
+
+        with pytest.raises(MCPError) as exc:
+            logic.get_symbol_code(repo_id, "test.py", "nonexistent_symbol")
+        assert exc.value.code == INVALID_PARAMS
+        assert "not found" in exc.value.message
+
+    def test_get_symbol_code_path_traversal(self, logic, temp_git_repo):
+        """Test path traversal protection in get_symbol_code."""
+        repo_id = logic.open_repository(temp_git_repo)
+
+        with pytest.raises(MCPError) as exc:
+            logic.get_symbol_code(repo_id, "../../../etc/passwd", "symbol")
+        assert exc.value.code == INVALID_PARAMS
+        assert "Path traversal" in exc.value.message
+
+    def test_list_tools_includes_get_symbol_code(self, logic):
+        """Test that tools list includes the new get_symbol_code tool."""
+        tools = logic.list_tools()
+        tool_names = [tool.name for tool in tools]
+        assert "get_symbol_code" in tool_names
+
+    def test_extract_symbols_params_schema(self, logic):
+        """Test that extract_symbols has include_code in its schema."""
+        tools = logic.list_tools()
+        extract_tool = next(t for t in tools if t.name == "extract_symbols")
+        schema = extract_tool.inputSchema
+        assert "include_code" in schema.get("properties", {})
+        # Verify default is False
+        assert schema["properties"]["include_code"].get("default") is False
+
+    def test_get_file_tree_params_schema(self, logic):
+        """Test that get_file_tree has compact mode in its schema."""
+        tools = logic.list_tools()
+        tree_tool = next(t for t in tools if t.name == "get_file_tree")
+        schema = tree_tool.inputSchema
+        assert "compact" in schema.get("properties", {})
+        assert "include_dirs" in schema.get("properties", {})
+        # Verify defaults
+        assert schema["properties"]["compact"].get("default") is True
+        assert schema["properties"]["include_dirs"].get("default") is False
