@@ -10,6 +10,18 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-01-05
+
+### Features
+
+- **MCP Context Optimization** (#177)
+  - Reduced `extract_symbols` output by ~90% (22K → 2K tokens) by excluding code by default
+  - Reduced `get_file_tree` output by ~82% (18K → 3K tokens) with compact mode
+  - New `get_symbol_code` tool for lazy loading specific symbol code on-demand
+  - New parameters: `include_code` for extract_symbols, `compact` and `include_dirs` for get_file_tree
+
+---
+
 ## [3.2.3] - 2026-01-05
 
 ### Features
