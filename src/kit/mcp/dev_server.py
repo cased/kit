@@ -106,6 +106,10 @@ class ExtractSymbolsParams(BaseModel):
     repo_id: str
     file_path: str
     symbol_type: Optional[str] = None
+    include_code: bool = Field(
+        default=False,
+        description="Include full source code of each symbol. Default false to reduce context size.",
+    )
 
 
 class FindSymbolUsagesParams(BaseModel):
@@ -117,6 +121,22 @@ class FindSymbolUsagesParams(BaseModel):
 
 class GetFileTreeParams(BaseModel):
     repo_id: str
+    compact: bool = Field(
+        default=True,
+        description="Return compact newline-separated paths instead of full JSON. Reduces context by ~75%.",
+    )
+    include_dirs: bool = Field(
+        default=False,
+        description="Include directory entries (only relevant when compact=true).",
+    )
+
+
+class GetSymbolCodeParams(BaseModel):
+    """Get the source code of a specific symbol (lazy loading)."""
+
+    repo_id: str
+    file_path: str
+    symbol_name: str = Field(description="Name of the symbol to get code for")
 
 
 class GetCodeSummaryParams(BaseModel):
@@ -282,6 +302,29 @@ class KitServerLogic:
         repo = self.get_repo(repo_id)
         # Repository.find_symbol_usages doesn't accept keyword arguments
         return repo.find_symbol_usages(symbol_name)
+
+    def get_symbol_code(self, repo_id: str, file_path: str, symbol_name: str) -> Dict[str, Any]:
+        """Get source code of a specific symbol (lazy loading)."""
+        repo = self.get_repo(repo_id)
+        try:
+            symbols = repo.extract_symbols(file_path)
+            for symbol in symbols:
+                if symbol.get("name") == symbol_name:
+                    return {
+                        "name": symbol.get("name"),
+                        "type": symbol.get("type"),
+                        "file": file_path,
+                        "start_line": symbol.get("start_line"),
+                        "end_line": symbol.get("end_line"),
+                        "code": symbol.get("code", ""),
+                    }
+            # Symbol not found - return list of available symbols
+            available = [s.get("name") for s in symbols]
+            raise MCPError(INVALID_PARAMS, f"Symbol '{symbol_name}' not found. Available: {available[:20]}")
+        except ValueError as e:
+            if "outside repository bounds" in str(e):
+                raise MCPError(INVALID_PARAMS, f"Path traversal attempted: {e}")
+            raise MCPError(INVALID_PARAMS, str(e))
 
     def get_code_summary(self, repo_id: str, file_path: str, symbol_name: Optional[str] = None) -> Dict[str, Any]:
         """Get code summary."""
@@ -496,6 +539,11 @@ class KitServerLogic:
                 name="grep_ast",
                 description="Search code using AST patterns (semantic search)",
                 inputSchema=GrepASTParams.model_json_schema(),
+            ),
+            Tool(
+                name="get_symbol_code",
+                description="Get source code of a specific symbol (lazy loading for context efficiency)",
+                inputSchema=GetSymbolCodeParams.model_json_schema(),
             ),
         ]
 
@@ -974,6 +1022,7 @@ async def serve():
                 "get_git_info",
                 "review_diff",
                 "grep_ast",
+                "get_symbol_code",
             ]:
                 # Route to parent class method
                 if name == "open_repository":
@@ -1010,6 +1059,12 @@ async def serve():
                     result = logic.extract_symbols(
                         symbol_params.repo_id, symbol_params.file_path, symbol_params.symbol_type
                     )
+                    # Filter out code field unless explicitly requested (saves ~90% context)
+                    if not symbol_params.include_code:
+                        result = [
+                            {k: v for k, v in symbol.items() if k != "code"}
+                            for symbol in result
+                        ]
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "find_symbol_usages":
                     usage_params = FindSymbolUsagesParams(**arguments)
@@ -1020,6 +1075,14 @@ async def serve():
                 elif name == "get_file_tree":
                     tree_params = GetFileTreeParams(**arguments)
                     result = logic.get_file_tree(tree_params.repo_id)
+                    # Compact mode: newline-separated paths (saves ~75% context)
+                    if tree_params.compact:
+                        paths = []
+                        for item in result:
+                            is_dir = item.get("is_dir", False)
+                            if tree_params.include_dirs or not is_dir:
+                                paths.append(item.get("path", ""))
+                        return [TextContent(type="text", text="\n".join(paths))]
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "get_code_summary":
                     summary_params = GetCodeSummaryParams(**arguments)
@@ -1049,6 +1112,14 @@ async def serve():
                         ast_params.mode,
                         ast_params.file_pattern,
                         ast_params.max_results,
+                    )
+                    return [TextContent(type="text", text=json.dumps(result, indent=2))]
+                elif name == "get_symbol_code":
+                    symbol_code_params = GetSymbolCodeParams(**arguments)
+                    result = logic.get_symbol_code(
+                        symbol_code_params.repo_id,
+                        symbol_code_params.file_path,
+                        symbol_code_params.symbol_name,
                     )
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 else:
