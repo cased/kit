@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 if TYPE_CHECKING:
-    from kit.pr_review.config import LLMConfig, LLMProvider
+    from kit.pr_review.config import LLMConfig
     from kit.summaries import AnthropicConfig, GoogleConfig, OllamaConfig, OpenAIConfig
 
 

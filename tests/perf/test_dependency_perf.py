@@ -61,10 +61,10 @@ class PerfResult:
 
     def __repr__(self) -> str:
         return (
-            f"{self.name}: mean={self.mean*1000:.2f}ms, "
-            f"median={self.median*1000:.2f}ms, "
-            f"min={self.min*1000:.2f}ms, max={self.max*1000:.2f}ms, "
-            f"stdev={self.stdev*1000:.2f}ms"
+            f"{self.name}: mean={self.mean * 1000:.2f}ms, "
+            f"median={self.median * 1000:.2f}ms, "
+            f"min={self.min * 1000:.2f}ms, max={self.max * 1000:.2f}ms, "
+            f"stdev={self.stdev * 1000:.2f}ms"
         )
 
 
@@ -482,10 +482,10 @@ def print_results(results: List[PerfResult]):
         )
         print(
             f"{r.name:<45} "
-            f"{r.mean*1000:>9.1f}ms "
-            f"{r.median*1000:>9.1f}ms "
-            f"{r.min*1000:>9.1f}ms "
-            f"{r.max*1000:>9.1f}ms "
+            f"{r.mean * 1000:>9.1f}ms "
+            f"{r.median * 1000:>9.1f}ms "
+            f"{r.min * 1000:>9.1f}ms "
+            f"{r.max * 1000:>9.1f}ms "
             f"{items:>8}"
         )
 
@@ -1081,7 +1081,10 @@ if __name__ == "__main__":
         help="Type of benchmark to run",
     )
     parser.add_argument(
-        "--language", choices=["python", "go", "terraform", "javascript", "rust", "all"], default="all", help="Language to benchmark (deps)"
+        "--language",
+        choices=["python", "go", "terraform", "javascript", "rust", "all"],
+        default="all",
+        help="Language to benchmark (deps)",
     )
     parser.add_argument("--repo", type=str, help="Path to real repo to benchmark")
     parser.add_argument("--repo-language", type=str, help="Language for real repo benchmark")

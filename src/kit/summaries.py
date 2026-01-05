@@ -5,6 +5,8 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union, runtime_checkable
 
+from kit.llm_client_factory import LLMClientError, create_client_from_config
+
 try:
     import tiktoken
 except ImportError:
@@ -33,9 +35,6 @@ logger = logging.getLogger(__name__)
 # Use TYPE_CHECKING to avoid circular import issues with Repository
 if TYPE_CHECKING:
     from kit.repository import Repository
-
-from kit.llm_client_factory import LLMClientError, create_client_from_config
-from kit.ollama_client import OllamaClient
 
 
 class LLMError(Exception):
@@ -334,7 +333,7 @@ class Summarizer:
                 self._llm_client = create_client_from_config(self.config)
             except LLMClientError as e:
                 raise LLMError(str(e))
-            except TypeError as e:
+            except TypeError:
                 raise TypeError(f"Unsupported LLM configuration type: {type(self.config)}")
         # If _llm_client was provided, we assume it's configured and ready.
         # self.config might be None if only llm_client was passed.

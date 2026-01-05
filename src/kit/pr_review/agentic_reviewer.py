@@ -2,11 +2,11 @@
 
 import asyncio
 import json
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, cast
 
 from .base_reviewer import BaseReviewer
 from .config import LLMProvider, ReviewConfig
-from .diff_parser import DiffParser, FileDiff
+from .diff_parser import DiffParser
 from .file_prioritizer import FilePrioritizer
 from .priority_filter import filter_review_by_priority
 

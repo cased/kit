@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from kit.llm_client_factory import (
-    LLMClientError,
     create_anthropic_client,
     create_client_from_config,
     create_client_from_review_config,

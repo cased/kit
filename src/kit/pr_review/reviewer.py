@@ -3,7 +3,9 @@
 import asyncio
 import subprocess
 import tempfile
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
+import requests
 
 from kit import Repository
 from kit.llm_client_factory import create_client_from_review_config

@@ -6,7 +6,6 @@ from typing import Any, Dict, List
 
 from kit import Repository
 from kit.llm_client_factory import create_client_from_review_config
-from kit.ollama_client import OllamaClient
 
 from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker

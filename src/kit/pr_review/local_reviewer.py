@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
 
 from ..llm_client_factory import create_client_from_review_config
-from ..ollama_client import OllamaClient
 from ..repository import Repository
 from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker

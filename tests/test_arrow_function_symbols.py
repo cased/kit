@@ -3,6 +3,7 @@
 Verifies that arrow functions are properly detected by the symbol extractor.
 See: https://github.com/cased/kit/issues/168
 """
+
 import pytest
 
 from kit.tree_sitter_symbol_extractor import TreeSitterSymbolExtractor

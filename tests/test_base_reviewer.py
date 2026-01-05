@@ -46,7 +46,7 @@ class TestBaseReviewerInit:
     def test_init_with_custom_user_agent(self, review_config, mock_session):
         """Test that init accepts custom user agent."""
         with patch("kit.pr_review.base_reviewer.RepoCache"):
-            reviewer = BaseReviewer(review_config, user_agent="custom-agent/1.0")
+            BaseReviewer(review_config, user_agent="custom-agent/1.0")
 
             call_args = mock_session.headers.update.call_args[0][0]
             assert call_args["User-Agent"] == "custom-agent/1.0"

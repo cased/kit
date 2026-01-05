@@ -188,16 +188,15 @@ class TestOllamaSummarizer:
 
     def test_ollama_without_requests(self, mock_repo):
         """Test that missing requests library is handled properly."""
-        from kit.llm_client_factory import LLMClientError, create_ollama_client
+        from kit.llm_client_factory import LLMClientError
 
         # Mock requests to raise ImportError when OllamaClient tries to import it
         with patch.dict("sys.modules", {"requests": None}):
             # Reload the module to test the import error path
-            import importlib
             import kit.ollama_client
 
             # Store original
-            original_session_class = getattr(kit.ollama_client, "_original_requests", None)
+            getattr(kit.ollama_client, "_original_requests", None)
 
             # Patch the import inside OllamaClient.__init__
             def raise_import_error(*args, **kwargs):
