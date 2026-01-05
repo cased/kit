@@ -866,6 +866,158 @@ class AgenticPRReviewer:
 
         return "Analysis completed after maximum turns"
 
+    async def _run_agentic_analysis_google(self, initial_prompt: str) -> str:
+        """Run multi-turn agentic analysis using Google Gemini."""
+        try:
+            import google.genai as genai
+            from google.genai import types
+        except ImportError:
+            raise RuntimeError("google-genai package not installed. Run: pip install google-genai")
+
+        if not self._llm_client:
+            self._llm_client = genai.Client(api_key=self.config.llm.api_key)
+
+        # Convert our tool schemas to Google's FunctionDeclaration format
+        kit_tools = self._get_available_tools()
+        function_declarations = []
+        for tool in kit_tools:
+            func_decl = types.FunctionDeclaration(
+                name=tool["name"],
+                description=tool["description"],
+                parameters_json_schema=tool["input_schema"],
+            )
+            function_declarations.append(func_decl)
+
+        google_tool = types.Tool(function_declarations=function_declarations)
+
+        # Build initial conversation
+        contents: List[types.Content] = [types.Content(role="user", parts=[types.Part.from_text(text=initial_prompt)])]
+
+        max_turns = self.max_turns
+        turn = 0
+
+        while turn < max_turns:
+            turn += 1
+            print(f"🤖 Agentic turn {turn}...")
+
+            # If we're near the end, encourage finalization more aggressively
+            if turn >= max_turns - 3:  # Last 3 turns
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[
+                            types.Part.from_text(
+                                text=f"URGENT: You are on turn {turn} of {max_turns}. You MUST finalize your review NOW using the finalize_review tool. Do not use any other tools."
+                            )
+                        ],
+                    )
+                )
+            elif turn >= self.finalize_threshold:
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[
+                            types.Part.from_text(
+                                text=f"You are on turn {turn} of {max_turns}. Please finalize your review soon using the finalize_review tool with your comprehensive analysis."
+                            )
+                        ],
+                    )
+                )
+
+            try:
+
+                async def make_api_call():
+                    import asyncio
+
+                    loop = asyncio.get_event_loop()
+                    return await loop.run_in_executor(
+                        None,
+                        lambda: self._llm_client.models.generate_content(
+                            model=self.config.llm.model,
+                            contents=contents,
+                            config=types.GenerateContentConfig(
+                                tools=[google_tool],
+                                max_output_tokens=self.config.llm.max_tokens,
+                            ),
+                        ),
+                    )
+
+                response = await retry_with_backoff(make_api_call)
+
+                # Track cost using usage_metadata
+                if hasattr(response, "usage_metadata") and response.usage_metadata:
+                    input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
+                    output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
+                    self.cost_tracker.track_llm_usage(
+                        self.config.llm.provider, self.config.llm.model, input_tokens, output_tokens
+                    )
+
+                # Process response - check for function calls
+                if not response.candidates or not response.candidates[0].content:
+                    return "No response from Google Gemini"
+
+                response_content = response.candidates[0].content
+                contents.append(response_content)
+
+                # Collect function calls and text content
+                function_calls = []
+                text_content = ""
+
+                for part in response_content.parts:
+                    if hasattr(part, "function_call") and part.function_call:
+                        func_call = part.function_call
+                        function_calls.append(func_call)
+                        print(f"🔧 Agent using tool: {func_call.name} with {dict(func_call.args)}")
+                    elif hasattr(part, "text") and part.text:
+                        text_content += part.text
+                        print(f"💭 Agent thinking: {part.text[:200]}...")
+
+                # Execute function calls if any
+                if function_calls:
+                    print(
+                        f"🚀 Executing {len(function_calls)} {'tool' if len(function_calls) == 1 else 'tools'} in parallel..."
+                    )
+
+                    # Execute tools in parallel
+                    tool_tasks = [self._execute_tool(fc.name, dict(fc.args)) for fc in function_calls]
+                    tool_results = await asyncio.gather(*tool_tasks, return_exceptions=True)
+
+                    # Build function response parts
+                    function_response_parts = []
+                    finalize_called = False
+
+                    for fc, result in zip(function_calls, tool_results):
+                        if isinstance(result, Exception):
+                            result_text = f"Error executing {fc.name}: {result!s}"
+                        else:
+                            result_text = str(result)
+
+                        function_response_parts.append(
+                            types.Part.from_function_response(
+                                name=fc.name,
+                                response={"result": result_text},
+                            )
+                        )
+
+                        if fc.name == "finalize_review":
+                            finalize_called = True
+
+                    # Add function responses to conversation
+                    contents.append(types.Content(role="user", parts=function_response_parts))
+
+                    # If finalize_review was called, return the final review
+                    if finalize_called:
+                        return self.analysis_state.get("final_review", "Review finalized")
+
+                # If no function calls and we have text content, this is the final response
+                elif text_content:
+                    return text_content
+
+            except Exception as e:
+                return f"Error during agentic analysis turn {turn}: {e}"
+
+        return "Analysis completed after maximum turns"
+
     async def analyze_pr_agentic(self, repo_path: str, pr_details: Dict[str, Any], files: List[Dict[str, Any]]) -> str:
         """Run agentic analysis of the PR."""
         from kit import Repository
@@ -965,6 +1117,14 @@ Keep it focused and valuable. Begin your analysis.
         # Run the agentic analysis
         if self.config.llm.provider == LLMProvider.ANTHROPIC:
             analysis = await self._run_agentic_analysis_anthropic(initial_prompt)
+        elif self.config.llm.provider == LLMProvider.GOOGLE:
+            analysis = await self._run_agentic_analysis_google(initial_prompt)
+        elif self.config.llm.provider == LLMProvider.OLLAMA:
+            raise RuntimeError(
+                "Agentic mode is not yet supported for Ollama. "
+                "Please use --provider anthropic, openai, or google for agentic reviews, "
+                "or run without --agentic for standard reviews with Ollama."
+            )
         else:
             analysis = await self._run_agentic_analysis_openai(initial_prompt)
 
