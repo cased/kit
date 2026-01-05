@@ -1,137 +1,26 @@
 """PR Reviewer implementation with GitHub API integration and LLM analysis."""
 
 import asyncio
-import re
 import subprocess
 import tempfile
 from typing import Any, Dict, List, Optional
 
-import requests
-
 from kit import Repository
+from kit.llm_client_factory import create_client_from_review_config
 
-from .cache import RepoCache
+from .base_reviewer import BaseReviewer
 from .config import LLMProvider, ReviewConfig
-from .cost_tracker import CostTracker
 from .diff_parser import DiffParser, FileDiff
 from .file_prioritizer import FilePrioritizer
 from .priority_filter import filter_review_by_priority
 from .validator import validate_review_quality
 
 
-class PRReviewer:
+class PRReviewer(BaseReviewer):
     """PR reviewer that uses kit's Repository class and LLM analysis for intelligent code reviews."""
 
     def __init__(self, config: ReviewConfig):
-        self.config = config
-        self.github_session = requests.Session()
-        self.github_session.headers.update(
-            {
-                "Authorization": f"token {config.github.token}",
-                "Accept": "application/vnd.github.v3+json",
-                "User-Agent": "kit-review/0.6.1",
-            }
-        )
-        self._llm_client: Optional[Any] = None  # Will be Anthropic or OpenAI client
-        # Pass quiet mode to repo cache
-        quiet = self.config.quiet
-        self.repo_cache = RepoCache(config, quiet=quiet)
-        self.cost_tracker = CostTracker(config.custom_pricing)
-
-        # Diff caching (initialized to None, filled lazily)
-        self._cached_diff_key: Optional[tuple[str, str, int]] = None
-        self._cached_diff_text: Optional[str] = None
-        self._cached_parsed_diff: Optional[Dict[str, FileDiff]] = None
-        self._cached_parsed_key: Optional[tuple[str, str, int]] = None
-
-    def parse_pr_url(self, pr_input: str) -> tuple[str, str, int]:
-        """Parse PR URL or number to extract owner, repo, and PR number.
-
-        Args:
-            pr_input: GitHub PR URL or just PR number (if in repo directory)
-
-        Returns:
-            tuple of (owner, repo, pr_number)
-        """
-        # If it's just a number, we'll need to detect repo from current directory
-        if pr_input.isdigit():
-            raise NotImplementedError(
-                "PR number without repository URL is not yet supported. "
-                "Please provide the full GitHub PR URL: https://github.com/owner/repo/pull/123"
-            )
-
-        # Parse GitHub URL
-        # https://github.com/owner/repo/pull/123
-        url_pattern = r"https://(?:\w+\.)?github\.com/([^/]+)/([^/]+)/pull/(\d+)"
-        match = re.match(url_pattern, pr_input)
-
-        if not match:
-            raise ValueError(f"Invalid GitHub PR URL: {pr_input}")
-
-        owner, repo, pr_number = match.groups()
-        return owner, repo, int(pr_number)
-
-    def get_pr_details(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
-        """Get PR details from GitHub API."""
-        url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
-
-        response = self.github_session.get(url)
-        response.raise_for_status()
-
-        return response.json()
-
-    def get_pr_files(self, owner: str, repo: str, pr_number: int) -> list[Dict[str, Any]]:
-        """Get list of files changed in the PR."""
-        url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}/files"
-
-        response = self.github_session.get(url)
-        response.raise_for_status()
-
-        return response.json()
-
-    def get_pr_diff(self, owner: str, repo: str, pr_number: int) -> str:
-        """Get the full diff for the PR."""
-        key = (owner, repo, pr_number)
-
-        # Return cached diff text if we already fetched it
-        if getattr(self, "_cached_diff_key", None) == key and hasattr(self, "_cached_diff_text"):
-            # mypy: we know _cached_diff_text is not None because key matched and attribute exists
-            assert self._cached_diff_text is not None
-            return self._cached_diff_text
-
-        url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
-        headers = dict(self.github_session.headers)
-        headers["Accept"] = "application/vnd.github.v3.diff"
-
-        response = self.github_session.get(url, headers=headers)
-        response.raise_for_status()
-
-        # Cache the result
-        self._cached_diff_key = key
-        self._cached_diff_text = response.text
-
-        # Invalidate parsed cache (if any) because diff may have changed
-        if hasattr(self, "_cached_parsed_diff"):
-            delattr(self, "_cached_parsed_diff")
-
-        return response.text
-
-    def get_repo_for_analysis(self, owner: str, repo: str, pr_details: Dict[str, Any]) -> str:
-        """Get repository for analysis, using cache if available."""
-        # If a repo_path is configured, use the existing repository
-        if self.config.repo_path:
-            from pathlib import Path
-
-            repo_path = Path(self.config.repo_path).expanduser().resolve()
-            if not repo_path.exists():
-                raise ValueError(f"Specified repository path does not exist: {repo_path}")
-            if not (repo_path / ".git").exists():
-                raise ValueError(f"Specified path is not a git repository: {repo_path}")
-            return str(repo_path)
-
-        # Default behavior: use cache
-        head_sha = pr_details["head"]["sha"]
-        return self.repo_cache.get_repo_path(owner, repo, head_sha)
+        super().__init__(config, user_agent="kit-review/0.6.1")
 
     def post_pr_comment(self, owner: str, repo: str, pr_number: int, comment: str) -> Dict[str, Any]:
         """Post a comment on the PR."""
@@ -302,13 +191,8 @@ class PRReviewer:
 
     async def _analyze_with_anthropic_enhanced(self, enhanced_prompt: str) -> str:
         """Analyze using Anthropic Claude with enhanced kit context."""
-        try:
-            import anthropic
-        except ImportError:
-            raise RuntimeError("anthropic package not installed. Run: pip install anthropic")
-
         if not self._llm_client:
-            self._llm_client = anthropic.Anthropic(api_key=self.config.llm.api_key)
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             response = self._llm_client.messages.create(
@@ -337,13 +221,12 @@ class PRReviewer:
     async def _analyze_with_google_enhanced(self, enhanced_prompt: str) -> str:
         """Analyze using Google Gemini with enhanced kit context."""
         try:
-            import google.genai as genai
             from google.genai import types
         except ImportError:
             raise RuntimeError("google-genai package not installed. Run: pip install google-genai")
 
         if not self._llm_client:
-            self._llm_client = genai.Client(api_key=self.config.llm.api_key)
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             # Use the correct API format for the new google-genai SDK
@@ -394,17 +277,8 @@ class PRReviewer:
 
     async def _analyze_with_openai_enhanced(self, enhanced_prompt: str) -> str:
         """Analyze using OpenAI GPT with enhanced kit context."""
-        try:
-            import openai
-        except ImportError:
-            raise RuntimeError("openai package not installed. Run: pip install openai")
-
         if not self._llm_client:
-            # Support custom OpenAI compatible providers via api_base_url
-            if self.config.llm.api_base_url:
-                self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key, base_url=self.config.llm.api_base_url)
-            else:
-                self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key)
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             # GPT-5 models use max_completion_tokens instead of max_tokens
@@ -433,30 +307,8 @@ class PRReviewer:
 
     async def _analyze_with_ollama_enhanced(self, enhanced_prompt: str) -> str:
         """Analyze using Ollama with enhanced kit context."""
-        try:
-            import requests
-        except ImportError:
-            raise RuntimeError("requests package not installed. Run: pip install requests")
-
         if not self._llm_client:
-            # Create Ollama client
-            class OllamaClient:
-                def __init__(self, base_url: str, model: str):
-                    self.base_url = base_url
-                    self.model = model
-                    self.session = requests.Session()
-
-                def generate(self, prompt: str, **kwargs) -> str:
-                    """Generate text using Ollama's API."""
-                    url = f"{self.base_url}/api/generate"
-                    data = {"model": self.model, "prompt": prompt, "stream": False, **kwargs}
-                    response = self.session.post(url, json=data)
-                    response.raise_for_status()
-                    return response.json().get("response", "")
-
-            self._llm_client = OllamaClient(
-                self.config.llm.api_base_url or "http://localhost:11434", self.config.llm.model
-            )
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             response = await asyncio.to_thread(

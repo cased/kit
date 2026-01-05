@@ -5,6 +5,8 @@ import subprocess
 from typing import Any, Dict, List
 
 from kit import Repository
+from kit.llm_client_factory import create_client_from_review_config
+from kit.ollama_client import OllamaClient
 
 from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
@@ -136,13 +138,8 @@ Generate only the commit message, nothing else."""
 
     async def _generate_with_anthropic(self, prompt: str) -> str:
         """Generate commit message using Anthropic Claude."""
-        try:
-            import anthropic
-        except ImportError:
-            raise RuntimeError("anthropic package not installed. Run: pip install anthropic")
-
         if not self._llm_client:
-            self._llm_client = anthropic.Anthropic(api_key=self.config.llm.api_key)
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             response = self._llm_client.messages.create(
@@ -172,13 +169,12 @@ Generate only the commit message, nothing else."""
     async def _generate_with_google(self, prompt: str) -> str:
         """Generate commit message using Google Gemini."""
         try:
-            import google.genai as genai
             from google.genai import types
         except ImportError:
             raise RuntimeError("google-genai package not installed. Run: pip install google-genai")
 
         if not self._llm_client:
-            self._llm_client = genai.Client(api_key=self.config.llm.api_key)
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             response = self._llm_client.models.generate_content(
@@ -205,16 +201,8 @@ Generate only the commit message, nothing else."""
 
     async def _generate_with_openai(self, prompt: str) -> str:
         """Generate commit message using OpenAI GPT."""
-        try:
-            import openai
-        except ImportError:
-            raise RuntimeError("openai package not installed. Run: pip install openai")
-
         if not self._llm_client:
-            if self.config.llm.api_base_url:
-                self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key, base_url=self.config.llm.api_base_url)
-            else:
-                self._llm_client = openai.OpenAI(api_key=self.config.llm.api_key)
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             # GPT-5 models use max_completion_tokens instead of max_tokens
@@ -243,30 +231,8 @@ Generate only the commit message, nothing else."""
 
     async def _generate_with_ollama(self, prompt: str) -> str:
         """Generate commit message using Ollama."""
-        try:
-            import requests
-        except ImportError:
-            raise RuntimeError("requests package not installed. Run: pip install requests")
-
         if not self._llm_client:
-            # Create Ollama client
-            class OllamaClient:
-                def __init__(self, base_url: str, model: str):
-                    self.base_url = base_url
-                    self.model = model
-                    self.session = requests.Session()
-
-                def generate(self, prompt: str, **kwargs) -> str:
-                    """Generate text using Ollama's API."""
-                    url = f"{self.base_url}/api/generate"
-                    data = {"model": self.model, "prompt": prompt, "stream": False, **kwargs}
-                    response = self.session.post(url, json=data)
-                    response.raise_for_status()
-                    return response.json().get("response", "")
-
-            self._llm_client = OllamaClient(
-                self.config.llm.api_base_url or "http://localhost:11434", self.config.llm.model
-            )
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             response = await asyncio.to_thread(

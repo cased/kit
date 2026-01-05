@@ -34,6 +34,9 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from kit.repository import Repository
 
+from kit.llm_client_factory import LLMClientError, create_client_from_config
+from kit.ollama_client import OllamaClient
+
 
 class LLMError(Exception):
     """Custom exception for LLM related errors."""
@@ -327,60 +330,12 @@ class Summarizer:
                 # This will raise ValueError if OPENAI_API_KEY is not set.
                 self.config = OpenAIConfig()
 
-            if isinstance(self.config, OpenAIConfig):
-                try:
-                    import openai
-
-                    if self.config.base_url:
-                        self._llm_client = openai.OpenAI(api_key=self.config.api_key, base_url=self.config.base_url)
-                    else:
-                        self._llm_client = openai.OpenAI(api_key=self.config.api_key)
-                except ImportError:
-                    raise LLMError("OpenAI SDK (openai) not available. Please install it.")
-            elif isinstance(self.config, AnthropicConfig):
-                try:
-                    import anthropic
-
-                    self._llm_client = anthropic.Anthropic(api_key=self.config.api_key)
-                except ImportError:
-                    raise LLMError("Anthropic SDK (anthropic) not available. Please install it.")
-            elif isinstance(self.config, GoogleConfig):
-                try:
-                    import google.genai as genai
-
-                    self._llm_client = genai.Client(api_key=self.config.api_key)  # Use the new client
-                except ImportError:
-                    raise LLMError("Google Gen AI SDK (google-genai) not available. Please install it.")
-            elif isinstance(self.config, OllamaConfig):
-                # Create a simple HTTP client for Ollama
-                try:
-                    import requests
-
-                    class OllamaClient:
-                        def __init__(self, base_url: str, model: str):
-                            self.base_url = base_url
-                            self.model = model
-                            self.session = requests.Session()
-
-                        def generate(self, prompt: str, **kwargs) -> str:
-                            """Generate text using Ollama's API."""
-                            url = f"{self.base_url}/api/generate"
-                            data = {"model": self.model, "prompt": prompt, "stream": False, **kwargs}
-                            response = self.session.post(url, json=data)
-                            response.raise_for_status()
-                            return response.json().get("response", "")
-
-                    client = OllamaClient(self.config.base_url, self.config.model)
-                    self._llm_client = client
-                except ImportError:
-                    raise LLMError("requests library not available. Please install it for Ollama support.")
-            else:
-                # This case implies self.config was set to something unexpected if self._llm_client was None
-                # and self.config was also None initially. Or self.config was passed with an invalid type.
-                if self.config is not None:  # Only raise if config is of an unsupported type
-                    raise TypeError(f"Unsupported LLM configuration type: {type(self.config)}")
-                # If self.config is None here, it means OpenAIConfig() failed, but that should raise its own error.
-                # Or, it implies a logic flaw if this path is reached with self.config being None.
+            try:
+                self._llm_client = create_client_from_config(self.config)
+            except LLMClientError as e:
+                raise LLMError(str(e))
+            except TypeError as e:
+                raise TypeError(f"Unsupported LLM configuration type: {type(self.config)}")
         # If _llm_client was provided, we assume it's configured and ready.
         # self.config might be None if only llm_client was passed.
 
@@ -390,68 +345,10 @@ class Summarizer:
             return self._llm_client
 
         try:
-            client: Any  # Ensure consistent type across branches for mypy
-            if isinstance(self.config, OpenAIConfig):
-                from openai import OpenAI  # Local import for OpenAI client
-
-                if self.config.base_url:
-                    client = OpenAI(api_key=self.config.api_key, base_url=self.config.base_url)
-                else:
-                    client = OpenAI(api_key=self.config.api_key)
-            elif isinstance(self.config, AnthropicConfig):
-                from anthropic import Anthropic  # Local import for Anthropic client
-
-                client = Anthropic(api_key=self.config.api_key)  # type: ignore # Different client type
-            elif isinstance(self.config, GoogleConfig):
-                if genai is None or genai_types is None:
-                    raise LLMError(
-                        "Google Gen AI SDK (google-genai) is not installed. Please install it to use Google models."
-                    )
-                # API key is picked up from GOOGLE_API_KEY env var by default if not passed to Client()
-                # However, we have it in self.config.api_key, so we pass it explicitly.
-                client = genai.Client(api_key=self.config.api_key)  # type: ignore # Different client type
-            elif isinstance(self.config, OllamaConfig):
-                # Create a simple HTTP client for Ollama
-                try:
-                    import requests
-
-                    class OllamaClient:
-                        def __init__(self, base_url: str, model: str):
-                            self.base_url = base_url
-                            self.model = model
-                            self.session = requests.Session()
-
-                        def generate(self, prompt: str, **kwargs) -> str:
-                            """Generate text using Ollama's API."""
-                            url = f"{self.base_url}/api/generate"
-                            data = {"model": self.model, "prompt": prompt, "stream": False, **kwargs}
-                            response = self.session.post(url, json=data)
-                            response.raise_for_status()
-                            return response.json().get("response", "")
-
-                    client = OllamaClient(self.config.base_url, self.config.model)
-                    self._llm_client = client
-                except ImportError:
-                    raise LLMError("requests library not available. Please install it for Ollama support.")
-            else:
-                # This case should ideally be prevented by the __init__ type check,
-                # but as a safeguard:
-                raise LLMError(f"Unsupported LLM configuration type: {type(self.config)}")
-
-            self._llm_client = client
+            self._llm_client = create_client_from_config(self.config)
             return self._llm_client
-        except ImportError as e:
-            sdk_name = ""
-            if "openai" in str(e).lower():
-                sdk_name = "openai"
-            elif "anthropic" in str(e).lower():
-                sdk_name = "anthropic"
-            # google-genai import is handled by genai being None
-            if sdk_name:
-                raise LLMError(
-                    f"{sdk_name.capitalize()} SDK not installed. Please install it to use {sdk_name.capitalize()} models."
-                ) from e
-            raise  # Re-raise if it's a different import error
+        except LLMClientError as e:
+            raise LLMError(str(e))
         except Exception as e:
             logger.error(f"Error initializing LLM client: {e}")
             raise LLMError(f"Error initializing LLM client: {e}") from e

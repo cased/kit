@@ -2,123 +2,26 @@
 
 import asyncio
 import json
-import re
 from typing import Any, Dict, List, Optional, cast
 
-import requests
-
-from .cache import RepoCache
+from .base_reviewer import BaseReviewer
 from .config import LLMProvider, ReviewConfig
-from .cost_tracker import CostTracker
 from .diff_parser import DiffParser, FileDiff
 from .file_prioritizer import FilePrioritizer
 from .priority_filter import filter_review_by_priority
 
 
-class AgenticPRReviewer:
+class AgenticPRReviewer(BaseReviewer):
     """Agentic PR reviewer that uses multi-turn analysis with kit tools."""
 
     def __init__(self, config: ReviewConfig):
-        self.config = config
-        self.github_session = requests.Session()
-        self.github_session.headers.update(
-            {
-                "Authorization": f"token {config.github.token}",
-                "Accept": "application/vnd.github.v3+json",
-                "User-Agent": "kit-agentic-reviewer/0.1.0",
-            }
-        )
-        self._llm_client: Optional[Any] = None
-        self.repo_cache = RepoCache(config)
-        self.cost_tracker = CostTracker(config.custom_pricing)
+        super().__init__(config, user_agent="kit-agentic-reviewer/0.1.0")
         self.conversation_history: List[Dict[str, str]] = []
         self.analysis_state: Dict[str, Any] = {}
 
         # Customizable turn limit - default to 15 for reasonable completion rate
         self.max_turns = getattr(config, "agentic_max_turns", 15)
         self.finalize_threshold = getattr(config, "agentic_finalize_threshold", 10)
-
-        # Diff caching placeholders
-        self._cached_diff_key: Optional[tuple[str, str, int]] = None
-        self._cached_diff_text: Optional[str] = None
-        self._cached_parsed_diff: Optional[Dict[str, FileDiff]] = None
-        self._cached_parsed_key: Optional[tuple[str, str, int]] = None
-
-    def parse_pr_url(self, pr_input: str) -> tuple[str, str, int]:
-        """Parse PR URL to extract owner, repo, and PR number."""
-        url_pattern = r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)"
-        match = re.match(url_pattern, pr_input)
-
-        if not match:
-            raise ValueError(f"Invalid GitHub PR URL: {pr_input}")
-
-        owner, repo, pr_number = match.groups()
-        return owner, repo, int(pr_number)
-
-    def get_pr_details(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
-        """Get PR details from GitHub API."""
-        url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
-        response = self.github_session.get(url)
-        response.raise_for_status()
-        return response.json()
-
-    def get_pr_files(self, owner: str, repo: str, pr_number: int) -> list[Dict[str, Any]]:
-        """Get list of files changed in the PR."""
-        url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}/files"
-        response = self.github_session.get(url)
-        response.raise_for_status()
-        return response.json()
-
-    def get_pr_diff(self, owner: str, repo: str, pr_number: int) -> str:
-        """Get the full diff for the PR."""
-        key = (owner, repo, pr_number)
-
-        if getattr(self, "_cached_diff_key", None) == key and hasattr(self, "_cached_diff_text"):
-            assert self._cached_diff_text is not None
-            return self._cached_diff_text
-
-        url = f"{self.config.github.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
-        headers = dict(self.github_session.headers)
-        headers["Accept"] = "application/vnd.github.v3.diff"
-
-        response = self.github_session.get(url, headers=headers)
-        response.raise_for_status()
-
-        self._cached_diff_key = key
-        self._cached_diff_text = response.text
-        if hasattr(self, "_cached_parsed_diff"):
-            delattr(self, "_cached_parsed_diff")
-
-        return response.text
-
-    def get_parsed_diff(self, owner: str, repo: str, pr_number: int) -> Dict[str, FileDiff]:
-        key = (owner, repo, pr_number)
-
-        if self._cached_parsed_key == key and self._cached_parsed_diff is not None:
-            return self._cached_parsed_diff
-
-        diff_text = self.get_pr_diff(owner, repo, pr_number)
-        parsed: Dict[str, FileDiff] = DiffParser.parse_diff(diff_text)
-        self._cached_parsed_key = key
-        self._cached_parsed_diff = parsed
-        return parsed
-
-    def get_repo_for_analysis(self, owner: str, repo: str, pr_details: Dict[str, Any]) -> str:
-        """Get repository for analysis, using cache if available."""
-        # If a repo_path is configured, use the existing repository
-        if self.config.repo_path:
-            from pathlib import Path
-
-            repo_path = Path(self.config.repo_path).expanduser().resolve()
-            if not repo_path.exists():
-                raise ValueError(f"Specified repository path does not exist: {repo_path}")
-            if not (repo_path / ".git").exists():
-                raise ValueError(f"Specified path is not a git repository: {repo_path}")
-            return str(repo_path)
-
-        # Default behavior: use cache
-        head_sha = pr_details["head"]["sha"]
-        return self.repo_cache.get_repo_path(owner, repo, head_sha)
 
     def _get_available_tools(self) -> List[Dict[str, Any]]:
         """Get kit's tools plus our PR-specific analysis tools."""

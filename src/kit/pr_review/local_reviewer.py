@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 
+from ..llm_client_factory import create_client_from_review_config
+from ..ollama_client import OllamaClient
 from ..repository import Repository
 from .config import LLMProvider, ReviewConfig
 from .cost_tracker import CostTracker
@@ -595,13 +597,8 @@ Focus on practical, actionable feedback. Be concise but specific.
 
     async def _analyze_with_anthropic_enhanced(self, enhanced_prompt: str) -> str:
         """Analyze using Anthropic with enhanced kit context."""
-        try:
-            import anthropic
-        except ImportError:
-            raise ValueError("Anthropic library not installed. Install with: pip install anthropic")
-
         if not self._llm_client:
-            self._llm_client = anthropic.Anthropic(api_key=self.config.llm_api_key)
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             response = self._llm_client.messages.create(
@@ -627,17 +624,8 @@ Focus on practical, actionable feedback. Be concise but specific.
 
     async def _analyze_with_openai_enhanced(self, enhanced_prompt: str) -> str:
         """Analyze using OpenAI with enhanced kit context."""
-        try:
-            import openai
-        except ImportError:
-            raise ValueError("OpenAI library not installed. Install with: pip install openai")
-
         if not self._llm_client:
-            # Support custom OpenAI compatible providers via api_base_url
-            if self.config.llm_api_base_url:
-                self._llm_client = openai.OpenAI(api_key=self.config.llm_api_key, base_url=self.config.llm_api_base_url)
-            else:
-                self._llm_client = openai.OpenAI(api_key=self.config.llm_api_key)
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             # GPT-5 models use max_completion_tokens instead of max_tokens
@@ -666,13 +654,12 @@ Focus on practical, actionable feedback. Be concise but specific.
     async def _analyze_with_google_enhanced(self, enhanced_prompt: str) -> str:
         """Analyze using Google with enhanced kit context."""
         try:
-            import google.genai as genai
             from google.genai import types
         except ImportError:
             raise ValueError("Google AI library not installed. Install with: pip install google-genai")
 
         if not self._llm_client:
-            self._llm_client = genai.Client(api_key=self.config.llm_api_key)
+            self._llm_client = create_client_from_review_config(self.config.llm)
 
         try:
             # Use the correct API format for the new google-genai SDK
@@ -708,29 +695,11 @@ Focus on practical, actionable feedback. Be concise but specific.
     async def _analyze_with_ollama_enhanced(self, enhanced_prompt: str) -> str:
         """Analyze using Ollama with enhanced kit context."""
         if not self._llm_client:
-            # Create Ollama client
-            class OllamaClient:
-                def __init__(self, base_url: str, model: str, session: requests.Session):
-                    self.base_url = base_url
-                    self.model = model
-                    self.session = session
-
-                def generate(self, prompt: str, **kwargs) -> str:
-                    """Generate text using Ollama's API."""
-                    url = f"{self.base_url}/api/generate"
-                    data = {"model": self.model, "prompt": prompt, "stream": False, **kwargs}
-                    response = self.session.post(url, json=data)
-                    response.raise_for_status()
-                    return response.json().get("response", "")
-
             # Create a session if not exists
             if not self._ollama_session:
                 self._ollama_session = requests.Session()
 
-            model = self.config.llm_model or self.config.llm.model
-            session = self._ollama_session
-            assert session is not None  # Type guard for mypy
-            self._llm_client = OllamaClient(self.config.llm_api_base_url or "http://localhost:11434", model, session)
+            self._llm_client = create_client_from_review_config(self.config.llm, self._ollama_session)
 
         try:
             response = await asyncio.to_thread(
