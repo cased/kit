@@ -59,6 +59,7 @@ config = OpenAIConfig(
 
 **Environment Variables:**
 - `OPENAI_API_KEY` or `KIT_OPENAI_TOKEN`
+- `OPENAI_BASE_URL` - Custom API endpoint (for proxies, OpenRouter, Grok, etc.)
 
 **Popular Models:**
 - `gpt-5.1` - Latest model with adaptive reasoning
@@ -213,6 +214,48 @@ config = OpenAIConfig(
     base_url="http://localhost:8000/v1"
 )
 ```
+
+### Enterprise Proxies & Custom Endpoints
+
+For organizations using internal API proxies or gateways, you can configure the OpenAI base URL via environment variable:
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+export OPENAI_BASE_URL="https://your-internal-proxy.company.com/v1"
+```
+
+This works automatically with all kit features including the MCP server. In your MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "kit-dev-mcp": {
+      "command": "uvx",
+      "args": ["--from", "cased-kit", "kit-dev-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "your-api-key",
+        "OPENAI_BASE_URL": "https://your-internal-proxy.company.com/v1"
+      }
+    }
+  }
+}
+```
+
+Or configure programmatically:
+
+```python
+from kit.summaries import OpenAIConfig
+
+config = OpenAIConfig(
+    api_key="your-api-key",
+    model="gpt-4",
+    base_url="https://your-internal-proxy.company.com/v1"
+)
+```
+
+<Aside type="tip">
+The `OPENAI_BASE_URL` environment variable is the standard way to configure custom OpenAI endpoints, matching the convention used by the official OpenAI Python SDK.
+</Aside>
 
 ## Usage with Code Summarization
 

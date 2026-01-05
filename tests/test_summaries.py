@@ -166,6 +166,22 @@ def test_get_llm_client_openai(mock_openai_constructor, mock_repo):
     assert client2 == client
 
 
+def test_openai_config_reads_base_url_from_env():
+    """Test OpenAIConfig reads OPENAI_BASE_URL from environment."""
+    with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key", "OPENAI_BASE_URL": "https://proxy.example.com/v1"}):
+        config = OpenAIConfig()
+        assert config.base_url == "https://proxy.example.com/v1"
+
+
+def test_openai_config_base_url_default_is_none():
+    """Test OpenAIConfig base_url is None when env var not set."""
+    env = {"OPENAI_API_KEY": "test-key"}
+    # Ensure OPENAI_BASE_URL is not set
+    with patch.dict(os.environ, env, clear=True):
+        config = OpenAIConfig()
+        assert config.base_url is None
+
+
 @patch("openai.OpenAI", create=True)
 def test_get_llm_client_openai_with_base_url_lazy_load(mock_openai_lazy_constructor, mock_repo):
     """Test _get_llm_client lazy loads OpenAI client with base_url if not already initialized."""

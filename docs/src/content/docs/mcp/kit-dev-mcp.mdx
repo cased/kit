@@ -46,7 +46,11 @@ Add to your Cursor MCP settings (`~/.cursor/mcp.json`):
   "mcpServers": {
     "kit-dev-mcp": {
       "command": "uvx",
-      "args": ["--from", "cased-kit", "kit-dev-mcp"]
+      "args": ["--from", "cased-kit", "kit-dev-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "sk-...",  // Optional for deep research
+        "OPENAI_BASE_URL": "https://your-proxy.com/v1"  // Optional for custom OpenAI endpoints
+      }
     }
   }
 }
@@ -64,6 +68,7 @@ Add to your Claude Desktop config:
       "args": ["-m", "kit.mcp.dev"],
       "env": {
         "OPENAI_API_KEY": "sk-...",  // Optional for deep research
+        "OPENAI_BASE_URL": "https://your-proxy.com/v1",  // Optional for custom OpenAI endpoints
         "CHROMA_PACKAGE_SEARCH_API_KEY": "..."  // Optional for package source search
       }
     }

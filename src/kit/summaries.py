@@ -54,7 +54,7 @@ class OpenAIConfig:
     api_key: Optional[str] = field(default_factory=lambda: os.environ.get("OPENAI_API_KEY"))
     model: str = "gpt-5"
     max_tokens: int = 1000  # Default max tokens for summary
-    base_url: Optional[str] = None
+    base_url: Optional[str] = field(default_factory=lambda: os.environ.get("OPENAI_BASE_URL"))
 
     def __post_init__(self):
         if not self.api_key:
