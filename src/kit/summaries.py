@@ -343,6 +343,9 @@ class Summarizer:
         if self._llm_client is not None:
             return self._llm_client
 
+        if self.config is None:
+            raise LLMError("No LLM configuration provided")
+
         try:
             self._llm_client = create_client_from_config(self.config)
             return self._llm_client
