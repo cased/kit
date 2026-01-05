@@ -884,7 +884,7 @@ class AgenticPRReviewer:
             func_decl = types.FunctionDeclaration(
                 name=tool["name"],
                 description=tool["description"],
-                parameters_json_schema=tool["input_schema"],
+                parameters_json_schema=tool["input_schema"],  # type: ignore[call-arg]
             )
             function_declarations.append(func_decl)
 
