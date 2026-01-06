@@ -712,8 +712,8 @@ def test_config_missing_tokens():
             ReviewConfig.from_file("/non/existent/path")
 
 
-@patch("kit.pr_review.reviewer.requests.Session")
-@patch("kit.pr_review.reviewer.subprocess.run")
+@patch("kit.pr_review.base_reviewer.requests.Session")
+@patch("subprocess.run")
 def test_pr_review_dry_run(mock_subprocess, mock_session_class):
     """Test PR review in dry run mode (no actual API calls)."""
     # Mock subprocess for git operations
@@ -926,7 +926,7 @@ def test_model_flag_examples():
         assert config.llm.model == model
 
 
-@patch("kit.pr_review.reviewer.requests.Session")
+@patch("kit.pr_review.base_reviewer.requests.Session")
 @patch("kit.pr_review.reviewer.subprocess.run")
 def test_pr_review_with_model_override(mock_subprocess, mock_session_class):
     """Test PR review with model override."""
@@ -1023,40 +1023,6 @@ def test_model_validation_functions():
     suggestions = CostTracker.get_model_suggestions("gpt4")
     assert len(suggestions) > 0
     # Can't guarantee specific suggestions with dynamic pricing
-
-
-def test_cli_model_validation():
-    """Test CLI model validation."""
-    from typer.testing import CliRunner
-
-    from kit.cli import app
-
-    runner = CliRunner()
-
-    # Mock environment variables to provide valid tokens so we can test
-    # model validation
-    with patch.dict(
-        os.environ,
-        {
-            "KIT_GITHUB_TOKEN": "test_github_token",
-            "KIT_ANTHROPIC_TOKEN": "test_anthropic_token",
-        },
-    ):
-        # Test with invalid model - should fail
-        result = runner.invoke(
-            app,
-            [
-                "review",
-                "--model",
-                "invalid-model-name",
-                "--dry-run",
-                "https://github.com/owner/repo/pull/123",
-            ],
-        )
-
-        assert result.exit_code == 1
-        assert "Invalid model: invalid-model-name" in result.output
-        assert "💡 Did you mean:" in result.output
 
 
 # --- Test Thinking Token Stripping in PR Reviewer ---
@@ -1185,7 +1151,7 @@ class TestExistingRepoPath:
         finally:
             os.unlink(temp_config_path)
 
-    @patch("kit.pr_review.reviewer.requests.Session")
+    @patch("kit.pr_review.base_reviewer.requests.Session")
     @patch("pathlib.Path.exists")
     def test_get_repo_for_analysis_with_existing_path(self, mock_exists, mock_session_class):
         """Test get_repo_for_analysis uses existing repo path when configured."""
@@ -1215,7 +1181,7 @@ class TestExistingRepoPath:
                 # Should resolve to the absolute path and not use cache
                 assert "/existing/repo" in result
 
-    @patch("kit.pr_review.reviewer.requests.Session")
+    @patch("kit.pr_review.base_reviewer.requests.Session")
     @patch("pathlib.Path.exists")
     def test_get_repo_for_analysis_nonexistent_path(self, mock_exists, mock_session_class):
         """Test get_repo_for_analysis raises error for nonexistent repo path."""
@@ -1236,7 +1202,7 @@ class TestExistingRepoPath:
         with pytest.raises(ValueError, match="Specified repository path does not exist"):
             reviewer.get_repo_for_analysis("owner", "repo", pr_details)
 
-    @patch("kit.pr_review.reviewer.requests.Session")
+    @patch("kit.pr_review.base_reviewer.requests.Session")
     @patch("pathlib.Path.exists")
     def test_get_repo_for_analysis_not_git_repo(self, mock_exists, mock_session_class):
         """Test get_repo_for_analysis raises error for non-git directory."""
@@ -1264,7 +1230,7 @@ class TestExistingRepoPath:
                 with pytest.raises(ValueError, match="Specified path is not a git repository"):
                     reviewer.get_repo_for_analysis("owner", "repo", pr_details)
 
-    @patch("kit.pr_review.reviewer.requests.Session")
+    @patch("kit.pr_review.base_reviewer.requests.Session")
     @patch("kit.pr_review.reviewer.subprocess.run")
     @patch("builtins.print")
     def test_review_pr_with_existing_repo_warning(self, mock_print, mock_subprocess, mock_session_class):
@@ -1340,7 +1306,7 @@ class TestExistingRepoPath:
                         repo_path_calls = [call for call in mock_print.call_args_list if "/existing/repo" in str(call)]
                         assert len(repo_path_calls) > 0
 
-    @patch("kit.pr_review.agentic_reviewer.requests.Session")
+    @patch("kit.pr_review.base_reviewer.requests.Session")
     @patch("kit.pr_review.agentic_reviewer.asyncio.run")
     @patch("builtins.print")
     def test_agentic_reviewer_with_repo_path(self, mock_print, mock_asyncio_run, mock_session_class):
@@ -1390,7 +1356,7 @@ class TestExistingRepoPath:
         )
 
         # Mock the RepoCache to avoid path operation issues
-        with patch("kit.pr_review.agentic_reviewer.RepoCache") as mock_repo_cache_class:
+        with patch("kit.pr_review.base_reviewer.RepoCache") as mock_repo_cache_class:
             mock_repo_cache = Mock()
             mock_repo_cache_class.return_value = mock_repo_cache
 

@@ -66,31 +66,23 @@ def temp_code_file(tmp_path):
 # --- Test Summarizer Initialization ---
 
 
-@patch("openai.OpenAI", create=True)  # Mock OpenAI client constructor
+@patch("kit.llm_client_factory.create_openai_client")
 @patch("kit.summaries.tiktoken", create=True)  # Mock tiktoken
-def test_summarizer_init_default_is_openai(mock_tiktoken, mock_openai_constructor, mock_repo):
+def test_summarizer_init_default_is_openai(mock_tiktoken, mock_create_openai, mock_repo):
     # Test that Summarizer defaults to OpenAIConfig if no config is provided.
-    # The Summarizer will then attempt to initialize an OpenAI client.
-    # We patch os.environ to simulate API key being set to avoid actual ValueError.
+    # The Summarizer will then attempt to initialize an OpenAI client via the factory.
 
     mock_openai_client_instance = MagicMock()
-    mock_openai_constructor.return_value = mock_openai_client_instance
+    mock_create_openai.return_value = mock_openai_client_instance
 
-    # We need to patch the import in __init__ to return our mock module
     with patch.dict(os.environ, {"OPENAI_API_KEY": "test_dummy_key"}):
-        with patch(
-            "builtins.__import__",
-            side_effect=lambda name, *args, **kwargs: MagicMock(OpenAI=mock_openai_constructor)
-            if name == "openai"
-            else __import__(name, *args, **kwargs),
-        ):
-            try:
-                summarizer = Summarizer(repo=mock_repo)  # No config provided
-                assert isinstance(summarizer.config, OpenAIConfig), "Config should default to OpenAIConfig"
-                # The OpenAI constructor should be called once with our API key
-                mock_openai_constructor.assert_called_once_with(api_key="test_dummy_key")
-            except ValueError as e:
-                pytest.fail(f"Summarizer initialization with dummy API key failed unexpectedly: {e}")
+        try:
+            summarizer = Summarizer(repo=mock_repo)  # No config provided
+            assert isinstance(summarizer.config, OpenAIConfig), "Config should default to OpenAIConfig"
+            # The factory should be called with the API key
+            mock_create_openai.assert_called_once_with("test_dummy_key", None)
+        except ValueError as e:
+            pytest.fail(f"Summarizer initialization with dummy API key failed unexpectedly: {e}")
 
 
 def test_summarizer_init_openai(mock_repo):
@@ -202,33 +194,25 @@ def test_get_llm_client_openai_with_base_url_lazy_load(mock_openai_lazy_construc
         assert client is not None
 
 
-@patch("anthropic.Anthropic", create=True)
-def test_get_llm_client_anthropic(mock_anthropic_constructor, mock_repo):
+@patch("kit.llm_client_factory.create_anthropic_client")
+def test_get_llm_client_anthropic(mock_create_anthropic, mock_repo):
     """Test _get_llm_client returns the client created in __init__."""
-    # Set up mock before creating Summarizer
     mock_anthropic_instance = MagicMock()
-    mock_anthropic_constructor.return_value = mock_anthropic_instance
+    mock_create_anthropic.return_value = mock_anthropic_instance
 
-    # Patch the import to return our mock module
-    with patch(
-        "builtins.__import__",
-        side_effect=lambda name, *args, **kwargs: MagicMock(Anthropic=mock_anthropic_constructor)
-        if name == "anthropic"
-        else __import__(name, *args, **kwargs),
-    ):
-        config = AnthropicConfig(api_key="test_anthropic_key")
-        summarizer = Summarizer(repo=mock_repo, config=config)
+    config = AnthropicConfig(api_key="test_anthropic_key")
+    summarizer = Summarizer(repo=mock_repo, config=config)
 
-        # The client should have been created in __init__
-        mock_anthropic_constructor.assert_called_once_with(api_key="test_anthropic_key")
+    # The factory should have been called
+    mock_create_anthropic.assert_called_once_with("test_anthropic_key")
 
-        # _get_llm_client should return the already created client
-        client = summarizer._get_llm_client()
-        assert client is summarizer._llm_client
+    # _get_llm_client should return the already created client
+    client = summarizer._get_llm_client()
+    assert client is summarizer._llm_client
 
     # Call again to check caching
     client2 = summarizer._get_llm_client()
-    mock_anthropic_constructor.assert_called_once()  # Should not be called again
+    mock_create_anthropic.assert_called_once()  # Should not be called again
     assert client2 == client
 
 

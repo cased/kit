@@ -120,9 +120,9 @@ Focus on the security improvement at line 28-29."""
         # Most line references should be valid
         if line_refs:  # Only test if LLM actually provided line references
             accuracy_ratio = len(valid_refs) / len(line_refs)
-            assert (
-                accuracy_ratio >= 0.8
-            ), f"Line accuracy too low: {accuracy_ratio}. Valid: {valid_refs}, Invalid: {invalid_refs}"
+            assert accuracy_ratio >= 0.8, (
+                f"Line accuracy too low: {accuracy_ratio}. Valid: {valid_refs}, Invalid: {invalid_refs}"
+            )
 
         # Response should mention the specific lines we highlighted
         assert any(28 <= ref <= 29 for ref in line_refs), f"LLM didn't reference lines 28-29: {line_refs}"
@@ -183,9 +183,9 @@ Use the exact line numbers provided above when referencing code."""
             accuracy_with = 0
 
         # With context should be equal or better
-        assert (
-            accuracy_with >= accuracy_without
-        ), f"Context didn't improve accuracy: {accuracy_with} vs {accuracy_without}"
+        assert accuracy_with >= accuracy_without, (
+            f"Context didn't improve accuracy: {accuracy_with} vs {accuracy_without}"
+        )
 
         # If we have line references with context, accuracy should be high
         if refs_with:
@@ -458,9 +458,9 @@ Provide detailed feedback using the exact line numbers shown above."""
         specific_specificity = self._count_specificity_indicators(specific_response)
 
         # Specific prompt should yield more specific responses
-        assert (
-            specific_specificity >= vague_specificity
-        ), f"Context didn't improve specificity: {specific_specificity} vs {vague_specificity}"
+        assert specific_specificity >= vague_specificity, (
+            f"Context didn't improve specificity: {specific_specificity} vs {vague_specificity}"
+        )
 
     def _count_specificity_indicators(self, text: str) -> int:
         """Count indicators of specific feedback."""

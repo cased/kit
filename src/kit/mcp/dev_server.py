@@ -1061,10 +1061,7 @@ async def serve():
                     )
                     # Filter out code field unless explicitly requested (saves ~90% context)
                     if not symbol_params.include_code:
-                        result = [
-                            {k: v for k, v in symbol.items() if k != "code"}
-                            for symbol in result
-                        ]
+                        result = [{k: v for k, v in symbol.items() if k != "code"} for symbol in result]
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 elif name == "find_symbol_usages":
                     usage_params = FindSymbolUsagesParams(**arguments)
