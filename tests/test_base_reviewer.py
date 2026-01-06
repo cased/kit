@@ -33,6 +33,8 @@ class TestBaseReviewerInit:
 
     def test_init_creates_github_session(self, review_config, mock_session):
         """Test that init creates GitHub session with correct headers."""
+        from kit import __version__
+
         with patch("kit.pr_review.base_reviewer.RepoCache"):
             reviewer = BaseReviewer(review_config)
 
@@ -41,7 +43,7 @@ class TestBaseReviewerInit:
             call_args = mock_session.headers.update.call_args[0][0]
             assert "Authorization" in call_args
             assert call_args["Authorization"] == "token test-token"
-            assert call_args["User-Agent"] == "kit-review/0.6.1"
+            assert call_args["User-Agent"] == f"kit-review/{__version__}"
 
     def test_init_with_custom_user_agent(self, review_config, mock_session):
         """Test that init accepts custom user agent."""

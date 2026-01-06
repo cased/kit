@@ -22,7 +22,7 @@ class PRReviewer(BaseReviewer):
     """PR reviewer that uses kit's Repository class and LLM analysis for intelligent code reviews."""
 
     def __init__(self, config: ReviewConfig):
-        super().__init__(config, user_agent="kit-review/0.6.1")
+        super().__init__(config)  # Uses default kit-review/{version}
 
     def post_pr_comment(self, owner: str, repo: str, pr_number: int, comment: str) -> Dict[str, Any]:
         """Post a comment on the PR."""

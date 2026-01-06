@@ -4,6 +4,8 @@ import asyncio
 import json
 from typing import Any, Dict, List, cast
 
+from kit import __version__
+
 from .base_reviewer import BaseReviewer
 from .config import LLMProvider, ReviewConfig
 from .diff_parser import DiffParser
@@ -15,7 +17,7 @@ class AgenticPRReviewer(BaseReviewer):
     """Agentic PR reviewer that uses multi-turn analysis with kit tools."""
 
     def __init__(self, config: ReviewConfig):
-        super().__init__(config, user_agent="kit-agentic-reviewer/0.1.0")
+        super().__init__(config, user_agent=f"kit-agentic-reviewer/{__version__}")
         self.conversation_history: List[Dict[str, str]] = []
         self.analysis_state: Dict[str, Any] = {}
 

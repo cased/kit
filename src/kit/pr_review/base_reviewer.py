@@ -6,6 +6,8 @@ from typing import Any, Dict, Optional
 
 import requests
 
+from kit import __version__
+
 from .cache import RepoCache
 from .config import ReviewConfig
 from .cost_tracker import CostTracker
@@ -22,12 +24,12 @@ class BaseReviewer:
     - Diff caching
     """
 
-    def __init__(self, config: ReviewConfig, user_agent: str = "kit-review/0.6.1"):
+    def __init__(self, config: ReviewConfig, user_agent: Optional[str] = None):
         """Initialize the base reviewer.
 
         Args:
             config: The review configuration
-            user_agent: User-Agent string for GitHub API requests
+            user_agent: User-Agent string for GitHub API requests (defaults to kit-review/{version})
         """
         self.config = config
         self.github_session = requests.Session()
@@ -35,7 +37,7 @@ class BaseReviewer:
             {
                 "Authorization": f"token {config.github.token}",
                 "Accept": "application/vnd.github.v3+json",
-                "User-Agent": user_agent,
+                "User-Agent": user_agent or f"kit-review/{__version__}",
             }
         )
         self._llm_client: Optional[Any] = None
