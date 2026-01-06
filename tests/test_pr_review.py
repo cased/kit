@@ -1025,40 +1025,6 @@ def test_model_validation_functions():
     # Can't guarantee specific suggestions with dynamic pricing
 
 
-def test_cli_model_validation():
-    """Test CLI model validation."""
-    from typer.testing import CliRunner
-
-    from kit.cli import app
-
-    runner = CliRunner()
-
-    # Mock environment variables to provide valid tokens so we can test
-    # model validation
-    with patch.dict(
-        os.environ,
-        {
-            "KIT_GITHUB_TOKEN": "test_github_token",
-            "KIT_ANTHROPIC_TOKEN": "test_anthropic_token",
-        },
-    ):
-        # Test with invalid model - should fail
-        result = runner.invoke(
-            app,
-            [
-                "review",
-                "--model",
-                "invalid-model-name",
-                "--dry-run",
-                "https://github.com/owner/repo/pull/123",
-            ],
-        )
-
-        assert result.exit_code == 1
-        assert "Invalid model: invalid-model-name" in result.output
-        assert "💡 Did you mean:" in result.output
-
-
 # --- Test Thinking Token Stripping in PR Reviewer ---
 
 

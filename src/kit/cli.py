@@ -765,7 +765,7 @@ def review_pr(
         None,
         "--model",
         "-m",
-        help="Override LLM model (validated against supported models: e.g., gpt-4.1-nano, gpt-4.1, claude-sonnet-4-20250514)",
+        help="Override LLM model (e.g., gpt-4.1-nano, claude-sonnet-4-20250514)",
     ),
     priority: Optional[str] = typer.Option(
         None,
