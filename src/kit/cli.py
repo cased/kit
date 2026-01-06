@@ -236,23 +236,13 @@ def commit_changes(
                 # Assert for mypy that new_api_key is not None after error checks
                 assert new_api_key is not None
                 review_config.llm.api_key = new_api_key
+                review_config.llm.provider = detected_provider
+                review_config.llm_provider = detected_provider.value
                 typer.echo(f"🔄 Switched provider: {old_provider} → {detected_provider.value}")
 
             review_config.llm.model = model
+            review_config.llm_model = model
             typer.echo(f"🎛️  Using model: {model}")
-
-        # Validate model exists
-        from kit.pr_review.cost_tracker import CostTracker
-
-        if not CostTracker.is_valid_model(review_config.llm.model):
-            suggestions = CostTracker.get_model_suggestions(review_config.llm.model)
-            error_msg = f"Invalid model: {review_config.llm.model}"
-            help_msg = (
-                f"Did you mean: {', '.join(suggestions[:3])}?"
-                if suggestions
-                else "Run 'kit commit --help' to see available models"
-            )
-            handle_cli_error(ValueError(error_msg), "Model validation error", help_msg)
 
         # Create commit generator
         generator = CommitMessageGenerator(review_config)
@@ -908,24 +898,14 @@ def review_pr(
                 # Assert for mypy that new_api_key is not None after error checks
                 assert new_api_key is not None
                 review_config.llm.api_key = new_api_key
+                review_config.llm.provider = detected_provider
+                review_config.llm_provider = detected_provider.value
                 typer.echo(f"🔄 Switched provider: {old_provider} → {detected_provider.value}")
 
             review_config.llm.model = model
+            review_config.llm_model = model
             if not plain:  # Only show this message if not in plain mode
                 typer.echo(f"🎛️  Overriding model to: {model}")
-
-        # Validate model exists
-        from kit.pr_review.cost_tracker import CostTracker
-
-        if not CostTracker.is_valid_model(review_config.llm.model):
-            suggestions = CostTracker.get_model_suggestions(review_config.llm.model)
-            error_msg = f"Invalid model: {review_config.llm.model}"
-            help_msg = (
-                f"Did you mean: {', '.join(suggestions[:3])}?"
-                if suggestions
-                else "Run 'kit review --help' to see available models"
-            )
-            handle_cli_error(ValueError(error_msg), "Model validation error", help_msg)
 
         # Override comment posting if dry run or plain mode
         if dry_run or plain:
@@ -1399,25 +1379,15 @@ def summarize_pr(
                 # Assert for mypy that new_api_key is not None after error checks
                 assert new_api_key is not None
                 review_config.llm.api_key = new_api_key
+                review_config.llm.provider = detected_provider
+                review_config.llm_provider = detected_provider.value
                 if not plain:
                     typer.echo(f"🔄 Switched provider: {old_provider} → {detected_provider.value}")
 
             review_config.llm.model = model
+            review_config.llm_model = model
             if not plain:
                 typer.echo(f"🎛️  Using model: {model}")
-
-        # Validate model exists
-        from kit.pr_review.cost_tracker import CostTracker
-
-        if not CostTracker.is_valid_model(review_config.llm.model):
-            suggestions = CostTracker.get_model_suggestions(review_config.llm.model)
-            error_msg = f"Invalid model: {review_config.llm.model}"
-            help_msg = (
-                f"Did you mean: {', '.join(suggestions[:3])}?"
-                if suggestions
-                else "Run 'kit summarize --help' to see available models"
-            )
-            handle_cli_error(ValueError(error_msg), "Model validation error", help_msg)
 
         # Set quiet mode for plain output
         if plain:
