@@ -71,6 +71,7 @@ class ChromaDBBackend(VectorDBBackend):
         self.persist_dir = persist_dir
         self.client = PersistentClient(path=self.persist_dir)
         self.is_local = True  # Flag to identify local backend
+        self._needs_reset = True  # Track if collection needs clearing before next add
 
         final_collection_name = collection_name
         if final_collection_name is None:
@@ -132,36 +133,41 @@ class ChromaDBBackend(VectorDBBackend):
             pass
 
     def _reset_collection(self) -> None:
-        """Ensure we start from a clean collection before bulk re-add."""
-        try:
-            if self.collection.count() > 0:
-                cleared = False
-                try:
-                    self.client.delete_collection(self.collection_name)
-                    cleared = True
-                except Exception:
-                    pass
+        """Ensure we start from a clean collection before bulk re-add.
 
-                if not cleared:
+        Optimized to:
+        - Skip if already reset (tracked via _needs_reset flag)
+        - Use delete_collection as primary fast path (avoids count() call)
+        - Fall back to other methods only if delete_collection fails
+        """
+        if not self._needs_reset:
+            return
+
+        # Try delete_collection first - fastest path, avoids count() overhead
+        try:
+            self.client.delete_collection(self.collection_name)
+        except Exception:
+            # Collection might not exist or delete not supported - try alternatives
+            try:
+                # Check if there's anything to clear before expensive operations
+                if self.collection.count() > 0:
                     try:
                         self.collection.delete(where={"source": {"$ne": "__kit__never__"}})
-                        cleared = True
                     except Exception:
-                        pass
+                        try:
+                            existing = self.collection.get(include=[])
+                            ids = existing.get("ids") if isinstance(existing, dict) else None
+                            if ids:
+                                self.collection.delete(ids=list(ids))
+                        except Exception:
+                            pass
+            except Exception:
+                pass
 
-                if not cleared:
-                    try:
-                        existing = self.collection.get(include=[])
-                        ids = existing.get("ids") if isinstance(existing, dict) else None
-                        if ids:
-                            self.collection.delete(ids=list(ids))
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-        finally:
-            self.collection = self.client.get_or_create_collection(self.collection_name)
-            self._batch_size = _resolve_batch_size(self.collection)
+        # Recreate collection and mark as reset
+        self.collection = self.client.get_or_create_collection(self.collection_name)
+        self._batch_size = _resolve_batch_size(self.collection)
+        self._needs_reset = False
 
 
 class ChromaCloudBackend(VectorDBBackend):
