@@ -10,6 +10,23 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2026-01-07
+
+### Features
+
+- **Large Codebase Support** (#182)
+  - New `warm_cache` MCP tool to pre-warm caches for faster operations on 100K+ file repos
+  - File tree pagination with `limit`/`offset` params (default 10K files per page)
+  - Grep timeout increased from 30s to 120s (configurable via `KIT_GREP_TIMEOUT` env var)
+  - Grep early termination using `-m` flag for faster results
+  - Tested on Linux kernel (98K files): 248x speedup on cached file tree
+
+- **Tier 3 Performance Optimizations** (#181)
+  - Diff parsing cache: Pass pre-parsed diff to avoid redundant parsing (21.5x speedup)
+  - Parallel file processing in vector index using ThreadPoolExecutor (1.33x speedup)
+
+---
+
 ## [3.4.0] - 2026-01-06
 
 ### Improvements
