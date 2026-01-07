@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 import re
 from typing import Dict, List, Tuple
 
@@ -36,11 +37,33 @@ class LineRefFixer:
         fixes list items are (filename, old_line, new_line).
         """
         valid_map = cls._build_valid_line_map(diff_text)
+        # Convert sets to sorted lists once for O(log n) lookups
+        sorted_lines_cache: Dict[str, List[int]] = {}
         fixes: List[Tuple[str, int, int]] = []
 
         def _nearest(file: str, line: int) -> int:
-            lines = valid_map.get(file, set())
-            return min(lines, key=lambda n: abs(n - line)) if lines else line
+            # Get or build sorted list for this file
+            if file not in sorted_lines_cache:
+                lines = valid_map.get(file, set())
+                sorted_lines_cache[file] = sorted(lines) if lines else []
+
+            sorted_lines = sorted_lines_cache[file]
+            if not sorted_lines:
+                return line
+
+            # Binary search for nearest line - O(log n) instead of O(n)
+            idx = bisect.bisect_left(sorted_lines, line)
+
+            # Check candidates: idx and idx-1
+            if idx == 0:
+                return sorted_lines[0]
+            if idx == len(sorted_lines):
+                return sorted_lines[-1]
+
+            # Compare distances to neighbors
+            before = sorted_lines[idx - 1]
+            after = sorted_lines[idx]
+            return before if (line - before) <= (after - line) else after
 
         def _replacer(match: re.Match[str]) -> str:
             file, start_s, end_s = match.groups()
