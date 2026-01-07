@@ -394,7 +394,9 @@ class PRReviewer(BaseReviewer):
                             if validation.metrics.get("line_reference_errors", 0) > 0:
                                 from .line_ref_fixer import LineRefFixer
 
-                                analysis, fixes = LineRefFixer.fix_comment(analysis, pr_diff)
+                                # Use cached parsed diff to avoid re-parsing
+                                cached_parsed = self.get_parsed_diff(owner, repo, pr_number)
+                                analysis, fixes = LineRefFixer.fix_comment(analysis, pr_diff, parsed_diff=cached_parsed)
                                 if fixes and not quiet:
                                     print(
                                         f"🔧 Auto-fixed {len(fixes) // (2 if any(f[1] != f[2] for f in fixes) else 1)} line reference(s)"
@@ -443,7 +445,11 @@ class PRReviewer(BaseReviewer):
                                 if validation.metrics.get("line_reference_errors", 0) > 0:
                                     from .line_ref_fixer import LineRefFixer
 
-                                    analysis, fixes = LineRefFixer.fix_comment(analysis, pr_diff)
+                                    # Use cached parsed diff to avoid re-parsing
+                                    cached_parsed = self.get_parsed_diff(owner, repo, pr_number)
+                                    analysis, fixes = LineRefFixer.fix_comment(
+                                        analysis, pr_diff, parsed_diff=cached_parsed
+                                    )
                                     if fixes and not quiet:
                                         print(
                                             f"🔧 Auto-fixed {len(fixes) // (2 if any(f[1] != f[2] for f in fixes) else 1)} line reference(s)"
@@ -605,7 +611,8 @@ class PRReviewer(BaseReviewer):
                         if validation.metrics.get("line_reference_errors", 0) > 0:
                             from .line_ref_fixer import LineRefFixer
 
-                            analysis, fixes = LineRefFixer.fix_comment(analysis, diff_content)
+                            # Reuse already-parsed diff to avoid re-parsing
+                            analysis, fixes = LineRefFixer.fix_comment(analysis, diff_content, parsed_diff=parsed_diff)
                             if fixes and not quiet:
                                 is_different = [f[1] != f[2] for f in fixes]
                                 divisor = 2 if any(is_different) else 1

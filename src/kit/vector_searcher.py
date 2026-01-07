@@ -327,25 +327,72 @@ class VectorSearcher:
         self.chunk_metadatas: List[Dict[str, Any]] = []
         self.chunk_embeddings: List[List[float]] = []
 
-    def build_index(self, chunk_by: str = "symbols"):
+    def build_index(self, chunk_by: str = "symbols", parallel: bool = True, max_workers: Optional[int] = None):
+        """Build the vector index from repository files.
+
+        Args:
+            chunk_by: Chunking strategy - "symbols" or "lines"
+            parallel: Whether to process files in parallel (default True)
+            max_workers: Max parallel workers. Defaults to min(4, cpu_count).
+                Set via KIT_INDEXER_MAX_WORKERS env var.
+        """
         self.chunk_metadatas = []
         chunk_codes: List[str] = []
 
-        for file in self.repo.get_file_tree():
-            if file["is_dir"]:
-                continue
-            path = file["path"]
-            if chunk_by == "symbols":
-                chunks = self.repo.chunk_file_by_symbols(path)
-                for chunk in chunks:
-                    code = chunk["code"]
-                    self.chunk_metadatas.append({"file": path, **chunk})
-                    chunk_codes.append(code)
-            else:
-                chunks = self.repo.chunk_file_by_lines(path, max_lines=50)
-                for code in chunks:
-                    self.chunk_metadatas.append({"file": path, "code": code})
-                    chunk_codes.append(code)
+        files_to_process = [f["path"] for f in self.repo.get_file_tree() if not f["is_dir"]]
+
+        if parallel and len(files_to_process) > 1:
+            # Parallel processing for better performance on multi-core systems
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            if max_workers is None:
+                import os as _os
+
+                env_workers = _os.environ.get("KIT_INDEXER_MAX_WORKERS")
+                if env_workers:
+                    try:
+                        max_workers = int(env_workers)
+                    except ValueError:
+                        max_workers = None
+                if max_workers is None:
+                    cpu_count = _os.cpu_count() or 4
+                    max_workers = min(4, cpu_count)
+
+            def process_file(path: str) -> List[Dict[str, Any]]:
+                """Process a single file and return its chunks."""
+                if chunk_by == "symbols":
+                    chunks = self.repo.chunk_file_by_symbols(path)
+                    return [{"file": path, **chunk} for chunk in chunks]
+                else:
+                    chunks = self.repo.chunk_file_by_lines(path, max_lines=50)
+                    return [{"file": path, "code": code} for code in chunks]
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {executor.submit(process_file, path): path for path in files_to_process}
+                for future in as_completed(futures):
+                    try:
+                        file_chunks = future.result()
+                        for chunk in file_chunks:
+                            code = chunk.get("code", "")
+                            self.chunk_metadatas.append(chunk)
+                            chunk_codes.append(code)
+                    except Exception:
+                        # Skip files that fail to process
+                        pass
+        else:
+            # Sequential processing (fallback or single file)
+            for path in files_to_process:
+                if chunk_by == "symbols":
+                    chunks = self.repo.chunk_file_by_symbols(path)
+                    for chunk in chunks:
+                        code = chunk["code"]
+                        self.chunk_metadatas.append({"file": path, **chunk})
+                        chunk_codes.append(code)
+                else:
+                    chunks = self.repo.chunk_file_by_lines(path, max_lines=50)
+                    for code in chunks:
+                        self.chunk_metadatas.append({"file": path, "code": code})
+                        chunk_codes.append(code)
 
         # Embed in batch (attempt). Fallback to per-item if embed_fn doesn't support list input.
         if chunk_codes:
