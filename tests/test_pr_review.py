@@ -86,7 +86,7 @@ def test_config_loading_with_model_hint():
 
         # Test 1: Without model hint and no Anthropic key - should fail
         with patch.dict(os.environ, {"KIT_OPENAI_TOKEN": "sk-test-openai", "KIT_GITHUB_TOKEN": "ghp-test"}, clear=True):
-            with pytest.raises(ValueError, match="To use Anthropic.*default.*set.*ANTHROPIC"):
+            with pytest.raises(ValueError, match=r"To use Anthropic.*default.*set.*ANTHROPIC"):
                 ReviewConfig.from_file(str(config_path))
 
         # Test 2: With OpenAI model hint - should succeed
