@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import bisect
 import re
-from typing import Dict, List, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 from .diff_parser import DiffParser
+
+if TYPE_CHECKING:
+    from .diff_parser import FileDiff
 
 
 class LineRefFixer:
@@ -15,8 +18,22 @@ class LineRefFixer:
     REF_PATTERN = re.compile(r"([\w./+-]+\.[a-zA-Z0-9]{1,10}):(\d+)(?:-(\d+))?")
 
     @classmethod
-    def _build_valid_line_map(cls, diff_text: str) -> Dict[str, set[int]]:
-        diff_files = DiffParser.parse_diff(diff_text)
+    def _build_valid_line_map(
+        cls,
+        diff_text_or_parsed: Union[str, Dict[str, "FileDiff"]],
+    ) -> Dict[str, set[int]]:
+        """Build map of valid line numbers from diff.
+
+        Args:
+            diff_text_or_parsed: Either raw diff text (str) or pre-parsed diff dict.
+                Passing pre-parsed diff avoids redundant parsing when caller
+                has already parsed the diff.
+        """
+        if isinstance(diff_text_or_parsed, str):
+            diff_files = DiffParser.parse_diff(diff_text_or_parsed)
+        else:
+            diff_files = diff_text_or_parsed
+
         valid: Dict[str, set[int]] = {}
         for filename, fd in diff_files.items():
             line_set: set[int] = set()
@@ -31,12 +48,25 @@ class LineRefFixer:
         return valid
 
     @classmethod
-    def fix_comment(cls, comment: str, diff_text: str) -> Tuple[str, List[Tuple[str, int, int]]]:
+    def fix_comment(
+        cls,
+        comment: str,
+        diff_text: str,
+        parsed_diff: Optional[Dict[str, "FileDiff"]] = None,
+    ) -> Tuple[str, List[Tuple[str, int, int]]]:
         """Return (fixed_comment, fixes).
 
-        fixes list items are (filename, old_line, new_line).
+        Args:
+            comment: The review comment text to fix.
+            diff_text: Raw diff text (used if parsed_diff not provided).
+            parsed_diff: Pre-parsed diff dict. If provided, avoids re-parsing
+                the diff which saves ~0.1ms per call.
+
+        Returns:
+            Tuple of (fixed_comment, fixes) where fixes is a list of
+            (filename, old_line, new_line) tuples.
         """
-        valid_map = cls._build_valid_line_map(diff_text)
+        valid_map = cls._build_valid_line_map(parsed_diff if parsed_diff else diff_text)
         # Convert sets to sorted lists once for O(log n) lookups
         sorted_lines_cache: Dict[str, List[int]] = {}
         fixes: List[Tuple[str, int, int]] = []
