@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ class DependencyAnalyzer(ABC):
         """
         self.repo = repository
         self.dependency_graph: Dict[str, Dict[str, Any]] = {}
+        self._reverse_deps: Dict[str, List[str]] = {}
         self._initialized = False
 
     @abstractmethod
@@ -110,6 +112,18 @@ class DependencyAnalyzer(ABC):
         """
         pass
 
+    def _build_reverse_deps(self) -> None:
+        """Build reverse dependency map for O(1) incoming connection lookups.
+
+        This converts O(n²) incoming connection counting to O(n) by pre-computing
+        which nodes depend on each node.
+        """
+        reverse: Dict[str, List[str]] = defaultdict(list)
+        for node, data in self.dependency_graph.items():
+            for dep in data.get("dependencies", []):
+                reverse[dep].append(node)
+        self._reverse_deps = dict(reverse)
+
     def generate_llm_context(
         self, max_tokens: int = 4000, output_format: str = "markdown", output_path: Optional[str] = None
     ) -> str:
@@ -131,6 +145,9 @@ class DependencyAnalyzer(ABC):
         if not self._initialized:
             self.build_dependency_graph()
 
+        # Build reverse dependency map for O(1) incoming lookups
+        self._build_reverse_deps()
+
         # Generate overall statistics
         total_nodes = len(self.dependency_graph)
         internal_nodes = len([n for n, data in self.dependency_graph.items() if data.get("type", "") == "internal"])
@@ -146,10 +163,8 @@ class DependencyAnalyzer(ABC):
             # Count outgoing connections
             outgoing = len(self.dependency_graph[node].get("dependencies", []))
 
-            # Count incoming connections
-            incoming = len(
-                [n for n in self.dependency_graph if node in self.dependency_graph[n].get("dependencies", [])]
-            )
+            # Count incoming connections - O(1) lookup using reverse deps map
+            incoming = len(self._reverse_deps.get(node, []))
 
             node_connections[node] = (incoming, outgoing, incoming + outgoing)
 
