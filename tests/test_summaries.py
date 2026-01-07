@@ -311,7 +311,7 @@ def test_summarize_file_llm_error_empty_summary(mock_openai_constructor, mock_re
 
     config = OpenAIConfig(api_key="test_key")
     summarizer = Summarizer(repo=mock_repo, config=config)
-    with pytest.raises(LLMError, match="LLM returned an empty summary."):
+    with pytest.raises(LLMError, match=r"LLM returned an empty summary"):
         summarizer.summarize_file(temp_code_file)
 
 
@@ -455,7 +455,7 @@ def test_summarize_function_not_found(mock_repo):
     mock_repo.extract_symbols.return_value = []  # Simulate symbol not found
     config = OpenAIConfig(api_key="test_key")  # Can use any config for this test
     summarizer = Summarizer(repo=mock_repo, config=config)
-    with pytest.raises(ValueError, match="Could not find function 'non_existent_func' in 'some_file.py'."):
+    with pytest.raises(ValueError, match=r"Could not find function 'non_existent_func' in 'some_file\.py'\."):
         summarizer.summarize_function("some_file.py", "non_existent_func")
 
 
@@ -471,7 +471,7 @@ def test_summarize_function_llm_error_empty_summary(mock_openai_constructor, moc
 
     config = OpenAIConfig(api_key="test_key")
     summarizer = Summarizer(repo=mock_repo, config=config)
-    with pytest.raises(LLMError, match="LLM returned an empty summary for function my_func_empty."):
+    with pytest.raises(LLMError, match=r"LLM returned an empty summary for function my_func_empty\."):
         summarizer.summarize_function("file.py", "my_func_empty")
 
 
@@ -613,7 +613,7 @@ def test_summarize_class_not_found(mock_repo):
     mock_repo.extract_symbols.return_value = []  # Simulate symbol not found
     config = OpenAIConfig(api_key="test_key")  # Can use any config
     summarizer = Summarizer(repo=mock_repo, config=config)
-    with pytest.raises(ValueError, match="Could not find class 'NonExistentClass' in 'another_file.py'."):
+    with pytest.raises(ValueError, match=r"Could not find class 'NonExistentClass' in 'another_file\.py'\."):
         summarizer.summarize_class("another_file.py", "NonExistentClass")
 
 
@@ -629,7 +629,7 @@ def test_summarize_class_llm_error_empty_summary(mock_openai_constructor, mock_r
 
     config = OpenAIConfig(api_key="test_key")
     summarizer = Summarizer(repo=mock_repo, config=config)
-    with pytest.raises(LLMError, match="LLM returned an empty summary for class MyClass_empty."):
+    with pytest.raises(LLMError, match=r"LLM returned an empty summary for class MyClass_empty\."):
         summarizer.summarize_class("file.py", "MyClass_empty")
 
 

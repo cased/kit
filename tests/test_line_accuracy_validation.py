@@ -183,7 +183,7 @@ index abc..def 100644
             match = re.search(github_pattern, link)
             assert match is not None
 
-            link_text, owner, repo, sha, file_path, line_num = match.groups()
+            link_text, _owner, _repo, _sha, file_path, line_num = match.groups()
             assert file_path in link_text  # File should match
             assert line_num in link_text  # Line should match
 
@@ -191,7 +191,7 @@ index abc..def 100644
             # These might match the pattern but would fail validation in context
             match = re.search(github_pattern, link)
             if match:
-                link_text, owner, repo, sha, file_path, line_num = match.groups()
+                link_text, _owner, _repo, _sha, file_path, line_num = match.groups()
                 # Would need additional validation against actual diff
 
     def test_review_quality_with_line_accuracy(self):
