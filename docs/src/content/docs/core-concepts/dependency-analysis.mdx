@@ -49,7 +49,7 @@ if cycles:
         print(f"  {' → '.join(cycle)} → {cycle[0]}")
 
 # Get dependencies for a specific module
-module_deps = analyzer.get_resource_dependencies('module_name')
+module_deps = analyzer.get_dependencies('module_name')
 print(f"Module depends on: {module_deps}")
 
 # Get dependents (modules that depend on a specific module)
