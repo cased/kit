@@ -21,7 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Grep early termination using `-m` flag for faster results
   - Tested on Linux kernel (98K files): 248x speedup on cached file tree
 
-- **Tier 3 Performance Optimizations** (#181)
+### Performance
+
+- **Tier 1: Algorithmic Hot Paths** (#179)
+  - Dependency analyzer: O(n²) → O(1) incoming connections lookup (52x speedup)
+  - Line reference fixer: O(n) → O(log n) nearest line with binary search (696x speedup)
+  - Validator pre-compiled regex patterns (1.2x speedup)
+
+- **Tier 2: Caching Optimizations** (#180)
+  - Vector search collection reset optimization (2-5x faster index rebuilds)
+  - Context extractor file caching with mtime validation (10-94x faster repeated reads)
+
+- **Tier 3: Diff & Index Optimizations** (#181)
   - Diff parsing cache: Pass pre-parsed diff to avoid redundant parsing (21.5x speedup)
   - Parallel file processing in vector index using ThreadPoolExecutor (1.33x speedup)
 
