@@ -82,17 +82,26 @@ The server provides many tools including:
 
 - **open_repository** - Open local or remote Git repositories
 - **search_code** - Pattern-based code search
-- **grep_code** - Fast literal string search
+- **grep_code** - Fast literal string search (120s default timeout, configurable via `KIT_GREP_TIMEOUT`)
+- **get_file_tree** - Repository file structure with pagination support (`limit`/`offset` params)
 - **get_file_content** - Read file contents
 - **extract_symbols** - Extract functions, classes, and symbols
 - **find_symbol_usages** - Find where symbols are used
 - **get_code_summary** - AI-powered code summaries
+- **warm_cache** - Pre-warm caches for faster operations on large codebases (100K+ files)
 - **review_diff** - AI-powered diff reviews
 - **deep_research_package** - Comprehensive package documentation
 - **semantic_search** - Vector-based code search
 - **package_search_grep** - Search package source code with regex patterns
 - **package_search_hybrid** - Semantic search in package source code
 - **package_search_read_file** - Read specific files from packages
+
+<Aside type="tip" title="Large Codebases">
+For repositories with 50K+ files (Linux kernel, Kubernetes, etc.):
+- Use `warm_cache` first to pre-load the file tree (~3-5s for 100K files)
+- Use `get_file_tree` with `limit`/`offset` for pagination
+- `grep_code` now defaults to 120s timeout (set `KIT_GREP_TIMEOUT` env var to adjust)
+</Aside>
 
 ## Learn More
 

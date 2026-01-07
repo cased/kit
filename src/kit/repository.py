@@ -379,6 +379,7 @@ class Repository:
         max_results: int = 1000,
         directory: Optional[str] = None,
         include_hidden: bool = False,
+        timeout: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Performs literal grep search on repository files using system grep.
@@ -389,8 +390,11 @@ class Repository:
             include_pattern: Glob pattern for files to include (e.g. '*.py').
             exclude_pattern: Glob pattern for files to exclude.
             max_results: Maximum number of results to return. Defaults to 1000.
+                Uses grep's -m flag for early termination on large codebases.
             directory: Limit search to specific directory within repository (e.g. 'src', 'lib/utils').
             include_hidden: Whether to search hidden directories (starting with '.'). Defaults to False.
+            timeout: Search timeout in seconds. Defaults to 120s (or KIT_GREP_TIMEOUT env var).
+                For very large codebases (10M+ files), consider increasing this.
 
         Returns:
             List[Dict[str, Any]]: List of matches with file, line_number, line_content.
@@ -402,6 +406,17 @@ class Repository:
         import subprocess
 
         self._ensure_git_state_valid()
+
+        # Resolve timeout: parameter > env var > default (120s)
+        if timeout is None:
+            env_timeout = os.environ.get("KIT_GREP_TIMEOUT")
+            if env_timeout:
+                try:
+                    timeout = int(env_timeout)
+                except ValueError:
+                    timeout = 120
+            else:
+                timeout = 120
 
         # Build grep command
         cmd = ["grep", "-r", "-n", "-H"]  # -r for recursive, -n for line numbers, -H for filenames
@@ -477,6 +492,11 @@ class Repository:
                 raise ValueError(f"Directory not found in repository: {directory}")
             search_path = directory
 
+        # Early termination: use -m flag to stop after max_results matches per file
+        # This provides massive speedups on large codebases by avoiding full traversal
+        if max_results > 0:
+            cmd.extend(["-m", str(max_results)])
+
         # Search recursively in specified directory
         cmd.append(search_path)
 
@@ -487,10 +507,13 @@ class Repository:
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
-                timeout=30,  # 30 second timeout
+                timeout=timeout,
             )
         except subprocess.TimeoutExpired:
-            raise RuntimeError("Grep search timed out after 30 seconds")
+            raise RuntimeError(
+                f"Grep search timed out after {timeout} seconds. "
+                "Set KIT_GREP_TIMEOUT env var or timeout parameter for longer searches."
+            )
         except FileNotFoundError:
             raise RuntimeError("grep command not found. Please ensure grep is installed and in PATH.")
 
