@@ -129,6 +129,22 @@ class GetFileTreeParams(BaseModel):
         default=False,
         description="Include directory entries (only relevant when compact=true).",
     )
+    limit: int = Field(
+        default=10000,
+        description="Maximum number of files to return. Use with offset for pagination on very large repos.",
+    )
+    offset: int = Field(
+        default=0,
+        description="Number of files to skip. Use with limit for pagination.",
+    )
+
+
+class WarmCacheParams(BaseModel):
+    """Pre-warm caches for faster subsequent operations on large codebases."""
+
+    repo_id: str
+    warm_file_tree: bool = Field(default=True, description="Pre-cache file tree (fast, recommended)")
+    warm_symbols: bool = Field(default=False, description="Pre-cache symbol extraction (slower, scans all files)")
 
 
 class GetSymbolCodeParams(BaseModel):
@@ -283,6 +299,44 @@ class KitServerLogic:
         """Get file tree."""
         repo = self.get_repo(repo_id)
         return repo.get_file_tree()
+
+    def warm_cache(self, repo_id: str, warm_file_tree: bool = True, warm_symbols: bool = False) -> Dict[str, Any]:
+        """Pre-warm caches for faster subsequent operations on large codebases.
+
+        This is useful for very large repos where the first file_tree or symbol
+        extraction can take 30+ seconds. Warming caches upfront avoids timeouts.
+
+        Args:
+            repo_id: Repository ID to warm caches for
+            warm_file_tree: Pre-cache file tree (fast, ~1-5s for 100K files)
+            warm_symbols: Pre-cache symbols (slower, ~30-60s for 100K files)
+
+        Returns:
+            Dict with timing stats for each warmed cache
+        """
+        import time
+
+        repo = self.get_repo(repo_id)
+        stats: Dict[str, Any] = {"repo_id": repo_id}
+
+        if warm_file_tree:
+            start = time.time()
+            tree = repo.get_file_tree()
+            stats["file_tree"] = {
+                "elapsed_seconds": round(time.time() - start, 2),
+                "file_count": len(tree),
+            }
+
+        if warm_symbols:
+            start = time.time()
+            # Trigger full repo scan by calling extract_symbols with no file
+            symbols = repo.extract_symbols()
+            stats["symbols"] = {
+                "elapsed_seconds": round(time.time() - start, 2),
+                "symbol_count": len(symbols),
+            }
+
+        return stats
 
     def extract_symbols(self, repo_id: str, file_path: str, symbol_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """Extract symbols from a file."""
@@ -544,6 +598,11 @@ class KitServerLogic:
                 name="get_symbol_code",
                 description="Get source code of a specific symbol (lazy loading for context efficiency)",
                 inputSchema=GetSymbolCodeParams.model_json_schema(),
+            ),
+            Tool(
+                name="warm_cache",
+                description="Pre-warm caches for faster operations on large codebases (call before get_file_tree on huge repos)",
+                inputSchema=WarmCacheParams.model_json_schema(),
             ),
         ]
 
@@ -1072,15 +1131,33 @@ async def serve():
                 elif name == "get_file_tree":
                     tree_params = GetFileTreeParams(**arguments)
                     result = logic.get_file_tree(tree_params.repo_id)
+
+                    # Apply pagination for large codebases
+                    total_count = len(result)
+                    start = tree_params.offset
+                    end = start + tree_params.limit
+                    paginated = result[start:end]
+                    has_more = end < total_count
+
                     # Compact mode: newline-separated paths (saves ~75% context)
                     if tree_params.compact:
                         paths = []
-                        for item in result:
+                        for item in paginated:
                             is_dir = item.get("is_dir", False)
                             if tree_params.include_dirs or not is_dir:
                                 paths.append(item.get("path", ""))
-                        return [TextContent(type="text", text="\n".join(paths))]
-                    return [TextContent(type="text", text=json.dumps(result, indent=2))]
+                        # Include pagination metadata as header for compact mode
+                        header = f"# total={total_count} offset={start} limit={tree_params.limit} has_more={has_more}\n"
+                        return [TextContent(type="text", text=header + "\n".join(paths))]
+                    # JSON mode: include pagination in response
+                    response = {
+                        "files": paginated,
+                        "total_count": total_count,
+                        "offset": start,
+                        "limit": tree_params.limit,
+                        "has_more": has_more,
+                    }
+                    return [TextContent(type="text", text=json.dumps(response, indent=2))]
                 elif name == "get_code_summary":
                     summary_params = GetCodeSummaryParams(**arguments)
                     result = logic.get_code_summary(
@@ -1117,6 +1194,14 @@ async def serve():
                         symbol_code_params.repo_id,
                         symbol_code_params.file_path,
                         symbol_code_params.symbol_name,
+                    )
+                    return [TextContent(type="text", text=json.dumps(result, indent=2))]
+                elif name == "warm_cache":
+                    cache_params = WarmCacheParams(**arguments)
+                    result = logic.warm_cache(
+                        cache_params.repo_id,
+                        cache_params.warm_file_tree,
+                        cache_params.warm_symbols,
                     )
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
                 else:
