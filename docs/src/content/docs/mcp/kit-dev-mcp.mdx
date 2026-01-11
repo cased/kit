@@ -7,7 +7,7 @@ import { LinkCard, Aside, Card, CardGrid } from '@astrojs/starlight/components';
 
 # kit-dev mcp Server
 
-The kit-dev mcp Server transforms your AI assistant (Cursor, Claude Desktop, VS Code) into an active development partner with 15+ specialized tools for real coding work.
+The kit-dev mcp Server transforms your AI assistant (Cursor, Claude Desktop, VS Code) into an active development partner with 13 specialized tools for real coding work.
 
 <LinkCard
   title="🚀 Visit Full Documentation"
@@ -20,7 +20,7 @@ The kit-dev mcp Server transforms your AI assistant (Cursor, Claude Desktop, VS 
 kit-dev mcp provides enhanced development capabilities beyond basic code search:
 
 <CardGrid>
-  <Card title="15+ Development Tools" icon="rocket">
+  <Card title="13 Development Tools" icon="rocket">
     - Code search & analysis
     - File watching & monitoring
     - Symbol extraction
@@ -81,17 +81,15 @@ Add to your Claude Desktop config:
 The server provides many tools including:
 
 - **open_repository** - Open local or remote Git repositories
-- **search_code** - Pattern-based code search
 - **grep_code** - Fast literal string search (120s default timeout, configurable via `KIT_GREP_TIMEOUT`)
+- **grep_ast** - Search code using AST patterns (semantic search)
 - **get_file_tree** - Repository file structure with pagination support (`limit`/`offset` params)
-- **get_file_content** - Read file contents
 - **extract_symbols** - Extract functions, classes, and symbols
+- **get_symbol_code** - Get source code of a specific symbol (lazy loading for context efficiency)
 - **find_symbol_usages** - Find where symbols are used
-- **get_code_summary** - AI-powered code summaries
 - **warm_cache** - Pre-warm caches for faster operations on large codebases (100K+ files)
 - **review_diff** - AI-powered diff reviews
 - **deep_research_package** - Comprehensive package documentation
-- **semantic_search** - Vector-based code search
 - **package_search_grep** - Search package source code with regex patterns
 - **package_search_hybrid** - Semantic search in package source code
 - **package_search_read_file** - Read specific files from packages
