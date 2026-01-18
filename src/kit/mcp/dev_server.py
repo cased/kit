@@ -576,7 +576,7 @@ class KitServerLogic:
             ),
             Tool(
                 name="extract_symbols",
-                description="Extract symbols from a file",
+                description="Extract symbols (functions, classes, etc.) from a file. Returns name, type, start_line, end_line, file. By default excludes source code to save tokens (~90% reduction). Use include_code=true to get full source, or use get_symbol_code for lazy loading specific symbols.",
                 inputSchema=ExtractSymbolsParams.model_json_schema(),
             ),
             Tool(

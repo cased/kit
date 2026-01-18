@@ -2,24 +2,24 @@
 
 ; Function declarations
 (function_declaration
-  name: (identifier) @name @definition.function)
+  name: (identifier) @name) @definition.function
 
 ; Class declarations (with optional modifiers like export)
 (class_declaration
-  name: (type_identifier) @name @definition.class)
+  name: (type_identifier) @name) @definition.class
 
 ; Interface declarations
 (interface_declaration
-  name: (type_identifier) @name @definition.interface)
+  name: (type_identifier) @name) @definition.interface
 
 ; Enum declarations
 (enum_declaration
-  name: (identifier) @name @definition.enum)
+  name: (identifier) @name) @definition.enum
 
 ; Class methods
 (class_body
   (method_definition
-    name: (property_identifier) @name @definition.method))
+    name: (property_identifier) @name) @definition.method)
 
 ; Arrow functions assigned to const/let (lexical_declaration)
 (lexical_declaration
@@ -76,41 +76,41 @@
 ; Exported function declarations
 (export_statement
   declaration: (function_declaration
-    name: (identifier) @name @definition.function))
+    name: (identifier) @name) @definition.function)
 
 ; Exported class declarations
 (export_statement
   declaration: (class_declaration
-    name: (type_identifier) @name @definition.class))
+    name: (type_identifier) @name) @definition.class)
 
 ; Exported interface declarations
 (export_statement
   declaration: (interface_declaration
-    name: (type_identifier) @name @definition.interface))
+    name: (type_identifier) @name) @definition.interface)
 
 ; Exported enum declarations
 (export_statement
   declaration: (enum_declaration
-    name: (identifier) @name @definition.enum))
+    name: (identifier) @name) @definition.enum)
 
 ; Type alias declarations
 (type_alias_declaration
-  name: (type_identifier) @name @definition.type)
+  name: (type_identifier) @name) @definition.type
 
 ; Exported type alias declarations
 (export_statement
   declaration: (type_alias_declaration
-    name: (type_identifier) @name @definition.type))
+    name: (type_identifier) @name) @definition.type)
 
 ; Namespace (internal_module)
 (internal_module
-  name: (identifier) @name @definition.namespace)
+  name: (identifier) @name) @definition.namespace
 
 ; Generator functions
 (generator_function_declaration
-  name: (identifier) @name @definition.function)
+  name: (identifier) @name) @definition.function
 
 ; Exported generator functions
 (export_statement
   declaration: (generator_function_declaration
-    name: (identifier) @name @definition.function))
+    name: (identifier) @name) @definition.function)
