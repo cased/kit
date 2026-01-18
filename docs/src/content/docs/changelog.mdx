@@ -10,6 +10,23 @@ All notable changes to Kit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.1] - 2026-01-18
+
+### Bug Fixes
+
+- **Symbol Code Extraction** (#187, #188)
+  - Fixed `get_symbol_code` returning only symbol name instead of full source code
+  - Fixed `end_line` being same as `start_line` for multi-line functions
+  - Root cause: tree-sitter query patterns for TypeScript, JavaScript, and Rust had captures on wrong node
+  - Added regression tests for multi-line symbol extraction
+
+### Documentation
+
+- Improved `extract_symbols` MCP tool description to document `include_code` parameter
+- Clarified that code is excluded by default in MCP for ~90% token savings
+
+---
+
 ## [3.5.0] - 2026-01-07
 
 ### Features
