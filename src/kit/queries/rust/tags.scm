@@ -1,21 +1,16 @@
 ;; tags.scm for Rust symbol extraction
 
 (function_item
-  name: (identifier) @name
-  (#set! type "function"))
+  name: (identifier) @name) @definition.function
 
 (struct_item
-  name: (type_identifier) @name
-  (#set! type "struct"))
+  name: (type_identifier) @name) @definition.struct
 
 (enum_item
-  name: (type_identifier) @name
-  (#set! type "enum"))
+  name: (type_identifier) @name) @definition.enum
 
 (trait_item
-  name: (type_identifier) @name
-  (#set! type "trait"))
+  name: (type_identifier) @name) @definition.trait
 
 (impl_item
-  type: (type_identifier) @name
-  (#set! type "impl"))
+  type: (type_identifier) @name) @definition.impl

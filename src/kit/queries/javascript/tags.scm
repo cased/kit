@@ -3,11 +3,11 @@
 
 ; Function declarations
 (function_declaration
-  name: (identifier) @name @definition.function)
+  name: (identifier) @name) @definition.function
 
 ; Class declarations
 (class_declaration
-  name: (identifier) @name @definition.class)
+  name: (identifier) @name) @definition.class
 
 ; Arrow functions assigned to const/let (lexical_declaration)
 (lexical_declaration
@@ -57,23 +57,23 @@
 ; Exported function declarations
 (export_statement
   declaration: (function_declaration
-    name: (identifier) @name @definition.function))
+    name: (identifier) @name) @definition.function)
 
 ; Exported class declarations
 (export_statement
   declaration: (class_declaration
-    name: (identifier) @name @definition.class))
+    name: (identifier) @name) @definition.class)
 
 ; Class methods
 (class_body
   (method_definition
-    name: (property_identifier) @name @definition.method))
+    name: (property_identifier) @name) @definition.method)
 
 ; Generator functions
 (generator_function_declaration
-  name: (identifier) @name @definition.function)
+  name: (identifier) @name) @definition.function
 
 ; Exported generator functions
 (export_statement
   declaration: (generator_function_declaration
-    name: (identifier) @name @definition.function))
+    name: (identifier) @name) @definition.function)
