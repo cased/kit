@@ -13,6 +13,7 @@ from kit.llm_client_factory import create_client_from_review_config
 from .base_reviewer import BaseReviewer
 from .config import LLMProvider, ReviewConfig
 from .diff_parser import DiffParser, FileDiff
+from .error_utils import is_non_actionable_error
 from .file_prioritizer import FilePrioritizer
 from .priority_filter import filter_review_by_priority
 from .validator import validate_review_quality
@@ -478,11 +479,16 @@ class PRReviewer(BaseReviewer):
                 basic_analysis = f"Quick analysis mode.\n\nFiles changed: {len(files)} files with {sum(f['additions'] for f in files)} additions and {sum(f['deletions'] for f in files)} deletions."
                 review_comment = self._generate_intelligent_comment(pr_details, files, basic_analysis)
 
-            # Post comment if configured to do so
+            # Post comment if configured to do so, but never post non-actionable
+            # infrastructure errors (token limits, upstream 5xx, rate limits).
             if self.config.post_as_comment:
-                comment_result = self.post_pr_comment(owner, repo, pr_number, review_comment)
-                if not quiet:
-                    print(f"Posted comment: {comment_result['html_url']}")
+                if is_non_actionable_error(review_comment):
+                    if not quiet:
+                        print("Skipping GitHub comment: LLM provider returned a non-actionable error")
+                else:
+                    comment_result = self.post_pr_comment(owner, repo, pr_number, review_comment)
+                    if not quiet:
+                        print(f"Posted comment: {comment_result['html_url']}")
 
             # Display cost summary
             if not quiet:
