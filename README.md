@@ -80,6 +80,11 @@ repo = Repository("https://github.com/owner/private-repo", github_token="ghp_...
 
 # At a specific commit, tag, or branch
 # repo = Repository("https://github.com/owner/repo", ref="v1.2.3")
+
+# For multiple repos (microservices, monorepos, team projects)
+from kit import MultiRepo
+repos = MultiRepo(["~/code/frontend", "~/code/backend", "~/code/shared"])
+repos.search("handleAuth")  # Search across all repos
 ```
 
 ```python

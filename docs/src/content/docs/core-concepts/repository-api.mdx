@@ -70,6 +70,33 @@ You can perform various code intelligence tasks:
 </Aside>
 
 
+## Working with Multiple Repositories
+
+When you need to analyze multiple repositories together—such as microservices, a frontend/backend split, or team projects—use `MultiRepo`:
+
+```python
+from kit import MultiRepo
+
+repos = MultiRepo([
+    "~/code/frontend",
+    "~/code/backend",
+    "~/code/shared-lib",
+])
+
+# Search across all repos
+results = repos.search("handleAuth")
+
+# Find symbols across repos
+models = repos.find_symbol("UserModel", symbol_type="class")
+
+# Audit dependencies for version drift
+deps = repos.audit_dependencies()
+```
+
+<Aside type="tip">
+  See the **[MultiRepo API Reference](/api/multi-repo/)** for full documentation including semantic search across repos, CLI commands, and dependency version drift detection.
+</Aside>
+
 <Aside type="note">
 ## File and Directory Exclusion (.gitignore support)
 
