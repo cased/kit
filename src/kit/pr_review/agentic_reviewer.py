@@ -9,6 +9,7 @@ from kit import __version__
 from .base_reviewer import BaseReviewer
 from .config import LLMProvider, ReviewConfig
 from .diff_parser import DiffParser
+from .error_utils import is_non_actionable_error
 from .file_prioritizer import FilePrioritizer
 from .priority_filter import filter_review_by_priority
 
@@ -1094,10 +1095,14 @@ Keep it focused and valuable. Begin your analysis.
             # Generate final comment
             review_comment = self._generate_agentic_comment(pr_details, files, analysis)
 
-            # Post comment if configured to do so AND analysis completed successfully
+            # Post comment if configured to do so AND analysis completed successfully.
+            # Never post non-actionable infrastructure errors (token limits, 5xx, rate limits).
             if self.config.post_as_comment:
-                comment_result = self.post_pr_comment(owner, repo, pr_number, review_comment)
-                print(f"Posted comment: {comment_result['html_url']}")
+                if is_non_actionable_error(review_comment):
+                    print("Skipping GitHub comment: LLM provider returned a non-actionable error")
+                else:
+                    comment_result = self.post_pr_comment(owner, repo, pr_number, review_comment)
+                    print(f"Posted comment: {comment_result['html_url']}")
             else:
                 print("Comment posting disabled in configuration")
 
