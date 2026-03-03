@@ -12,16 +12,8 @@ module.exports = {
   rules: {
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-    "@typescript-eslint/ban-types": [
-      "warn",
-      {
-        types: {
-          Symbol: false,
-        },
-        extendDefaults: true,
-      },
-    ],
     "@typescript-eslint/no-var-requires": "off",
+    "@typescript-eslint/no-require-imports": "off",
     "no-empty": ["warn", { allowEmptyCatch: true }],
   },
 };
