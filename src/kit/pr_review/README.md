@@ -464,6 +464,12 @@ export KIT_OPENAI_TOKEN="your_openrouter_api_key"
 export KIT_OPENAI_TOKEN="your_groq_api_key"
 ```
 
+**Forge** (Unified API router)
+```bash
+export FORGE_API_KEY="your_forge_api_key"
+# Optional: export FORGE_API_BASE="https://api.forge.tensorblock.co/v1"
+```
+
 **Local OpenAI API Server** (e.g., text-generation-webui, vLLM)
 ```bash
 export KIT_OPENAI_TOKEN="not-used"  # Local servers often don't need API keys
@@ -488,7 +494,7 @@ github:
   base_url: https://api.github.com
 
 llm:
-  provider: anthropic  # or "openai"
+  provider: anthropic  # or "openai", "google", "ollama", "forge"
   model: claude-sonnet-4-20250514  # or "gpt-4o"
   api_key: sk-ant-your_key_here
   max_tokens: 4000
@@ -514,6 +520,16 @@ custom_pricing:
 ```
 
 #### Custom OpenAI Compatible Provider Examples
+
+**Forge Configuration:**
+```yaml
+llm:
+  provider: forge
+  model: "openai/gpt-4o-mini"
+  api_key: "your_forge_api_key"
+  # api_base_url: "https://api.forge.tensorblock.co/v1"  # Optional override
+  max_tokens: 4000
+```
 
 **Together AI Configuration:**
 ```yaml
@@ -879,6 +895,8 @@ Output example:
 | Anthropic Key | `KIT_ANTHROPIC_TOKEN` |
 | OpenAI Key | `KIT_OPENAI_TOKEN` |
 | Google Key | `KIT_GOOGLE_API_KEY` |
+| Forge Key | `FORGE_API_KEY` |
+| Forge Base URL (optional) | `FORGE_API_BASE` |
 
 ## Supported LLM Providers
 
@@ -888,6 +906,7 @@ Kit review supports multiple LLM providers:
 - **OpenAI GPT** - Reliable performance with `gpt-4.1-2025-04-14`
 - **Google Gemini** - Great models like `gemini-2.5-flash`
 - **Ollama** - Free local models like `qwen2.5-coder:latest`
+- **Forge** - OpenAI-compatible router using models like `openai/gpt-4o-mini`
 
 ### Cost Tracking
 

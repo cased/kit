@@ -18,6 +18,9 @@ class LLMProvider(Enum):
     GOOGLE = "google"
 
 
+FORGE_DEFAULT_BASE_URL = "https://api.forge.tensorblock.co/v1"
+
+
 class ReviewDepth(Enum):
     """Review analysis depth levels."""
 
@@ -232,12 +235,18 @@ class ReviewConfig:
             or "anthropic"
         )
 
+        provider_str = provider_str.lower()
+        is_forge_provider = provider_str == "forge"
+
         try:
-            provider = LLMProvider(provider_str)
+            provider = LLMProvider.OPENAI if is_forge_provider else LLMProvider(provider_str)
         except ValueError:
-            raise ValueError(f"Unsupported LLM provider: {provider_str}. Use: {[p.value for p in LLMProvider]}")
+            supported = [p.value for p in LLMProvider]
+            supported.append("forge")
+            raise ValueError(f"Unsupported LLM provider: {provider_str}. Use: {supported}")
 
         # Default models and API key environment variables
+        api_base_url = llm_data.get("api_base_url")
         if provider == LLMProvider.ANTHROPIC:
             default_model = "claude-sonnet-4-5"
             api_key_env = "KIT_ANTHROPIC_TOKEN or ANTHROPIC_API_KEY"
@@ -258,12 +267,22 @@ class ReviewConfig:
             # Ollama doesn't need an API key, but we'll use a placeholder for consistency
             api_key = llm_data.get("api_key", "ollama")
         else:  # OpenAI
-            default_model = "gpt-4.1-2025-04-14"
-            api_key_env = "KIT_OPENAI_TOKEN or OPENAI_API_KEY"
-            config_api_key = llm_data.get("api_key")
-            if _is_placeholder_token(config_api_key):
-                config_api_key = None  # Treat placeholder as missing
-            api_key = config_api_key or os.getenv("KIT_OPENAI_TOKEN") or os.getenv("OPENAI_API_KEY")
+            if is_forge_provider:
+                default_model = "openai/gpt-4o-mini"
+                api_key_env = "FORGE_API_KEY"
+                config_api_key = llm_data.get("api_key")
+                if _is_placeholder_token(config_api_key):
+                    config_api_key = None  # Treat placeholder as missing
+                api_key = config_api_key or os.getenv("FORGE_API_KEY")
+                if not api_base_url:
+                    api_base_url = os.getenv("FORGE_API_BASE") or FORGE_DEFAULT_BASE_URL
+            else:
+                default_model = "gpt-4.1-2025-04-14"
+                api_key_env = "KIT_OPENAI_TOKEN or OPENAI_API_KEY"
+                config_api_key = llm_data.get("api_key")
+                if _is_placeholder_token(config_api_key):
+                    config_api_key = None  # Treat placeholder as missing
+                api_key = config_api_key or os.getenv("KIT_OPENAI_TOKEN") or os.getenv("OPENAI_API_KEY")
 
         # Ollama doesn't require API keys, so skip validation for it
         if not api_key and provider != LLMProvider.OLLAMA:
@@ -286,7 +305,7 @@ class ReviewConfig:
             model=llm_data.get("model", default_model),
             api_key=str(api_key),
             max_tokens=llm_data.get("max_tokens", 4000),
-            api_base_url=llm_data.get("api_base_url"),
+            api_base_url=api_base_url,
         )
 
         # Set default base URLs for local providers
@@ -362,8 +381,8 @@ class ReviewConfig:
         default_config = {
             "github": {"token": "ghp_your_token_here", "base_url": "https://api.github.com"},
             "llm": {
-                "provider": "anthropic",  # or "openai", "google"
-                "model": "claude-sonnet-4-5",  # or "gpt-4.1", "gemini-2.5-flash"
+                "provider": "anthropic",  # or "openai", "google", "forge"
+                "model": "claude-sonnet-4-5",  # or "gpt-4.1", "gemini-2.5-flash", "openai/gpt-4o-mini"
                 "api_key": "sk-your_api_key_here",
                 "max_tokens": 4000,
                 # For custom OpenAI compatible providers (e.g., Together AI, OpenRouter, etc.)
@@ -426,6 +445,14 @@ class ReviewConfig:
 #   max_tokens: 4000
 
 # Example OpenAI compatible provider configurations:
+#
+# Forge (https://forge.tensorblock.co/):
+# llm:
+#   provider: forge
+#   model: "openai/gpt-4o-mini"
+#   api_key: "your_forge_api_key"
+#   # api_base_url: "https://api.forge.tensorblock.co/v1"  # Optional override
+#   max_tokens: 4000
 #
 # Together AI (https://together.ai/):
 # llm:
