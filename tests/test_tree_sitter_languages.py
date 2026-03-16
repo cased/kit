@@ -12,6 +12,10 @@ LANG_SAMPLES = {
     "c": b"int foo() { return 42; }\n",
     "dart": b"int foo() { return 42; }\n",
     "zig": b"pub fn foo() void { }\n",
+    "swift": b"func foo() -> Int { return 42 }\n",
+    "bash": b"function foo() { echo hello; }\n",
+    "yaml": b"key: value\n",
+    "toml": b'[package]\nname = "test"\n',
 }
 
 

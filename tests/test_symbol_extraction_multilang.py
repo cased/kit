@@ -9,6 +9,10 @@ SAMPLES = {
     ".java": "class Bar { void foo() {} }\n",
     ".rs": "fn foo() {}\nstruct Bar;\n",
     ".zig": "pub fn foo() void {}\npub const Bar = struct {};\n",
+    ".swift": "func foo() -> Int { return 42 }\nclass Bar {}\n",
+    ".sh": "function foo() { echo hello; }\n",
+    ".yaml": "foo: bar\nbaz: 1\n",
+    ".toml": "[foo]\nbar = 1\n",
 }
 
 
@@ -90,8 +94,7 @@ def test_symbol_code_contains_full_body(ext: str, code: str):
 
     # The code field should contain more than just the function name
     assert len(func_code) > len(func_name), (
-        f"Code field for {ext} only contains name '{func_name}', expected full function body. "
-        f"Got: '{func_code}'"
+        f"Code field for {ext} only contains name '{func_name}', expected full function body. Got: '{func_code}'"
     )
 
     # The code should contain the function keyword or definition

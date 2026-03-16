@@ -34,6 +34,12 @@ LANGUAGES: dict[str, str] = {
     ".hxx": "cpp",
     ".zig": "zig",
     ".cs": "csharp",
+    ".swift": "swift",
+    ".sh": "bash",
+    ".bash": "bash",
+    ".yaml": "yaml",
+    ".yml": "yaml",
+    ".toml": "toml",
 }
 
 
@@ -350,10 +356,22 @@ class TreeSitterSymbolExtractor:
             ".hxx": "cpp",
             ".zig": "zig",
             ".cs": "csharp",
+            ".swift": "swift",
+            ".sh": "bash",
+            ".bash": "bash",
+            ".yaml": "yaml",
+            ".yml": "yaml",
+            ".toml": "toml",
         }
         LANGUAGES.clear()
         LANGUAGES.update(original_languages)
         cls.LANGUAGES = set(LANGUAGES.keys())
+
+    @staticmethod
+    def _strip_wrapping_quotes(text: str) -> str:
+        if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
+            return text[1:-1]
+        return text
 
     @staticmethod
     def extract_symbols(ext: str, source_code: str) -> List[Dict[str, Any]]:
@@ -454,10 +472,13 @@ class TreeSitterSymbolExtractor:
                     if hasattr(actual_name_node, "text") and actual_name_node.text
                     else str(actual_name_node)
                 )
-                # HCL: Strip quotes from string literals
-                if ext == ".tf" and hasattr(actual_name_node, "type") and actual_name_node.type == "string_lit":
-                    if len(symbol_name) >= 2 and symbol_name.startswith('"') and symbol_name.endswith('"'):
-                        symbol_name = symbol_name[1:-1]
+                node_type = actual_name_node.type if hasattr(actual_name_node, "type") else None
+                if (
+                    (ext == ".tf" and node_type == "string_lit")
+                    or (ext == ".toml" and node_type == "quoted_key")
+                    or (ext in {".yaml", ".yml"} and node_type in {"double_quote_scalar", "single_quote_scalar"})
+                ):
+                    symbol_name = TreeSitterSymbolExtractor._strip_wrapping_quotes(symbol_name)
 
                 definition_capture = next(
                     ((name, node) for name, node in captures.items() if name.startswith("definition.")), None
