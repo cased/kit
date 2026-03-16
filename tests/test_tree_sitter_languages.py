@@ -12,6 +12,7 @@ LANG_SAMPLES = {
     "c": b"int foo() { return 42; }\n",
     "dart": b"int foo() { return 42; }\n",
     "zig": b"pub fn foo() void { }\n",
+    "bash": b"function foo() { echo hello; }\n",
 }
 
 
