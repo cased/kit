@@ -9,6 +9,7 @@ SAMPLES = {
     ".java": "class Bar { void foo() {} }\n",
     ".rs": "fn foo() {}\nstruct Bar;\n",
     ".zig": "pub fn foo() void {}\npub const Bar = struct {};\n",
+    ".swift": "func foo() -> Int { return 42 }\nclass Bar {}\n",
 }
 
 
