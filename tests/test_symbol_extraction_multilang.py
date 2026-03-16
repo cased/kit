@@ -9,6 +9,7 @@ SAMPLES = {
     ".java": "class Bar { void foo() {} }\n",
     ".rs": "fn foo() {}\nstruct Bar;\n",
     ".zig": "pub fn foo() void {}\npub const Bar = struct {};\n",
+    ".yaml": "foo: bar\nbaz: 1\n",
 }
 
 
