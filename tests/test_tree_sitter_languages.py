@@ -12,6 +12,7 @@ LANG_SAMPLES = {
     "c": b"int foo() { return 42; }\n",
     "dart": b"int foo() { return 42; }\n",
     "zig": b"pub fn foo() void { }\n",
+    "swift": b"func foo() -> Int { return 42 }\n",
 }
 
 
